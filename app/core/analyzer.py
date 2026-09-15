@@ -8,6 +8,8 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
 
+from app.core.cycle_estimator import CycleEstimator
+
 MIN_WAIT_S = 5.0
 SIGNAL_BIN_S = 2.0
 
@@ -47,44 +49,17 @@ def load_trajectories(path: Path) -> pd.DataFrame:
     return frame
 
 
-def estimate_cycle(frame: pd.DataFrame) -> tuple[float, float, list[dict[str, float]]]:
+def estimate_cycle(frame: pd.DataFrame) -> tuple[float, float, list[dict[str, float | int]]]:
     n_bins = int(np.ceil(frame["t_s"].max() / SIGNAL_BIN_S)) + 1
     signal = np.zeros(n_bins)
-
-    for _, row in frame[frame["delayed"]].iterrows():
+    delayed = frame[frame["delayed"]]
+    for _, row in delayed.iterrows():
         signal[int(row["t_s"] // SIGNAL_BIN_S)] += row["release_weight"]
 
-    signal = gaussian_filter1d(signal, sigma=1.2)
-    centered = signal - signal.mean()
-    autocorr = np.correlate(centered, centered, mode="full")[len(centered) - 1 :]
-    lags = np.arange(len(autocorr)) * SIGNAL_BIN_S
-
-    mask = (lags >= 60) & (lags <= 140)
-    if not mask.any() or autocorr[0] <= 0:
-        raise RuntimeError("Could not estimate a traffic cycle")
-
-    local = autocorr[mask]
-    cycle = float(lags[mask][np.argmax(local)])
-    strength = float(autocorr[int(cycle / SIGNAL_BIN_S)] / autocorr[0])
-
-    peaks, _ = find_peaks(
-        local,
-        distance=max(1, int(15 / SIGNAL_BIN_S)),
-        prominence=max(1e-9, local.max() * 0.03),
-    )
-    candidates = sorted(
-        (
-            {
-                "period_s": round(float(lags[mask][idx]), 1),
-                "strength": round(float(local[idx] / autocorr[0]), 3),
-            }
-            for idx in peaks
-        ),
-        key=lambda item: item["strength"],
-        reverse=True,
-    )[:10]
-
-    return cycle, strength, candidates
+    estimate = CycleEstimator().estimate(signal, sampling_seconds=SIGNAL_BIN_S)
+    candidates = [candidate.to_dict() for candidate in estimate.candidate_periods]
+    strength = float(estimate.candidate_periods[0].strength)
+    return estimate.cycle_seconds, strength, candidates
 
 
 def build_movement_profiles(
