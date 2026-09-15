@@ -8,7 +8,6 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
 
-
 MIN_WAIT_S = 5.0
 SIGNAL_BIN_S = 2.0
 
@@ -129,7 +128,7 @@ def detect_phase_transitions(
     signal = gaussian_filter1d(profiles.sum(axis=0).to_numpy(), sigma=1.5)
     peak_indices, _ = find_peaks(
         signal,
-        distance=max(1, int(12 / 2.0)),
+        distance=max(1, int(12 / SIGNAL_BIN_S)),
         prominence=max(0.01, signal.max() * 0.08),
     )
 
