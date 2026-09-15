@@ -1,0 +1,57 @@
+{
+  "method": "phase_folded_profile_clustering",
+  "ground_truth_available": false,
+  "note": "The supplied datasets contain trajectories but no traffic-light phase labels. These are inferred phase structures, not measured signal programs.",
+  "datasets": {
+    "Chicherina-40 Let Pobedy": {
+      "cycle_seconds": 120,
+      "phases": [
+        {
+          "phase_id": 1,
+          "phase_start": 0,
+          "phase_end": 48,
+          "active_approaches": ["N", "S"],
+          "active_movements": ["N->_S", "S->_N"],
+          "status": "candidate"
+        },
+        {
+          "phase_id": 2,
+          "phase_start": 50,
+          "phase_end": 98,
+          "active_approaches": ["E", "W"],
+          "active_movements": ["E->_W", "W->_E"],
+          "status": "candidate"
+        }
+      ],
+      "uncertainty": [
+        "The phase boundaries are inferred from recurring traffic activity and may shift because queues and travel times smear the transition.",
+        "Turn movements with weak sample counts can be assigned to no stable phase."
+      ]
+    },
+    "Lenina-Sverdlovskiy": {
+      "cycle_seconds": 100,
+      "phases": [
+        {
+          "phase_id": 1,
+          "phase_start": 0,
+          "phase_end": 40,
+          "active_approaches": ["N", "S"],
+          "active_movements": ["N->_S", "S->_N"],
+          "status": "candidate"
+        },
+        {
+          "phase_id": 2,
+          "phase_start": 50,
+          "phase_end": 90,
+          "active_approaches": ["E", "W"],
+          "active_movements": ["E->_W", "W->_E"],
+          "status": "candidate"
+        }
+      ],
+      "uncertainty": [
+        "The supplied analysis had a weaker phase ground truth than a signal-controller log, so protected turns and short transition intervals remain unresolved.",
+        "The 100 s cycle was previously inferred from traffic periodicity; it is not a directly observed signal timing."
+      ]
+    }
+  }
+}
