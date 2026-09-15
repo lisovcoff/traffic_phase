@@ -7,7 +7,7 @@ import numpy as np
 from app.core.cycle_estimator import CycleEstimator
 from app.core.phase_discovery import PhaseDiscovery
 from app.core.preprocessing import load_trajectory_file, trajectories_to_frame
-from app.core.review_log import build_review_log
+from app.core.review_log import build_review_log, review_summary
 from app.core.signal_state_estimator import SignalStateEstimator
 
 SIGNAL_BIN_SECONDS = 2.0
@@ -15,9 +15,11 @@ YELLOW_DURATION_SECONDS = 2.0
 
 
 def build_playback_payload(path: Path) -> dict[str, object]:
-    """Run the current reconstruction pipeline and prepare browser playback data."""
+    """Run reconstruction and prepare browser playback plus review diagnostics."""
     trajectories = load_trajectory_file(path)
     frame = trajectories_to_frame(trajectories)
+    if frame.empty:
+        raise RuntimeError("no car trajectories available for playback")
 
     max_time = float(frame["t_s"].max())
     n_bins = max(2, int(np.ceil(max_time / SIGNAL_BIN_SECONDS)) + 1)
@@ -47,28 +49,28 @@ def build_playback_payload(path: Path) -> dict[str, object]:
     for timestamp_ms, result in zip(timestamps_ms, results):
         snapshot = result.to_dict()
         snapshot["timestamp_ms"] = timestamp_ms
-        snapshot["approaches"] = {
-            item["approach"]: item for item in snapshot["approaches"]
-        }
+        snapshot["approaches"] = {item["approach"]: item for item in snapshot["approaches"]}
         timeline.append(snapshot)
 
-    diagnostics = []
-    for result in timeline:
-        diagnostics.append(
-            {
-                "timestamp_ms": result["timestamp_ms"],
-                "timestamp_s": result["timestamp_s"],
-                "phase_id": result["phase_id"],
-                "cycle_phase_s": result["cycle_phase_s"],
-                "phase_confidence": result["phase_confidence"],
-                "transition": result["transition"],
-                "states": {
-                    approach: state["state"]
-                    for approach, state in result["approaches"].items()
-                },
-            }
-        )
+    diagnostics = [
+        {
+            "timestamp_ms": result["timestamp_ms"],
+            "timestamp_s": result["timestamp_s"],
+            "phase_id": result["phase_id"],
+            "cycle_phase_s": result["cycle_phase_s"],
+            "phase_confidence": result["phase_confidence"],
+            "transition": result["transition"],
+            "states": {approach: state["state"] for approach, state in result["approaches"].items()},
+        }
+        for result in timeline
+    ]
 
+    review = review_summary(
+        frame,
+        phase_model,
+        timeline,
+        cycle_confidence=float(cycle.confidence),
+    )
     review_log = build_review_log(
         frame,
         phase_model,
@@ -95,5 +97,6 @@ def build_playback_payload(path: Path) -> dict[str, object]:
         "yellow_duration_seconds": YELLOW_DURATION_SECONDS,
         "timeline": timeline,
         "diagnostics": diagnostics,
+        "review": review,
         "review_log": review_log,
     }

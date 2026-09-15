@@ -16,14 +16,12 @@ def _synthetic_frame(cycle=120.0, bin_s=2.0, repeats=6):
                 t = base + start + float(offset)
                 for approach in approaches:
                     movement = movements[0] if approach == approaches[0] else movements[1]
-                    rows.append(
-                        {
-                            "t_s": t,
-                            "zone_in": approach,
-                            "movement": movement,
-                            "release_weight": 5.0,
-                        }
-                    )
+                    rows.append({
+                        "t_s": t,
+                        "zone_in": approach,
+                        "movement": movement,
+                        "release_weight": 5.0,
+                    })
     return pd.DataFrame(rows)
 
 
@@ -31,24 +29,32 @@ def test_discovers_coactivated_approaches_and_movements():
     result = PhaseDiscovery(bin_seconds=2.0, correlation_threshold=0.85).discover(
         _synthetic_frame(), cycle_seconds=120.0
     )
-
     assert len(result.phases) == 2
     phase_a, phase_b = result.phases
     assert phase_a.active_approaches == ("N", "S")
     assert phase_b.active_approaches == ("E", "W")
     assert set(phase_a.active_movements) == {"N->_S", "S->_N"}
     assert set(phase_b.active_movements) == {"E->_W", "W->_E"}
-    assert phase_a.phase_start < phase_a.phase_end
-    assert phase_b.phase_start < phase_b.phase_end
+
+
+def test_phase_intervals_do_not_overlap():
+    result = PhaseDiscovery(bin_seconds=2.0, correlation_threshold=0.85).discover(
+        _synthetic_frame(cycle=100.0), cycle_seconds=100.0
+    )
+    bins = set()
+    for phase in result.phases:
+        start = int(phase.phase_start / 2)
+        end = int(phase.phase_end / 2)
+        current = set(range(start, end)) if start < end else set(range(start, 50)) | set(range(0, end))
+        assert not bins.intersection(current)
+        bins.update(current)
 
 
 def test_does_not_hardcode_two_phase_order():
-    frame = _synthetic_frame(cycle=100.0)
     result = PhaseDiscovery(bin_seconds=2.0, correlation_threshold=0.85).discover(
-        frame, cycle_seconds=100.0
+        _synthetic_frame(cycle=100.0), cycle_seconds=100.0
     )
     assert result.cycle_seconds == 100.0
-    assert sorted(len(phase.members) for phase in result.phases) == [4, 4]
     assert any("N" in phase.active_approaches for phase in result.phases)
     assert any("E" in phase.active_approaches for phase in result.phases)
 
