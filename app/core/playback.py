@@ -7,6 +7,7 @@ import numpy as np
 from app.core.cycle_estimator import CycleEstimator
 from app.core.phase_discovery import PhaseDiscovery
 from app.core.preprocessing import load_trajectory_file, trajectories_to_frame
+from app.core.review_log import build_review_log
 from app.core.signal_state_estimator import SignalStateEstimator
 
 SIGNAL_BIN_SECONDS = 2.0
@@ -37,7 +38,6 @@ def build_playback_payload(path: Path) -> dict[str, object]:
     )
 
     ordered = frame.sort_values("timestamp_ms")
-    # Each playback point is tied to an observed trajectory millis value.
     timestamps_ms = ordered["timestamp_ms"].drop_duplicates().astype(int).tolist()
     base_ms = min(timestamps_ms)
     timestamps_s = [(timestamp - base_ms) / 1000.0 for timestamp in timestamps_ms]
@@ -69,6 +69,15 @@ def build_playback_payload(path: Path) -> dict[str, object]:
             }
         )
 
+    review_log = build_review_log(
+        frame,
+        phase_model,
+        timeline,
+        source_path=path,
+        cycle_seconds=float(cycle.cycle_seconds),
+        cycle_confidence=float(cycle.confidence),
+    )
+
     return {
         "source": {
             "filename": path.name,
@@ -86,4 +95,5 @@ def build_playback_payload(path: Path) -> dict[str, object]:
         "yellow_duration_seconds": YELLOW_DURATION_SECONDS,
         "timeline": timeline,
         "diagnostics": diagnostics,
+        "review_log": review_log,
     }
