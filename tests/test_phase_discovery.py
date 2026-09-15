@@ -21,12 +21,13 @@ def _synthetic_frame(cycle=120.0, bin_s=2.0, repeats=6):
                         "zone_in": approach,
                         "movement": movement,
                         "release_weight": 5.0,
+                        "stopped": False,
                     })
     return pd.DataFrame(rows)
 
 
-def test_discovers_coactivated_approaches_and_movements():
-    result = PhaseDiscovery(bin_seconds=2.0, correlation_threshold=0.85).discover(
+def test_discovers_temporal_regimes():
+    result = PhaseDiscovery(bin_seconds=2.0, min_phase_seconds=8.0).discover(
         _synthetic_frame(), cycle_seconds=120.0
     )
     assert len(result.phases) == 2
@@ -37,8 +38,8 @@ def test_discovers_coactivated_approaches_and_movements():
     assert set(phase_b.active_movements) == {"E->_W", "W->_E"}
 
 
-def test_phase_intervals_do_not_overlap():
-    result = PhaseDiscovery(bin_seconds=2.0, correlation_threshold=0.85).discover(
+def test_phase_intervals_cover_cycle_without_overlap():
+    result = PhaseDiscovery(bin_seconds=2.0, min_phase_seconds=8.0).discover(
         _synthetic_frame(cycle=100.0), cycle_seconds=100.0
     )
     bins = set()
@@ -48,10 +49,11 @@ def test_phase_intervals_do_not_overlap():
         current = set(range(start, end)) if start < end else set(range(start, 50)) | set(range(0, end))
         assert not bins.intersection(current)
         bins.update(current)
+    assert len(bins) >= 45
 
 
 def test_does_not_hardcode_two_phase_order():
-    result = PhaseDiscovery(bin_seconds=2.0, correlation_threshold=0.85).discover(
+    result = PhaseDiscovery(bin_seconds=2.0, min_phase_seconds=8.0).discover(
         _synthetic_frame(cycle=100.0), cycle_seconds=100.0
     )
     assert result.cycle_seconds == 100.0
