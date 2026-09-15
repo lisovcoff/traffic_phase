@@ -57,7 +57,7 @@ class SignalStateResult:
 
 
 class SignalStateEstimator:
-    """Reconstruct per-approach signal states from an inferred phase model."""
+    """Reconstruct signal states from the inferred phase model."""
 
     def __init__(
         self,
@@ -91,11 +91,7 @@ class SignalStateEstimator:
         self.stop_weight = stop_weight
         self.yellow_duration_seconds = yellow_duration_seconds
 
-    def estimate(
-        self,
-        current_time_s: float,
-        traffic: pd.DataFrame | Iterable[TrafficWindow],
-    ) -> SignalStateResult:
+    def estimate(self, current_time_s: float, traffic: pd.DataFrame | Iterable[TrafficWindow]) -> SignalStateResult:
         if current_time_s < 0:
             raise ValueError("current_time_s must be non-negative")
 
@@ -105,45 +101,31 @@ class SignalStateEstimator:
         recent = self._recent_traffic(traffic, current_time_s)
         evidence = self._evidence_by_approach(recent)
 
+        phase_confidence = (
+            max(0.0, min(1.0, float(source_phase.confidence)))
+            if source_phase is not None else 0.0
+        )
+        reliable = source_phase is not None and phase_confidence >= self.min_confidence
+
         approach_states: list[ApproachState] = []
         for approach in APPROACHES:
-            released, stopped, flow = evidence.get(approach, (0.0, 0.0, 0.0))
+            released, stopped, _flow = evidence.get(approach, (0.0, 0.0, 0.0))
             evidence_weight = released + self.stop_weight * stopped
-            observed = max(flow, stopped, released)
 
-            if source_phase is None or observed < self.min_evidence_weight:
+            if not reliable:
                 state = SignalState.UNKNOWN
-                confidence = 0.0 if observed == 0 else min(0.5, observed / (observed + 2.0))
+            elif transition:
+                state = SignalState.YELLOW if approach in source_phase.active_approaches else SignalState.RED
+            elif approach in source_phase.active_approaches:
+                state = SignalState.GREEN
             else:
-                phase_confidence = max(0.0, min(1.0, source_phase.confidence))
-                evidence_confidence = min(
-                    1.0,
-                    evidence_weight / (evidence_weight + self.min_evidence_weight),
-                )
-                confidence = phase_confidence * evidence_confidence
-
-                if confidence < self.min_confidence:
-                    state = SignalState.UNKNOWN
-                elif transition:
-                    state = (
-                        SignalState.YELLOW
-                        if approach in source_phase.active_approaches
-                        else SignalState.RED
-                    )
-                elif approach in source_phase.active_approaches:
-                    state = (
-                        SignalState.GREEN
-                        if released > 0 and released >= self.stop_weight * stopped
-                        else SignalState.UNKNOWN
-                    )
-                else:
-                    state = SignalState.RED if stopped > 0 or flow > 0 else SignalState.UNKNOWN
+                state = SignalState.RED
 
             approach_states.append(
                 ApproachState(
                     approach=approach,
                     state=state,
-                    confidence=round(float(confidence), 4),
+                    confidence=round(phase_confidence, 4),
                     phase_id=phase.phase_id if phase is not None else None,
                     evidence_weight=round(float(evidence_weight), 4),
                 )
@@ -154,7 +136,7 @@ class SignalStateEstimator:
             cycle_phase_s=round(float(phase_position), 3),
             phase_id=phase.phase_id if phase is not None else None,
             transition=transition,
-            phase_confidence=round(float(source_phase.confidence), 4) if source_phase else 0.0,
+            phase_confidence=round(phase_confidence, 4),
             approaches=tuple(approach_states),
         )
 
@@ -214,10 +196,7 @@ class SignalStateEstimator:
             return traffic[(traffic["t_s"] >= lower) & (traffic["t_s"] <= current_time_s)]
         return [window for window in traffic if lower <= window.start_s <= current_time_s]
 
-    def _evidence_by_approach(
-        self,
-        traffic: pd.DataFrame | Iterable[TrafficWindow],
-    ) -> Mapping[str, tuple[float, float, float]]:
+    def _evidence_by_approach(self, traffic: pd.DataFrame | Iterable[TrafficWindow]) -> Mapping[str, tuple[float, float, float]]:
         evidence: dict[str, list[float]] = {approach: [0.0, 0.0, 0.0] for approach in APPROACHES}
         if isinstance(traffic, pd.DataFrame):
             for _, row in traffic.iterrows():
@@ -242,11 +221,4 @@ def result_to_json(result: SignalStateResult) -> str:
     return json.dumps(result.to_dict(), ensure_ascii=False, indent=2)
 
 
-__all__ = [
-    "DEFAULT_YELLOW_DURATION_SECONDS",
-    "ApproachState",
-    "SignalState",
-    "SignalStateEstimator",
-    "SignalStateResult",
-    "result_to_json",
-]
+__all__ = ["DEFAULT_YELLOW_DURATION_SECONDS", "ApproachState", "SignalState", "SignalStateEstimator", "SignalStateResult", "result_to_json"]

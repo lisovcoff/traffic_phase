@@ -4,57 +4,43 @@ import pandas as pd
 import pytest
 
 from app.core.phase_discovery import Phase, PhaseDiscoveryResult
-from app.core.signal_state_estimator import (
-    DEFAULT_YELLOW_DURATION_SECONDS,
-    SignalState,
-    SignalStateEstimator,
-)
+from app.core.signal_state_estimator import DEFAULT_YELLOW_DURATION_SECONDS, SignalState, SignalStateEstimator
 
 
 def phase_model() -> PhaseDiscoveryResult:
-    return PhaseDiscoveryResult(
-        cycle_seconds=100.0,
-        bin_seconds=2.0,
-        phases=(
-            Phase(1, 0.0, 40.0, ("N", "S"), ("N->_S", "S->_N"), 0.9, ("N", "S")),
-            Phase(2, 50.0, 90.0, ("E", "W"), ("E->_W", "W->_E"), 0.9, ("E", "W")),
-        ),
-        profiles=(),
-        similarities={},
-    )
+    return PhaseDiscoveryResult(100.0, 2.0, (Phase(1, 0.0, 40.0, ("N", "S"), ("N->_S", "S->_N"), 0.9, ("N", "S")), Phase(2, 50.0, 90.0, ("E", "W"), ("E->_W", "W->_E"), 0.9, ("E", "W"))), (), {})
 
 
 def traffic_frame() -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "t_s": [4.0, 5.0, 54.0, 55.0, 6.0, 7.0, 56.0, 57.0],
-            "zone_in": ["N", "S", "E", "W", "E", "W", "N", "S"],
-            "movement": ["N->_S", "S->_N", "E->_W", "W->_E", "E->_W", "W->_E", "N->_S", "S->_N"],
-            "release_weight": [5.0, 4.0, 5.0, 4.0, 0.0, 0.0, 0.0, 0.0],
-            "stopped": [False, False, False, False, True, True, True, True],
-        }
-    )
+    return pd.DataFrame({"t_s": [4.0, 5.0, 54.0, 55.0], "zone_in": ["N", "S", "E", "W"], "movement": ["N->_S", "S->_N", "E->_W", "W->_E"], "release_weight": [5.0, 4.0, 5.0, 4.0], "stopped": [False, False, False, False]})
 
 
 def states(result):
     return {item.approach: item.state for item in result.approaches}
 
 
-def test_green_and_red_follow_phase_model():
-    result = SignalStateEstimator(phase_model()).estimate(10.0, traffic_frame())
+def test_green_and_red_follow_phase_model_without_current_traffic():
+    empty = traffic_frame().iloc[0:0]
+    result = SignalStateEstimator(phase_model()).estimate(10.0, empty)
     current = states(result)
     assert current["N"] == SignalState.GREEN
     assert current["S"] == SignalState.GREEN
     assert current["E"] == SignalState.RED
     assert current["W"] == SignalState.RED
-    assert result.transition is False
+    assert result.phase_confidence == 0.9
+
+
+def test_recent_evidence_is_diagnostic_not_a_gate():
+    result = SignalStateEstimator(phase_model()).estimate(10.0, traffic_frame())
+    assert states(result)["N"] == SignalState.GREEN
+    assert states(result)["E"] == SignalState.RED
+    assert result.approaches[0].evidence_weight > 0
 
 
 def test_yellow_is_only_transition_state_before_next_phase():
     estimator = SignalStateEstimator(phase_model())
     result = estimator.estimate(49.0, traffic_frame())
     current = states(result)
-
     assert estimator.yellow_duration_seconds == DEFAULT_YELLOW_DURATION_SECONDS
     assert result.transition is True
     assert result.phase_id == 1
@@ -76,39 +62,15 @@ def test_zero_yellow_duration_disables_transition_state():
     assert result.transition is False
 
 
-def test_unknown_when_no_evidence():
-    empty = traffic_frame().iloc[0:0]
-    result = SignalStateEstimator(phase_model()).estimate(10.0, empty)
-    assert all(item.state == SignalState.UNKNOWN for item in result.approaches)
-
-
 def test_unknown_when_phase_confidence_is_low():
     model = phase_model()
-    low_confidence = PhaseDiscoveryResult(
-        cycle_seconds=model.cycle_seconds,
-        bin_seconds=model.bin_seconds,
-        phases=tuple(
-            Phase(
-                phase.phase_id,
-                phase.phase_start,
-                phase.phase_end,
-                phase.active_approaches,
-                phase.active_movements,
-                0.2,
-                phase.members,
-            )
-            for phase in model.phases
-        ),
-        profiles=(),
-        similarities={},
-    )
+    low_confidence = PhaseDiscoveryResult(100.0, 2.0, tuple(Phase(p.phase_id, p.phase_start, p.phase_end, p.active_approaches, p.active_movements, 0.2, p.members) for p in model.phases), (), {})
     result = SignalStateEstimator(low_confidence).estimate(10.0, traffic_frame())
-    assert all(item.state != SignalState.GREEN for item in result.approaches)
+    assert all(item.state == SignalState.UNKNOWN for item in result.approaches)
 
 
 def test_unmodelled_gap_is_unknown_not_false_green():
     result = SignalStateEstimator(phase_model()).estimate(45.0, traffic_frame())
-    assert result.transition is False
     assert result.phase_id is None
     assert all(item.state == SignalState.UNKNOWN for item in result.approaches)
 
