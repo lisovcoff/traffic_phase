@@ -1,0 +1,50 @@
+{
+  "model": "cycle_100s_two_phase_candidate",
+  "yellow_duration_seconds": 2.0,
+  "ground_truth_available": false,
+  "note": "YELLOW is a configurable transition state derived from the inferred phase boundaries. It is not an independently trained ML class.",
+  "timeline": [
+    {
+      "timestamp_s": 10,
+      "cycle_phase_s": 10,
+      "phase_id": 1,
+      "transition": false,
+      "approaches": {"N": "GREEN", "S": "GREEN", "E": "RED", "W": "RED"}
+    },
+    {
+      "timestamp_s": 45,
+      "cycle_phase_s": 45,
+      "phase_id": null,
+      "transition": false,
+      "approaches": {"N": "UNKNOWN", "S": "UNKNOWN", "E": "UNKNOWN", "W": "UNKNOWN"}
+    },
+    {
+      "timestamp_s": 49,
+      "cycle_phase_s": 49,
+      "phase_id": 1,
+      "transition": true,
+      "approaches": {"N": "YELLOW", "S": "YELLOW", "E": "RED", "W": "RED"}
+    },
+    {
+      "timestamp_s": 60,
+      "cycle_phase_s": 60,
+      "phase_id": 2,
+      "transition": false,
+      "approaches": {"N": "RED", "S": "RED", "E": "GREEN", "W": "GREEN"}
+    },
+    {
+      "timestamp_s": 98,
+      "cycle_phase_s": 98,
+      "phase_id": 2,
+      "transition": true,
+      "approaches": {"N": "RED", "S": "RED", "E": "YELLOW", "W": "YELLOW"}
+    },
+    {
+      "timestamp_s": 110,
+      "cycle_phase_s": 10,
+      "phase_id": 1,
+      "transition": false,
+      "approaches": {"N": "GREEN", "S": "GREEN", "E": "RED", "W": "RED"}
+    }
+  ]
+}
