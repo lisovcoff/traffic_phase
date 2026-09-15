@@ -57,7 +57,14 @@ class SignalStateResult:
 
 
 class SignalStateEstimator:
-    """Reconstruct signal states from the inferred phase model."""
+    """Reconstruct signal states from phase hypotheses plus direct traffic evidence.
+
+    Low phase-model confidence no longer forces every approach to UNKNOWN. A strong
+    recent observation of moving traffic with low delay can recover a GREEN candidate,
+    while RED is only emitted when the phase model or direct queue evidence is strong.
+    This avoids presenting an unsupported all-UNKNOWN snapshot while still avoiding
+    unconditional RED labels for approaches with no observed traffic.
+    """
 
     def __init__(
         self,
@@ -105,27 +112,33 @@ class SignalStateEstimator:
             max(0.0, min(1.0, float(source_phase.confidence)))
             if source_phase is not None else 0.0
         )
-        reliable = source_phase is not None and phase_confidence >= self.min_confidence
 
         approach_states: list[ApproachState] = []
         for approach in APPROACHES:
-            released, stopped, _flow = evidence.get(approach, (0.0, 0.0, 0.0))
-            evidence_weight = released + self.stop_weight * stopped
+            flow, mean_wait, stopped_ratio, green_evidence, red_evidence = evidence.get(
+                approach, (0.0, 0.0, 0.0, 0.0, 0.0)
+            )
+            evidence_weight = flow + self.stop_weight * stopped_ratio * flow
+            state_confidence = 0.0
 
-            if not reliable:
+            if source_phase is None:
                 state = SignalState.UNKNOWN
-            elif transition:
-                state = SignalState.YELLOW if approach in source_phase.active_approaches else SignalState.RED
             elif approach in source_phase.active_approaches:
-                state = SignalState.GREEN
+                state_confidence = max(phase_confidence, green_evidence)
+                if transition:
+                    state = SignalState.YELLOW if state_confidence >= 0.20 else SignalState.UNKNOWN
+                else:
+                    state = SignalState.GREEN if state_confidence >= 0.20 else SignalState.UNKNOWN
             else:
-                state = SignalState.RED
+                state_confidence = max(phase_confidence, red_evidence)
+                red_supported = phase_confidence >= self.min_confidence or red_evidence >= 0.55
+                state = SignalState.RED if red_supported else SignalState.UNKNOWN
 
             approach_states.append(
                 ApproachState(
                     approach=approach,
                     state=state,
-                    confidence=round(phase_confidence, 4),
+                    confidence=round(float(state_confidence), 4),
                     phase_id=phase.phase_id if phase is not None else None,
                     evidence_weight=round(float(evidence_weight), 4),
                 )
@@ -196,24 +209,58 @@ class SignalStateEstimator:
             return traffic[(traffic["t_s"] >= lower) & (traffic["t_s"] <= current_time_s)]
         return [window for window in traffic if lower <= window.start_s <= current_time_s]
 
-    def _evidence_by_approach(self, traffic: pd.DataFrame | Iterable[TrafficWindow]) -> Mapping[str, tuple[float, float, float]]:
-        evidence: dict[str, list[float]] = {approach: [0.0, 0.0, 0.0] for approach in APPROACHES}
+    def _evidence_by_approach(
+        self,
+        traffic: pd.DataFrame | Iterable[TrafficWindow],
+    ) -> Mapping[str, tuple[float, float, float, float, float]]:
+        evidence: dict[str, list[float]] = {
+            approach: [0.0, 0.0, 0.0, 0.0, 0.0] for approach in APPROACHES
+        }
         if isinstance(traffic, pd.DataFrame):
-            for _, row in traffic.iterrows():
-                approach = str(row.get("zone_in", ""))
-                if approach not in evidence:
+            for approach in APPROACHES:
+                selected = traffic[traffic["zone_in"].astype(str) == approach]
+                if selected.empty:
                     continue
-                evidence[approach][0] += float(row.get("release_weight", 0.0) or 0.0)
-                evidence[approach][1] += float(bool(row.get("stopped", False)))
-                evidence[approach][2] += 1.0
+                flow = float(len(selected))
+                waits = pd.to_numeric(selected.get("wait_s"), errors="coerce").fillna(0.0)
+                stopped = pd.to_numeric(selected.get("stopped"), errors="coerce").fillna(0.0)
+                mean_wait = float(waits.mean())
+                stopped_ratio = float(stopped.mean())
+                flow_presence = min(1.0, flow / 3.0)
+                delay_free = 1.0 - min(1.0, mean_wait / 20.0)
+                green_evidence = flow_presence * (0.60 + 0.25 * delay_free + 0.15 * (1.0 - stopped_ratio))
+                wait_pressure = min(1.0, mean_wait / 15.0)
+                red_evidence = flow_presence * (0.40 * wait_pressure + 0.60 * stopped_ratio)
+                evidence[approach] = [
+                    flow,
+                    mean_wait,
+                    stopped_ratio,
+                    float(max(0.0, min(1.0, green_evidence))),
+                    float(max(0.0, min(1.0, red_evidence))),
+                ]
         else:
             for window in traffic:
                 approach = str(window.movement).split("->", 1)[0]
                 if approach not in evidence:
                     continue
-                evidence[approach][0] += float(window.release_weight)
-                evidence[approach][1] += float(window.stopped_count)
-                evidence[approach][2] += float(window.flow)
+                flow = float(window.flow)
+                mean_wait = float(window.mean_wait or 0.0)
+                stopped_ratio = min(1.0, float(window.stopped_count) / max(flow, 1.0))
+                flow_presence = min(1.0, flow / 3.0)
+                delay_free = 1.0 - min(1.0, mean_wait / 20.0)
+                green_evidence = flow_presence * (0.60 + 0.25 * delay_free + 0.15 * (1.0 - stopped_ratio))
+                wait_pressure = min(1.0, mean_wait / 15.0)
+                red_evidence = flow_presence * (0.40 * wait_pressure + 0.60 * stopped_ratio)
+                evidence[approach][0] += flow
+                evidence[approach][1] += mean_wait * flow
+                evidence[approach][2] += stopped_ratio * flow
+                evidence[approach][3] = max(evidence[approach][3], green_evidence)
+                evidence[approach][4] = max(evidence[approach][4], red_evidence)
+            for approach, values in evidence.items():
+                flow = values[0]
+                if flow > 0:
+                    values[1] /= flow
+                    values[2] /= flow
         return {key: tuple(value) for key, value in evidence.items()}
 
 
@@ -221,4 +268,11 @@ def result_to_json(result: SignalStateResult) -> str:
     return json.dumps(result.to_dict(), ensure_ascii=False, indent=2)
 
 
-__all__ = ["DEFAULT_YELLOW_DURATION_SECONDS", "ApproachState", "SignalState", "SignalStateEstimator", "SignalStateResult", "result_to_json"]
+__all__ = [
+    "DEFAULT_YELLOW_DURATION_SECONDS",
+    "ApproachState",
+    "SignalState",
+    "SignalStateEstimator",
+    "SignalStateResult",
+    "result_to_json",
+]
