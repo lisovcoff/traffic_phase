@@ -11,6 +11,7 @@ from app.core.review_log import build_review_log, review_summary
 from app.core.signal_state_estimator import SignalStateEstimator
 
 SIGNAL_BIN_SECONDS = 2.0
+PLAYBACK_STEP_SECONDS = 0.5
 YELLOW_DURATION_SECONDS = 2.0
 
 
@@ -40,9 +41,24 @@ def build_playback_payload(path: Path) -> dict[str, object]:
     )
 
     ordered = frame.sort_values("timestamp_ms")
-    timestamps_ms = ordered["timestamp_ms"].drop_duplicates().astype(int).tolist()
-    base_ms = min(timestamps_ms)
-    timestamps_s = [(timestamp - base_ms) / 1000.0 for timestamp in timestamps_ms]
+    observed_timestamps_ms = ordered["timestamp_ms"].drop_duplicates().astype(int).tolist()
+    base_ms = min(observed_timestamps_ms)
+
+    # A trajectory file can contain long gaps between observations. If playback
+    # follows only observed timestamps, the 2-second yellow and red+yellow windows
+    # are easy to skip entirely. Sample the inferred signal on a fixed timeline so
+    # every transition is visible and seekable in the browser.
+    sample_count = max(1, int(np.ceil(max_time / PLAYBACK_STEP_SECONDS)))
+    timestamps_s = [
+        round(index * PLAYBACK_STEP_SECONDS, 6)
+        for index in range(sample_count + 1)
+    ]
+    if timestamps_s[-1] > max_time:
+        timestamps_s[-1] = round(max_time, 6)
+    elif timestamps_s[-1] < max_time:
+        timestamps_s.append(round(max_time, 6))
+
+    timestamps_ms = [base_ms + int(round(timestamp_s * 1000.0)) for timestamp_s in timestamps_s]
     results = estimator.estimate_playback(path, timestamps_s)
 
     timeline = []
