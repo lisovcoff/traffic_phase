@@ -107,11 +107,14 @@ class CycleEstimator:
             repetitions = max(1, int(total_duration // period))
             width_ratio = min(1.0, max(0.0, float(width) / period))
             repetition_score = min(1.0, repetitions / 4.0)
+            # Autocorrelation strength is the primary evidence for a true period.
+            # Width, stability and repetitions refine that evidence instead of
+            # allowing a weak autocorrelation peak to dominate the selection.
             score = (
-                0.40 * strength
-                + 0.20 * width_ratio
-                + 0.25 * stability
-                + 0.15 * repetition_score
+                0.70 * strength
+                + 0.10 * width_ratio
+                + 0.10 * stability
+                + 0.10 * repetition_score
             )
             candidates.append(
                 CycleCandidate(
