@@ -63,7 +63,7 @@ class FakeEstimator:
         return results
 
 
-def test_playback_preserves_observed_millis(tmp_path, monkeypatch):
+def test_playback_samples_fixed_timeline(tmp_path, monkeypatch):
     source = [
         {
             "id": 1,
@@ -104,6 +104,24 @@ def test_playback_preserves_observed_millis(tmp_path, monkeypatch):
     payload = playback.build_playback_payload(path)
 
     assert payload["source"]["cars_used"] == 2
-    assert [item["timestamp_ms"] for item in payload["timeline"]] == [1000, 2750]
-    assert [item["timestamp_s"] for item in payload["timeline"]] == [0.0, 1.75]
-    assert [item["timestamp_ms"] for item in payload["diagnostics"]] == [1000, 2750]
+    assert [item["timestamp_ms"] for item in payload["timeline"]] == [
+        1000,
+        1500,
+        2000,
+        2500,
+        2750,
+    ]
+    assert [item["timestamp_s"] for item in payload["timeline"]] == [
+        0.0,
+        0.5,
+        1.0,
+        1.5,
+        1.75,
+    ]
+    assert [item["timestamp_ms"] for item in payload["diagnostics"]] == [
+        1000,
+        1500,
+        2000,
+        2500,
+        2750,
+    ]
