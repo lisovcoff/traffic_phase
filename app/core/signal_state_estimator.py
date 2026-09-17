@@ -19,6 +19,7 @@ class SignalState(str, Enum):
     GREEN = "GREEN"
     YELLOW = "YELLOW"
     RED = "RED"
+    RED_YELLOW = "RED_YELLOW"
     UNKNOWN = "UNKNOWN"
 
 
@@ -57,11 +58,12 @@ class SignalStateResult:
 
 
 class SignalStateEstimator:
-    """Turn the binary phase hypothesis into GREEN/YELLOW/RED states.
+    """Turn the binary phase hypothesis into realistic GREEN/YELLOW/RED states.
 
-    Phase confidence is reported as a diagnostic value, but it is not used to replace
-    a valid phase with four UNKNOWN states. Once the binary phase model has selected
-    N/S or E/W as the active pair, the opposite pair is explicitly RED.
+    For the Russian road-signal sequence used by this MVP, an outgoing active pair
+    changes GREEN -> YELLOW before becoming RED. The next active pair then shows
+    RED+YELLOW briefly before changing to GREEN. Phase confidence is reported as a
+    diagnostic value and is not used to replace a valid phase with UNKNOWN states.
     """
 
     def __init__(
@@ -102,7 +104,7 @@ class SignalStateEstimator:
 
         cycle = self.phase_model.cycle_seconds
         phase_position = current_time_s % cycle
-        phase, transition, source_phase = self._phase_at(phase_position)
+        phase, ending_transition, source_phase = self._phase_at(phase_position)
         recent = self._recent_traffic(traffic, current_time_s)
         evidence = self._evidence_by_approach(recent)
 
@@ -110,6 +112,14 @@ class SignalStateEstimator:
             max(0.0, min(1.0, float(source_phase.confidence)))
             if source_phase is not None else 0.0
         )
+        starting_transition = (
+            source_phase is not None
+            and self._starting_red_yellow(
+                phase_position,
+                source_phase.phase_start % cycle,
+            )
+        )
+        transition = bool(ending_transition or starting_transition)
 
         approach_states: list[ApproachState] = []
         for approach in APPROACHES:
@@ -120,8 +130,18 @@ class SignalStateEstimator:
 
             if source_phase is None:
                 state = SignalState.UNKNOWN
-            elif transition:
-                state = SignalState.YELLOW if approach in source_phase.active_approaches else SignalState.RED
+            elif starting_transition:
+                state = (
+                    SignalState.RED_YELLOW
+                    if approach in source_phase.active_approaches
+                    else SignalState.RED
+                )
+            elif ending_transition:
+                state = (
+                    SignalState.YELLOW
+                    if approach in source_phase.active_approaches
+                    else SignalState.RED
+                )
             elif approach in source_phase.active_approaches:
                 state = SignalState.GREEN
             else:
@@ -180,6 +200,12 @@ class SignalStateEstimator:
         if start <= end:
             return start <= value < end
         return value >= start or value < end
+
+    def _starting_red_yellow(self, value: float, start: float) -> bool:
+        if self.yellow_duration_seconds == 0:
+            return False
+        elapsed_from_start = (value - start) % self.phase_model.cycle_seconds
+        return elapsed_from_start <= self.yellow_duration_seconds
 
     def _ending_yellow(self, value: float, end: float) -> bool:
         if self.yellow_duration_seconds == 0:

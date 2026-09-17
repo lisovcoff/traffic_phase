@@ -56,7 +56,7 @@ def test_recent_traffic_is_diagnostic_not_a_gate():
     assert result.approaches[0].confidence == result.phase_confidence
 
 
-def test_yellow_is_only_transition_state_before_next_phase():
+def test_yellow_is_outgoing_transition_before_red():
     estimator = SignalStateEstimator(phase_model())
     result = estimator.estimate(39.0, traffic_frame())
     current = states(result)
@@ -69,16 +69,45 @@ def test_yellow_is_only_transition_state_before_next_phase():
     assert current["W"] == SignalState.RED
 
 
-def test_custom_yellow_duration_changes_transition_boundary():
+def test_red_yellow_is_starting_transition_before_green():
+    estimator = SignalStateEstimator(phase_model())
+    result = estimator.estimate(50.0, traffic_frame())
+    current = states(result)
+    assert result.transition is True
+    assert result.phase_id == 2
+    assert current["N"] == SignalState.RED
+    assert current["S"] == SignalState.RED
+    assert current["E"] == SignalState.RED_YELLOW
+    assert current["W"] == SignalState.RED_YELLOW
+
+
+def test_red_yellow_ends_before_green():
+    estimator = SignalStateEstimator(phase_model())
+    result = estimator.estimate(52.1, traffic_frame())
+    current = states(result)
+    assert result.transition is False
+    assert current["N"] == SignalState.RED
+    assert current["S"] == SignalState.RED
+    assert current["E"] == SignalState.GREEN
+    assert current["W"] == SignalState.GREEN
+
+
+def test_custom_yellow_duration_changes_both_transition_boundaries():
     estimator = SignalStateEstimator(phase_model(), yellow_duration_seconds=5.0)
     assert states(estimator.estimate(35.0, traffic_frame()))["N"] == SignalState.YELLOW
-    assert states(estimator.estimate(33.0, traffic_frame()))["N"] != SignalState.YELLOW
+    assert states(estimator.estimate(33.0, traffic_frame()))["N"] == SignalState.GREEN
+    assert states(estimator.estimate(54.0, traffic_frame()))["E"] == SignalState.RED_YELLOW
+    assert states(estimator.estimate(55.1, traffic_frame()))["E"] == SignalState.GREEN
 
 
-def test_zero_yellow_duration_disables_transition_state():
+def test_zero_yellow_duration_disables_transition_states():
     estimator = SignalStateEstimator(phase_model(), yellow_duration_seconds=0.0)
-    result = estimator.estimate(39.0, traffic_frame())
-    assert result.transition is False
+    outgoing = estimator.estimate(39.0, traffic_frame())
+    incoming = estimator.estimate(50.0, traffic_frame())
+    assert outgoing.transition is False
+    assert incoming.transition is False
+    assert states(outgoing)["N"] == SignalState.GREEN
+    assert states(incoming)["E"] == SignalState.GREEN
 
 
 def test_unmodelled_gap_is_unknown_not_false_green():
