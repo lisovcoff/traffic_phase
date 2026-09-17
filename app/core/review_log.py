@@ -15,26 +15,27 @@ def _evidence(frame: pd.DataFrame, current_time_s: float, window_s: float = 12.0
     for approach in APPROACHES:
         group = recent[recent["zone_in"] == approach]
         result[approach] = {
-            "release": float(group["release_weight"].sum()),
-            "stopped": float(group["stopped"].sum()),
+            "moving": float((~group["stopped"].astype(bool)).sum()),
+            "stopped": float(group["stopped"].astype(bool).sum()),
             "flow": float(len(group)),
         }
     return result
 
 
 def _support_status(phase_active: set[str], evidence: dict[str, dict[str, float]]) -> str:
-    active_release = sum(evidence[a]["release"] for a in phase_active)
-    inactive_release = sum(evidence[a]["release"] for a in APPROACHES if a not in phase_active)
+    active_moving = sum(evidence[a]["moving"] for a in phase_active)
+    inactive_moving = sum(evidence[a]["moving"] for a in APPROACHES if a not in phase_active)
     active_stopped = sum(evidence[a]["stopped"] for a in phase_active)
     inactive_stopped = sum(evidence[a]["stopped"] for a in APPROACHES if a not in phase_active)
 
-    if active_release == 0 and inactive_release == 0 and active_stopped == 0 and inactive_stopped == 0:
+    total = active_moving + inactive_moving + active_stopped + inactive_stopped
+    if total == 0:
         return "NO_RECENT_EVIDENCE"
-    if active_release > inactive_release * 1.2 and inactive_stopped >= active_stopped:
+    if active_moving > inactive_moving * 1.2 and inactive_stopped >= active_stopped:
         return "STRONG"
-    if active_release > inactive_release and active_stopped <= inactive_stopped:
+    if active_moving >= inactive_moving and active_stopped <= inactive_stopped:
         return "SUPPORTING"
-    if inactive_release > active_release * 1.5:
+    if inactive_moving > active_moving * 1.5 or active_stopped > inactive_stopped * 1.5:
         return "CONTRADICTORY"
     return "MIXED"
 
@@ -207,7 +208,7 @@ def build_review_log(
         states = item["approaches"]
         state_text = ",".join(f"{a}:{states[a]['state']}" for a in APPROACHES)
         evidence_text = ",".join(
-            f"{a}:r{evidence[a]['release']:.1f}/s{evidence[a]['stopped']:.0f}/f{evidence[a]['flow']:.0f}"
+            f"{a}:m{evidence[a]['moving']:.0f}/s{evidence[a]['stopped']:.0f}/f{evidence[a]['flow']:.0f}"
             for a in APPROACHES
         )
         support = _support_status(phase_active, evidence) if phase else "NO_PHASE"
@@ -220,8 +221,8 @@ def build_review_log(
     lines.extend([
         "",
         "REVIEW RULES",
-        "GREEN/YELLOW should belong to phase.active_approaches; RED should belong to inactive approaches.",
-        "STRONG/SUPPORTING means recent traffic is broadly compatible with the inferred phase; MIXED needs manual inspection; CONTRADICTORY is a red flag.",
+        "Moving vehicles support GREEN; stopped vehicles support RED. For the binary MVP, the active pair is GREEN and the opposite pair is RED.",
+        "STRONG/SUPPORTING means recent traffic is broadly compatible with the inferred pair; MIXED needs manual inspection; CONTRADICTORY is a red flag.",
         "These checks do not establish true signal-light correctness because no labeled controller state is available in the source data.",
     ])
     return "\n".join(lines)

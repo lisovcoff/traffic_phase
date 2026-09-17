@@ -6,9 +6,10 @@ import numpy as np
 import pandas as pd
 
 APPROACHES = ("N", "S", "E", "W")
+NS_PHASE = ("N", "S")
+EW_PHASE = ("E", "W")
 MIN_SIGNAL_STD = 1e-9
 DEFAULT_MIN_PHASE_SECONDS = 8.0
-DEFAULT_ACTIVITY_THRESHOLD = 0.45
 
 
 @dataclass(frozen=True)
@@ -51,11 +52,12 @@ class PhaseDiscoveryResult:
 
 
 class PhaseDiscovery:
-    """Infer recurring signal phases from delay, stops and throughput evidence.
+    """Infer a binary signal schedule from moving and stopped traffic.
 
-    A trajectory's wait duration is treated as delay/queue evidence, not as a direct
-    green-release signal. Phase inference is based on a robust consensus across repeated
-    cycles so single-cycle demand fluctuations do not define the phase schedule.
+    The MVP assumes two mutually exclusive signal groups:
+    N/S green versus E/W red, or E/W green versus N/S red.
+    A moving vehicle is green-like evidence for its approach; a stopped vehicle is
+    red-like evidence. Empty bins carry no evidence and do not bias the split.
     """
 
     def __init__(
@@ -63,64 +65,46 @@ class PhaseDiscovery:
         *,
         bin_seconds: float = 2.0,
         min_phase_seconds: float = DEFAULT_MIN_PHASE_SECONDS,
-        queue_weight: float = 0.65,
-        stop_weight: float = 0.35,
-        activity_threshold: float = DEFAULT_ACTIVITY_THRESHOLD,
-        min_cycles: int = 3,
+        transition_penalty: float = 0.08,
     ) -> None:
         if bin_seconds <= 0 or min_phase_seconds < bin_seconds:
             raise ValueError("invalid phase-discovery timing parameters")
-        if queue_weight < 0 or stop_weight < 0 or queue_weight + stop_weight <= 0:
-            raise ValueError("invalid queue/stop weights")
-        if not 0 < activity_threshold < 1:
-            raise ValueError("activity_threshold must be in (0, 1)")
-        if min_cycles < 1:
-            raise ValueError("min_cycles must be positive")
-        self.bin_seconds = bin_seconds
+        if transition_penalty < 0:
+            raise ValueError("transition_penalty must be non-negative")
+        self.bin_seconds = float(bin_seconds)
         self.min_phase_bins = max(1, int(round(min_phase_seconds / bin_seconds)))
-        total = queue_weight + stop_weight
-        self.queue_weight = queue_weight / total
-        self.stop_weight = stop_weight / total
-        self.activity_threshold = activity_threshold
-        self.min_cycles = min_cycles
+        self.transition_penalty = float(transition_penalty)
 
     def build_profiles(
         self,
         frame: pd.DataFrame,
         *,
         cycle_seconds: float,
-    ) -> tuple[list[Profile], np.ndarray]:
+    ) -> tuple[list[Profile], np.ndarray, np.ndarray]:
         self._validate_frame(frame)
         n_bins = max(1, int(round(cycle_seconds / self.bin_seconds)))
         centers = np.arange(n_bins, dtype=float) * self.bin_seconds
+        pair_support = np.full((2, n_bins), np.nan, dtype=float)
         profiles: list[Profile] = []
 
-        for approach in APPROACHES:
-            cycles = self._approach_cycle_matrix(frame, cycle_seconds, n_bins, approach)
-            flow = self._robust_consensus(cycles[:, :, 0])
-            wait = self._robust_consensus(cycles[:, :, 1])
-            stopped = self._robust_consensus(cycles[:, :, 2])
-            profiles.extend(
-                (
-                    Profile(approach, "flow", tuple(self._smooth(flow))),
-                    Profile(f"{approach}:wait", "wait", tuple(self._smooth(wait))),
-                    Profile(f"{approach}:stopped", "stopped", tuple(self._smooth(stopped))),
-                )
-            )
+        per_cycle = self._cycle_evidence(frame, cycle_seconds, n_bins)
+        if per_cycle.shape[0]:
+            support_ns = self._robust_cycle_consensus(per_cycle[:, :, 0])
+            pair_support = np.vstack((support_ns, 1.0 - support_ns))
 
-        return profiles, centers
+        profiles.extend(
+            (
+                Profile("NS", "support", tuple(np.nan_to_num(pair_support[0], nan=0.0))),
+                Profile("EW", "support", tuple(np.nan_to_num(pair_support[1], nan=0.0))),
+            )
+        )
+        return profiles, centers, pair_support
 
     def discover(self, frame: pd.DataFrame, *, cycle_seconds: float) -> PhaseDiscoveryResult:
-        profiles, centers = self.build_profiles(frame, cycle_seconds=cycle_seconds)
-        flow = np.vstack([self._values(profiles, approach, "flow") for approach in APPROACHES])
-        wait = np.vstack([self._values(profiles, f"{approach}:wait", "wait") for approach in APPROACHES])
-        stopped = np.vstack([self._values(profiles, f"{approach}:stopped", "stopped") for approach in APPROACHES])
-
-        evidence = self._signal_evidence(flow, wait, stopped)
-        active = self._stabilize_activity(evidence["green"] >= self.activity_threshold)
-        phases = self._phases(active, evidence, frame, cycle_seconds, centers)
-
-        similarities = self._similarities(evidence["green"])
+        profiles, centers, pair_support = self.build_profiles(frame, cycle_seconds=cycle_seconds)
+        states = self._best_two_phase_schedule(pair_support)
+        phases = self._build_phases(states, pair_support, frame, cycle_seconds, centers)
+        similarities = self._similarities(pair_support)
         return PhaseDiscoveryResult(
             float(cycle_seconds),
             self.bin_seconds,
@@ -135,175 +119,173 @@ class PhaseDiscovery:
         if missing:
             raise ValueError(f"missing required columns: {sorted(missing)}")
 
-    def _approach_cycle_matrix(
+    def _cycle_evidence(
         self,
         frame: pd.DataFrame,
         cycle_seconds: float,
         n_bins: int,
-        approach: str,
     ) -> np.ndarray:
+        if frame.empty:
+            return np.empty((0, n_bins, 1), dtype=float)
+
         t = pd.to_numeric(frame["t_s"], errors="coerce").fillna(0.0).to_numpy(float)
         cycles = np.floor(np.maximum(t, 0.0) / cycle_seconds).astype(int)
-        cycle_count = int(cycles.max()) + 1 if len(cycles) else 1
-        matrix = np.zeros((cycle_count, n_bins, 3), dtype=float)
-        mask = frame["zone_in"].astype(str).to_numpy() == approach
-        if not mask.any():
-            return matrix[: max(1, min(cycle_count, self.min_cycles))]
+        cycle_count = int(cycles.max()) + 1
+        bins = np.minimum(
+            (np.mod(np.maximum(t, 0.0), cycle_seconds) / self.bin_seconds).astype(int),
+            n_bins - 1,
+        )
+        approaches = frame["zone_in"].astype(str).to_numpy()
+        stopped = frame["stopped"].astype(bool).to_numpy()
 
-        wait = pd.to_numeric(frame["wait_s"], errors="coerce").fillna(0.0).to_numpy(float)
-        stopped = frame["stopped"].astype(float).to_numpy()
-        bins = self._bin_indices(t, cycle_seconds, n_bins)
-        for cycle_id, bin_id, wait_value, stopped_value, selected in zip(
-            cycles, bins, wait, stopped, mask
-        ):
-            if selected:
-                matrix[cycle_id, bin_id, 0] += 1.0
-                matrix[cycle_id, bin_id, 1] += max(0.0, float(wait_value))
-                matrix[cycle_id, bin_id, 2] += max(0.0, float(stopped_value))
-        return matrix
+        evidence = np.zeros((cycle_count, n_bins, len(APPROACHES), 2), dtype=float)
+        approach_index = {approach: idx for idx, approach in enumerate(APPROACHES)}
+        for cycle_id, bin_id, approach, is_stopped in zip(cycles, bins, approaches, stopped):
+            idx = approach_index.get(approach)
+            if idx is None:
+                continue
+            evidence[cycle_id, bin_id, idx, 1 if is_stopped else 0] += 1.0
+
+        pair_support: list[np.ndarray] = []
+        for cycle_id in range(cycle_count):
+            cycle = evidence[cycle_id]
+            moving = cycle[:, :, 0]
+            stopped_counts = cycle[:, :, 1]
+            ns = moving[:, 0] + moving[:, 1] + stopped_counts[:, 2] + stopped_counts[:, 3]
+            total = cycle.sum(axis=(1, 2))
+            support = np.divide(ns, total, out=np.full(n_bins, np.nan), where=total > 0)
+            pair_support.append(support)
+
+        if not pair_support:
+            return np.empty((0, n_bins, 1), dtype=float)
+        return np.stack(pair_support, axis=0)[..., None]
 
     @staticmethod
-    def _bin_indices(t: np.ndarray, cycle_seconds: float, n_bins: int) -> np.ndarray:
-        folded = np.mod(t, cycle_seconds)
-        return np.minimum((folded / cycle_seconds * n_bins).astype(int), n_bins - 1)
+    def _robust_cycle_consensus(values: np.ndarray) -> np.ndarray:
+        with np.errstate(invalid="ignore"):
+            return np.nanmedian(values, axis=0)
 
-    @staticmethod
-    def _robust_consensus(matrix: np.ndarray) -> np.ndarray:
-        if matrix.size == 0:
-            return np.zeros(matrix.shape[-1] if matrix.ndim else 1, dtype=float)
-        return np.median(matrix, axis=0)
+    def _best_two_phase_schedule(self, pair_support: np.ndarray) -> np.ndarray:
+        ns = np.asarray(pair_support[0], dtype=float)
+        ew = np.asarray(pair_support[1], dtype=float)
+        n_bins = len(ns)
+        if n_bins == 0:
+            return np.zeros(0, dtype=np.int8)
 
-    @staticmethod
-    def _values(profiles: list[Profile], key: str, kind: str) -> np.ndarray:
-        for profile in profiles:
-            if profile.key == key and profile.kind == kind:
-                return np.asarray(profile.values, dtype=float)
-        raise RuntimeError(f"missing profile {key}/{kind}")
+        best_score = -np.inf
+        best_start = 0
+        best_length = max(self.min_phase_bins, n_bins // 2)
+        doubled_ns = np.r_[ns, ns]
+        doubled_ew = np.r_[ew, ew]
+        ns_prefix = np.concatenate(([0.0], np.cumsum(np.nan_to_num(doubled_ns, nan=0.0))))
+        ew_prefix = np.concatenate(([0.0], np.cumsum(np.nan_to_num(doubled_ew, nan=0.0))))
+        max_length = n_bins - self.min_phase_bins
 
-    def _signal_evidence(
+        for start in range(n_bins):
+            for length in range(self.min_phase_bins, max_length + 1):
+                end = start + length
+                ns_inside = ns_prefix[end] - ns_prefix[start]
+                ew_inside = ew_prefix[end] - ew_prefix[start]
+                total_ew = ew_prefix[start + n_bins] - ew_prefix[start]
+                score = ns_inside + (total_ew - ew_inside) - 2.0 * self.transition_penalty
+                if score > best_score:
+                    best_score = score
+                    best_start = start
+                    best_length = length
+
+        states = np.ones(n_bins, dtype=np.int8)
+        for offset in range(best_length):
+            states[(best_start + offset) % n_bins] = 0
+        return states
+
+    def _build_phases(
         self,
-        flow: np.ndarray,
-        wait: np.ndarray,
-        stopped: np.ndarray,
-    ) -> dict[str, np.ndarray]:
-        flow_strength = self._rowwise_activity(flow)
-        mean_wait = wait / np.maximum(flow, 1.0)
-        wait_pressure = self._rowwise_activity(mean_wait)
-        stop_pressure = self._rowwise_activity(stopped / np.maximum(flow, 1.0))
-        red = self.queue_weight * wait_pressure + self.stop_weight * stop_pressure
-
-        # Throughput is only useful as green evidence when the approach actually has
-        # traffic. Empty bins are therefore kept weak rather than interpreted as green.
-        green = flow_strength * (1.0 - red)
-        green = self._smooth_matrix(green)
-        red = self._smooth_matrix(red)
-        return {"green": np.clip(green, 0.0, 1.0), "red": np.clip(red, 0.0, 1.0)}
-
-    @staticmethod
-    def _rowwise_activity(values: np.ndarray) -> np.ndarray:
-        baseline = np.median(values, axis=1, keepdims=True)
-        scale = np.percentile(values, 90, axis=1, keepdims=True) - baseline
-        scale = np.maximum(scale, MIN_SIGNAL_STD)
-        activity = np.clip((values - baseline) / scale, 0.0, 1.0)
-        return activity
-
-    def _stabilize_activity(self, active: np.ndarray) -> np.ndarray:
-        result = active.copy()
-        result = self._remove_short_runs(result)
-        result = self._fill_small_gaps(result)
-        return result
-
-    def _remove_short_runs(self, active: np.ndarray) -> np.ndarray:
-        result = active.copy()
-        for approach_idx in range(result.shape[0]):
-            row = result[approach_idx]
-            i = 0
-            while i < len(row):
-                j = i + 1
-                while j < len(row) and row[j] == row[i]:
-                    j += 1
-                if row[i] and j - i < self.min_phase_bins:
-                    left = row[i - 1] if i else False
-                    right = row[j] if j < len(row) else False
-                    row[i:j] = left or right
-                i = j
-            result[approach_idx] = row
-        return result
-
-    def _fill_small_gaps(self, active: np.ndarray) -> np.ndarray:
-        result = active.copy()
-        max_gap = max(1, self.min_phase_bins // 2)
-        for approach_idx in range(result.shape[0]):
-            row = result[approach_idx]
-            i = 0
-            while i < len(row):
-                if row[i]:
-                    i += 1
-                    continue
-                j = i + 1
-                while j < len(row) and not row[j]:
-                    j += 1
-                if i > 0 and j < len(row) and j - i <= max_gap:
-                    row[i:j] = True
-                i = j
-            result[approach_idx] = row
-        return result
-
-    def _phases(
-        self,
-        active: np.ndarray,
-        evidence: dict[str, np.ndarray],
+        states: np.ndarray,
+        pair_support: np.ndarray,
         frame: pd.DataFrame,
         cycle_seconds: float,
         centers: np.ndarray,
     ) -> list[Phase]:
-        green = evidence["green"]
-        red = evidence["red"]
-        states = [tuple(np.flatnonzero(active[:, idx]).tolist()) for idx in range(active.shape[1])]
-        states = self._fill_empty_states(states, green)
+        if len(states) == 0:
+            return []
 
-        runs: list[tuple[int, int, tuple[int, ...]]] = []
-        i = 0
-        while i < len(states):
-            j = i + 1
-            while j < len(states) and states[j] == states[i]:
-                j += 1
-            runs.append((i, j, states[i]))
-            i = j
+        transitions = [
+            i for i in range(len(states))
+            if states[i] != states[(i - 1) % len(states)]
+        ]
+        if not transitions:
+            active = NS_PHASE if int(states[0]) == 0 else EW_PHASE
+            confidence = float(np.nanmean(pair_support[int(states[0]), :]))
+            return [self._make_phase(1, 0.0, cycle_seconds, active, confidence, frame, cycle_seconds)]
+
+        if len(transitions) > 2:
+            contrasts = [
+                abs(float(np.nan_to_num(pair_support[0, index] - pair_support[1, index], nan=0.0)))
+                for index in transitions
+            ]
+            transitions = sorted(item for _, item in sorted(zip(contrasts, transitions), reverse=True)[:2])
+
+        if len(transitions) == 1:
+            transitions.append((transitions[0] + len(states) // 2) % len(states))
+            transitions.sort()
+
+        boundary_a, boundary_b = transitions[:2]
+        state_a = int(states[(boundary_a + 1) % len(states)])
+        state_b = 1 - state_a
+        intervals = (
+            (boundary_a, boundary_b, state_a),
+            (boundary_b, boundary_a, state_b),
+        )
 
         phases: list[Phase] = []
-        for phase_id, (start_idx, end_idx, members) in enumerate(runs, 1):
+        for phase_id, (start_idx, end_idx, state) in enumerate(intervals, 1):
             start_s = float(centers[start_idx])
-            end_s = float(min(cycle_seconds, centers[end_idx - 1] + self.bin_seconds))
-            approaches = tuple(APPROACHES[idx] for idx in members)
-            member_slice = slice(start_idx, end_idx)
-            active_score = float(np.mean(green[list(members), member_slice])) if members else 0.0
-            inactive = [idx for idx in range(len(APPROACHES)) if idx not in members]
-            inactive_red = float(np.mean(red[inactive, member_slice])) if inactive else 0.0
-            confidence = float(np.clip(0.65 * active_score + 0.35 * inactive_red, 0.0, 1.0))
-            movements = self._movements(frame, cycle_seconds, start_s, end_s, approaches)
+            end_s = float(centers[end_idx])
+            indices = self._interval_indices(start_idx, end_idx, len(states))
+            values = pair_support[state, indices] if indices else np.array([], dtype=float)
+            confidence = float(np.nanmean(values)) if values.size and np.isfinite(values).any() else 0.0
+            active = NS_PHASE if state == 0 else EW_PHASE
             phases.append(
-                Phase(
-                    phase_id=phase_id,
-                    phase_start=round(start_s, 2),
-                    phase_end=round(end_s, 2),
-                    active_approaches=approaches,
-                    active_movements=movements,
-                    confidence=round(confidence, 4),
-                    members=tuple(approaches + movements),
+                self._make_phase(
+                    phase_id,
+                    start_s,
+                    end_s,
+                    active,
+                    confidence,
+                    frame,
+                    cycle_seconds,
                 )
             )
         return phases
 
     @staticmethod
-    def _fill_empty_states(states: list[tuple[int, ...]], green: np.ndarray) -> list[tuple[int, ...]]:
-        result = states[:]
-        for idx, members in enumerate(result):
-            if members:
-                continue
-            strongest = np.argsort(green[:, idx])[-2:]
-            result[idx] = tuple(sorted(int(item) for item in strongest if green[item, idx] > 0)) or (int(np.argmax(green[:, idx])),)
-        return result
+    def _interval_indices(start: int, end: int, size: int) -> list[int]:
+        if start == end:
+            return list(range(size))
+        if start < end:
+            return list(range(start, end))
+        return list(range(start, size)) + list(range(0, end))
+
+    def _make_phase(
+        self,
+        phase_id: int,
+        start: float,
+        end: float,
+        active: tuple[str, ...],
+        confidence: float,
+        frame: pd.DataFrame,
+        cycle_seconds: float,
+    ) -> Phase:
+        movements = self._movements(frame, cycle_seconds, start % cycle_seconds, end % cycle_seconds, active)
+        return Phase(
+            phase_id=phase_id,
+            phase_start=round(start % cycle_seconds, 2),
+            phase_end=round(end % cycle_seconds, 2),
+            active_approaches=active,
+            active_movements=movements,
+            confidence=round(float(np.clip(confidence, 0.0, 1.0)), 4),
+            members=tuple(active + movements),
+        )
 
     @staticmethod
     def _movements(
@@ -313,7 +295,7 @@ class PhaseDiscovery:
         end: float,
         active: tuple[str, ...],
     ) -> tuple[str, ...]:
-        if not active:
+        if not active or frame.empty:
             return ()
         pos = np.mod(pd.to_numeric(frame["t_s"], errors="coerce"), cycle)
         mask = ((pos >= start) & (pos < end)) if start <= end else ((pos >= start) | (pos < end))
@@ -321,27 +303,15 @@ class PhaseDiscovery:
         return tuple(frame.loc[mask, "movement"].astype(str).value_counts().head(8).index.tolist())
 
     @staticmethod
-    def _similarities(green: np.ndarray) -> dict[str, dict[str, float]]:
-        centered = green - green.mean(axis=1, keepdims=True)
-        norms = np.linalg.norm(centered, axis=1)
-        result: dict[str, dict[str, float]] = {}
-        for i, left in enumerate(APPROACHES):
-            result[left] = {}
-            for j, right in enumerate(APPROACHES):
-                if i == j or norms[i] <= MIN_SIGNAL_STD or norms[j] <= MIN_SIGNAL_STD:
-                    continue
-                result[left][right] = round(float(np.dot(centered[i], centered[j]) / (norms[i] * norms[j])), 4)
-        return result
-
-    def _smooth_matrix(self, matrix: np.ndarray) -> np.ndarray:
-        return np.vstack([self._smooth(row) for row in matrix])
-
-    @staticmethod
-    def _smooth(values: np.ndarray) -> np.ndarray:
-        if len(values) < 3:
-            return values
-        padded = np.r_[values[-1], values, values[0]]
-        return np.convolve(padded, np.array([0.25, 0.5, 0.25]), mode="valid")
+    def _similarities(pair_support: np.ndarray) -> dict[str, dict[str, float]]:
+        ns = np.nan_to_num(np.asarray(pair_support[0], dtype=float), nan=0.5)
+        ew = np.nan_to_num(np.asarray(pair_support[1], dtype=float), nan=0.5)
+        if np.std(ns) <= MIN_SIGNAL_STD or np.std(ew) <= MIN_SIGNAL_STD:
+            correlation = -1.0
+        else:
+            correlation = float(np.corrcoef(ns, ew)[0, 1])
+        correlation = round(correlation, 4)
+        return {"NS": {"EW": correlation}, "EW": {"NS": correlation}}
 
 
 def discover_phases(frame: pd.DataFrame, cycle_seconds: float) -> PhaseDiscoveryResult:

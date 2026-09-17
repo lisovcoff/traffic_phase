@@ -57,13 +57,11 @@ class SignalStateResult:
 
 
 class SignalStateEstimator:
-    """Reconstruct signal states from phase hypotheses plus direct traffic evidence.
+    """Turn the binary phase hypothesis into GREEN/YELLOW/RED states.
 
-    Low phase-model confidence no longer forces every approach to UNKNOWN. A strong
-    recent observation of moving traffic with low delay can recover a GREEN candidate,
-    while RED is only emitted when the phase model or direct queue evidence is strong.
-    This avoids presenting an unsupported all-UNKNOWN snapshot while still avoiding
-    unconditional RED labels for approaches with no observed traffic.
+    Phase confidence is reported as a diagnostic value, but it is not used to replace
+    a valid phase with four UNKNOWN states. Once the binary phase model has selected
+    N/S or E/W as the active pair, the opposite pair is explicitly RED.
     """
 
     def __init__(
@@ -115,30 +113,25 @@ class SignalStateEstimator:
 
         approach_states: list[ApproachState] = []
         for approach in APPROACHES:
-            flow, mean_wait, stopped_ratio, green_evidence, red_evidence = evidence.get(
+            flow, _mean_wait, stopped_ratio, _green_evidence, _red_evidence = evidence.get(
                 approach, (0.0, 0.0, 0.0, 0.0, 0.0)
             )
             evidence_weight = flow + self.stop_weight * stopped_ratio * flow
-            state_confidence = 0.0
 
             if source_phase is None:
                 state = SignalState.UNKNOWN
+            elif transition:
+                state = SignalState.YELLOW if approach in source_phase.active_approaches else SignalState.RED
             elif approach in source_phase.active_approaches:
-                state_confidence = max(phase_confidence, green_evidence)
-                if transition:
-                    state = SignalState.YELLOW if state_confidence >= 0.20 else SignalState.UNKNOWN
-                else:
-                    state = SignalState.GREEN if state_confidence >= 0.20 else SignalState.UNKNOWN
+                state = SignalState.GREEN
             else:
-                state_confidence = max(phase_confidence, red_evidence)
-                red_supported = phase_confidence >= self.min_confidence or red_evidence >= 0.55
-                state = SignalState.RED if red_supported else SignalState.UNKNOWN
+                state = SignalState.RED
 
             approach_states.append(
                 ApproachState(
                     approach=approach,
                     state=state,
-                    confidence=round(float(state_confidence), 4),
+                    confidence=round(float(phase_confidence), 4),
                     phase_id=phase.phase_id if phase is not None else None,
                     evidence_weight=round(float(evidence_weight), 4),
                 )
@@ -172,8 +165,7 @@ class SignalStateEstimator:
                     transition = self._ending_yellow(phase_position, end)
                 else:
                     next_start = next_phase.phase_start % self.phase_model.cycle_seconds
-                    has_gap = abs((next_start - end) % self.phase_model.cycle_seconds) > 1e-9
-                    transition = not has_gap and self._ending_yellow(phase_position, end)
+                    transition = self._ending_yellow(phase_position, end) or self._before_next_phase(phase_position, next_start)
                 return phase, transition, phase
 
             next_phase = phases[(index + 1) % len(phases)] if len(phases) > 1 else None
@@ -256,7 +248,7 @@ class SignalStateEstimator:
                 evidence[approach][2] += stopped_ratio * flow
                 evidence[approach][3] = max(evidence[approach][3], green_evidence)
                 evidence[approach][4] = max(evidence[approach][4], red_evidence)
-            for approach, values in evidence.items():
+            for _approach, values in evidence.items():
                 flow = values[0]
                 if flow > 0:
                     values[1] /= flow

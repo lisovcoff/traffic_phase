@@ -38,17 +38,18 @@ def _synthetic_frame(cycle=120.0, bin_s=2.0, repeats=6):
     return pd.DataFrame(rows)
 
 
-def test_discovers_delay_based_temporal_regimes():
+def test_discovers_exactly_two_opposing_phase_states():
     result = PhaseDiscovery(bin_seconds=2.0, min_phase_seconds=8.0).discover(
         _synthetic_frame(), cycle_seconds=120.0
     )
-    assert len(result.phases) >= 2
-    phases = [phase.active_approaches for phase in result.phases]
-    assert any(set(state) == {"N", "S"} for state in phases)
-    assert any(set(state) == {"E", "W"} for state in phases)
+    assert len(result.phases) == 2
+    assert {phase.active_approaches for phase in result.phases} == {
+        ("N", "S"),
+        ("E", "W"),
+    }
 
 
-def test_single_cycle_delay_outlier_does_not_create_new_regime():
+def test_single_cycle_delay_outlier_does_not_create_extra_phase():
     frame = _synthetic_frame(repeats=6)
     outlier = {
         "t_s": 50.0,
@@ -62,9 +63,11 @@ def test_single_cycle_delay_outlier_does_not_create_new_regime():
     result = PhaseDiscovery(bin_seconds=2.0, min_phase_seconds=8.0).discover(
         frame, cycle_seconds=120.0
     )
-    phases = [phase.active_approaches for phase in result.phases]
-    assert any(set(state) == {"N", "S"} for state in phases)
-    assert any(set(state) == {"E", "W"} for state in phases)
+    assert len(result.phases) == 2
+    assert {phase.active_approaches for phase in result.phases} == {
+        ("N", "S"),
+        ("E", "W"),
+    }
 
 
 def test_phase_intervals_cover_cycle_without_overlap():
@@ -75,19 +78,21 @@ def test_phase_intervals_cover_cycle_without_overlap():
     for phase in result.phases:
         start = int(phase.phase_start / 2)
         end = int(phase.phase_end / 2)
-        current = set(range(start, end))
+        current = set(range(start, end)) if start < end else set(range(start, 50)) | set(range(0, end))
         assert not bins.intersection(current)
         bins.update(current)
     assert len(bins) == 50
 
 
-def test_does_not_hardcode_two_phase_order():
+def test_does_not_hardcode_only_one_phase():
     result = PhaseDiscovery(bin_seconds=2.0, min_phase_seconds=8.0).discover(
         _synthetic_frame(cycle=100.0), cycle_seconds=100.0
     )
     assert result.cycle_seconds == 100.0
-    assert any("N" in phase.active_approaches for phase in result.phases)
-    assert any("E" in phase.active_approaches for phase in result.phases)
+    assert {phase.active_approaches for phase in result.phases} == {
+        ("N", "S"),
+        ("E", "W"),
+    }
 
 
 def test_missing_columns_are_rejected():
