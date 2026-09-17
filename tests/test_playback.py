@@ -5,7 +5,7 @@ from pathlib import Path
 
 from app.core import playback
 from app.core.phase_discovery import PhaseDiscoveryResult
-from app.core.signal_state_estimator import SignalStateResult
+from app.core.signal_state_estimator import ApproachState, SignalState, SignalStateResult
 
 
 class FakeCandidate:
@@ -57,7 +57,16 @@ class FakeEstimator:
                     phase_id=None,
                     transition=True,
                     phase_confidence=0.0,
-                    approaches=(),
+                    approaches=tuple(
+                        ApproachState(
+                            approach=approach,
+                            state=SignalState.UNKNOWN,
+                            confidence=0.0,
+                            phase_id=None,
+                            evidence_weight=0.0,
+                        )
+                        for approach in ("N", "S", "E", "W")
+                    ),
                 )
             )
         return results
