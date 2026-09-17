@@ -8,7 +8,7 @@ import pandas as pd
 from app.core.phase_discovery import APPROACHES, PhaseDiscoveryResult
 
 
-def _evidence(frame: pd.DataFrame, current_time_s: float, window_s: float = 12.0) -> dict[str, dict[str, float]]:
+def _evidence(frame: pd.DataFrame, current_time_s: float, window_s: float = 6.0) -> dict[str, dict[str, float]]:
     lower = current_time_s - window_s
     recent = frame[(frame["t_s"] >= lower) & (frame["t_s"] <= current_time_s)]
     result: dict[str, dict[str, float]] = {}
@@ -227,6 +227,7 @@ def build_review_log(
         "REVIEW RULES",
         "Moving trajectories support GREEN. A long stay/wait duration is not direct RED evidence because it belongs to the whole trajectory rather than an instantaneous signal state.",
         "For the binary MVP, the inferred active pair is GREEN and the opposite pair is RED. No moving evidence means NO_RECENT_EVIDENCE rather than contradiction.",
+        "The review window is limited to 6 seconds so evidence from the previous phase does not dominate snapshots immediately after a phase boundary.",
         "These checks do not establish true signal-light correctness because no labeled controller state is available in the source data.",
     ])
     return "\n".join(lines)
