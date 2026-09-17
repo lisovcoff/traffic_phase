@@ -52,12 +52,15 @@ class PhaseDiscoveryResult:
 
 
 class PhaseDiscovery:
-    """Infer a binary signal schedule from moving and stopped traffic.
+    """Infer two opposing signal phases from actual movement events.
 
-    The MVP assumes two mutually exclusive signal groups:
-    N/S green versus E/W red, or E/W green versus N/S red.
-    A moving vehicle is green-like evidence for its approach; a stopped vehicle is
-    red-like evidence. Empty bins carry no evidence and do not bias the split.
+    The MVP assumes exactly two signal groups: N/S green versus E/W red,
+    or E/W green versus N/S red.
+
+    Movement is positive evidence that an approach received green around the
+    trajectory timestamp. A long stay/wait duration is not treated as direct
+    red evidence because it describes the whole trajectory, not the signal
+    state at one instant. Bins without moving trajectories carry no evidence.
     """
 
     def __init__(
@@ -85,19 +88,16 @@ class PhaseDiscovery:
         n_bins = max(1, int(round(cycle_seconds / self.bin_seconds)))
         centers = np.arange(n_bins, dtype=float) * self.bin_seconds
         pair_support = np.full((2, n_bins), np.nan, dtype=float)
-        profiles: list[Profile] = []
 
         per_cycle = self._cycle_evidence(frame, cycle_seconds, n_bins)
         if per_cycle.shape[0]:
             support_ns = self._robust_cycle_consensus(per_cycle[:, :, 0])
             pair_support = np.vstack((support_ns, 1.0 - support_ns))
 
-        profiles.extend(
-            (
-                Profile("NS", "support", tuple(np.nan_to_num(pair_support[0], nan=0.0))),
-                Profile("EW", "support", tuple(np.nan_to_num(pair_support[1], nan=0.0))),
-            )
-        )
+        profiles = [
+            Profile("NS", "moving_support", tuple(np.nan_to_num(pair_support[0], nan=0.0))),
+            Profile("EW", "moving_support", tuple(np.nan_to_num(pair_support[1], nan=0.0))),
+        ]
         return profiles, centers, pair_support
 
     def discover(self, frame: pd.DataFrame, *, cycle_seconds: float) -> PhaseDiscoveryResult:
@@ -119,6 +119,14 @@ class PhaseDiscovery:
         if missing:
             raise ValueError(f"missing required columns: {sorted(missing)}")
 
+    @staticmethod
+    def _moving_mask(frame: pd.DataFrame) -> np.ndarray:
+        if "move_s" in frame.columns:
+            move_s = pd.to_numeric(frame["move_s"], errors="coerce")
+            if bool(move_s.notna().any()):
+                return move_s.fillna(0.0).to_numpy(float) > 0.0
+        return ~frame["stopped"].astype(bool).to_numpy()
+
     def _cycle_evidence(
         self,
         frame: pd.DataFrame,
@@ -136,28 +144,31 @@ class PhaseDiscovery:
             n_bins - 1,
         )
         approaches = frame["zone_in"].astype(str).to_numpy()
-        stopped = frame["stopped"].astype(bool).to_numpy()
+        moving = self._moving_mask(frame)
 
-        evidence = np.zeros((cycle_count, n_bins, len(APPROACHES), 2), dtype=float)
+        counts = np.zeros((cycle_count, n_bins, len(APPROACHES)), dtype=float)
         approach_index = {approach: idx for idx, approach in enumerate(APPROACHES)}
-        for cycle_id, bin_id, approach, is_stopped in zip(cycles, bins, approaches, stopped):
-            idx = approach_index.get(approach)
-            if idx is None:
+        for cycle_id, bin_id, approach, is_moving in zip(cycles, bins, approaches, moving):
+            if not is_moving:
                 continue
-            evidence[cycle_id, bin_id, idx, 1 if is_stopped else 0] += 1.0
+            idx = approach_index.get(approach)
+            if idx is not None:
+                counts[cycle_id, bin_id, idx] += 1.0
 
         pair_support: list[np.ndarray] = []
         for cycle_id in range(cycle_count):
-            cycle = evidence[cycle_id]
-            moving = cycle[:, :, 0]
-            stopped_counts = cycle[:, :, 1]
-            ns = moving[:, 0] + moving[:, 1] + stopped_counts[:, 2] + stopped_counts[:, 3]
-            total = cycle.sum(axis=(1, 2))
-            support = np.divide(ns, total, out=np.full(n_bins, np.nan), where=total > 0)
+            cycle = counts[cycle_id]
+            ns = cycle[:, 0] + cycle[:, 1]
+            ew = cycle[:, 2] + cycle[:, 3]
+            total = ns + ew
+            support = np.divide(
+                ns,
+                total,
+                out=np.full(n_bins, np.nan),
+                where=total > 0,
+            )
             pair_support.append(support)
 
-        if not pair_support:
-            return np.empty((0, n_bins, 1), dtype=float)
         return np.stack(pair_support, axis=0)[..., None]
 
     @staticmethod
@@ -171,6 +182,8 @@ class PhaseDiscovery:
         n_bins = len(ns)
         if n_bins == 0:
             return np.zeros(0, dtype=np.int8)
+        if n_bins < 2 * self.min_phase_bins:
+            raise ValueError("cycle is too short for two signal phases")
 
         best_score = -np.inf
         best_start = 0
@@ -186,8 +199,8 @@ class PhaseDiscovery:
                 end = start + length
                 ns_inside = ns_prefix[end] - ns_prefix[start]
                 ew_inside = ew_prefix[end] - ew_prefix[start]
-                total_ew = ew_prefix[start + n_bins] - ew_prefix[start]
-                score = ns_inside + (total_ew - ew_inside) - 2.0 * self.transition_penalty
+                ew_total = ew_prefix[start + n_bins] - ew_prefix[start]
+                score = ns_inside + (ew_total - ew_inside) - 2.0 * self.transition_penalty
                 if score > best_score:
                     best_score = score
                     best_start = start
@@ -215,7 +228,8 @@ class PhaseDiscovery:
         ]
         if not transitions:
             active = NS_PHASE if int(states[0]) == 0 else EW_PHASE
-            confidence = float(np.nanmean(pair_support[int(states[0]), :]))
+            values = pair_support[int(states[0])]
+            confidence = float(np.nanmean(values)) if np.isfinite(values).any() else 0.0
             return [self._make_phase(1, 0.0, cycle_seconds, active, confidence, frame, cycle_seconds)]
 
         if len(transitions) > 2:
@@ -304,12 +318,13 @@ class PhaseDiscovery:
 
     @staticmethod
     def _similarities(pair_support: np.ndarray) -> dict[str, dict[str, float]]:
-        ns = np.nan_to_num(np.asarray(pair_support[0], dtype=float), nan=0.5)
-        ew = np.nan_to_num(np.asarray(pair_support[1], dtype=float), nan=0.5)
-        if np.std(ns) <= MIN_SIGNAL_STD or np.std(ew) <= MIN_SIGNAL_STD:
+        ns = np.asarray(pair_support[0], dtype=float)
+        ew = np.asarray(pair_support[1], dtype=float)
+        valid = np.isfinite(ns) & np.isfinite(ew)
+        if valid.sum() < 2 or np.std(ns[valid]) <= MIN_SIGNAL_STD:
             correlation = -1.0
         else:
-            correlation = float(np.corrcoef(ns, ew)[0, 1])
+            correlation = float(np.corrcoef(ns[valid], ew[valid])[0, 1])
         correlation = round(correlation, 4)
         return {"NS": {"EW": correlation}, "EW": {"NS": correlation}}
 

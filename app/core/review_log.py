@@ -13,10 +13,15 @@ def _evidence(frame: pd.DataFrame, current_time_s: float, window_s: float = 12.0
     recent = frame[(frame["t_s"] >= lower) & (frame["t_s"] <= current_time_s)]
     result: dict[str, dict[str, float]] = {}
     for approach in APPROACHES:
-        group = recent[recent["zone_in"] == approach]
+        group = recent[recent["zone_in"].astype(str) == approach]
+        moving = (
+            pd.to_numeric(group["move_s"], errors="coerce").fillna(0.0) > 0.0
+            if "move_s" in group.columns
+            else ~group["stopped"].astype(bool)
+        )
         result[approach] = {
-            "moving": float((~group["stopped"].astype(bool)).sum()),
-            "stopped": float(group["stopped"].astype(bool).sum()),
+            "moving": float(moving.sum()),
+            "stopped": float((~moving).sum()),
             "flow": float(len(group)),
         }
     return result
@@ -25,17 +30,16 @@ def _evidence(frame: pd.DataFrame, current_time_s: float, window_s: float = 12.0
 def _support_status(phase_active: set[str], evidence: dict[str, dict[str, float]]) -> str:
     active_moving = sum(evidence[a]["moving"] for a in phase_active)
     inactive_moving = sum(evidence[a]["moving"] for a in APPROACHES if a not in phase_active)
-    active_stopped = sum(evidence[a]["stopped"] for a in phase_active)
-    inactive_stopped = sum(evidence[a]["stopped"] for a in APPROACHES if a not in phase_active)
-
-    total = active_moving + inactive_moving + active_stopped + inactive_stopped
-    if total == 0:
+    moving_total = active_moving + inactive_moving
+    if moving_total == 0:
         return "NO_RECENT_EVIDENCE"
-    if active_moving > inactive_moving * 1.2 and inactive_stopped >= active_stopped:
+
+    active_share = active_moving / moving_total
+    if active_share >= 0.65:
         return "STRONG"
-    if active_moving >= inactive_moving and active_stopped <= inactive_stopped:
+    if active_share >= 0.50:
         return "SUPPORTING"
-    if inactive_moving > active_moving * 1.5 or active_stopped > inactive_stopped * 1.5:
+    if active_share <= 0.35:
         return "CONTRADICTORY"
     return "MIXED"
 
@@ -80,10 +84,10 @@ def review_summary(
 
     coverage_ratio = sum(covered) / bins
     overlap_ratio = overlap_bins / bins
-
     assigned = 0
     contradictory = 0
     strong_or_supporting = 0
+
     for item in items:
         phase = _phase_at(phase_model, float(item["cycle_phase_s"]))
         if phase is None:
@@ -221,8 +225,8 @@ def build_review_log(
     lines.extend([
         "",
         "REVIEW RULES",
-        "Moving vehicles support GREEN; stopped vehicles support RED. For the binary MVP, the active pair is GREEN and the opposite pair is RED.",
-        "STRONG/SUPPORTING means recent traffic is broadly compatible with the inferred pair; MIXED needs manual inspection; CONTRADICTORY is a red flag.",
+        "Moving trajectories support GREEN. A long stay/wait duration is not direct RED evidence because it belongs to the whole trajectory rather than an instantaneous signal state.",
+        "For the binary MVP, the inferred active pair is GREEN and the opposite pair is RED. No moving evidence means NO_RECENT_EVIDENCE rather than contradiction.",
         "These checks do not establish true signal-light correctness because no labeled controller state is available in the source data.",
     ])
     return "\n".join(lines)
