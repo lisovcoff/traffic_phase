@@ -49,13 +49,18 @@ def test_event_model_discovers_two_opposing_green_intervals():
 
 
 def test_support_and_contradiction_are_real_event_counts():
+    # A single-cycle outlier is intentionally rejected by the robust median
+    # profile. Repeat the contradictory event in every cycle so it is genuine
+    # recurring evidence rather than an outlier that should disappear.
     events = _events()
-    events.extend(
-        (
-            _event(EventType.CROSSING, 25.0, "E"),
-            _event(EventType.RELEASE, 26.0, "E"),
+    for repeat in range(6):
+        base = repeat * 120.0
+        events.extend(
+            (
+                _event(EventType.CROSSING, base + 30.0, "E"),
+                _event(EventType.RELEASE, base + 31.0, "E"),
+            )
         )
-    )
     result = EventPhaseDiscovery().discover(events, cycle_seconds=120.0)
     assert sum(phase.supporting_event_count for phase in result.phases) > 0
     assert sum(phase.contradictory_event_count for phase in result.phases) > 0
