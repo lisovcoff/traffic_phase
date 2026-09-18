@@ -2,17 +2,21 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from enum import Enum
+import json
+import math
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
-import json
 
-import pandas as pd
+from app.core.models import EventType, TrajectoryEvent
+from app.core.phase_discovery import APPROACHES
+from app.core.preprocessing import load_trajectory_file
 
-from app.core.models import TrafficWindow
-from app.core.phase_discovery import APPROACHES, Phase, PhaseDiscoveryResult
-from app.core.preprocessing import load_trajectory_file, trajectories_to_frame
 
 DEFAULT_YELLOW_DURATION_SECONDS = 2.0
+DEFAULT_RECENT_WINDOW_SECONDS = 12.0
+DEFAULT_MIN_PHASE_CONFIDENCE = 0.20
+DEFAULT_MIN_TRAFFIC_CONFIDENCE = 0.12
+DEFAULT_CONFLICT_PERSISTENCE_SECONDS = 3.0
 
 
 class SignalState(str, Enum):
@@ -27,9 +31,14 @@ class SignalState(str, Enum):
 class ApproachState:
     approach: str
     state: SignalState
+    probability: float
     confidence: float
     phase_id: int | None
+    phase_confidence: float
+    traffic_evidence_confidence: float
     evidence_weight: float
+    supporting_event_count: int
+    contradictory_event_count: int
 
     def to_dict(self) -> dict[str, object]:
         data = asdict(self)
@@ -44,6 +53,7 @@ class SignalStateResult:
     phase_id: int | None
     transition: bool
     phase_confidence: float
+    traffic_evidence_confidence: float
     approaches: tuple[ApproachState, ...]
 
     def to_dict(self) -> dict[str, object]:
@@ -53,233 +63,336 @@ class SignalStateResult:
             "phase_id": self.phase_id,
             "transition": self.transition,
             "phase_confidence": self.phase_confidence,
+            "traffic_evidence_confidence": self.traffic_evidence_confidence,
             "approaches": [state.to_dict() for state in self.approaches],
         }
 
 
 class SignalStateEstimator:
-    """Turn the binary phase hypothesis into realistic GREEN/YELLOW/RED states.
+    """Probabilistic reconstruction of the current signal state.
 
-    For the Russian road-signal sequence used by this MVP, an outgoing active pair
-    changes GREEN -> YELLOW before becoming RED. The next active pair then shows
-    RED+YELLOW briefly before changing to GREEN. Phase confidence is reported as a
-    diagnostic value and is not used to replace a valid phase with UNKNOWN states.
+    The phase model supplies the structural prior. RELEASE/CROSSING events
+    supply recent traffic evidence. STOP, APPROACH and wait/stay are never
+    used as direct RED evidence.
+
+    Traffic evidence changes probability/confidence but does not instantly
+    override a phase. This is an intentionally small non-HMM persistence
+    mechanism: a conflicting event is observed, but the phase state remains
+    stable until a sustained contradiction can matter at a later integration
+    point.
     """
 
     def __init__(
         self,
-        phase_model: PhaseDiscoveryResult,
+        phase_model: object,
         *,
-        recent_window_s: float = 12.0,
-        min_evidence_weight: float = 1.0,
-        min_confidence: float = 0.55,
-        stop_weight: float = 1.0,
+        recent_window_s: float = DEFAULT_RECENT_WINDOW_SECONDS,
+        min_phase_confidence: float = DEFAULT_MIN_PHASE_CONFIDENCE,
+        min_traffic_confidence: float = DEFAULT_MIN_TRAFFIC_CONFIDENCE,
         yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS,
+        conflict_persistence_seconds: float = DEFAULT_CONFLICT_PERSISTENCE_SECONDS,
+        event_origin_ms: int | None = None,
     ) -> None:
-        if phase_model.cycle_seconds <= 0:
+        cycle = float(getattr(phase_model, "cycle_seconds", 0.0))
+        if cycle <= 0:
             raise ValueError("phase model cycle must be positive")
         if recent_window_s <= 0:
             raise ValueError("recent_window_s must be positive")
-        if min_evidence_weight <= 0:
-            raise ValueError("min_evidence_weight must be positive")
-        if not 0 < min_confidence <= 1:
-            raise ValueError("min_confidence must be in (0, 1]")
-        if stop_weight <= 0:
-            raise ValueError("stop_weight must be positive")
-        if yellow_duration_seconds < 0:
-            raise ValueError("yellow_duration_seconds must be non-negative")
-        if yellow_duration_seconds >= phase_model.cycle_seconds:
-            raise ValueError("yellow_duration_seconds must be shorter than the cycle")
+        if not 0 < min_phase_confidence <= 1:
+            raise ValueError("min_phase_confidence must be in (0, 1]")
+        if not 0 <= min_traffic_confidence <= 1:
+            raise ValueError("min_traffic_confidence must be in [0, 1]")
+        if yellow_duration_seconds < 0 or yellow_duration_seconds >= cycle:
+            raise ValueError("invalid yellow_duration_seconds")
+        if conflict_persistence_seconds < 0:
+            raise ValueError("conflict_persistence_seconds must be non-negative")
 
         self.phase_model = phase_model
-        self.recent_window_s = recent_window_s
-        self.min_evidence_weight = min_evidence_weight
-        self.min_confidence = min_confidence
-        self.stop_weight = stop_weight
-        self.yellow_duration_seconds = yellow_duration_seconds
+        self.recent_window_s = float(recent_window_s)
+        self.min_phase_confidence = float(min_phase_confidence)
+        self.min_traffic_confidence = float(min_traffic_confidence)
+        self.yellow_duration_seconds = float(yellow_duration_seconds)
+        self.conflict_persistence_seconds = float(conflict_persistence_seconds)
+        self.event_origin_ms = event_origin_ms
 
-    def estimate(self, current_time_s: float, traffic: pd.DataFrame | Iterable[TrafficWindow]) -> SignalStateResult:
+    def estimate(
+        self,
+        current_time_s: float,
+        events: Sequence[TrajectoryEvent],
+    ) -> SignalStateResult:
         if current_time_s < 0:
             raise ValueError("current_time_s must be non-negative")
 
-        cycle = self.phase_model.cycle_seconds
-        phase_position = current_time_s % cycle
-        phase, ending_transition, source_phase = self._phase_at(phase_position)
-        recent = self._recent_traffic(traffic, current_time_s)
-        evidence = self._evidence_by_approach(recent)
+        events = list(events)
+        origin_ms = self._origin_ms(events)
+        position = current_time_s % self.phase_model.cycle_seconds
+        phase = self._phase_at(position)
+        phase_confidence = self._phase_confidence(phase)
+        recent = self._recent_events(events, current_time_s, origin_ms)
+        traffic_confidence = self._traffic_confidence(recent)
+        transition_kind = self._transition_kind(position, phase)
 
-        phase_confidence = (
-            max(0.0, min(1.0, float(source_phase.confidence)))
-            if source_phase is not None else 0.0
-        )
-        starting_transition = (
-            source_phase is not None
-            and self._starting_red_yellow(
-                phase_position,
-                source_phase.phase_start % cycle,
-            )
-        )
-        transition = bool(ending_transition or starting_transition)
+        active = set(getattr(phase, "active_approaches", ())) if phase else set()
+        evidence = self._event_evidence(recent, active)
 
-        approach_states: list[ApproachState] = []
+        states: list[ApproachState] = []
         for approach in APPROACHES:
-            flow, _mean_wait, stopped_ratio, _green_evidence, _red_evidence = evidence.get(
-                approach, (0.0, 0.0, 0.0, 0.0, 0.0)
+            support, supporting, contradictory = evidence[approach]
+            traffic_conf = self._approach_traffic_confidence(
+                support,
+                supporting,
+                contradictory,
             )
-            evidence_weight = flow + self.stop_weight * stopped_ratio * flow
+            phase_active = approach in active
 
-            if source_phase is None:
+            if phase is None or phase_confidence < self.min_phase_confidence:
                 state = SignalState.UNKNOWN
-            elif starting_transition:
-                state = (
-                    SignalState.RED_YELLOW
-                    if approach in source_phase.active_approaches
-                    else SignalState.RED
-                )
-            elif ending_transition:
-                state = (
-                    SignalState.YELLOW
-                    if approach in source_phase.active_approaches
-                    else SignalState.RED
-                )
-            elif approach in source_phase.active_approaches:
-                state = SignalState.GREEN
+                probability = max(0.0, min(1.0, traffic_conf))
             else:
-                state = SignalState.RED
+                state, probability = self._state_from_evidence(
+                    phase_active=phase_active,
+                    transition_kind=transition_kind,
+                    support=support,
+                    phase_confidence=phase_confidence,
+                    traffic_confidence=traffic_conf,
+                )
 
-            approach_states.append(
+                if (
+                    contradictory > 0
+                    and support == 0
+                    and self.conflict_persistence_seconds > 0
+                    and self._conflict_is_short(
+                        recent,
+                        approach,
+                        current_time_s,
+                        origin_ms,
+                    )
+                    and transition_kind is None
+                ):
+                    # Keep the phase state; only confidence is reduced.
+                    probability = min(probability, 0.55)
+                    state = SignalState.GREEN if phase_active else SignalState.RED
+
+            states.append(
                 ApproachState(
                     approach=approach,
                     state=state,
-                    confidence=round(float(phase_confidence), 4),
-                    phase_id=phase.phase_id if phase is not None else None,
-                    evidence_weight=round(float(evidence_weight), 4),
+                    probability=round(float(probability), 4),
+                    confidence=round(float(probability), 4),
+                    phase_id=getattr(phase, "phase_id", None),
+                    phase_confidence=round(phase_confidence, 4),
+                    traffic_evidence_confidence=round(traffic_conf, 4),
+                    evidence_weight=round(support, 4),
+                    supporting_event_count=supporting,
+                    contradictory_event_count=contradictory,
                 )
             )
 
         return SignalStateResult(
             timestamp_s=float(current_time_s),
-            cycle_phase_s=round(float(phase_position), 3),
-            phase_id=phase.phase_id if phase is not None else None,
-            transition=transition,
+            cycle_phase_s=round(float(position), 3),
+            phase_id=getattr(phase, "phase_id", None),
+            transition=transition_kind is not None,
             phase_confidence=round(phase_confidence, 4),
-            approaches=tuple(approach_states),
+            traffic_evidence_confidence=round(traffic_confidence, 4),
+            approaches=tuple(states),
         )
 
-    def estimate_playback(self, path: Path, timestamps_s: Sequence[float]) -> list[SignalStateResult]:
-        trajectories = load_trajectory_file(path)
-        frame = trajectories_to_frame(trajectories)
-        return [self.estimate(timestamp_s, frame) for timestamp_s in timestamps_s]
-
-    def _phase_at(self, phase_position: float) -> tuple[Phase | None, bool, Phase | None]:
-        phases = self.phase_model.phases
-        if not phases:
-            return None, True, None
-
-        for index, phase in enumerate(phases):
-            start = phase.phase_start % self.phase_model.cycle_seconds
-            end = phase.phase_end % self.phase_model.cycle_seconds
-            if self._in_interval(phase_position, start, end):
-                next_phase = phases[(index + 1) % len(phases)] if len(phases) > 1 else None
-                if next_phase is None:
-                    transition = self._ending_yellow(phase_position, end)
-                else:
-                    next_start = next_phase.phase_start % self.phase_model.cycle_seconds
-                    transition = self._ending_yellow(phase_position, end) or self._before_next_phase(phase_position, next_start)
-                return phase, transition, phase
-
-            next_phase = phases[(index + 1) % len(phases)] if len(phases) > 1 else None
-            if next_phase is not None:
-                next_start = next_phase.phase_start % self.phase_model.cycle_seconds
-                if self._before_next_phase(phase_position, next_start):
-                    return phase, True, phase
-
-        return None, True, None
-
-    def _in_interval(self, value: float, start: float, end: float) -> bool:
-        if start <= end:
-            return start <= value < end
-        return value >= start or value < end
-
-    def _starting_red_yellow(self, value: float, start: float) -> bool:
-        if self.yellow_duration_seconds == 0:
-            return False
-        elapsed_from_start = (value - start) % self.phase_model.cycle_seconds
-        return elapsed_from_start <= self.yellow_duration_seconds
-
-    def _ending_yellow(self, value: float, end: float) -> bool:
-        if self.yellow_duration_seconds == 0:
-            return False
-        distance_to_end = (end - value) % self.phase_model.cycle_seconds
-        return 0 < distance_to_end <= self.yellow_duration_seconds
-
-    def _before_next_phase(self, value: float, next_start: float) -> bool:
-        if self.yellow_duration_seconds == 0:
-            return False
-        distance = (next_start - value) % self.phase_model.cycle_seconds
-        return 0 < distance <= self.yellow_duration_seconds
-
-    def _recent_traffic(self, traffic: pd.DataFrame | Iterable[TrafficWindow], current_time_s: float):
-        lower = current_time_s - self.recent_window_s
-        if isinstance(traffic, pd.DataFrame):
-            if traffic.empty:
-                return traffic
-            return traffic[(traffic["t_s"] >= lower) & (traffic["t_s"] <= current_time_s)]
-        return [window for window in traffic if lower <= window.start_s <= current_time_s]
-
-    def _evidence_by_approach(
+    def estimate_playback(
         self,
-        traffic: pd.DataFrame | Iterable[TrafficWindow],
-    ) -> Mapping[str, tuple[float, float, float, float, float]]:
-        evidence: dict[str, list[float]] = {
-            approach: [0.0, 0.0, 0.0, 0.0, 0.0] for approach in APPROACHES
-        }
-        if isinstance(traffic, pd.DataFrame):
+        path: Path,
+        timestamps_s: Sequence[float],
+    ) -> list[SignalStateResult]:
+        trajectories = load_trajectory_file(path)
+        events: list[TrajectoryEvent] = []
+        from app.core.trajectory_events import extract_trajectory_events
+        from app.core.trajectory_geometry import TrajectoryGeometry
+
+        for trajectory in trajectories:
+            events.extend(
+                extract_trajectory_events(
+                    trajectory,
+                    TrajectoryGeometry(trajectory.detections),
+                )
+            )
+
+        origin = min((event.timestamp_ms for event in events), default=None)
+        estimator = SignalStateEstimator(
+            self.phase_model,
+            recent_window_s=self.recent_window_s,
+            min_phase_confidence=self.min_phase_confidence,
+            min_traffic_confidence=self.min_traffic_confidence,
+            yellow_duration_seconds=self.yellow_duration_seconds,
+            conflict_persistence_seconds=self.conflict_persistence_seconds,
+            event_origin_ms=origin,
+        )
+        return [estimator.estimate(timestamp_s, events) for timestamp_s in timestamps_s]
+
+    def _phase_at(self, position: float):
+        for phase in tuple(getattr(self.phase_model, "phases", ())):
+            start = float(phase.phase_start) % self.phase_model.cycle_seconds
+            end = float(phase.phase_end) % self.phase_model.cycle_seconds
+            if self._in_interval(position, start, end):
+                return phase
+        return None
+
+    def _phase_confidence(self, phase) -> float:
+        return (
+            max(0.0, min(1.0, float(getattr(phase, "confidence", 0.0))))
+            if phase is not None
+            else 0.0
+        )
+
+    @staticmethod
+    def _in_interval(value: float, start: float, end: float) -> bool:
+        return start <= value < end if start <= end else value >= start or value < end
+
+    def _transition_kind(self, position: float, phase) -> SignalState | None:
+        if phase is None or self.yellow_duration_seconds == 0:
+            return None
+        start = float(phase.phase_start) % self.phase_model.cycle_seconds
+        end = float(phase.phase_end) % self.phase_model.cycle_seconds
+        distance_to_end = (end - position) % self.phase_model.cycle_seconds
+        if 0 < distance_to_end <= self.yellow_duration_seconds:
+            return SignalState.YELLOW
+        distance_from_start = (position - start) % self.phase_model.cycle_seconds
+        if 0 <= distance_from_start <= self.yellow_duration_seconds:
+            return SignalState.RED_YELLOW
+        return None
+
+    def _origin_ms(self, events: Sequence[TrajectoryEvent]) -> int | None:
+        return self.event_origin_ms or min(
+            (event.timestamp_ms for event in events),
+            default=None,
+        )
+
+    def _recent_events(
+        self,
+        events: Sequence[TrajectoryEvent],
+        current_time_s: float,
+        origin_ms: int | None,
+    ) -> list[TrajectoryEvent]:
+        if origin_ms is None:
+            return []
+        now_ms = origin_ms + int(current_time_s * 1000)
+        lower_ms = now_ms - int(self.recent_window_s * 1000)
+        return [
+            event
+            for event in events
+            if lower_ms <= event.timestamp_ms <= now_ms
+            and event.event_type in {EventType.RELEASE, EventType.CROSSING}
+        ]
+
+    def _event_evidence(
+        self,
+        events: Sequence[TrajectoryEvent],
+        active: set[str],
+    ) -> dict[str, tuple[float, int, int]]:
+        evidence = {approach: [0.0, 0, 0] for approach in APPROACHES}
+        for event in events:
+            if event.approach not in evidence:
+                continue
+            weight = (
+                1.0 if event.event_type == EventType.RELEASE else 0.5
+            ) * max(0.0, min(1.0, float(event.confidence)))
+            evidence[event.approach][0] += weight
+            if event.approach in active:
+                evidence[event.approach][1] += 1
+            else:
+                evidence[event.approach][2] += 1
+
+        # For each approach, events from its own group support it; events from
+        # the opposing active group are contradictory evidence. A phase model
+        # with no active group yields no direct signal-state conclusion.
+        if active:
             for approach in APPROACHES:
-                selected = traffic[traffic["zone_in"].astype(str) == approach]
-                if selected.empty:
-                    continue
-                flow = float(len(selected))
-                waits = pd.to_numeric(selected.get("wait_s"), errors="coerce").fillna(0.0)
-                stopped = pd.to_numeric(selected.get("stopped"), errors="coerce").fillna(0.0)
-                mean_wait = float(waits.mean())
-                stopped_ratio = float(stopped.mean())
-                flow_presence = min(1.0, flow / 3.0)
-                delay_free = 1.0 - min(1.0, mean_wait / 20.0)
-                green_evidence = flow_presence * (0.60 + 0.25 * delay_free + 0.15 * (1.0 - stopped_ratio))
-                wait_pressure = min(1.0, mean_wait / 15.0)
-                red_evidence = flow_presence * (0.40 * wait_pressure + 0.60 * stopped_ratio)
-                evidence[approach] = [
-                    flow,
-                    mean_wait,
-                    stopped_ratio,
-                    float(max(0.0, min(1.0, green_evidence))),
-                    float(max(0.0, min(1.0, red_evidence))),
-                ]
-        else:
-            for window in traffic:
-                approach = str(window.movement).split("->", 1)[0]
-                if approach not in evidence:
-                    continue
-                flow = float(window.flow)
-                mean_wait = float(window.mean_wait or 0.0)
-                stopped_ratio = min(1.0, float(window.stopped_count) / max(flow, 1.0))
-                flow_presence = min(1.0, flow / 3.0)
-                delay_free = 1.0 - min(1.0, mean_wait / 20.0)
-                green_evidence = flow_presence * (0.60 + 0.25 * delay_free + 0.15 * (1.0 - stopped_ratio))
-                wait_pressure = min(1.0, mean_wait / 15.0)
-                red_evidence = flow_presence * (0.40 * wait_pressure + 0.60 * stopped_ratio)
-                evidence[approach][0] += flow
-                evidence[approach][1] += mean_wait * flow
-                evidence[approach][2] += stopped_ratio * flow
-                evidence[approach][3] = max(evidence[approach][3], green_evidence)
-                evidence[approach][4] = max(evidence[approach][4], red_evidence)
-            for _approach, values in evidence.items():
-                flow = values[0]
-                if flow > 0:
-                    values[1] /= flow
-                    values[2] /= flow
+                if approach in active:
+                    evidence[approach][1] = sum(
+                        1 for event in events if event.approach in active
+                    )
+                    evidence[approach][2] = sum(
+                        1 for event in events if event.approach not in active
+                    )
+                else:
+                    evidence[approach][1] = sum(
+                        1 for event in events if event.approach not in active
+                    )
+                    evidence[approach][2] = sum(
+                        1 for event in events if event.approach in active
+                    )
         return {key: tuple(value) for key, value in evidence.items()}
+
+    def _approach_traffic_confidence(
+        self,
+        support: float,
+        supporting: int,
+        contradictory: int,
+    ) -> float:
+        total = supporting + contradictory
+        if total == 0:
+            return 0.0
+        density = min(1.0, support / 2.0)
+        consistency = supporting / total
+        return max(0.0, min(1.0, 0.65 * density + 0.35 * consistency))
+
+    def _traffic_confidence(
+        self,
+        events: Sequence[TrajectoryEvent],
+    ) -> float:
+        if not events:
+            return 0.0
+        weight = sum(
+            (
+                1.0 if event.event_type == EventType.RELEASE else 0.5
+            ) * max(0.0, min(1.0, float(event.confidence)))
+            for event in events
+        )
+        return max(0.0, min(1.0, weight / 4.0))
+
+    def _state_from_evidence(
+        self,
+        *,
+        phase_active: bool,
+        transition_kind: SignalState | None,
+        support: float,
+        phase_confidence: float,
+        traffic_confidence: float,
+    ) -> tuple[SignalState, float]:
+        if transition_kind == SignalState.YELLOW:
+            state = SignalState.YELLOW if phase_active else SignalState.RED
+        elif transition_kind == SignalState.RED_YELLOW:
+            state = SignalState.RED_YELLOW if phase_active else SignalState.RED
+        else:
+            state = SignalState.GREEN if phase_active else SignalState.RED
+
+        support_term = min(1.0, support / 2.0)
+        probability = 0.70 * phase_confidence + 0.30 * (
+            support_term if phase_active else 1.0 - support_term
+        )
+        if traffic_confidence < self.min_traffic_confidence and support == 0:
+            probability *= 0.50
+        return state, max(0.0, min(1.0, probability))
+
+    def _conflict_is_short(
+        self,
+        events: Sequence[TrajectoryEvent],
+        approach: str,
+        current_time_s: float,
+        origin_ms: int | None,
+    ) -> bool:
+        if origin_ms is None:
+            return False
+        now_ms = origin_ms + int(current_time_s * 1000)
+        conflict_times = [
+            event.timestamp_ms
+            for event in events
+            if event.approach == approach
+            and event.event_type in {EventType.RELEASE, EventType.CROSSING}
+            and event.timestamp_ms <= now_ms
+        ]
+        if not conflict_times:
+            return False
+        return now_ms - min(conflict_times) < self.conflict_persistence_seconds * 1000
 
 
 def result_to_json(result: SignalStateResult) -> str:
