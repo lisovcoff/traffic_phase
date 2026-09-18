@@ -5,6 +5,13 @@ from typing import Any
 
 
 @dataclass(frozen=True)
+class Detection:
+    millis: int
+    lat: float
+    lng: float
+
+
+@dataclass(frozen=True)
 class Trajectory:
     vehicle_id: Any
     timestamp_ms: int
@@ -15,6 +22,7 @@ class Trajectory:
     wait_s: float
     move_s: float
     distance: float | None
+    detections: tuple[Detection, ...] = ()
 
     def to_record(self) -> dict[str, Any]:
         return asdict(self)

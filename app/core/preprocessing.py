@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from app.core.models import Trajectory, TrafficWindow
+from app.core.trajectory_geometry import build_trajectory_model
 
 STOP_THRESHOLD_S = 5.0
 DEFAULT_WINDOW_S = 10.0
@@ -21,17 +22,7 @@ def _trajectory_from_dict(item: dict) -> Trajectory | None:
     if item.get("millis") is None:
         return None
 
-    return Trajectory(
-        vehicle_id=item.get("id"),
-        timestamp_ms=int(item["millis"]),
-        zone_in=str(item["zone_in"]),
-        zone_out=str(item["zone_out"]),
-        movement=f'{item["zone_in"]}->{item["zone_out"]}',
-        speed=float(item["speed"]) if item.get("speed") is not None else None,
-        wait_s=max(0.0, float(item.get("stay_duration_millis") or 0) / 1000.0),
-        move_s=max(0.0, float(item.get("move_duration_millis") or 0) / 1000.0),
-        distance=float(item["distance"]) if item.get("distance") is not None else None,
-    )
+    return build_trajectory_model(item)
 
 
 def load_trajectory_file(path: Path) -> list[Trajectory]:

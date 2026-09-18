@@ -1,5 +1,7 @@
+from app.core.models import Detection
 from app.core.trajectory_geometry import (
     build_trajectory_geometry,
+    build_trajectory_model,
     haversine_distance_m,
     normalize_detections,
 )
@@ -113,3 +115,31 @@ def test_mixed_valid_and_invalid_detections_are_preserved_separately():
 
     assert len(result.detections) == 2
     assert result.invalid_detection_count == 1
+
+
+def test_normal_trajectory_builds_full_detection_model():
+    result = build_trajectory_model(
+        {
+            "id": 42,
+            "millis": 5000,
+            "zone_in": "N",
+            "zone_out": "_S",
+            "category_name": "car",
+            "speed": 20.0,
+            "stay_duration_millis": 5000,
+            "move_duration_millis": 10000,
+            "detections": [
+                {"millis": 4000, "lat": 55.001, "lng": 61.001},
+                {"millis": 2000, "lat": 55.0, "lng": 61.0},
+                {"millis": 3000, "lat": 55.0005, "lng": 61.0005},
+            ],
+        }
+    )
+
+    assert result.vehicle_id == 42
+    assert result.movement == "N->_S"
+    assert result.detections == (
+        Detection(2000, 55.0, 61.0),
+        Detection(3000, 55.0005, 61.0005),
+        Detection(4000, 55.001, 61.001),
+    )

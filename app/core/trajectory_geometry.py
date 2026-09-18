@@ -4,14 +4,9 @@ from dataclasses import dataclass
 import math
 from typing import Any, Iterable, Mapping
 
+from app.core.models import Detection
+
 EARTH_RADIUS_M = 6_371_000.0
-
-
-@dataclass(frozen=True)
-class Detection:
-    millis: int
-    lat: float
-    lng: float
 
 
 @dataclass(frozen=True)
@@ -34,7 +29,11 @@ class TrajectoryGeometry:
 
 
 def _finite_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value))
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(float(value))
+    )
 
 
 def _parse_detection(item: Any) -> Detection | None:
@@ -52,29 +51,7 @@ def _parse_detection(item: Any) -> Detection | None:
     if not _finite_number(lng) or not -180.0 <= float(lng) <= 180.0:
         return None
 
-    return Detection(
-        millis=int(millis),
-        lat=float(lat),
-        lng=float(lng),
-    )
-
-
-def build_trajectory_geometry(trajectory: Mapping[str, Any]) -> TrajectoryGeometry:
-    raw_detections = trajectory.get("detections")
-    if not isinstance(raw_detections, list):
-        return TrajectoryGeometry(())
-
-    valid: list[Detection] = []
-    invalid = 0
-    for item in raw_detections:
-        detection = _parse_detection(item)
-        if detection is None:
-            invalid += 1
-            continue
-        valid.append(detection)
-
-    valid.sort(key=lambda detection: detection.millis)
-    return TrajectoryGeometry(tuple(valid), invalid_detection_count=invalid)
+    return Detection(millis=int(millis), lat=float(lat), lng=float(lng))
 
 
 def normalize_detections(
@@ -94,6 +71,48 @@ def normalize_detections(
 
     valid.sort(key=lambda detection: detection.millis)
     return TrajectoryGeometry(tuple(valid), invalid_detection_count=invalid)
+
+
+def build_trajectory_geometry(
+    trajectory: Mapping[str, Any],
+) -> TrajectoryGeometry:
+    return normalize_detections(trajectory.get("detections"))
+
+
+def build_trajectory_model(trajectory: Mapping[str, Any]):
+    from app.core.models import Trajectory
+
+    geometry = build_trajectory_geometry(trajectory)
+    if trajectory.get("millis") is None:
+        raise ValueError("Trajectory millis is required")
+
+    zone_in = trajectory.get("zone_in")
+    zone_out = trajectory.get("zone_out")
+    if not zone_in or not zone_out:
+        raise ValueError("Trajectory zones are required")
+
+    return Trajectory(
+        vehicle_id=trajectory.get("id"),
+        timestamp_ms=int(trajectory["millis"]),
+        zone_in=str(zone_in),
+        zone_out=str(zone_out),
+        movement=f"{zone_in}->{zone_out}",
+        speed=float(trajectory["speed"]) if trajectory.get("speed") is not None else None,
+        wait_s=max(
+            0.0,
+            float(trajectory.get("stay_duration_millis") or 0) / 1000.0,
+        ),
+        move_s=max(
+            0.0,
+            float(trajectory.get("move_duration_millis") or 0) / 1000.0,
+        ),
+        distance=(
+            float(trajectory["distance"])
+            if trajectory.get("distance") is not None
+            else None
+        ),
+        detections=geometry.detections,
+    )
 
 
 def haversine_distance_m(first: Detection, second: Detection) -> float:
