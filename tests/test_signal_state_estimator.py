@@ -138,3 +138,34 @@ def test_estimator_accepts_event_sequence():
         [event(EventType.RELEASE, 10, "N")],
     )
     assert result.approaches
+
+
+def test_recent_events_use_normalized_timeline():
+    result = SignalStateEstimator(model(), recent_window_s=12.0).estimate(
+        20.0,
+        [event(EventType.RELEASE, 10, "N")],
+    )
+    n = states(result)["N"]
+    assert n.supporting_event_count == 1
+    assert n.evidence_weight > 0
+    assert n.traffic_evidence_confidence > 0
+
+
+def test_absolute_event_timestamps_can_be_rebased_explicitly():
+    estimator = SignalStateEstimator(
+        model(),
+        recent_window_s=12.0,
+        event_origin_ms=1_000_000,
+    )
+    result = estimator.estimate(
+        20.0,
+        [TrajectoryEvent(
+            event_type=EventType.RELEASE,
+            timestamp_ms=1_010_000,
+            approach="N",
+            movement="N->x",
+            confidence=1.0,
+            quality="HIGH",
+        )],
+    )
+    assert states(result)["N"].supporting_event_count == 1

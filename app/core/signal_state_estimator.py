@@ -91,7 +91,7 @@ class SignalStateEstimator:
         min_traffic_confidence: float = DEFAULT_MIN_TRAFFIC_CONFIDENCE,
         yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS,
         conflict_persistence_seconds: float = DEFAULT_CONFLICT_PERSISTENCE_SECONDS,
-        event_origin_ms: int | None = None,
+        event_origin_ms: int | None = 0,
     ) -> None:
         cycle = float(getattr(phase_model, "cycle_seconds", 0.0))
         if cycle <= 0:
@@ -259,12 +259,14 @@ class SignalStateEstimator:
             return SignalState.RED_YELLOW
         return None
 
-    def _origin_ms(self, events: Sequence[TrajectoryEvent]) -> int | None:
-        # current_time_s is a timeline coordinate. Playback explicitly
-        # supplies event_origin_ms when raw timestamps must be rebased.
-        if self.event_origin_ms is not None:
-            return self.event_origin_ms
-        return min((event.timestamp_ms for event in events), default=None)
+    def _origin_ms(self, events: Sequence[TrajectoryEvent]) -> int:
+        """Return the raw timestamp origin for the normalized timeline.
+
+        Synthetic and already-normalized events use origin 0. Playback passes
+        the first raw trajectory timestamp explicitly so absolute millisecond
+        timestamps are rebased onto the phase-model timeline.
+        """
+        return int(self.event_origin_ms or 0)
 
     def _recent_events(
         self,
@@ -382,17 +384,19 @@ class SignalStateEstimator:
     ) -> bool:
         if origin_ms is None:
             return False
-        now_ms = origin_ms + int(current_time_s * 1000)
-        conflict_times = [
-            event.timestamp_ms
+        conflict_times_s = [
+            (event.timestamp_ms - origin_ms) / 1000.0
             for event in events
             if event.approach == approach
             and event.event_type in {EventType.RELEASE, EventType.CROSSING}
-            and event.timestamp_ms <= now_ms
+            and (event.timestamp_ms - origin_ms) / 1000.0 <= current_time_s
         ]
-        if not conflict_times:
+        if not conflict_times_s:
             return False
-        return now_ms - min(conflict_times) < self.conflict_persistence_seconds * 1000
+        return (
+            current_time_s - min(conflict_times_s)
+            < self.conflict_persistence_seconds
+        )
 
 
 def result_to_json(result: SignalStateResult) -> str:
