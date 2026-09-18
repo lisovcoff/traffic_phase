@@ -17,6 +17,7 @@ from app.core.realtime_inference import (
 class PhasePayload(BaseModel):
     cycle_seconds: float = Field(gt=0)
     bin_seconds: float = Field(gt=0)
+    origin_timestamp_ms: int = Field(default=0)
     phases: list[dict[str, object]]
     cycle_coverage: float = Field(default=1.0, ge=0, le=1)
     overlap: float = Field(default=0.0, ge=0, le=1)
@@ -82,6 +83,7 @@ def _build_phase_model(payload: PhasePayload) -> EventPhaseDiscoveryResult:
         overlap=payload.overlap,
         supporting_event_count=payload.supporting_event_count,
         contradictory_event_count=payload.contradictory_event_count,
+        origin_timestamp_ms=payload.origin_timestamp_ms,
     )
 
 
@@ -110,6 +112,25 @@ class RealtimeEngineRegistry:
                     raise ValueError(
                         "stream already exists with a different phase model"
                     )
+                if (
+                    baseline is not None
+                    and engine.baseline_profile is not None
+                    and baseline.to_dict() != engine.baseline_profile.to_dict()
+                ):
+                    raise ValueError(
+                        "stream already exists with a different baseline profile"
+                    )
+                if baseline is not None and engine.baseline_profile is None:
+                    raise ValueError(
+                        "stream already exists without a baseline profile"
+                    )
+                if (
+                    event_origin_ms is not None
+                    and int(event_origin_ms) != engine.event_origin_ms
+                ):
+                    raise ValueError(
+                        "stream already exists with a different event origin"
+                    )
                 return engine
 
             if phase_model is None:
@@ -120,7 +141,7 @@ class RealtimeEngineRegistry:
             engine = RealtimeSignalInferenceEngine(
                 phase_model,
                 recent_window_s=recent_window_s,
-                event_origin_ms=event_origin_ms or 0,
+                event_origin_ms=event_origin_ms,
                 yellow_duration_seconds=yellow_duration_seconds,
                 baseline=baseline,
             )
@@ -188,6 +209,11 @@ async def infer_realtime_trajectory(
             event_origin_ms=payload.event_origin_ms,
             recent_window_s=payload.recent_window_s,
             yellow_duration_seconds=payload.yellow_duration_seconds,
+            baseline=(
+                TrafficBaselineProfile.from_dict(payload.baseline_profile.payload)
+                if payload.baseline_profile
+                else None
+            ),
         )
         return engine.ingest_trajectory(
             payload.trajectory,

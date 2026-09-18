@@ -46,7 +46,7 @@ class RealtimeSignalInferenceEngine:
         phase_model: object,
         *,
         recent_window_s: float = 12.0,
-        event_origin_ms: int = 0,
+        event_origin_ms: int | None = None,
         min_phase_confidence: float = 0.20,
         min_traffic_confidence: float = 0.12,
         yellow_duration_seconds: float = 2.0,
@@ -57,7 +57,10 @@ class RealtimeSignalInferenceEngine:
             raise ValueError("recent_window_s must be positive")
         self.phase_model = phase_model
         self.recent_window_s = float(recent_window_s)
-        self.event_origin_ms = int(event_origin_ms)
+        model_origin = int(getattr(phase_model, "origin_timestamp_ms", 0) or 0)
+        self.event_origin_ms = (
+            model_origin if event_origin_ms is None else int(event_origin_ms)
+        )
         self._anomaly_inference = AnomalyAwareSignalInference(phase_model, baseline)
         self._estimator = SignalStateEstimator(
             phase_model,
@@ -80,6 +83,10 @@ class RealtimeSignalInferenceEngine:
     @property
     def buffer_event_count(self) -> int:
         return len(self._events)
+
+    @property
+    def baseline_profile(self) -> TrafficBaselineProfile | None:
+        return self._anomaly_inference.baseline
 
     def ingest_event(
         self,

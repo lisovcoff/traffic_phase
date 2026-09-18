@@ -53,6 +53,7 @@ class EventPhaseDiscoveryResult:
     overlap: float
     supporting_event_count: int
     contradictory_event_count: int
+    origin_timestamp_ms: int = 0
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -64,6 +65,7 @@ class EventPhaseDiscoveryResult:
             "overlap": self.overlap,
             "supporting_event_count": self.supporting_event_count,
             "contradictory_event_count": self.contradictory_event_count,
+            "origin_timestamp_ms": self.origin_timestamp_ms,
         }
 
 
@@ -119,6 +121,18 @@ class EventPhaseDiscovery:
         *,
         cycle_seconds: float,
     ) -> EventPhaseDiscoveryResult:
+        events = list(events)
+        selected = [
+            event
+            for event in events
+            if event.event_type in {EventType.RELEASE, EventType.CROSSING}
+            and event.confidence >= self.min_event_confidence
+            and event.approach in self._group_by_approach
+        ]
+        if not selected:
+            raise ValueError("no usable RELEASE/CROSSING events")
+        origin_timestamp_ms = min(event.timestamp_ms for event in selected)
+
         profiles, evidence, counts = self.build_profiles(
             events,
             cycle_seconds=cycle_seconds,
@@ -143,6 +157,7 @@ class EventPhaseDiscovery:
             contradictory_event_count=sum(
                 phase.contradictory_event_count for phase in phases
             ),
+            origin_timestamp_ms=origin_timestamp_ms,
         )
 
     def build_profiles(

@@ -1,118 +1,90 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Sequence
 
-import numpy as np
-
-from app.core.cycle_estimator import CycleEstimator
-from app.core.phase_discovery import PhaseDiscovery
-from app.core.preprocessing import load_trajectory_file, trajectories_to_frame
+from app.core.reconstruction import reconstruct_file
 from app.core.review_log import build_review_log, review_summary
 from app.core.signal_state_estimator import SignalStateEstimator
 
-SIGNAL_BIN_SECONDS = 2.0
 PLAYBACK_STEP_SECONDS = 0.5
 YELLOW_DURATION_SECONDS = 2.0
 
 
+def _timeline_seconds(origin_ms: int, events: Sequence, step_seconds: float) -> list[float]:
+    timestamps = [event.timestamp_ms for event in events]
+    if not timestamps:
+        return [0.0]
+    duration = max(0.0, (max(timestamps) - origin_ms) / 1000.0)
+    sample_count = max(1, int(duration / step_seconds))
+    values = [round(index * step_seconds, 6) for index in range(sample_count + 1)]
+    if values[-1] < duration:
+        values.append(round(duration, 6))
+    return values
+
+
 def build_playback_payload(path: Path) -> dict[str, object]:
-    """Run reconstruction and prepare browser playback plus review diagnostics."""
-    trajectories = load_trajectory_file(path)
-    frame = trajectories_to_frame(trajectories)
-    if frame.empty:
-        raise RuntimeError("no car trajectories available for playback")
+    """Run the same event-based reconstruction used by the production inference path."""
+    reconstruction = reconstruct_file(path)
+    trajectories = reconstruction.trajectories
+    events = reconstruction.events
+    cycle = reconstruction.cycle
+    phase_model = reconstruction.phase_model
+    origin = reconstruction.origin_timestamp_ms
 
-    max_time = float(frame["t_s"].max())
-    n_bins = max(2, int(np.ceil(max_time / SIGNAL_BIN_SECONDS)) + 1)
-    signal = np.zeros(n_bins, dtype=float)
-    delayed = frame[frame["stopped"]]
-    for row in delayed.itertuples(index=False):
-        index = min(int(row.t_s // SIGNAL_BIN_SECONDS), n_bins - 1)
-        signal[index] += float(row.release_weight)
-
-    cycle = CycleEstimator().estimate(signal, sampling_seconds=SIGNAL_BIN_SECONDS)
-    phase_model = PhaseDiscovery(bin_seconds=SIGNAL_BIN_SECONDS).discover(
-        frame,
-        cycle_seconds=cycle.cycle_seconds,
-    )
+    timestamps_s = _timeline_seconds(origin, events, PLAYBACK_STEP_SECONDS)
     estimator = SignalStateEstimator(
         phase_model,
         yellow_duration_seconds=YELLOW_DURATION_SECONDS,
+        event_origin_ms=origin,
     )
-
-    ordered = frame.sort_values("timestamp_ms")
-    observed_timestamps_ms = ordered["timestamp_ms"].drop_duplicates().astype(int).tolist()
-    base_ms = min(observed_timestamps_ms)
-
-    # A trajectory file can contain long gaps between observations. If playback
-    # follows only observed timestamps, the 2-second yellow and red+yellow windows
-    # are easy to skip entirely. Sample the inferred signal on a fixed timeline so
-    # every transition is visible and seekable in the browser.
-    sample_count = max(1, int(np.ceil(max_time / PLAYBACK_STEP_SECONDS)))
-    timestamps_s = [
-        round(index * PLAYBACK_STEP_SECONDS, 6)
-        for index in range(sample_count + 1)
-    ]
-    if timestamps_s[-1] > max_time:
-        timestamps_s[-1] = round(max_time, 6)
-    elif timestamps_s[-1] < max_time:
-        timestamps_s.append(round(max_time, 6))
-
-    timestamps_ms = [base_ms + int(round(timestamp_s * 1000.0)) for timestamp_s in timestamps_s]
-    results = estimator.estimate_playback(path, timestamps_s)
+    results = [estimator.estimate(timestamp_s, events) for timestamp_s in timestamps_s]
 
     timeline = []
-    for timestamp_ms, result in zip(timestamps_ms, results):
+    for result in results:
         snapshot = result.to_dict()
-        snapshot["timestamp_ms"] = timestamp_ms
+        snapshot["timestamp_ms"] = origin + int(round(result.timestamp_s * 1000.0))
         snapshot["approaches"] = {item["approach"]: item for item in snapshot["approaches"]}
         timeline.append(snapshot)
 
-    diagnostics = [
-        {
-            "timestamp_ms": result["timestamp_ms"],
-            "timestamp_s": result["timestamp_s"],
-            "phase_id": result["phase_id"],
-            "cycle_phase_s": result["cycle_phase_s"],
-            "phase_confidence": result["phase_confidence"],
-            "transition": result["transition"],
-            "states": {approach: state["state"] for approach, state in result["approaches"].items()},
-        }
-        for result in timeline
-    ]
-
-    review = review_summary(
-        frame,
-        phase_model,
-        timeline,
-        cycle_confidence=float(cycle.confidence),
-    )
+    review = review_summary(events, phase_model, timeline, cycle_confidence=float(cycle.estimate.confidence))
     review_log = build_review_log(
-        frame,
-        phase_model,
-        timeline,
-        source_path=path,
-        cycle_seconds=float(cycle.cycle_seconds),
-        cycle_confidence=float(cycle.confidence),
+        events, phase_model, timeline, source_path=path,
+        cycle_seconds=float(cycle.estimate.cycle_seconds),
+        cycle_confidence=float(cycle.estimate.confidence),
     )
 
     return {
         "source": {
             "filename": path.name,
-            "cars_used": int(len(frame)),
-            "duration_s": round(max_time, 3),
-            "start_timestamp_ms": base_ms,
-            "end_timestamp_ms": max(timestamps_ms),
+            "cars_used": len(trajectories),
+            "events_used": len(events),
+            "duration_s": timestamps_s[-1],
+            "start_timestamp_ms": origin,
+            "end_timestamp_ms": origin + int(round(timestamps_s[-1] * 1000.0)),
         },
+        "ground_truth": "UNAVAILABLE",
+        "model": "event_based_inference",
         "cycle": {
-            "estimated_seconds": round(float(cycle.cycle_seconds), 3),
-            "confidence": round(float(cycle.confidence), 4),
-            "candidates": [candidate.to_dict() for candidate in cycle.candidate_periods],
+            "estimated_seconds": round(float(cycle.estimate.cycle_seconds), 3),
+            "confidence": round(float(cycle.estimate.confidence), 4),
+            "candidates": [candidate.to_dict() for candidate in cycle.estimate.candidate_periods],
         },
         "phase_model": phase_model.to_dict(),
         "yellow_duration_seconds": YELLOW_DURATION_SECONDS,
         "timeline": timeline,
-        "diagnostics": diagnostics,
+        "diagnostics": [
+            {
+                "timestamp_ms": item["timestamp_ms"],
+                "timestamp_s": item["timestamp_s"],
+                "phase_id": item["phase_id"],
+                "cycle_phase_s": item["cycle_phase_s"],
+                "phase_confidence": item["phase_confidence"],
+                "transition": item["transition"],
+                "states": {approach: item["approaches"][approach]["state"] for approach in ("N", "S", "E", "W")},
+            }
+            for item in timeline
+        ],
         "review": review,
         "review_log": review_log,
     }

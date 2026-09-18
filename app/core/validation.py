@@ -4,7 +4,6 @@ from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
 import statistics
-import tempfile
 import time
 import tracemalloc
 from typing import Sequence
@@ -15,11 +14,10 @@ from app.core.anomaly_profile import TrafficBaselineProfile
 from app.core.event_cycle_estimator import EventCycleEstimate, estimate_event_cycle
 from app.core.event_phase_discovery import EventPhase, EventPhaseDiscovery, EventPhaseDiscoveryResult
 from app.core.models import EventType, TrajectoryEvent
-from app.core.preprocessing import load_trajectory_file
+from app.core.preprocessing import load_trajectory_file, load_trajectory_payload
 from app.core.realtime_inference import RealtimeSignalInferenceEngine
 from app.core.signal_state_estimator import SignalState, SignalStateEstimator
-from app.core.trajectory_events import extract_trajectory_events
-from app.core.trajectory_geometry import build_trajectory_geometry
+from app.core.reconstruction import extract_events_from_trajectories
 
 
 SCHEMA_VERSION = 1
@@ -56,46 +54,30 @@ def _quantile(values: Sequence[float], q: float) -> float | None:
 
 def load_events(path: Path) -> list[TrajectoryEvent]:
     if path.suffix.lower() == ".json":
-        trajectories = load_trajectory_file(path)
-        events: list[TrajectoryEvent] = []
-        for trajectory in trajectories:
-            events.extend(
-                extract_trajectory_events(
-                    trajectory,
-                    build_trajectory_geometry(trajectory.to_record()),
-                )
-            )
-        return events
+        return extract_events_from_trajectories(load_trajectory_file(path))
 
     if path.suffix.lower() != ".zip":
         raise ValueError(f"unsupported validation input: {path}")
 
     events: list[TrajectoryEvent] = []
     with zipfile.ZipFile(path) as archive:
-        for member in archive.infolist():
-            if member.is_dir() or not member.filename.lower().endswith(".json"):
-                continue
+        members = [
+            member
+            for member in archive.infolist()
+            if not member.is_dir()
+            and member.filename.lower().endswith(".json")
+        ]
+        if not members:
+            raise ValueError(f"validation archive contains no JSON files: {path}")
+
+        for member in members:
             with archive.open(member) as handle:
                 payload = json.load(handle)
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                suffix=".json",
-                encoding="utf-8",
-                delete=False,
-            ) as tmp:
-                json.dump(payload, tmp)
-                temporary_path = Path(tmp.name)
-            try:
-                trajectories = load_trajectory_file(temporary_path)
-                for trajectory in trajectories:
-                    events.extend(
-                        extract_trajectory_events(
-                            trajectory,
-                            build_trajectory_geometry(trajectory.to_record()),
-                        )
-                    )
-            finally:
-                temporary_path.unlink(missing_ok=True)
+            events.extend(
+                extract_events_from_trajectories(
+                    load_trajectory_payload(payload)
+                )
+            )
     return events
 
 
@@ -138,10 +120,15 @@ def _cycle_consistency(
     ]
     if not selected:
         return None
-    origin_ms = min(event.timestamp_ms for event in selected)
+    origin_ms = int(
+        getattr(
+            phase_model,
+            "origin_timestamp_ms",
+            min(event.timestamp_ms for event in selected),
+        )
+    )
     supporting = 0.0
     total = 0.0
-    groups = {"N": "NS", "S": "NS", "E": "EW", "W": "EW"}
     phase_groups = {
         phase.phase_id: set(phase.active_approaches)
         for phase in phase_model.phases
@@ -162,8 +149,6 @@ def _cycle_consistency(
         expected = phase_groups.get(phase.phase_id, set())
         if event.approach in expected:
             supporting += weight
-        elif groups[event.approach] == "NS" and {"N", "S"}.issubset(expected):
-            supporting += 0.0
     return round(supporting / total, 4) if total else None
 
 
@@ -230,8 +215,14 @@ def validate_phase(
 def _sample_times(
     events: Sequence[TrajectoryEvent],
     sample_seconds: float,
+    *,
+    origin_ms: int | None = None,
 ) -> tuple[int, list[float]]:
-    origin = min(event.timestamp_ms for event in events)
+    origin = int(
+        origin_ms
+        if origin_ms is not None
+        else min(event.timestamp_ms for event in events)
+    )
     duration = max(
         0.0,
         (max(event.timestamp_ms for event in events) - origin) / 1000.0,
@@ -251,7 +242,11 @@ def validate_signal(
     transition_tolerance_seconds: float,
     baseline: TrafficBaselineProfile | None,
 ) -> dict[str, object]:
-    origin, times = _sample_times(events, sample_seconds)
+    origin, times = _sample_times(
+        events,
+        sample_seconds,
+        origin_ms=phase_model.origin_timestamp_ms,
+    )
     estimator = SignalStateEstimator(
         phase_model,
         event_origin_ms=origin,
@@ -395,7 +390,13 @@ def validate_realtime(
     *,
     agreement_limit: int = 200,
 ) -> dict[str, object]:
-    origin = min(event.timestamp_ms for event in events)
+    origin = int(
+        getattr(
+            phase_model,
+            "origin_timestamp_ms",
+            min(event.timestamp_ms for event in events),
+        )
+    )
     ordered = sorted(
         events,
         key=lambda event: (
@@ -417,23 +418,22 @@ def validate_realtime(
     step = max(1, len(ordered) // max(1, agreement_limit))
 
     tracemalloc.start()
+    processed: list[TrajectoryEvent] = []
+    batch_estimator = SignalStateEstimator(
+        phase_model,
+        event_origin_ms=origin,
+    )
     for index, event in enumerate(ordered):
         start = time.perf_counter_ns()
         snapshot = engine.ingest_event(event)
         latencies.append((time.perf_counter_ns() - start) / 1_000_000.0)
         max_buffer = max(max_buffer, snapshot.buffer_event_count)
+        processed.append(event)
 
         if index % step == 0 or index == len(ordered) - 1:
-            prefix = [
-                item for item in ordered
-                if item.timestamp_ms <= event.timestamp_ms
-            ]
-            batch = SignalStateEstimator(
-                phase_model,
-                event_origin_ms=origin,
-            ).estimate(
+            batch = batch_estimator.estimate(
                 (event.timestamp_ms - origin) / 1000.0,
-                prefix,
+                processed,
             )
             batch_states = {
                 state.approach: state.state.value
@@ -465,6 +465,23 @@ def validate_realtime(
         ),
         "agreement_comparisons": comparisons,
     }
+
+
+def _rebase_events(
+    events: Sequence[TrajectoryEvent],
+    origin_ms: int,
+) -> list[TrajectoryEvent]:
+    return [
+        TrajectoryEvent(
+            event_type=event.event_type,
+            timestamp_ms=event.timestamp_ms - origin_ms,
+            approach=event.approach,
+            movement=event.movement,
+            confidence=event.confidence,
+            quality=event.quality,
+        )
+        for event in events
+    ]
 
 
 class ValidationRunner:
@@ -517,25 +534,32 @@ class ValidationRunner:
             else None
         )
 
-        reference_events = [
-            event
-            for dataset, events, _, _ in loaded.values()
-            if dataset.kind == "reference"
-            for event in events
-        ]
-        baseline = None
-        if reference_events:
+        reference_profiles: list[TrafficBaselineProfile] = []
+        for dataset, events, _, _ in loaded.values():
+            if dataset.kind != "reference" or not events:
+                continue
             try:
-                baseline = TrafficBaselineProfile.from_events(
-                    reference_events,
-                    window_seconds=12.0,
-                    source="validation_reference_pool",
+                origin = min(event.timestamp_ms for event in events)
+                reference_profiles.append(
+                    TrafficBaselineProfile.from_events(
+                        _rebase_events(events, origin),
+                        window_seconds=12.0,
+                        source=f"reference:{dataset.name}",
+                    )
                 )
             except Exception:
-                baseline = None
+                continue
+
+        baseline = (
+            TrafficBaselineProfile.aggregate(
+                reference_profiles,
+                source="validation_reference_pool",
+            )
+            if reference_profiles
+            else None
+        )
 
         reference_confidence_values: list[float] = []
-        phase_cache: dict[str, EventPhaseDiscoveryResult] = {}
         for dataset, events, _, cycle_estimate in loaded.values():
             if dataset.kind != "reference" or cycle_estimate is None:
                 continue
@@ -545,7 +569,6 @@ class ValidationRunner:
             )
             if phase_model is None:
                 continue
-            phase_cache[dataset.name] = phase_model
             signal_metrics = validate_signal(
                 events,
                 phase_model,
@@ -566,16 +589,34 @@ class ValidationRunner:
         dataset_reports = []
         for dataset, events, cycle_metrics, cycle_estimate in loaded.values():
             cycle_metrics = dict(cycle_metrics)
-            if cycle_estimate is not None:
-                if dataset.kind != "reference" and reference_period is not None:
-                    cycle_metrics["reference_period_seconds"] = reference_period
-                    cycle_metrics["reference_error_seconds"] = round(
+            if cycle_estimate is not None and reference_period is not None:
+                cycle_metrics["reference_period_seconds"] = reference_period
+                if dataset.kind != "reference":
+                    target_period = reference_period
+                else:
+                    other_reference_periods = [
+                        item[3].estimate.cycle_seconds
+                        for item in loaded.values()
+                        if item[0].kind == "reference"
+                        and item[0].name != dataset.name
+                        and item[3] is not None
+                    ]
+                    target_period = (
+                        statistics.median(other_reference_periods)
+                        if other_reference_periods
+                        else None
+                    )
+                cycle_metrics["reference_error_seconds"] = (
+                    round(
                         abs(
                             cycle_estimate.estimate.cycle_seconds
-                            - reference_period
+                            - float(target_period)
                         ),
                         4,
                     )
+                    if target_period is not None
+                    else None
+                )
 
             phase_metrics: dict[str, object] = {"status": "not_run"}
             signal_metrics: dict[str, object] = {"status": "not_run"}
@@ -587,7 +628,6 @@ class ValidationRunner:
                     cycle_estimate.estimate.cycle_seconds,
                 )
                 if phase_model is not None:
-                    phase_cache[dataset.name] = phase_model
                     signal_metrics = validate_signal(
                         events,
                         phase_model,

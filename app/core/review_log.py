@@ -3,27 +3,23 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable
 
-import pandas as pd
+from app.core.event_phase_discovery import EventPhase, EventPhaseDiscoveryResult
+from app.core.models import EventType, TrajectoryEvent
 
-from app.core.phase_discovery import APPROACHES, PhaseDiscoveryResult
+APPROACHES = ("N", "S", "E", "W")
 
 
-def _evidence(frame: pd.DataFrame, current_time_s: float, window_s: float = 6.0) -> dict[str, dict[str, float]]:
-    lower = current_time_s - window_s
-    recent = frame[(frame["t_s"] >= lower) & (frame["t_s"] <= current_time_s)]
-    result: dict[str, dict[str, float]] = {}
-    for approach in APPROACHES:
-        group = recent[recent["zone_in"].astype(str) == approach]
-        moving = (
-            pd.to_numeric(group["move_s"], errors="coerce").fillna(0.0) > 0.0
-            if "move_s" in group.columns
-            else ~group["stopped"].astype(bool)
-        )
-        result[approach] = {
-            "moving": float(moving.sum()),
-            "stopped": float((~moving).sum()),
-            "flow": float(len(group)),
-        }
+def _event_evidence(events: Iterable[TrajectoryEvent], current_time_s: float, origin_ms: int, window_s: float = 6.0) -> dict[str, dict[str, float]]:
+    lower_ms = origin_ms + int((current_time_s - window_s) * 1000.0)
+    upper_ms = origin_ms + int(current_time_s * 1000.0)
+    result = {approach: {"moving": 0.0, "stopped": 0.0, "flow": 0.0} for approach in APPROACHES}
+    for event in events:
+        if not (lower_ms <= event.timestamp_ms <= upper_ms):
+            continue
+        if event.event_type not in {EventType.RELEASE, EventType.CROSSING}:
+            continue
+        result[event.approach]["moving"] += 1.0 if event.event_type == EventType.RELEASE else 0.5
+        result[event.approach]["flow"] += 1.0
     return result
 
 
@@ -31,113 +27,69 @@ def _support_status(phase_active: set[str], evidence: dict[str, dict[str, float]
     active_moving = sum(evidence[a]["moving"] for a in phase_active)
     inactive_moving = sum(evidence[a]["moving"] for a in APPROACHES if a not in phase_active)
     moving_total = active_moving + inactive_moving
-    if moving_total == 0:
-        return "NO_RECENT_EVIDENCE"
-
+    if moving_total == 0: return "NO_RECENT_EVIDENCE"
     active_share = active_moving / moving_total
-    if active_share >= 0.65:
-        return "STRONG"
-    if active_share >= 0.50:
-        return "SUPPORTING"
-    if active_share <= 0.35:
-        return "CONTRADICTORY"
+    if active_share >= 0.65: return "STRONG"
+    if active_share >= 0.50: return "SUPPORTING"
+    if active_share <= 0.35: return "CONTRADICTORY"
     return "MIXED"
 
 
-def _phase_at(phase_model: PhaseDiscoveryResult, cycle_phase_s: float):
+def _phase_at(phase_model: EventPhaseDiscoveryResult, cycle_phase_s: float) -> EventPhase | None:
     for phase in phase_model.phases:
         start = phase.phase_start % phase_model.cycle_seconds
         end = phase.phase_end % phase_model.cycle_seconds
-        if start <= end and start <= cycle_phase_s < end:
-            return phase
-        if start > end and (cycle_phase_s >= start or cycle_phase_s < end):
-            return phase
+        if start <= end and start <= cycle_phase_s < end: return phase
+        if start > end and (cycle_phase_s >= start or cycle_phase_s < end): return phase
     return None
 
 
-def review_summary(
-    frame: pd.DataFrame,
-    phase_model: PhaseDiscoveryResult,
-    timeline: Iterable[dict[str, object]],
-    *,
-    cycle_confidence: float,
-) -> dict[str, object]:
+def review_summary(events: Iterable[TrajectoryEvent], phase_model: EventPhaseDiscoveryResult, timeline: Iterable[dict[str, object]], *, cycle_confidence: float) -> dict[str, object]:
     items = list(timeline)
+    event_list = list(events)
     cycle = float(phase_model.cycle_seconds)
     bins = max(1, int(round(cycle / float(phase_model.bin_seconds))))
     covered = [False] * bins
     overlap_bins = 0
-
     for phase in phase_model.phases:
         start = int(round((phase.phase_start % cycle) / phase_model.bin_seconds)) % bins
         end = int(round((phase.phase_end % cycle) / phase_model.bin_seconds)) % bins
-        if start == end:
-            indices = set(range(bins))
-        elif start < end:
-            indices = set(range(start, end))
-        else:
-            indices = set(range(start, bins)) | set(range(0, end))
+        if start == end: indices = set(range(bins))
+        elif start < end: indices = set(range(start, end))
+        else: indices = set(range(start, bins)) | set(range(0, end))
         for index in indices:
-            if covered[index]:
-                overlap_bins += 1
+            if covered[index]: overlap_bins += 1
             covered[index] = True
-
     coverage_ratio = sum(covered) / bins
     overlap_ratio = overlap_bins / bins
-    assigned = 0
-    contradictory = 0
-    strong_or_supporting = 0
-
+    assigned = contradictory = strong_or_supporting = 0
     for item in items:
         phase = _phase_at(phase_model, float(item["cycle_phase_s"]))
-        if phase is None:
-            continue
+        if phase is None: continue
         assigned += 1
-        evidence = _evidence(frame, float(item["timestamp_s"]))
-        status = _support_status(set(phase.active_approaches), evidence)
-        if status == "CONTRADICTORY":
-            contradictory += 1
-        if status in {"STRONG", "SUPPORTING"}:
-            strong_or_supporting += 1
-
+        status = _support_status(
+            set(phase.active_approaches),
+            _event_evidence(event_list, float(item["timestamp_s"]), phase_model.origin_timestamp_ms),
+        )
+        contradictory += status == "CONTRADICTORY"
+        strong_or_supporting += status in {"STRONG", "SUPPORTING"}
     contradiction_ratio = contradictory / assigned if assigned else 1.0
     supporting_ratio = strong_or_supporting / assigned if assigned else 0.0
-    non_overlapping = overlap_bins == 0
-    structural_ok = bool(phase_model.phases) and non_overlapping
-
+    structural_ok = bool(phase_model.phases) and overlap_bins == 0
     checks = [
-        {
-            "name": "phase_structure",
-            "status": "PASS" if structural_ok else "FAIL",
-            "details": f"phases={len(phase_model.phases)} non_overlapping={non_overlapping}",
-        },
-        {
-            "name": "cycle_confidence",
-            "status": "PASS" if cycle_confidence >= 0.45 else "WARN",
-            "details": f"confidence={cycle_confidence:.4f}",
-        },
-        {
-            "name": "cycle_coverage",
-            "status": "PASS" if coverage_ratio >= 0.65 else "WARN" if coverage_ratio >= 0.45 else "FAIL",
-            "details": f"covered={coverage_ratio:.3f} overlap={overlap_ratio:.3f}",
-        },
-        {
-            "name": "traffic_consistency",
-            "status": "PASS" if contradiction_ratio <= 0.20 else "WARN" if contradiction_ratio <= 0.40 else "FAIL",
-            "details": f"contradictory={contradiction_ratio:.3f} supporting={supporting_ratio:.3f}",
-        },
+        {"name": "phase_structure", "status": "PASS" if structural_ok else "FAIL", "details": f"phases={len(phase_model.phases)} non_overlapping={overlap_bins == 0}"},
+        {"name": "cycle_confidence", "status": "PASS" if cycle_confidence >= 0.45 else "WARN", "details": f"confidence={cycle_confidence:.4f}"},
+        {"name": "cycle_coverage", "status": "PASS" if coverage_ratio >= 0.65 else "WARN" if coverage_ratio >= 0.45 else "FAIL", "details": f"covered={coverage_ratio:.3f} overlap={overlap_ratio:.3f}"},
+        {"name": "traffic_consistency", "status": "PASS" if contradiction_ratio <= 0.20 else "WARN" if contradiction_ratio <= 0.40 else "FAIL", "details": f"contradictory={contradiction_ratio:.3f} supporting={supporting_ratio:.3f}"},
     ]
-
     score = 25.0 * (1.0 if structural_ok else 0.0)
     score += 20.0 * min(1.0, coverage_ratio / 0.65)
     score += 35.0 * max(0.0, 1.0 - contradiction_ratio)
     score += 20.0 * min(1.0, max(0.0, cycle_confidence / 0.45))
     failed = any(check["status"] == "FAIL" for check in checks)
     warned = any(check["status"] == "WARN" for check in checks)
-    overall = "FAIL" if failed else "WARN" if warned else "PASS"
-
     return {
-        "status": overall,
+        "status": "FAIL" if failed else "WARN" if warned else "PASS",
         "score": round(score, 1),
         "checks": checks,
         "metrics": {
@@ -152,37 +104,26 @@ def review_summary(
     }
 
 
-def build_review_log(
-    frame: pd.DataFrame,
-    phase_model: PhaseDiscoveryResult,
-    timeline: Iterable[dict[str, object]],
-    *,
-    source_path: Path,
-    cycle_seconds: float,
-    cycle_confidence: float,
-    sample_every_s: float = 10.0,
-) -> str:
+def build_review_log(events: Iterable[TrajectoryEvent], phase_model: EventPhaseDiscoveryResult, timeline: Iterable[dict[str, object]], *, source_path: Path, cycle_seconds: float, cycle_confidence: float, sample_every_s: float = 10.0) -> str:
     items = list(timeline)
-    if not items:
-        return "RECONSTRUCTION REVIEW LOG\nNo playback snapshots available."
-
-    summary = review_summary(frame, phase_model, items, cycle_confidence=cycle_confidence)
-    selected: list[dict[str, object]] = []
+    event_list = list(events)
+    if not items: return "RECONSTRUCTION REVIEW LOG\nNo playback snapshots available."
+    summary = review_summary(event_list, phase_model, items, cycle_confidence=cycle_confidence)
+    selected = []
     next_sample = 0.0
     for item in items:
         timestamp_s = float(item["timestamp_s"])
         if timestamp_s + 1e-9 >= next_sample:
             selected.append(item)
             next_sample += sample_every_s
-    if selected[-1] is not items[-1]:
-        selected.append(items[-1])
-
+    if selected[-1] is not items[-1]: selected.append(items[-1])
     lines = [
         "RECONSTRUCTION REVIEW LOG",
         f"source={source_path.name}",
         "ground_truth=UNAVAILABLE",
+        "model=event_based_inference",
         "purpose=internal_consistency_and_traffic_evidence_review",
-        f"duration_s={float(frame['t_s'].max()):.3f}",
+        f"event_count={len(event_list)}",
         f"cycle_s={cycle_seconds:.3f}",
         f"cycle_confidence={cycle_confidence:.4f}",
         f"overall={summary['status']} score={summary['score']:.1f}",
@@ -190,44 +131,28 @@ def build_review_log(
         "",
         "AUTOMATIC REVIEW",
     ]
-    for check in summary["checks"]:
-        lines.append(f"{check['status']} {check['name']}: {check['details']}")
+    for check in summary["checks"]: lines.append(f"{check['status']} {check['name']}: {check['details']}")
     lines.extend(["", "PHASE MODEL"])
-
     for phase in phase_model.phases:
         active = ",".join(phase.active_approaches) or "NONE"
-        movements = ",".join(phase.active_movements) or "NONE"
-        lines.append(
-            f"phase={phase.phase_id} start={phase.phase_start:.2f}s end={phase.phase_end:.2f}s "
-            f"active={active} movements={movements} confidence={phase.confidence:.4f}"
-        )
-
-    lines.extend(["", "PLAYBACK CHECKS", "Columns: t_s | millis | phase | active | states | evidence | support"])
+        lines.append(f"phase={phase.phase_id} start={phase.phase_start:.2f}s end={phase.phase_end:.2f}s active={active} confidence={phase.confidence:.4f}")
+    lines.extend(["", "PLAYBACK CHECKS", "Columns: t_s | millis | phase | active | states | release/crossing evidence | support"])
     for item in selected:
-        timestamp_s = float(item["timestamp_s"])
-        cycle_phase_s = float(item["cycle_phase_s"])
-        phase = _phase_at(phase_model, cycle_phase_s)
+        phase = _phase_at(phase_model, float(item["cycle_phase_s"]))
         phase_active = set(phase.active_approaches) if phase else set()
-        evidence = _evidence(frame, timestamp_s)
+        evidence = _event_evidence(event_list, float(item["timestamp_s"]), phase_model.origin_timestamp_ms)
         states = item["approaches"]
         state_text = ",".join(f"{a}:{states[a]['state']}" for a in APPROACHES)
-        evidence_text = ",".join(
-            f"{a}:m{evidence[a]['moving']:.0f}/s{evidence[a]['stopped']:.0f}/f{evidence[a]['flow']:.0f}"
-            for a in APPROACHES
-        )
+        evidence_text = ",".join(f"{a}:r{evidence[a]['moving']:.1f}/f{evidence[a]['flow']:.0f}" for a in APPROACHES)
         support = _support_status(phase_active, evidence) if phase else "NO_PHASE"
         active_text = ",".join(sorted(phase_active)) or "NONE"
-        lines.append(
-            f"t={timestamp_s:7.3f}s | millis={int(item['timestamp_ms'])} | phase={item['phase_id']} | "
-            f"active={active_text} | states={state_text} | evidence={evidence_text} | support={support}"
-        )
-
+        lines.append(f"t={float(item['timestamp_s']):7.3f}s | millis={int(item['timestamp_ms'])} | phase={item['phase_id']} | active={active_text} | states={state_text} | evidence={evidence_text} | support={support}")
     lines.extend([
         "",
         "REVIEW RULES",
-        "Moving trajectories support GREEN. A long stay/wait duration is not direct RED evidence because it belongs to the whole trajectory rather than an instantaneous signal state.",
-        "For the binary MVP, the inferred active pair is GREEN and the opposite pair is RED. No moving evidence means NO_RECENT_EVIDENCE rather than contradiction.",
-        "The review window is limited to 6 seconds so evidence from the previous phase does not dominate snapshots immediately after a phase boundary.",
-        "These checks do not establish true signal-light correctness because no labeled controller state is available in the source data.",
+        "RELEASE/CROSSING events are positive traffic evidence for the active phase; STOP and APPROACH are not direct RED evidence.",
+        "No recent release/crossing evidence is reported as NO_RECENT_EVIDENCE, not as proof of RED.",
+        "Signal colors are inferred model states. They are not measurements of a physical traffic controller.",
+        "These checks do not establish signal-light classification accuracy because the source archives do not contain labeled controller states.",
     ])
     return "\n".join(lines)

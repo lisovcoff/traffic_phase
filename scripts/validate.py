@@ -12,10 +12,15 @@ def load_manifest(path: Path) -> list[ValidationDataset]:
     datasets = payload.get("datasets", [])
     if not datasets:
         raise ValueError("manifest must contain datasets")
+    manifest_dir = path.parent.resolve()
     return [
         ValidationDataset(
             name=str(item["name"]),
-            path=str(item["path"]),
+            path=(
+                str((manifest_dir / str(item["path"])).resolve())
+                if not Path(str(item["path"])).is_absolute()
+                else str(Path(str(item["path"])).resolve())
+            ),
             kind=str(item.get("kind", "scenario")),
             description=str(item.get("description", "")),
         )
@@ -52,6 +57,20 @@ def main() -> None:
     print(f"machine_report={json_path}")
     print(f"human_report={markdown_path}")
     print(markdown_path.read_text(encoding="utf-8"))
+
+    errors = []
+    for item in report.get("datasets", []):
+        for section in ("cycle", "phase", "signal", "realtime"):
+            if item.get(section, {}).get("status") == "error":
+                errors.append(
+                    f"{item['dataset']['name']}: {section}: "
+                    f"{item[section].get('error', 'unknown error')}"
+                )
+    if errors:
+        print("VALIDATION FAILED")
+        for error in errors:
+            print(error)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

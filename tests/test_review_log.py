@@ -1,46 +1,43 @@
 from __future__ import annotations
 
-import pandas as pd
-
-from app.core.phase_discovery import Phase, PhaseDiscoveryResult
+from app.core.event_phase_discovery import EventPhase, EventPhaseDiscoveryResult
+from app.core.models import EventType, TrajectoryEvent
 from app.core.review_log import review_summary
 
 
 def test_review_summary_flags_non_overlapping_phase_model_as_valid():
-    frame = pd.DataFrame({
-        "t_s": [5.0, 6.0, 55.0, 56.0],
-        "zone_in": ["N", "S", "E", "W"],
-        "release_weight": [5.0, 4.0, 5.0, 4.0],
-        "stopped": [False, False, False, False],
-    })
-    model = PhaseDiscoveryResult(
+    events = [
+        TrajectoryEvent(EventType.RELEASE, 5000, "N", "N->_W", 1.0, "HIGH"),
+        TrajectoryEvent(EventType.RELEASE, 6000, "S", "S->_N", 1.0, "HIGH"),
+        TrajectoryEvent(EventType.RELEASE, 55000, "E", "E->_W", 1.0, "HIGH"),
+        TrajectoryEvent(EventType.RELEASE, 56000, "W", "W->_E", 1.0, "HIGH"),
+    ]
+    model = EventPhaseDiscoveryResult(
         cycle_seconds=100.0,
         bin_seconds=2.0,
         phases=(
-            Phase(1, 0.0, 40.0, ("N", "S"), ("N->_S", "S->_N"), 0.8, ("N", "S")),
-            Phase(2, 50.0, 90.0, ("E", "W"), ("E->_W", "W->_E"), 0.8, ("E", "W")),
+            EventPhase(1, 0.0, 40.0, ("N", "S"), 0.8, 2, 0, ("N", "S")),
+            EventPhase(2, 50.0, 90.0, ("E", "W"), 0.8, 2, 0, ("E", "W")),
         ),
         profiles=(),
-        similarities={},
+        cycle_coverage=0.8,
+        overlap=0.0,
+        supporting_event_count=4,
+        contradictory_event_count=0,
+        origin_timestamp_ms=5000,
     )
     timeline = [
         {
             "timestamp_s": 10.0,
             "cycle_phase_s": 10.0,
-            "approaches": {
-                "N": {"state": "GREEN"}, "S": {"state": "GREEN"},
-                "E": {"state": "RED"}, "W": {"state": "RED"},
-            },
+            "approaches": {a: {"state": "GREEN" if a in ("N", "S") else "RED"} for a in ("N", "S", "E", "W")},
         },
         {
             "timestamp_s": 60.0,
             "cycle_phase_s": 60.0,
-            "approaches": {
-                "N": {"state": "RED"}, "S": {"state": "RED"},
-                "E": {"state": "GREEN"}, "W": {"state": "GREEN"},
-            },
+            "approaches": {a: {"state": "GREEN" if a in ("E", "W") else "RED"} for a in ("N", "S", "E", "W")},
         },
     ]
-    summary = review_summary(frame, model, timeline, cycle_confidence=0.8)
+    summary = review_summary(events, model, timeline, cycle_confidence=0.8)
     assert summary["status"] in {"PASS", "WARN"}
     assert summary["metrics"]["phase_overlap_ratio"] == 0.0

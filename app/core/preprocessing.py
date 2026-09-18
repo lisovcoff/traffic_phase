@@ -25,10 +25,8 @@ def _trajectory_from_dict(item: dict) -> Trajectory | None:
     return build_trajectory_model(item)
 
 
-def load_trajectory_file(path: Path) -> list[Trajectory]:
-    with path.open("r", encoding="utf-8") as stream:
-        data = json.load(stream)
-
+def load_trajectory_payload(data: object) -> list[Trajectory]:
+    """Normalize one decoded trajectory JSON payload through the production loader."""
     if not isinstance(data, list):
         raise ValueError("Trajectory JSON root must be a list")
 
@@ -40,6 +38,11 @@ def load_trajectory_file(path: Path) -> list[Trajectory]:
         if trajectory is not None:
             trajectories.append(trajectory)
     return trajectories
+
+
+def load_trajectory_file(path: Path) -> list[Trajectory]:
+    with path.open("r", encoding="utf-8") as stream:
+        return load_trajectory_payload(json.load(stream))
 
 
 def load_trajectory_files(paths: Iterable[Path]) -> list[Trajectory]:

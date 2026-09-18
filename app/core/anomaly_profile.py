@@ -156,6 +156,57 @@ class TrafficBaselineProfile:
         )
 
     @classmethod
+    def aggregate(
+        cls,
+        profiles: Iterable["TrafficBaselineProfile"],
+        *,
+        source: str = "reference_pool",
+    ) -> "TrafficBaselineProfile":
+        items = list(profiles)
+        if not items:
+            raise ValueError("at least one baseline profile is required")
+
+        def aggregate_map(name: str) -> dict[str, float]:
+            keys = tuple(getattr(items[0], name))
+            return {
+                key: round(
+                    _median([getattr(item, name)[key] for item in items]),
+                    6,
+                )
+                for key in keys
+            }
+
+        return cls(
+            window_seconds=float(
+                _median([item.window_seconds for item in items])
+            ),
+            approach_flow_median=aggregate_map("approach_flow_median"),
+            approach_flow_mad=aggregate_map("approach_flow_mad"),
+            approach_stop_rate_median=aggregate_map(
+                "approach_stop_rate_median"
+            ),
+            approach_stop_rate_mad=aggregate_map(
+                "approach_stop_rate_mad"
+            ),
+            group_flow_median=aggregate_map("group_flow_median"),
+            group_flow_mad=aggregate_map("group_flow_mad"),
+            group_release_median=aggregate_map("group_release_median"),
+            group_release_mad=aggregate_map("group_release_mad"),
+            group_share_median=aggregate_map("group_share_median"),
+            group_share_mad=aggregate_map("group_share_mad"),
+            total_flow_median=round(
+                _median([item.total_flow_median for item in items]),
+                6,
+            ),
+            total_flow_mad=round(
+                _median([item.total_flow_mad for item in items], default=1.0),
+                6,
+            ),
+            baseline_windows=sum(item.baseline_windows for item in items),
+            source=source,
+        )
+
+    @classmethod
     def from_dict(cls, payload: dict[str, object]) -> "TrafficBaselineProfile":
         return cls(
             window_seconds=float(payload["window_seconds"]),

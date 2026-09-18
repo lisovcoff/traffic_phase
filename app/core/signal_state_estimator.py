@@ -91,7 +91,7 @@ class SignalStateEstimator:
         min_traffic_confidence: float = DEFAULT_MIN_TRAFFIC_CONFIDENCE,
         yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS,
         conflict_persistence_seconds: float = DEFAULT_CONFLICT_PERSISTENCE_SECONDS,
-        event_origin_ms: int | None = 0,
+        event_origin_ms: int | None = None,
     ) -> None:
         cycle = float(getattr(phase_model, "cycle_seconds", 0.0))
         if cycle <= 0:
@@ -261,13 +261,10 @@ class SignalStateEstimator:
         return None
 
     def _origin_ms(self, events: Sequence[TrajectoryEvent]) -> int:
-        """Return the raw timestamp origin for the normalized timeline.
-
-        Synthetic and already-normalized events use origin 0. Playback passes
-        the first raw trajectory timestamp explicitly so absolute millisecond
-        timestamps are rebased onto the phase-model timeline.
-        """
-        return int(self.event_origin_ms or 0)
+        """Resolve the raw timestamp origin used by the phase model."""
+        if self.event_origin_ms is not None:
+            return int(self.event_origin_ms)
+        return int(getattr(self.phase_model, "origin_timestamp_ms", 0) or 0)
 
     def _recent_events(
         self,
