@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from enum import Enum
 from typing import Any
 
 
@@ -26,6 +27,23 @@ class Trajectory:
 
     def to_record(self) -> dict[str, Any]:
         return asdict(self)
+
+
+class EventType(str, Enum):
+    APPROACH = "APPROACH"
+    STOP = "STOP"
+    RELEASE = "RELEASE"
+    CROSSING = "CROSSING"
+
+
+@dataclass(frozen=True)
+class TrajectoryEvent:
+    event_type: EventType
+    timestamp_ms: int
+    approach: str
+    movement: str
+    confidence: float
+    quality: str
 
 
 @dataclass(frozen=True)
