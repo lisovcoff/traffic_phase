@@ -53,7 +53,7 @@ class SignalStateResult:
     phase_id: int | None
     transition: bool
     phase_confidence: float
-    traffic_evidence_confidence: float
+    traffic_evidence_confidence: float = 0.0
     approaches: tuple[ApproachState, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
