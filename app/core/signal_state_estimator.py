@@ -31,14 +31,14 @@ class SignalState(str, Enum):
 class ApproachState:
     approach: str
     state: SignalState
-    probability: float
-    confidence: float
-    phase_id: int | None
-    phase_confidence: float
-    traffic_evidence_confidence: float
-    evidence_weight: float
-    supporting_event_count: int
-    contradictory_event_count: int
+    probability: float = 0.0
+    confidence: float = 0.0
+    phase_id: int | None = None
+    phase_confidence: float = 0.0
+    traffic_evidence_confidence: float = 0.0
+    evidence_weight: float = 0.0
+    supporting_event_count: int = 0
+    contradictory_event_count: int = 0
 
     def to_dict(self) -> dict[str, object]:
         data = asdict(self)
@@ -261,10 +261,11 @@ class SignalStateEstimator:
         return None
 
     def _origin_ms(self, events: Sequence[TrajectoryEvent]) -> int | None:
-        return self.event_origin_ms or min(
-            (event.timestamp_ms for event in events),
-            default=None,
-        )
+        # current_time_s is a timeline coordinate. Playback explicitly
+        # supplies event_origin_ms when raw timestamps must be rebased.
+        if self.event_origin_ms is not None:
+            return self.event_origin_ms
+        return 0
 
     def _recent_events(
         self,
