@@ -163,6 +163,7 @@ class SignalStateEstimator:
                     and self._conflict_is_short(
                         recent,
                         approach,
+                        active,
                         current_time_s,
                         origin_ms,
                     )
@@ -379,15 +380,14 @@ class SignalStateEstimator:
         self,
         events: Sequence[TrajectoryEvent],
         approach: str,
+        active: set[str],
         current_time_s: float,
-        origin_ms: int | None,
+        origin_ms: int,
     ) -> bool:
-        if origin_ms is None:
-            return False
         conflict_times_s = [
             (event.timestamp_ms - origin_ms) / 1000.0
             for event in events
-            if event.approach == approach
+            if ((event.approach not in active) if approach in active else (event.approach in active))
             and event.event_type in {EventType.RELEASE, EventType.CROSSING}
             and (event.timestamp_ms - origin_ms) / 1000.0 <= current_time_s
         ]
