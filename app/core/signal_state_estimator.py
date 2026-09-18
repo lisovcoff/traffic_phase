@@ -53,7 +53,7 @@ class SignalStateResult:
     phase_id: int | None
     transition: bool
     phase_confidence: float
-    traffic_evidence_confidence: float
+    traffic_evidence_confidence: float = 0.0
     approaches: tuple[ApproachState, ...]
 
     def to_dict(self) -> dict[str, object]:
@@ -159,7 +159,6 @@ class SignalStateEstimator:
 
                 if (
                     contradictory > 0
-                    and support == 0
                     and self.conflict_persistence_seconds > 0
                     and self._conflict_is_short(
                         recent,
@@ -265,7 +264,7 @@ class SignalStateEstimator:
         # supplies event_origin_ms when raw timestamps must be rebased.
         if self.event_origin_ms is not None:
             return self.event_origin_ms
-        return 0
+        return min((event.timestamp_ms for event in events), default=None)
 
     def _recent_events(
         self,
