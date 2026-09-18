@@ -49,16 +49,16 @@ def test_event_model_discovers_two_opposing_green_intervals():
 
 
 def test_support_and_contradiction_are_real_event_counts():
-    # A single-cycle outlier is intentionally rejected by the robust median
-    # profile. Repeat the contradictory event in every cycle so it is genuine
-    # recurring evidence rather than an outlier that should disappear.
+    # Put recurring E/W evidence directly inside the otherwise strong NS
+    # interval. The optimizer should retain NS there, so those events are
+    # counted as contradictory evidence for the NS phase.
     events = _events()
     for repeat in range(6):
         base = repeat * 120.0
         events.extend(
             (
-                _event(EventType.CROSSING, base + 30.0, "E"),
-                _event(EventType.RELEASE, base + 31.0, "E"),
+                _event(EventType.CROSSING, base + 20.0, "E"),
+                _event(EventType.RELEASE, base + 21.0, "E"),
             )
         )
     result = EventPhaseDiscovery().discover(events, cycle_seconds=120.0)
