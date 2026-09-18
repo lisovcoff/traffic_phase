@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.core.event_phase_discovery import EventPhase, EventPhaseDiscoveryResult
+from app.core.anomaly_profile import TrafficBaselineProfile
 from app.core.models import EventType, TrajectoryEvent
 from app.core.realtime_inference import (
     DuplicateEventError,
@@ -21,6 +22,10 @@ class PhasePayload(BaseModel):
     overlap: float = Field(default=0.0, ge=0, le=1)
     supporting_event_count: int = Field(default=0, ge=0)
     contradictory_event_count: int = Field(default=0, ge=0)
+
+
+class BaselineProfilePayload(BaseModel):
+    payload: dict[str, object]
 
 
 class RealtimeEventPayload(BaseModel):
@@ -40,6 +45,7 @@ class RealtimeInferenceRequest(BaseModel):
     event_origin_ms: int | None = None
     recent_window_s: float = Field(default=12.0, gt=0)
     yellow_duration_seconds: float = Field(default=2.0, ge=0)
+    baseline_profile: BaselineProfilePayload | None = None
 
 
 class RealtimeTrajectoryPayload(BaseModel):
@@ -50,6 +56,7 @@ class RealtimeTrajectoryPayload(BaseModel):
     event_origin_ms: int | None = None
     recent_window_s: float = Field(default=12.0, gt=0)
     yellow_duration_seconds: float = Field(default=2.0, ge=0)
+    baseline_profile: BaselineProfilePayload | None = None
 
 
 def _build_phase_model(payload: PhasePayload) -> EventPhaseDiscoveryResult:
@@ -91,6 +98,7 @@ class RealtimeEngineRegistry:
         event_origin_ms: int | None,
         recent_window_s: float,
         yellow_duration_seconds: float,
+        baseline: TrafficBaselineProfile | None,
     ) -> RealtimeSignalInferenceEngine:
         with self._lock:
             engine = self._engines.get(stream_id)
@@ -114,6 +122,7 @@ class RealtimeEngineRegistry:
                 recent_window_s=recent_window_s,
                 event_origin_ms=event_origin_ms or 0,
                 yellow_duration_seconds=yellow_duration_seconds,
+                baseline=baseline,
             )
             self._engines[stream_id] = engine
             return engine
@@ -143,6 +152,7 @@ async def infer_realtime(
             event_origin_ms=payload.event_origin_ms,
             recent_window_s=payload.recent_window_s,
             yellow_duration_seconds=payload.yellow_duration_seconds,
+            baseline=TrafficBaselineProfile.from_dict(payload.baseline_profile.payload) if payload.baseline_profile else None,
         )
         event = TrajectoryEvent(
             event_type=payload.event.event_type,

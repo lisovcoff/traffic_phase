@@ -7,6 +7,8 @@ from threading import RLock
 from typing import Iterable, Sequence
 
 from app.core.models import TrajectoryEvent
+from app.core.anomaly_profile import TrafficBaselineProfile
+from app.core.anomaly_inference import AnomalyAwareSignalInference
 from app.core.signal_state_estimator import SignalStateEstimator
 from app.core.trajectory_events import extract_trajectory_events
 from app.core.trajectory_geometry import build_trajectory_geometry, build_trajectory_model
@@ -25,6 +27,7 @@ class RealtimeInferenceSnapshot:
     cycle_position_s: float
     evidence_summary: dict[str, dict[str, object]]
     buffer_event_count: int
+    anomaly: dict[str, object] | None = None
     duplicate: bool = False
 
     def to_dict(self) -> dict[str, object]:
@@ -48,12 +51,14 @@ class RealtimeSignalInferenceEngine:
         min_traffic_confidence: float = 0.12,
         yellow_duration_seconds: float = 2.0,
         conflict_persistence_seconds: float = 3.0,
+        baseline: TrafficBaselineProfile | None = None,
     ) -> None:
         if recent_window_s <= 0:
             raise ValueError("recent_window_s must be positive")
         self.phase_model = phase_model
         self.recent_window_s = float(recent_window_s)
         self.event_origin_ms = int(event_origin_ms)
+        self._anomaly_inference = AnomalyAwareSignalInference(phase_model, baseline)
         self._estimator = SignalStateEstimator(
             phase_model,
             recent_window_s=recent_window_s,
@@ -170,10 +175,16 @@ class RealtimeSignalInferenceEngine:
         timestamp_s = (
             self._current_timestamp_ms - self.event_origin_ms
         ) / 1000.0
-        result = self._estimator.estimate(
-            max(0.0, timestamp_s),
-            tuple(self._events.values()),
+        buffered_events = tuple(self._events.values())
+        result = self._estimator.estimate(max(0.0, timestamp_s), buffered_events)
+        aware = self._anomaly_inference.estimate(
+            result,
+            buffered_events,
+            current_time_s=max(0.0, timestamp_s),
+            recent_window_s=self.recent_window_s,
+            origin_ms=self.event_origin_ms,
         )
+        result = aware.signal
 
         phase = next(
             (
@@ -221,6 +232,7 @@ class RealtimeSignalInferenceEngine:
             cycle_position_s=result.cycle_phase_s,
             evidence_summary=evidence_summary,
             buffer_event_count=len(self._events),
+            anomaly=aware.indicators.to_dict(),
             duplicate=duplicate,
         )
 
