@@ -464,8 +464,12 @@ def validate_realtime(
                     event.timestamp_ms - recent_window_ms,
                     event.timestamp_ms,
                 )
-                batch = batch_estimator.estimate(
+                batch_time_s = max(
+                    0.0,
                     (event.timestamp_ms - origin) / 1000.0,
+                )
+                batch = batch_estimator.estimate(
+                    batch_time_s,
                     batch_events,
                 )
                 batch_states = {

@@ -85,3 +85,35 @@ def test_validation_markdown_is_human_readable():
     markdown = report_markdown(report)
     assert "consistency/behaviour" in markdown
     assert "Realtime agreement" in markdown
+
+
+
+def test_validate_realtime_clamps_events_before_phase_origin():
+    from app.core.event_phase_discovery import EventPhase, EventPhaseDiscoveryResult
+    from app.core.validation import validate_realtime
+
+    origin_ms = 1_000
+    model = EventPhaseDiscoveryResult(
+        cycle_seconds=100.0,
+        bin_seconds=2.0,
+        phases=(
+            EventPhase(1, 0.0, 50.0, ("N", "S"), 0.9, 10, 1, ("N", "S")),
+            EventPhase(2, 50.0, 100.0, ("E", "W"), 0.9, 10, 1, ("E", "W")),
+        ),
+        profiles=(),
+        cycle_coverage=1.0,
+        overlap=0.0,
+        supporting_event_count=20,
+        contradictory_event_count=2,
+        origin_timestamp_ms=origin_ms,
+    )
+    events = [
+        event(EventType.APPROACH, 0.0, "N"),
+        event(EventType.RELEASE, 2.0, "N"),
+    ]
+
+    report = validate_realtime(events, model)
+
+    assert report["status"] == "ok"
+    assert report["event_count"] == 2
+    assert report["agreement_comparisons"] >= 1
