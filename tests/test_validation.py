@@ -41,6 +41,15 @@ def test_validation_runner_exposes_required_metric_groups(monkeypatch, tmp_path)
     import app.core.validation as validation
 
     events = synthetic_events()
+
+    signal_calls = []
+    original_validate_signal = validation.validate_signal
+
+    def counted_validate_signal(*args, **kwargs):
+        signal_calls.append(kwargs.get("baseline"))
+        return original_validate_signal(*args, **kwargs)
+
+    monkeypatch.setattr(validation, "validate_signal", counted_validate_signal)
     monkeypatch.setattr(validation, "load_events", lambda _path: events)
 
     progress_messages = []
@@ -60,6 +69,8 @@ def test_validation_runner_exposes_required_metric_groups(monkeypatch, tmp_path)
     assert "batch_realtime_agreement" in item["realtime"]
     assert any("preparing reference 1/1" in message for message in progress_messages)
     assert any("validating dataset 2/2" in message for message in progress_messages)
+    assert len(signal_calls) == 2
+    assert all(baseline is not None for baseline in signal_calls)
 
 
 def test_validation_markdown_is_human_readable():

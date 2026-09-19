@@ -541,8 +541,9 @@ class ValidationRunner:
     def run(self) -> dict[str, object]:
         reference_cycles: dict[str, float] = {}
         reference_cycle_metrics: dict[str, dict[str, object]] = {}
+        reference_phase_metrics: dict[str, dict[str, object]] = {}
+        reference_phase_models: dict[str, EventPhaseDiscoveryResult] = {}
         reference_profiles: list[TrafficBaselineProfile] = []
-        reference_confidence_values: list[float] = []
         reference_errors: dict[str, str] = {}
         reference_datasets = [
             dataset
@@ -550,8 +551,10 @@ class ValidationRunner:
             if dataset.kind == "reference"
         ]
 
-        # References are prepared in a first pass so their raw events do not
-        # accumulate in memory across the full validation manifest.
+        # Prepare each reference exactly once for cycle/baseline/phase data.
+        # Expensive signal/realtime validation is deferred until the shared
+        # reference baseline has been built, so reference datasets are not
+        # fully validated twice.
         for ref_index, dataset in enumerate(reference_datasets, start=1):
             self.progress(
                 f"preparing reference {ref_index}/{len(reference_datasets)}: {dataset.name}"
@@ -562,7 +565,9 @@ class ValidationRunner:
                 reference_cycle_metrics[dataset.name] = dict(cycle_metrics)
                 if cycle_estimate is None:
                     continue
-                reference_cycles[dataset.name] = cycle_estimate.estimate.cycle_seconds
+
+                cycle_seconds = cycle_estimate.estimate.cycle_seconds
+                reference_cycles[dataset.name] = cycle_seconds
 
                 origin = min(event.timestamp_ms for event in events)
                 reference_profiles.append(
@@ -573,21 +578,13 @@ class ValidationRunner:
                     )
                 )
 
-                _, phase_model = validate_phase(
+                phase_metrics, phase_model = validate_phase(
                     events,
-                    cycle_estimate.estimate.cycle_seconds,
+                    cycle_seconds,
                 )
+                reference_phase_metrics[dataset.name] = dict(phase_metrics)
                 if phase_model is not None:
-                    signal_metrics = validate_signal(
-                        events,
-                        phase_model,
-                        sample_seconds=self.sample_seconds,
-                        transition_tolerance_seconds=self.transition_tolerance_seconds,
-                        baseline=None,
-                    )
-                    value = signal_metrics.get("mean_state_confidence")
-                    if value is not None:
-                        reference_confidence_values.append(float(value))
+                    reference_phase_models[dataset.name] = phase_model
             except Exception as exc:
                 reference_errors[dataset.name] = str(exc)
                 reference_cycle_metrics.setdefault(
@@ -608,18 +605,13 @@ class ValidationRunner:
             if reference_profiles
             else None
         )
-        reference_confidence = (
-            statistics.median(reference_confidence_values)
-            if reference_confidence_values
-            else None
-        )
+
         self.progress(
             "reference baseline ready: "
-            f"{len(reference_profiles)} profiles, period={reference_period}, "
-            f"confidence={reference_confidence}"
+            f"{len(reference_profiles)} profiles, period={reference_period}"
         )
 
-        dataset_reports = []
+        dataset_reports: list[dict[str, object]] = []
         total_datasets = len(self.datasets)
         for dataset_index, dataset in enumerate(self.datasets, start=1):
             self.progress(
@@ -675,7 +667,23 @@ class ValidationRunner:
             signal_metrics: dict[str, object] = {"status": "not_run"}
             realtime_metrics: dict[str, object] = {"status": "not_run"}
             if cycle_seconds is not None and events:
-                phase_metrics, phase_model = validate_phase(events, cycle_seconds)
+                if (
+                    dataset.kind == "reference"
+                    and dataset.name in reference_phase_models
+                ):
+                    phase_metrics = dict(
+                        reference_phase_metrics.get(
+                            dataset.name,
+                            {"status": "ok"},
+                        )
+                    )
+                    phase_model = reference_phase_models[dataset.name]
+                else:
+                    phase_metrics, phase_model = validate_phase(
+                        events,
+                        cycle_seconds,
+                    )
+
                 if phase_model is not None:
                     signal_metrics = validate_signal(
                         events,
@@ -685,18 +693,6 @@ class ValidationRunner:
                         baseline=baseline,
                     )
                     realtime_metrics = validate_realtime(events, phase_model)
-
-            if (
-                reference_confidence is not None
-                and signal_metrics.get("mean_state_confidence") is not None
-            ):
-                signal_metrics["reference_confidence_delta"] = round(
-                    reference_confidence
-                    - float(signal_metrics["mean_state_confidence"]),
-                    4,
-                )
-            else:
-                signal_metrics["reference_confidence_delta"] = None
 
             dataset_reports.append(
                 {
@@ -713,13 +709,38 @@ class ValidationRunner:
                 f"events={len(events)}"
             )
 
+        reference_confidence_values = [
+            float(item["signal"]["mean_state_confidence"])
+            for item in dataset_reports
+            if item["dataset"]["kind"] == "reference"
+            and item["signal"].get("mean_state_confidence") is not None
+        ]
+        reference_confidence = (
+            statistics.median(reference_confidence_values)
+            if reference_confidence_values
+            else None
+        )
+
+        for item in dataset_reports:
+            signal_metrics = item["signal"]
+            if not isinstance(signal_metrics, dict):
+                continue
+            if (
+                reference_confidence is not None
+                and signal_metrics.get("mean_state_confidence") is not None
+            ):
+                signal_metrics["reference_confidence_delta"] = round(
+                    reference_confidence
+                    - float(signal_metrics["mean_state_confidence"]),
+                    4,
+                )
+            else:
+                signal_metrics["reference_confidence_delta"] = None
+
         return {
             "schema_version": SCHEMA_VERSION,
             "reference_pool": {
-                "dataset_count": sum(
-                    1 for dataset in self.datasets
-                    if dataset.kind == "reference"
-                ),
+                "dataset_count": len(reference_datasets),
                 "median_period_seconds": reference_period,
                 "median_signal_confidence": (
                     round(reference_confidence, 4)
