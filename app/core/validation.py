@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 from bisect import bisect_left, bisect_right
+from dataclasses import asdict, dataclass
 from collections.abc import Callable
 import json
 from pathlib import Path
@@ -502,7 +502,6 @@ def validate_realtime(
 
 
 def _rebase_events(
-def _rebase_events(
     events: Sequence[TrajectoryEvent],
     origin_ms: int,
 ) -> list[TrajectoryEvent]:
@@ -742,7 +741,6 @@ class ValidationRunner:
         }
 
 
-def report_markdown(report: dict[str, object]) -> str:
 def report_markdown(report: dict[str, object]) -> str:
     lines = [
         "# Traffic Phase Validation Report",
