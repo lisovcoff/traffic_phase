@@ -43,11 +43,13 @@ def test_validation_runner_exposes_required_metric_groups(monkeypatch, tmp_path)
     events = synthetic_events()
     monkeypatch.setattr(validation, "load_events", lambda _path: events)
 
+    progress_messages = []
     report = ValidationRunner(
         [
             ValidationDataset("reference", str(tmp_path / "ref.json"), "reference"),
             ValidationDataset("scenario", str(tmp_path / "scenario.json"), "accident"),
-        ]
+        ],
+        progress=progress_messages.append,
     ).run()
 
     assert report["configuration"]["accuracy_claim"] is False
@@ -56,6 +58,8 @@ def test_validation_runner_exposes_required_metric_groups(monkeypatch, tmp_path)
     assert "anomaly_mean_score" in item["signal"]
     assert "false_state_switch_rate" in item["signal"]
     assert "batch_realtime_agreement" in item["realtime"]
+    assert any("preparing reference 1/1" in message for message in progress_messages)
+    assert any("validating dataset 2/2" in message for message in progress_messages)
 
 
 def test_validation_markdown_is_human_readable():

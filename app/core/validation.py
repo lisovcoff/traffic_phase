@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from dataclasses import asdict, dataclass
+from collections.abc import Callable
 import json
 from pathlib import Path
 import statistics
@@ -54,7 +56,7 @@ def _quantile(values: Sequence[float], q: float) -> float | None:
 
 def load_events(path: Path) -> list[TrajectoryEvent]:
     if path.suffix.lower() == ".json":
-        return extract_events_from_trajectories(load_trajectory_file(path))
+        return _sorted_events(extract_events_from_trajectories(load_trajectory_file(path)))
 
     if path.suffix.lower() != ".zip":
         raise ValueError(f"unsupported validation input: {path}")
@@ -79,6 +81,39 @@ def load_events(path: Path) -> list[TrajectoryEvent]:
                 )
             )
     return events
+
+
+@dataclass(frozen=True)
+class _EventWindowIndex:
+    events: tuple[TrajectoryEvent, ...]
+    timestamps_ms: tuple[int, ...]
+
+    @classmethod
+    def build(cls, events: Sequence[TrajectoryEvent]) -> "_EventWindowIndex":
+        ordered = tuple(
+            sorted(
+                events,
+                key=lambda event: (
+                    event.timestamp_ms,
+                    event.event_type.value,
+                    event.approach,
+                    event.movement,
+                ),
+            )
+        )
+        return cls(
+            events=ordered,
+            timestamps_ms=tuple(event.timestamp_ms for event in ordered),
+        )
+
+    def between(self, lower_ms: int, upper_ms: int) -> tuple[TrajectoryEvent, ...]:
+        left = bisect_left(self.timestamps_ms, lower_ms)
+        right = bisect_right(self.timestamps_ms, upper_ms)
+        return self.events[left:right]
+
+
+def _sorted_events(events: Sequence[TrajectoryEvent]) -> list[TrajectoryEvent]:
+    return list(_EventWindowIndex.build(events).events)
 
 
 def _phase_at(
@@ -247,18 +282,18 @@ def validate_signal(
         sample_seconds,
         origin_ms=phase_model.origin_timestamp_ms,
     )
+    event_index = _EventWindowIndex.build(events)
     estimator = SignalStateEstimator(
         phase_model,
         event_origin_ms=origin,
     )
     anomaly = AnomalyAwareSignalInference(phase_model, baseline)
-    results = [
-        estimator.estimate(timestamp_s, events)
-        for timestamp_s in times
-    ]
+    recent_window_seconds = 12.0
+
     total_states = 0
     unknown_states = 0
-    confidence_values: list[float] = []
+    confidence_sum = 0.0
+    confidence_count = 0
     continuity_pairs = 0
     continuity_same = 0
     transitions = 0
@@ -270,62 +305,66 @@ def validate_signal(
             for boundary in (phase.phase_start, phase.phase_end)
         }
     )
-    for result in results:
-        for state in result.approaches:
-            total_states += 1
-            unknown_states += state.state == SignalState.UNKNOWN
-            confidence_values.append(state.confidence)
-
-    for previous, current in zip(results, results[1:]):
-        previous_states = {
-            state.approach: state.state
-            for state in previous.approaches
-        }
-        current_states = {
-            state.approach: state.state
-            for state in current.approaches
-        }
-        for approach, previous_state in previous_states.items():
-            current_state = current_states[approach]
-            continuity_pairs += 1
-            continuity_same += previous_state == current_state
-            if (
-                previous_state != current_state
-                and previous_state != SignalState.UNKNOWN
-                and current_state != SignalState.UNKNOWN
-            ):
-                transitions += 1
-                distance = min(
-                    _circular_distance(
-                        current.cycle_phase_s,
-                        boundary,
-                        phase_model.cycle_seconds,
-                    )
-                    for boundary in boundaries
-                ) if boundaries else phase_model.cycle_seconds
-                transition_consistent += distance <= transition_tolerance_seconds
-
-    anomaly_results = [
-        anomaly.estimate(
-            result,
-            events,
-            current_time_s=times[index],
-            recent_window_s=12.0,
-            origin_ms=origin,
-        )
-        for index, result in enumerate(results)
-    ]
-    anomaly_scores = [
-        item.indicators.anomaly_score
-        for item in anomaly_results
-    ]
+    anomaly_scores: list[float] = []
     conditions: dict[str, int] = {}
     false_switches = 0
     state_comparisons = 0
-    for base_result, aware_result in zip(results, anomaly_results):
+    previous_result = None
+
+    for timestamp_s in times:
+        now_ms = origin + int(timestamp_s * 1000.0)
+        window_events = event_index.between(
+            now_ms - int(recent_window_seconds * 1000.0),
+            now_ms,
+        )
+        result = estimator.estimate(timestamp_s, window_events)
+
+        for state in result.approaches:
+            total_states += 1
+            unknown_states += state.state == SignalState.UNKNOWN
+            confidence_sum += state.confidence
+            confidence_count += 1
+
+        if previous_result is not None:
+            previous_states = {
+                state.approach: state.state
+                for state in previous_result.approaches
+            }
+            current_states = {
+                state.approach: state.state
+                for state in result.approaches
+            }
+            for approach, previous_state in previous_states.items():
+                current_state = current_states[approach]
+                continuity_pairs += 1
+                continuity_same += previous_state == current_state
+                if (
+                    previous_state != current_state
+                    and previous_state != SignalState.UNKNOWN
+                    and current_state != SignalState.UNKNOWN
+                ):
+                    transitions += 1
+                    distance = min(
+                        _circular_distance(
+                            result.cycle_phase_s,
+                            boundary,
+                            phase_model.cycle_seconds,
+                        )
+                        for boundary in boundaries
+                    ) if boundaries else phase_model.cycle_seconds
+                    transition_consistent += distance <= transition_tolerance_seconds
+
+        aware_result = anomaly.estimate(
+            result,
+            window_events,
+            current_time_s=timestamp_s,
+            recent_window_s=recent_window_seconds,
+            origin_ms=origin,
+        )
+        anomaly_scores.append(aware_result.indicators.anomaly_score)
         base_states = {
             item.approach: item.state
-            for item in base_result.approaches
+            for item in result.approaches
         }
         aware_states = {
             item.approach: item.state
@@ -341,12 +380,9 @@ def validate_signal(
                 false_switches += 1
         name = aware_result.indicators.condition.value
         conditions[name] = conditions.get(name, 0) + 1
+        previous_result = result
 
-    mean_confidence = (
-        sum(confidence_values) / len(confidence_values)
-        if confidence_values
-        else None
-    )
+    mean_confidence = confidence_sum / confidence_count if confidence_count else None
     return {
         "status": "ok",
         "sample_count": len(times),
@@ -397,15 +433,8 @@ def validate_realtime(
             min(event.timestamp_ms for event in events),
         )
     )
-    ordered = sorted(
-        events,
-        key=lambda event: (
-            event.timestamp_ms,
-            event.event_type.value,
-            event.approach,
-            event.movement,
-        ),
-    )
+    ordered = _sorted_events(events)
+    event_index = _EventWindowIndex.build(ordered)
     engine = RealtimeSignalInferenceEngine(
         phase_model,
         event_origin_ms=origin,
@@ -416,37 +445,42 @@ def validate_realtime(
     comparisons = 0
     max_buffer = 0
     step = max(1, len(ordered) // max(1, agreement_limit))
+    recent_window_ms = 12_000
 
     tracemalloc.start()
-    processed: list[TrajectoryEvent] = []
     batch_estimator = SignalStateEstimator(
         phase_model,
         event_origin_ms=origin,
     )
-    for index, event in enumerate(ordered):
-        start = time.perf_counter_ns()
-        snapshot = engine.ingest_event(event)
-        latencies.append((time.perf_counter_ns() - start) / 1_000_000.0)
-        max_buffer = max(max_buffer, snapshot.buffer_event_count)
-        processed.append(event)
+    try:
+        for index, event in enumerate(ordered):
+            start = time.perf_counter_ns()
+            snapshot = engine.ingest_event(event)
+            latencies.append((time.perf_counter_ns() - start) / 1_000_000.0)
+            max_buffer = max(max_buffer, snapshot.buffer_event_count)
 
-        if index % step == 0 or index == len(ordered) - 1:
-            batch = batch_estimator.estimate(
-                (event.timestamp_ms - origin) / 1000.0,
-                processed,
-            )
-            batch_states = {
-                state.approach: state.state.value
-                for state in batch.approaches
-            }
-            agreements += int(
-                snapshot.phase_id == batch.phase_id
-                and snapshot.signal_states == batch_states
-            )
-            comparisons += 1
+            if index % step == 0 or index == len(ordered) - 1:
+                batch_events = event_index.between(
+                    event.timestamp_ms - recent_window_ms,
+                    event.timestamp_ms,
+                )
+                batch = batch_estimator.estimate(
+                    (event.timestamp_ms - origin) / 1000.0,
+                    batch_events,
+                )
+                batch_states = {
+                    state.approach: state.state.value
+                    for state in batch.approaches
+                }
+                agreements += int(
+                    snapshot.phase_id == batch.phase_id
+                    and snapshot.signal_states == batch_states
+                )
+                comparisons += 1
+    finally:
+        _, peak_memory = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
 
-    _, peak_memory = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
     return {
         "status": "ok",
         "event_count": len(ordered),
@@ -491,6 +525,7 @@ class ValidationRunner:
         *,
         sample_seconds: float = 1.0,
         transition_tolerance_seconds: float = 3.0,
+        progress: Callable[[str], None] | None = None,
     ) -> None:
         if not datasets:
             raise ValueError("at least one dataset is required")
@@ -501,44 +536,34 @@ class ValidationRunner:
         self.transition_tolerance_seconds = float(
             transition_tolerance_seconds
         )
+        self.progress = progress or (lambda _message: None)
 
     def run(self) -> dict[str, object]:
-        loaded: dict[str, tuple[ValidationDataset, list[TrajectoryEvent], dict[str, object], EventCycleEstimate | None]] = {}
-        reference_cycles: list[float] = []
+        reference_cycles: dict[str, float] = {}
+        reference_cycle_metrics: dict[str, dict[str, object]] = {}
+        reference_profiles: list[TrafficBaselineProfile] = []
+        reference_confidence_values: list[float] = []
+        reference_errors: dict[str, str] = {}
+        reference_datasets = [
+            dataset
+            for dataset in self.datasets
+            if dataset.kind == "reference"
+        ]
 
-        for dataset in self.datasets:
+        # References are prepared in a first pass so their raw events do not
+        # accumulate in memory across the full validation manifest.
+        for ref_index, dataset in enumerate(reference_datasets, start=1):
+            self.progress(
+                f"preparing reference {ref_index}/{len(reference_datasets)}: {dataset.name}"
+            )
             try:
                 events = load_events(Path(dataset.path))
                 cycle_metrics, cycle_estimate = validate_cycle(events, None)
-                loaded[dataset.name] = (
-                    dataset,
-                    events,
-                    cycle_metrics,
-                    cycle_estimate,
-                )
-                if dataset.kind == "reference" and cycle_estimate is not None:
-                    reference_cycles.append(
-                        cycle_estimate.estimate.cycle_seconds
-                    )
-            except Exception as exc:
-                loaded[dataset.name] = (
-                    dataset,
-                    [],
-                    {"status": "error", "error": str(exc)},
-                    None,
-                )
+                reference_cycle_metrics[dataset.name] = dict(cycle_metrics)
+                if cycle_estimate is None:
+                    continue
+                reference_cycles[dataset.name] = cycle_estimate.estimate.cycle_seconds
 
-        reference_period = (
-            round(statistics.median(reference_cycles), 4)
-            if reference_cycles
-            else None
-        )
-
-        reference_profiles: list[TrafficBaselineProfile] = []
-        for dataset, events, _, _ in loaded.values():
-            if dataset.kind != "reference" or not events:
-                continue
-            try:
                 origin = min(event.timestamp_ms for event in events)
                 reference_profiles.append(
                     TrafficBaselineProfile.from_events(
@@ -547,83 +572,8 @@ class ValidationRunner:
                         source=f"reference:{dataset.name}",
                     )
                 )
-            except Exception:
-                continue
 
-        baseline = (
-            TrafficBaselineProfile.aggregate(
-                reference_profiles,
-                source="validation_reference_pool",
-            )
-            if reference_profiles
-            else None
-        )
-
-        reference_confidence_values: list[float] = []
-        for dataset, events, _, cycle_estimate in loaded.values():
-            if dataset.kind != "reference" or cycle_estimate is None:
-                continue
-            _, phase_model = validate_phase(
-                events,
-                cycle_estimate.estimate.cycle_seconds,
-            )
-            if phase_model is None:
-                continue
-            signal_metrics = validate_signal(
-                events,
-                phase_model,
-                sample_seconds=self.sample_seconds,
-                transition_tolerance_seconds=self.transition_tolerance_seconds,
-                baseline=None,
-            )
-            value = signal_metrics.get("mean_state_confidence")
-            if value is not None:
-                reference_confidence_values.append(float(value))
-
-        reference_confidence = (
-            statistics.median(reference_confidence_values)
-            if reference_confidence_values
-            else None
-        )
-
-        dataset_reports = []
-        for dataset, events, cycle_metrics, cycle_estimate in loaded.values():
-            cycle_metrics = dict(cycle_metrics)
-            if cycle_estimate is not None and reference_period is not None:
-                cycle_metrics["reference_period_seconds"] = reference_period
-                if dataset.kind != "reference":
-                    target_period = reference_period
-                else:
-                    other_reference_periods = [
-                        item[3].estimate.cycle_seconds
-                        for item in loaded.values()
-                        if item[0].kind == "reference"
-                        and item[0].name != dataset.name
-                        and item[3] is not None
-                    ]
-                    target_period = (
-                        statistics.median(other_reference_periods)
-                        if other_reference_periods
-                        else None
-                    )
-                cycle_metrics["reference_error_seconds"] = (
-                    round(
-                        abs(
-                            cycle_estimate.estimate.cycle_seconds
-                            - float(target_period)
-                        ),
-                        4,
-                    )
-                    if target_period is not None
-                    else None
-                )
-
-            phase_metrics: dict[str, object] = {"status": "not_run"}
-            signal_metrics: dict[str, object] = {"status": "not_run"}
-            realtime_metrics: dict[str, object] = {"status": "not_run"}
-
-            if cycle_estimate is not None and events:
-                phase_metrics, phase_model = validate_phase(
+                _, phase_model = validate_phase(
                     events,
                     cycle_estimate.estimate.cycle_seconds,
                 )
@@ -633,12 +583,108 @@ class ValidationRunner:
                         phase_model,
                         sample_seconds=self.sample_seconds,
                         transition_tolerance_seconds=self.transition_tolerance_seconds,
-                        baseline=baseline,
+                        baseline=None,
                     )
-                    realtime_metrics = validate_realtime(
+                    value = signal_metrics.get("mean_state_confidence")
+                    if value is not None:
+                        reference_confidence_values.append(float(value))
+            except Exception as exc:
+                reference_errors[dataset.name] = str(exc)
+                reference_cycle_metrics.setdefault(
+                    dataset.name,
+                    {"status": "error", "error": str(exc)},
+                )
+
+        reference_period = (
+            round(statistics.median(reference_cycles.values()), 4)
+            if reference_cycles
+            else None
+        )
+        baseline = (
+            TrafficBaselineProfile.aggregate(
+                reference_profiles,
+                source="validation_reference_pool",
+            )
+            if reference_profiles
+            else None
+        )
+        reference_confidence = (
+            statistics.median(reference_confidence_values)
+            if reference_confidence_values
+            else None
+        )
+        self.progress(
+            "reference baseline ready: "
+            f"{len(reference_profiles)} profiles, period={reference_period}, "
+            f"confidence={reference_confidence}"
+        )
+
+        dataset_reports = []
+        total_datasets = len(self.datasets)
+        for dataset_index, dataset in enumerate(self.datasets, start=1):
+            self.progress(
+                f"validating dataset {dataset_index}/{total_datasets}: {dataset.name}"
+            )
+            events: list[TrajectoryEvent] = []
+            cycle_metrics: dict[str, object]
+            cycle_seconds: float | None = None
+
+            try:
+                events = load_events(Path(dataset.path))
+                if dataset.kind == "reference" and dataset.name in reference_cycles:
+                    cycle_seconds = reference_cycles[dataset.name]
+                    cycle_metrics = dict(
+                        reference_cycle_metrics.get(
+                            dataset.name,
+                            {"status": "ok", "period_seconds": cycle_seconds},
+                        )
+                    )
+                else:
+                    cycle_metrics, cycle_estimate = validate_cycle(events, None)
+                    cycle_seconds = (
+                        cycle_estimate.estimate.cycle_seconds
+                        if cycle_estimate is not None
+                        else None
+                    )
+            except Exception as exc:
+                cycle_metrics = {"status": "error", "error": str(exc)}
+                reference_errors.setdefault(dataset.name, str(exc))
+
+            if cycle_seconds is not None and reference_period is not None:
+                cycle_metrics["reference_period_seconds"] = reference_period
+                if dataset.kind == "reference":
+                    other_reference_periods = [
+                        period
+                        for name, period in reference_cycles.items()
+                        if name != dataset.name
+                    ]
+                    target_period = (
+                        statistics.median(other_reference_periods)
+                        if other_reference_periods
+                        else None
+                    )
+                else:
+                    target_period = reference_period
+                cycle_metrics["reference_error_seconds"] = (
+                    round(abs(cycle_seconds - float(target_period)), 4)
+                    if target_period is not None
+                    else None
+                )
+
+            phase_metrics: dict[str, object] = {"status": "not_run"}
+            signal_metrics: dict[str, object] = {"status": "not_run"}
+            realtime_metrics: dict[str, object] = {"status": "not_run"}
+            if cycle_seconds is not None and events:
+                phase_metrics, phase_model = validate_phase(events, cycle_seconds)
+                if phase_model is not None:
+                    signal_metrics = validate_signal(
                         events,
                         phase_model,
+                        sample_seconds=self.sample_seconds,
+                        transition_tolerance_seconds=self.transition_tolerance_seconds,
+                        baseline=baseline,
                     )
+                    realtime_metrics = validate_realtime(events, phase_model)
 
             if (
                 reference_confidence is not None
@@ -661,6 +707,10 @@ class ValidationRunner:
                     "signal": signal_metrics,
                     "realtime": realtime_metrics,
                 }
+            )
+            self.progress(
+                f"finished dataset {dataset_index}/{total_datasets}: {dataset.name} "
+                f"events={len(events)}"
             )
 
         return {

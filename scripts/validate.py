@@ -52,10 +52,15 @@ def main() -> None:
     args = parser.parse_args()
 
     datasets = load_manifest(args.manifest)
+
+    def progress(message: str) -> None:
+        print(f"[validation] {message}", flush=True)
+
     report = ValidationRunner(
         datasets,
         sample_seconds=args.sample_seconds,
         transition_tolerance_seconds=args.transition_tolerance_seconds,
+        progress=progress,
     ).run()
     json_path, markdown_path = write_report(report, args.output_dir)
 
