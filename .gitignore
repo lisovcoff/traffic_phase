@@ -1,12 +1,24 @@
+# Python
 .venv/
 __pycache__/
 .pytest_cache/
-*.pyc
-*.pyo
+*.py[cod]
 *.pyd
+
+# Environment / local files
 .env
+.env.*
 .DS_Store
+
+# Local datasets
 data/
+
+# Local manifests and generated validation output
 validation/manifest.local.json
 validation_output/
 validation_quick/
+validation_target_*/
+
+# Generated audit / phase-analysis output
+audit_*/
+phase_boundary_test*/

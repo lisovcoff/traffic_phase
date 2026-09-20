@@ -1,10 +1,22 @@
 {
   "datasets": [
     {
+      "name": "reference_lenina_sverdlovsky",
+      "path": "../data/Ленина-Свердловский 11.02.25-19.02.25.zip",
+      "kind": "reference",
+      "description": "Reference archive"
+    },
+    {
+      "name": "accident_lenina_sverdlovsky",
+      "path": "../data/Ленина-Свердловский 27.02.25.zip",
+      "kind": "accident",
+      "description": "Reported accident scenario"
+    },
+    {
       "name": "reference_lenina_entuziastov",
       "path": "../data/Ленина-Энтузиастов 10.02.25-17.02.25.zip",
       "kind": "reference",
-      "description": "Weekday daytime reference archive"
+      "description": "Reference archive"
     },
     {
       "name": "accident_lenina_entuziastov",
@@ -16,37 +28,13 @@
       "name": "reference_chicherina",
       "path": "../data/Чичерина-40 Лет Победы 12.04.24.zip",
       "kind": "reference",
-      "description": "Reference archive without reported anomaly"
+      "description": "Reference archive"
     },
     {
       "name": "lane_closure_chicherina",
       "path": "../data/Чичерина-40 Лет Победы 19.04.24.zip",
       "kind": "lane_closure",
       "description": "Reported one-lane-closure scenario"
-    },
-    {
-      "name": "reference_lenina_engelsa",
-      "path": "../data/Ленина-Энгельса 05.02.25-07.02.25.zip",
-      "kind": "reference",
-      "description": "Reference archive"
-    },
-    {
-      "name": "accident_lenina_engelsa",
-      "path": "../data/Ленина-Энгельса 18.02.25.zip",
-      "kind": "accident",
-      "description": "Reported accident scenario"
-    },
-    {
-      "name": "reference_lenina_sverdlovsky",
-      "path": "../data/Ленина-Свердловский 11.02.25-19.02.25.zip",
-      "kind": "reference",
-      "description": "Reference archive"
-    },
-    {
-      "name": "accident_lenina_sverdlovsky",
-      "path": "../data/Ленина-Свердловский 27.02.25.zip",
-      "kind": "accident",
-      "description": "Reported accident scenario"
     }
   ]
 }
