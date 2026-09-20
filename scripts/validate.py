@@ -26,6 +26,7 @@ def load_manifest(path: Path) -> list[ValidationDataset]:
                 if not Path(str(item["path"])).is_absolute()
                 else str(Path(str(item["path"])).resolve())
             ),
+            intersection_id=str(item["intersection_id"]),
             kind=str(item.get("kind", "scenario")),
             description=str(item.get("description", "")),
         )
@@ -36,20 +37,68 @@ def load_manifest(path: Path) -> list[ValidationDataset]:
 def select_datasets(
     datasets: list[ValidationDataset],
     names: list[str] | None,
+    intersection_ids: list[str] | None = None,
 ) -> list[ValidationDataset]:
-    """Keep manifest order while selecting an optional validation subset."""
-    if not names:
-        return datasets
-    requested = set(names)
-    available = {dataset.name for dataset in datasets}
-    unknown = sorted(requested - available)
-    if unknown:
-        raise ValueError(
-            "unknown dataset name(s): " + ", ".join(unknown)
+    """Select a cheap validation subset while preserving reference context."""
+    scoped = datasets
+
+    if intersection_ids:
+        requested_intersections = set(intersection_ids)
+        available_intersections = {
+            dataset.intersection_id for dataset in datasets
+        }
+        unknown_intersections = sorted(
+            requested_intersections - available_intersections
         )
-    return [dataset for dataset in datasets if dataset.name in requested]
+        if unknown_intersections:
+            raise ValueError(
+                "unknown intersection id(s): "
+                + ", ".join(unknown_intersections)
+            )
+        scoped = [
+            dataset
+            for dataset in datasets
+            if dataset.intersection_id in requested_intersections
+        ]
 
+    if not names:
+        return scoped
 
+    requested_names = set(names)
+    available_names = {dataset.name for dataset in scoped}
+    unknown_names = sorted(requested_names - available_names)
+    if unknown_names:
+        raise ValueError(
+            "unknown dataset name(s): " + ", ".join(unknown_names)
+        )
+
+    targets = [
+        dataset for dataset in scoped if dataset.name in requested_names
+    ]
+    supporting_intersections = {
+        dataset.intersection_id
+        for dataset in targets
+        if dataset.kind != "reference"
+    }
+    selected_names = {dataset.name for dataset in targets}
+
+    for intersection_id in supporting_intersections:
+        references = [
+            dataset
+            for dataset in scoped
+            if dataset.kind == "reference"
+            and dataset.intersection_id == intersection_id
+        ]
+        if not references:
+            raise ValueError(
+                "selected dataset has no matching reference for intersection: "
+                + intersection_id
+            )
+        selected_names.update(dataset.name for dataset in references)
+
+    return [
+        dataset for dataset in scoped if dataset.name in selected_names
+    ]
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run the complete traffic-phase validation pipeline."
@@ -67,8 +116,18 @@ def main() -> None:
         dest="dataset_names",
         metavar="NAME",
         help=(
-            "validate only this manifest dataset; repeat to select several "
-            "datasets"
+            "validate this manifest dataset; scenario selections also include "
+            "their matching reference context"
+        ),
+    )
+    parser.add_argument(
+        "--intersection",
+        action="append",
+        dest="intersection_ids",
+        metavar="ID",
+        help=(
+            "validate only this physical intersection; repeat to select "
+            "several intersections"
         ),
     )
     parser.add_argument(
@@ -81,6 +140,7 @@ def main() -> None:
     datasets = select_datasets(
         load_manifest(args.manifest),
         args.dataset_names,
+        args.intersection_ids,
     )
 
     def progress(message: str) -> None:

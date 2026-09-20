@@ -55,8 +55,18 @@ def test_validation_runner_exposes_required_metric_groups(monkeypatch, tmp_path)
     progress_messages = []
     report = ValidationRunner(
         [
-            ValidationDataset("reference", str(tmp_path / "ref.json"), "reference"),
-            ValidationDataset("scenario", str(tmp_path / "scenario.json"), "accident"),
+            ValidationDataset(
+                "reference",
+                str(tmp_path / "ref.json"),
+                "test_intersection",
+                "reference",
+            ),
+            ValidationDataset(
+                "scenario",
+                str(tmp_path / "scenario.json"),
+                "test_intersection",
+                "accident",
+            ),
         ],
         progress=progress_messages.append,
     ).run()
@@ -75,16 +85,25 @@ def test_validation_runner_exposes_required_metric_groups(monkeypatch, tmp_path)
 
 def test_validation_markdown_is_human_readable():
     report = {
-        "reference_pool": {
+        "reference_summary": {
             "dataset_count": 1,
-            "median_period_seconds": 100.0,
-            "median_signal_confidence": 0.9,
+            "intersection_count": 1,
+        },
+        "reference_pools": {
+            "test_intersection": {
+                "dataset_count": 1,
+                "dataset_names": ["reference"],
+                "median_period_seconds": 100.0,
+                "median_signal_confidence": 0.9,
+            }
         },
         "datasets": [],
     }
     markdown = report_markdown(report)
     assert "consistency/behaviour" in markdown
     assert "Realtime agreement" in markdown
+    assert "Reference pools by intersection" in markdown
+    assert "test_intersection" in markdown
 
 
 

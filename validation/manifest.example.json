@@ -2,19 +2,15 @@
   "datasets": [
     {
       "name": "reference_chicherina",
-      "path": "PATH_TO_ARCHIVE",
+      "path": "PATH_TO_REFERENCE_ARCHIVE",
+      "intersection_id": "Чичерина-40 Лет Победы",
       "kind": "reference",
       "description": "Reference archive without reported anomaly"
     },
     {
-      "name": "accident_lenina_sverdlovsky",
-      "path": "PATH_TO_ARCHIVE",
-      "kind": "accident",
-      "description": "Accident scenario from the source task"
-    },
-    {
       "name": "lane_closure_chicherina",
-      "path": "PATH_TO_ARCHIVE",
+      "path": "PATH_TO_SCENARIO_ARCHIVE",
+      "intersection_id": "Чичерина-40 Лет Победы",
       "kind": "lane_closure",
       "description": "One-lane-closure scenario from the source task"
     }

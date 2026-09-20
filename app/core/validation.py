@@ -22,13 +22,14 @@ from app.core.signal_state_estimator import SignalState, SignalStateEstimator
 from app.core.reconstruction import extract_events_from_trajectories
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
 class ValidationDataset:
     name: str
     path: str
+    intersection_id: str
     kind: str = "scenario"
     description: str = ""
 
@@ -534,6 +535,8 @@ class ValidationRunner:
     ) -> None:
         if not datasets:
             raise ValueError("at least one dataset is required")
+        if any(not dataset.intersection_id for dataset in datasets):
+            raise ValueError("every validation dataset requires intersection_id")
         if sample_seconds <= 0:
             raise ValueError("sample_seconds must be positive")
         self.datasets = tuple(datasets)
@@ -548,21 +551,24 @@ class ValidationRunner:
         reference_cycle_metrics: dict[str, dict[str, object]] = {}
         reference_phase_metrics: dict[str, dict[str, object]] = {}
         reference_phase_models: dict[str, EventPhaseDiscoveryResult] = {}
-        reference_profiles: list[TrafficBaselineProfile] = []
-        reference_errors: dict[str, str] = {}
+        reference_profiles: dict[str, list[TrafficBaselineProfile]] = {}
+        reference_names: dict[str, list[str]] = {}
+
         reference_datasets = [
             dataset
             for dataset in self.datasets
             if dataset.kind == "reference"
         ]
 
-        # Prepare each reference exactly once for cycle/baseline/phase data.
-        # Expensive signal/realtime validation is deferred until the shared
-        # reference baseline has been built, so reference datasets are not
-        # fully validated twice.
+        # References are prepared once, then pooled only with other references
+        # from the same physical intersection.
         for ref_index, dataset in enumerate(reference_datasets, start=1):
             self.progress(
-                f"preparing reference {ref_index}/{len(reference_datasets)}: {dataset.name}"
+                f"preparing reference {ref_index}/{len(reference_datasets)}: "
+                f"{dataset.name} [{dataset.intersection_id}]"
+            )
+            reference_names.setdefault(dataset.intersection_id, []).append(
+                dataset.name
             )
             try:
                 events = load_events(Path(dataset.path))
@@ -575,7 +581,10 @@ class ValidationRunner:
                 reference_cycles[dataset.name] = cycle_seconds
 
                 origin = min(event.timestamp_ms for event in events)
-                reference_profiles.append(
+                reference_profiles.setdefault(
+                    dataset.intersection_id,
+                    [],
+                ).append(
                     TrafficBaselineProfile.from_events(
                         _rebase_events(events, origin),
                         window_seconds=12.0,
@@ -591,44 +600,69 @@ class ValidationRunner:
                 if phase_model is not None:
                     reference_phase_models[dataset.name] = phase_model
             except Exception as exc:
-                reference_errors[dataset.name] = str(exc)
                 reference_cycle_metrics.setdefault(
                     dataset.name,
                     {"status": "error", "error": str(exc)},
                 )
 
-        reference_period = (
-            round(statistics.median(reference_cycles.values()), 4)
-            if reference_cycles
-            else None
-        )
-        baseline = (
-            TrafficBaselineProfile.aggregate(
-                reference_profiles,
-                source="validation_reference_pool",
-            )
-            if reference_profiles
-            else None
-        )
+        reference_periods: dict[str, float] = {}
+        baselines: dict[str, TrafficBaselineProfile] = {}
+        reference_pools: dict[str, dict[str, object]] = {}
 
-        self.progress(
-            "reference baseline ready: "
-            f"{len(reference_profiles)} profiles, period={reference_period}"
-        )
+        for intersection_id, names in reference_names.items():
+            periods = [
+                reference_cycles[name]
+                for name in names
+                if name in reference_cycles
+            ]
+            if periods:
+                reference_periods[intersection_id] = round(
+                    float(statistics.median(periods)),
+                    4,
+                )
+
+            profiles = reference_profiles.get(intersection_id, [])
+            if profiles:
+                baselines[intersection_id] = TrafficBaselineProfile.aggregate(
+                    profiles,
+                    source=f"validation_reference_pool:{intersection_id}",
+                )
+
+            reference_pools[intersection_id] = {
+                "dataset_count": len(names),
+                "dataset_names": list(names),
+                "median_period_seconds": reference_periods.get(intersection_id),
+                "median_signal_confidence": None,
+            }
+            self.progress(
+                "reference baseline ready: "
+                f"intersection={intersection_id}, profiles={len(profiles)}, "
+                f"period={reference_periods.get(intersection_id)}"
+            )
 
         dataset_reports: list[dict[str, object]] = []
         total_datasets = len(self.datasets)
         for dataset_index, dataset in enumerate(self.datasets, start=1):
             self.progress(
-                f"validating dataset {dataset_index}/{total_datasets}: {dataset.name}"
+                f"validating dataset {dataset_index}/{total_datasets}: "
+                f"{dataset.name} [{dataset.intersection_id}]"
             )
             events: list[TrajectoryEvent] = []
             cycle_metrics: dict[str, object]
             cycle_seconds: float | None = None
+            reference_period = reference_periods.get(dataset.intersection_id)
+            baseline = baselines.get(dataset.intersection_id)
+            matching_reference_names = reference_names.get(
+                dataset.intersection_id,
+                [],
+            )
 
             try:
                 events = load_events(Path(dataset.path))
-                if dataset.kind == "reference" and dataset.name in reference_cycles:
+                if (
+                    dataset.kind == "reference"
+                    and dataset.name in reference_cycles
+                ):
                     cycle_seconds = reference_cycles[dataset.name]
                     cycle_metrics = dict(
                         reference_cycle_metrics.get(
@@ -645,32 +679,18 @@ class ValidationRunner:
                     )
             except Exception as exc:
                 cycle_metrics = {"status": "error", "error": str(exc)}
-                reference_errors.setdefault(dataset.name, str(exc))
 
-            if cycle_seconds is not None and reference_period is not None:
-                cycle_metrics["reference_period_seconds"] = reference_period
-                if dataset.kind == "reference":
-                    other_reference_periods = [
-                        period
-                        for name, period in reference_cycles.items()
-                        if name != dataset.name
-                    ]
-                    target_period = (
-                        statistics.median(other_reference_periods)
-                        if other_reference_periods
-                        else None
-                    )
-                else:
-                    target_period = reference_period
-                cycle_metrics["reference_error_seconds"] = (
-                    round(abs(cycle_seconds - float(target_period)), 4)
-                    if target_period is not None
-                    else None
-                )
+            cycle_metrics["reference_period_seconds"] = reference_period
+            cycle_metrics["reference_error_seconds"] = (
+                round(abs(cycle_seconds - reference_period), 4)
+                if cycle_seconds is not None and reference_period is not None
+                else None
+            )
 
             phase_metrics: dict[str, object] = {"status": "not_run"}
             signal_metrics: dict[str, object] = {"status": "not_run"}
             realtime_metrics: dict[str, object] = {"status": "not_run"}
+            phase_model = None
             if cycle_seconds is not None and events:
                 if (
                     dataset.kind == "reference"
@@ -702,6 +722,16 @@ class ValidationRunner:
             dataset_reports.append(
                 {
                     "dataset": dataset.to_dict(),
+                    "reference": {
+                        "intersection_id": dataset.intersection_id,
+                        "dataset_names": list(matching_reference_names),
+                        "period_seconds": reference_period,
+                        "baseline_source": (
+                            baseline.source
+                            if baseline is not None
+                            else None
+                        ),
+                    },
                     "event_count": len(events),
                     "cycle": cycle_metrics,
                     "phase": phase_metrics,
@@ -710,32 +740,44 @@ class ValidationRunner:
                 }
             )
             self.progress(
-                f"finished dataset {dataset_index}/{total_datasets}: {dataset.name} "
-                f"events={len(events)}"
+                f"finished dataset {dataset_index}/{total_datasets}: "
+                f"{dataset.name} events={len(events)}"
             )
 
-        reference_confidence_values = [
-            float(item["signal"]["mean_state_confidence"])
-            for item in dataset_reports
-            if item["dataset"]["kind"] == "reference"
-            and item["signal"].get("mean_state_confidence") is not None
-        ]
-        reference_confidence = (
-            statistics.median(reference_confidence_values)
-            if reference_confidence_values
-            else None
-        )
+        for intersection_id, pool in reference_pools.items():
+            confidence_values = [
+                float(item["signal"]["mean_state_confidence"])
+                for item in dataset_reports
+                if item["dataset"]["kind"] == "reference"
+                and item["dataset"]["intersection_id"] == intersection_id
+                and item["signal"].get("mean_state_confidence") is not None
+            ]
+            reference_confidence = (
+                statistics.median(confidence_values)
+                if confidence_values
+                else None
+            )
+            pool["median_signal_confidence"] = (
+                round(reference_confidence, 4)
+                if reference_confidence is not None
+                else None
+            )
 
         for item in dataset_reports:
             signal_metrics = item["signal"]
             if not isinstance(signal_metrics, dict):
                 continue
+            intersection_id = item["dataset"]["intersection_id"]
+            reference_confidence = reference_pools.get(
+                intersection_id,
+                {},
+            ).get("median_signal_confidence")
             if (
                 reference_confidence is not None
                 and signal_metrics.get("mean_state_confidence") is not None
             ):
                 signal_metrics["reference_confidence_delta"] = round(
-                    reference_confidence
+                    float(reference_confidence)
                     - float(signal_metrics["mean_state_confidence"]),
                     4,
                 )
@@ -744,15 +786,11 @@ class ValidationRunner:
 
         return {
             "schema_version": SCHEMA_VERSION,
-            "reference_pool": {
+            "reference_summary": {
                 "dataset_count": len(reference_datasets),
-                "median_period_seconds": reference_period,
-                "median_signal_confidence": (
-                    round(reference_confidence, 4)
-                    if reference_confidence is not None
-                    else None
-                ),
+                "intersection_count": len(reference_pools),
             },
+            "reference_pools": reference_pools,
             "configuration": {
                 "sample_seconds": self.sample_seconds,
                 "transition_tolerance_seconds": self.transition_tolerance_seconds,
@@ -765,29 +803,31 @@ class ValidationRunner:
             },
             "datasets": dataset_reports,
         }
-
-
 def report_markdown(report: dict[str, object]) -> str:
     lines = [
         "# Traffic Phase Validation Report",
         "",
         "Signal-state values below are consistency/behaviour metrics, not signal-light accuracy.",
         "",
-        "| Dataset | Kind | Period | Cycle conf | Ref error | Phase coverage | Overlap | Cycle consistency | Support ratio | Contradiction ratio | State continuity | Transition consistency | Mean confidence | UNKNOWN rate | RT agreement | RT p95 ms | Mean anomaly | False switch |",
-        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Dataset | Intersection | Kind | Reference | Period | Ref period | Ref error | Phase coverage | Overlap | Cycle consistency | Support ratio | Contradiction ratio | State continuity | Transition consistency | Mean confidence | UNKNOWN rate | RT agreement | RT p95 ms | Mean anomaly | False switch |",
+        "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for item in report["datasets"]:
         dataset = item["dataset"]
+        reference = item.get("reference", {})
         cycle = item["cycle"]
         phase = item["phase"]
         signal = item["signal"]
         realtime = item["realtime"]
+        reference_names = ", ".join(reference.get("dataset_names", [])) or "-"
         lines.append(
-            "| {name} | {kind} | {period} | {cc} | {err} | {coverage} | {overlap} | {consistency} | {support} | {contradiction} | {continuity} | {transition} | {confidence} | {unknown} | {agreement} | {p95} | {anomaly} | {switch} |".format(
+            "| {name} | {intersection} | {kind} | {reference} | {period} | {ref_period} | {err} | {coverage} | {overlap} | {consistency} | {support} | {contradiction} | {continuity} | {transition} | {confidence} | {unknown} | {agreement} | {p95} | {anomaly} | {switch} |".format(
                 name=dataset["name"],
+                intersection=dataset["intersection_id"],
                 kind=dataset["kind"],
+                reference=reference_names,
                 period=cycle.get("period_seconds"),
-                cc=cycle.get("confidence"),
+                ref_period=cycle.get("reference_period_seconds"),
                 err=cycle.get("reference_error_seconds"),
                 coverage=phase.get("phase_coverage"),
                 overlap=phase.get("overlap"),
@@ -804,26 +844,43 @@ def report_markdown(report: dict[str, object]) -> str:
                 switch=signal.get("false_state_switch_rate"),
             )
         )
+
+    summary = report.get("reference_summary", {})
     lines.extend(
         [
             "",
-            "## Reference pool",
+            "## Reference pools by intersection",
             "",
-            f"Reference datasets: {report['reference_pool']['dataset_count']}",
-            f"Median reference period: {report['reference_pool']['median_period_seconds']}",
-            f"Median reference state confidence: {report['reference_pool']['median_signal_confidence']}",
+            f"Reference datasets: {summary.get('dataset_count', 0)}",
+            f"Intersections with references: {summary.get('intersection_count', 0)}",
             "",
+        ]
+    )
+    for intersection_id, pool in report.get("reference_pools", {}).items():
+        names = ", ".join(pool.get("dataset_names", [])) or "-"
+        lines.extend(
+            [
+                f"### {intersection_id}",
+                "",
+                f"Reference datasets: {names}",
+                f"Median reference period: {pool.get('median_period_seconds')}",
+                f"Median reference state confidence: {pool.get('median_signal_confidence')}",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
             "## Metric interpretation",
             "",
             "Cycle and phase metrics measure temporal and event consistency.",
+            "Reference comparisons and anomaly baselines are scoped to the same physical intersection.",
             "Signal metrics measure continuity, transition behaviour, confidence and UNKNOWN usage.",
             "Realtime agreement compares batch and stateful realtime inference on the same event stream.",
             "Anomaly metrics are indicators; the supplied archives do not provide labelled anomaly intervals or labelled controller states.",
         ]
     )
     return "\n".join(lines) + "\n"
-
-
 def write_report(
     report: dict[str, object],
     output_dir: Path,
