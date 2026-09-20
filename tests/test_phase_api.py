@@ -101,6 +101,17 @@ def test_json_api_returns_session_based_result():
     assert session["cycle"]["estimated_cycle"] is not None
     assert session["cycle"]["confidence"] >= 0.0
     assert len(session["phase_model"]["phases"]) == 2
+    assert session["timeline"]
+    first_point = session["timeline"][0]
+    assert set(first_point["states"]) == {"N", "S", "E", "W"}
+    assert set(first_point["axis_states"]) == {"NS", "EW"}
+    assert first_point["axis_states"]["NS"] in {
+        "GREEN",
+        "YELLOW",
+        "RED",
+        "RED_YELLOW",
+        "UNKNOWN",
+    }
     assert response["cycle"] is not None
     assert response["phase_model"] is not None
 

@@ -15,6 +15,7 @@ from app.core.reconstruction import (
     reconstruct_trajectory_sessions,
     split_trajectories_into_sessions,
 )
+from app.core.signal_state_estimator import SignalStateEstimator
 
 
 DEFAULT_TIMELINE_POINTS = 240
@@ -149,6 +150,14 @@ def _phase_at(session: SessionReconstruction, timestamp_ms: int):
     return None, round(position, 3)
 
 
+def _axis_state(
+    states: dict[str, str],
+    approaches: tuple[str, str],
+) -> str:
+    values = {states.get(approach, "UNKNOWN") for approach in approaches}
+    return next(iter(values)) if len(values) == 1 else "UNKNOWN"
+
+
 def build_session_timeline(
     session: SessionReconstruction,
     *,
@@ -178,9 +187,26 @@ def build_session_timeline(
             for index in range(point_count)
         ]
 
+    estimator = SignalStateEstimator(
+        session.phase_model,
+        event_origin_ms=session.phase_model.origin_timestamp_ms,
+    )
     timeline: list[dict[str, object]] = []
     for timestamp_ms in timestamps:
         phase, cycle_position_s = _phase_at(session, timestamp_ms)
+        relative_time_s = max(
+            0.0,
+            (
+                timestamp_ms
+                - session.phase_model.origin_timestamp_ms
+            )
+            / 1000.0,
+        )
+        signal = estimator.estimate(relative_time_s, ())
+        states = {
+            item.approach: item.state.value
+            for item in signal.approaches
+        }
         timeline.append(
             {
                 "timestamp_ms": int(timestamp_ms),
@@ -189,17 +215,19 @@ def build_session_timeline(
                     3,
                 ),
                 "cycle_position_s": cycle_position_s,
-                "phase_id": phase.phase_id if phase is not None else None,
+                "phase_id": signal.phase_id,
+                "transition": signal.transition,
                 "active_approaches": (
                     list(phase.active_approaches)
                     if phase is not None
                     else []
                 ),
-                "confidence": (
-                    phase.confidence
-                    if phase is not None
-                    else 0.0
-                ),
+                "confidence": signal.phase_confidence,
+                "states": states,
+                "axis_states": {
+                    "NS": _axis_state(states, ("N", "S")),
+                    "EW": _axis_state(states, ("E", "W")),
+                },
             }
         )
     return timeline
