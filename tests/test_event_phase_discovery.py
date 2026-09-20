@@ -148,3 +148,27 @@ def test_phase_groups_are_extensible():
         )
     )
     assert [group.name for group in discovery.groups] == ["NS", "EW", "TURN"]
+
+
+def test_phase_schedule_is_not_dominated_by_group_traffic_volume():
+    # NS intentionally has much higher absolute event volume than EW, while
+    # both groups occupy distinct recurring time windows. Phase duration must
+    # follow timing shape rather than whichever group has more vehicles.
+    events = []
+    for repeat in range(6):
+        base = repeat * 120.0
+        for offset in range(10, 50, 2):
+            for _ in range(20):
+                events.append(_event(EventType.RELEASE, base + offset, "N"))
+        for offset in range(60, 100, 2):
+            events.append(_event(EventType.RELEASE, base + offset, "E"))
+
+    result = EventPhaseDiscovery().discover(events, cycle_seconds=120.0)
+    durations = []
+    for phase in result.phases:
+        duration = (phase.phase_end - phase.phase_start) % 120.0
+        durations.append(duration if duration > 0 else 120.0)
+
+    assert len(result.phases) == 2
+    assert min(durations) >= 20.0
+    assert max(durations) <= 100.0

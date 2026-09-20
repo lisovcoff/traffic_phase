@@ -92,7 +92,7 @@ RELEASE contributes weight `1.0`; CROSSING contributes `0.5`. N/S traffic is pos
 
 ### 4.4 Phase discovery
 
-RELEASE/CROSSING evidence is folded by `t mod cycle`, aggregated across absolute cycles and optimized into recurring mutually exclusive intervals. The default intersection model has two groups: NS and EW.
+RELEASE/CROSSING evidence is folded by `t mod cycle`, aggregated across absolute cycles and optimized into recurring mutually exclusive intervals. Before schedule optimization, each phase group's temporal profile is normalized independently so absolute traffic volume in one direction does not by itself make that phase appear longer. The default intersection model has two groups: NS and EW.
 
 The phase model also stores the raw timestamp origin of the event timeline. This origin is propagated to playback, validation and realtime inference so absolute `millis` values are not silently mixed with normalized seconds.
 

@@ -265,11 +265,26 @@ class EventPhaseDiscovery:
             evidence[self._observed_cycle_mask(counts)],
             axis=0,
         )
+        # Raw traffic volume is not a phase-duration signal: one approach
+        # group may simply have many more vehicles than the other. Normalize
+        # each group's temporal profile before schedule optimization so the
+        # optimizer follows recurring timing shape rather than absolute flow
+        # magnitude.
+        profile = self._normalize_group_profiles(profile)
         if len(self.groups) == 2:
             return self._best_two_group_schedule(profile)
 
         states = np.argmax(profile, axis=0).astype(np.int8)
         return self._merge_short_runs(states)
+
+    @staticmethod
+    def _normalize_group_profiles(profile: np.ndarray) -> np.ndarray:
+        normalized = np.asarray(profile, dtype=float).copy()
+        for group_index in range(normalized.shape[0]):
+            total = float(np.sum(normalized[group_index]))
+            if total > 0.0:
+                normalized[group_index] /= total
+        return normalized
 
     def _best_two_group_schedule(self, profile: np.ndarray) -> np.ndarray:
         first = profile[0]
