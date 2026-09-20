@@ -150,25 +150,93 @@ def test_phase_groups_are_extensible():
     assert [group.name for group in discovery.groups] == ["NS", "EW", "TURN"]
 
 
+def _phase_duration(phase, cycle_seconds=120.0):
+    duration = (phase.phase_end - phase.phase_start) % cycle_seconds
+    return duration if duration > 0 else cycle_seconds
+
+
 def test_phase_schedule_is_not_dominated_by_group_traffic_volume():
     # NS intentionally has much higher absolute event volume than EW, while
-    # both groups occupy distinct recurring time windows. Phase duration must
-    # follow timing shape rather than whichever group has more vehicles.
+    # EW still provides recurring evidence in every cycle. Reliability must
+    # saturate rather than reintroducing raw traffic-volume dominance.
     events = []
-    for repeat in range(6):
+    for repeat in range(8):
         base = repeat * 120.0
         for offset in range(10, 50, 2):
             for _ in range(20):
                 events.append(_event(EventType.RELEASE, base + offset, "N"))
-        for offset in range(60, 100, 2):
+        for offset in range(60, 100, 8):
             events.append(_event(EventType.RELEASE, base + offset, "E"))
 
     result = EventPhaseDiscovery().discover(events, cycle_seconds=120.0)
-    durations = []
-    for phase in result.phases:
-        duration = (phase.phase_end - phase.phase_start) % 120.0
-        durations.append(duration if duration > 0 else 120.0)
+    profiles = {profile.group: profile for profile in result.profiles}
+    durations = [_phase_duration(phase) for phase in result.phases]
 
     assert len(result.phases) == 2
+    assert profiles["NS"].usable_event_count > profiles["EW"].usable_event_count * 20
+    assert profiles["NS"].reliability == 1.0
+    assert profiles["EW"].reliability == 1.0
     assert min(durations) >= 20.0
     assert max(durations) <= 100.0
+
+
+def test_sparse_random_second_group_does_not_force_minimum_phase():
+    events = []
+    for repeat in range(10):
+        base = repeat * 120.0
+        for offset in range(10, 50, 4):
+            events.append(_event(EventType.RELEASE, base + offset, "N"))
+
+    # Only three isolated EW observations across ten otherwise observed
+    # cycles. Independent normalization used to turn this sparse group into a
+    # full-strength timing profile.
+    for timestamp in (67.0, 3 * 120.0 + 83.0, 8 * 120.0 + 71.0):
+        events.append(_event(EventType.RELEASE, timestamp, "E"))
+
+    result = EventPhaseDiscovery().discover(events, cycle_seconds=120.0)
+    profiles = {profile.group: profile for profile in result.profiles}
+    phases = {
+        phase.active_approaches: phase
+        for phase in result.phases
+    }
+
+    assert profiles["EW"].usable_event_count == 3
+    assert profiles["EW"].observed_cycle_count == 3
+    assert profiles["EW"].reliability < 0.2
+    assert _phase_duration(phases[("E", "W")]) > 8.0
+    assert phases[("E", "W")].confidence < 0.2
+
+
+def test_symmetric_two_phase_signal_keeps_high_group_reliability():
+    result = EventPhaseDiscovery().discover(
+        _events(repeats=8),
+        cycle_seconds=120.0,
+    )
+    profiles = {profile.group: profile for profile in result.profiles}
+
+    assert profiles["NS"].reliability == 1.0
+    assert profiles["EW"].reliability == 1.0
+    assert all(phase.confidence > 0.5 for phase in result.phases)
+
+
+def test_reliability_ignores_empty_cycles_in_long_gaps():
+    events = []
+    for repeat in (0, 1, 100, 101):
+        base = repeat * 120.0
+        for offset, approach in (
+            (10, "N"),
+            (20, "S"),
+            (70, "E"),
+            (80, "W"),
+        ):
+            events.append(_event(EventType.RELEASE, base + offset, approach))
+
+    result = EventPhaseDiscovery().discover(events, cycle_seconds=120.0)
+    profiles = {profile.group: profile for profile in result.profiles}
+
+    assert profiles["NS"].cycle_count == 4
+    assert profiles["EW"].cycle_count == 4
+    assert profiles["NS"].observed_cycle_count == 4
+    assert profiles["EW"].observed_cycle_count == 4
+    assert profiles["NS"].reliability == 1.0
+    assert profiles["EW"].reliability == 1.0

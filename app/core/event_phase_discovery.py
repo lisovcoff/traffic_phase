@@ -26,6 +26,9 @@ class EventPhaseProfile:
     values: tuple[float, ...]
     event_counts: tuple[int, ...]
     cycle_count: int
+    usable_event_count: int = 0
+    observed_cycle_count: int = 0
+    reliability: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -83,6 +86,8 @@ class EventPhaseDiscovery:
 
     RELEASE_WEIGHT = 1.0
     CROSSING_WEIGHT = 0.5
+    MIN_GROUP_WEIGHT = 0.5
+    UNCERTAIN_DURATION_PRIOR = 0.10
 
     def __init__(
         self,
@@ -226,9 +231,14 @@ class EventPhaseDiscovery:
         observed_evidence = evidence[observed_cycle_mask]
         observed_counts = counts[observed_cycle_mask]
         observed_cycle_count = int(observed_cycle_mask.sum())
+        reliability_stats = self._group_reliability_stats(
+            counts,
+            observed_cycle_mask,
+        )
 
         profiles: list[EventPhaseProfile] = []
         for group_id, group in enumerate(self.groups):
+            usable_events, group_cycles, reliability = reliability_stats[group_id]
             profiles.append(
                 EventPhaseProfile(
                     group=group.name,
@@ -245,6 +255,9 @@ class EventPhaseDiscovery:
                         ).astype(int).tolist()
                     ),
                     cycle_count=observed_cycle_count,
+                    usable_event_count=usable_events,
+                    observed_cycle_count=group_cycles,
+                    reliability=reliability,
                 )
             )
         return profiles, evidence, counts
@@ -252,6 +265,49 @@ class EventPhaseDiscovery:
     @staticmethod
     def _observed_cycle_mask(counts: np.ndarray) -> np.ndarray:
         return counts.sum(axis=(1, 2)) > 0
+
+    @staticmethod
+    def _group_reliability_stats(
+        counts: np.ndarray,
+        observed_cycle_mask: np.ndarray,
+    ) -> list[tuple[int, int, float]]:
+        """Measure repeated evidence without restoring raw volume dominance.
+
+        One usable event per observed archive cycle is enough to saturate the
+        event-support term. Extra vehicles do not keep increasing reliability,
+        while evidence seen in only a few cycles is deliberately discounted.
+        """
+        total_observed_cycles = int(observed_cycle_mask.sum())
+        if total_observed_cycles <= 0:
+            return [
+                (0, 0, 0.0)
+                for _ in range(counts.shape[1])
+            ]
+
+        observed_counts = counts[observed_cycle_mask]
+        stats: list[tuple[int, int, float]] = []
+        for group_id in range(counts.shape[1]):
+            events_per_cycle = observed_counts[:, group_id, :].sum(axis=1)
+            usable_event_count = int(events_per_cycle.sum())
+            group_observed_cycles = int(
+                np.count_nonzero(events_per_cycle > 0)
+            )
+            cycle_support = group_observed_cycles / total_observed_cycles
+            event_support = min(
+                1.0,
+                usable_event_count / total_observed_cycles,
+            )
+            reliability = float(
+                np.clip(cycle_support * event_support, 0.0, 1.0)
+            )
+            stats.append(
+                (
+                    usable_event_count,
+                    group_observed_cycles,
+                    round(reliability, 4),
+                )
+            )
+        return stats
 
     def _best_schedule(
         self,
@@ -261,32 +317,74 @@ class EventPhaseDiscovery:
         # Use exactly the same observed-cycle population as build_profiles.
         # Otherwise the externally reported profile can be correct while the
         # optimizer still receives a zero median from long unobserved gaps.
+        observed_cycle_mask = self._observed_cycle_mask(counts)
         profile = np.median(
-            evidence[self._observed_cycle_mask(counts)],
+            evidence[observed_cycle_mask],
             axis=0,
         )
-        # Raw traffic volume is not a phase-duration signal: one approach
-        # group may simply have many more vehicles than the other. Normalize
-        # each group's temporal profile before schedule optimization so the
-        # optimizer follows recurring timing shape rather than absolute flow
-        # magnitude.
-        profile = self._normalize_group_profiles(profile)
+        reliability_stats = self._group_reliability_stats(
+            counts,
+            observed_cycle_mask,
+        )
+        reliabilities = np.asarray(
+            [item[2] for item in reliability_stats],
+            dtype=float,
+        )
+
+        # Absolute traffic volume is not a phase-duration signal. First
+        # normalize each group's temporal shape, then shrink unreliable shapes
+        # towards a uniform profile. A bounded reliability mass prevents a few
+        # events from becoming equal to thousands of repeated observations
+        # without allowing the busiest direction to dominate by raw count.
+        profile = self._reliability_weighted_profiles(
+            profile,
+            reliabilities,
+        )
         if len(self.groups) == 2:
-            return self._best_two_group_schedule(profile)
+            return self._best_two_group_schedule(
+                profile,
+                reliabilities,
+            )
 
         states = np.argmax(profile, axis=0).astype(np.int8)
         return self._merge_short_runs(states)
 
-    @staticmethod
-    def _normalize_group_profiles(profile: np.ndarray) -> np.ndarray:
-        normalized = np.asarray(profile, dtype=float).copy()
-        for group_index in range(normalized.shape[0]):
-            total = float(np.sum(normalized[group_index]))
-            if total > 0.0:
-                normalized[group_index] /= total
-        return normalized
+    def _reliability_weighted_profiles(
+        self,
+        profile: np.ndarray,
+        reliabilities: np.ndarray,
+    ) -> np.ndarray:
+        weighted = np.asarray(profile, dtype=float).copy()
+        n_bins = weighted.shape[1]
+        uniform = np.full(n_bins, 1.0 / max(1, n_bins), dtype=float)
 
-    def _best_two_group_schedule(self, profile: np.ndarray) -> np.ndarray:
+        for group_index in range(weighted.shape[0]):
+            reliability = float(
+                np.clip(reliabilities[group_index], 0.0, 1.0)
+            )
+            total = float(np.sum(weighted[group_index]))
+            shape = (
+                weighted[group_index] / total
+                if total > 0.0
+                else uniform
+            )
+            shrunk_shape = (
+                reliability * shape
+                + (1.0 - reliability) * uniform
+            )
+            group_weight = (
+                self.MIN_GROUP_WEIGHT
+                + (1.0 - self.MIN_GROUP_WEIGHT) * reliability
+            )
+            weighted[group_index] = shrunk_shape * group_weight
+
+        return weighted
+
+    def _best_two_group_schedule(
+        self,
+        profile: np.ndarray,
+        reliabilities: np.ndarray,
+    ) -> np.ndarray:
         first = profile[0]
         second = profile[1]
         n_bins = len(first)
@@ -296,6 +394,14 @@ class EventPhaseDiscovery:
         best_score = -np.inf
         best_start = 0
         best_length = self.min_phase_bins
+        schedule_reliability = float(
+            np.min(reliabilities)
+            if len(reliabilities)
+            else 0.0
+        )
+        uncertainty = 1.0 - float(
+            np.clip(schedule_reliability, 0.0, 1.0)
+        )
         first_doubled = np.r_[first, first]
         second_doubled = np.r_[second, second]
         first_prefix = np.r_[0.0, np.cumsum(first_doubled)]
@@ -311,6 +417,21 @@ class EventPhaseDiscovery:
                 first_inside = first_prefix[end] - first_prefix[start]
                 second_inside = second_prefix[end] - second_prefix[start]
                 score = first_inside + total_second - second_inside
+
+                # When one group has little repeated evidence, many schedules
+                # are nearly indistinguishable. Prefer a non-degenerate split
+                # instead of letting iteration order collapse the weak group
+                # to the minimum configured phase.
+                half_cycle_bins = n_bins / 2.0
+                duration_balance = 1.0 - (
+                    abs(length - half_cycle_bins)
+                    / max(1.0, half_cycle_bins)
+                )
+                score += (
+                    self.UNCERTAIN_DURATION_PRIOR
+                    * uncertainty
+                    * duration_balance
+                )
                 if score > best_score:
                     best_score = score
                     best_start = start
@@ -354,6 +475,15 @@ class EventPhaseDiscovery:
         counts: np.ndarray,
         cycle_seconds: float,
     ) -> list[EventPhase]:
+        observed_cycle_mask = self._observed_cycle_mask(counts)
+        reliability_stats = self._group_reliability_stats(
+            counts,
+            observed_cycle_mask,
+        )
+        group_reliabilities = [
+            item[2]
+            for item in reliability_stats
+        ]
         transitions = [
             index
             for index in range(len(states))
@@ -388,6 +518,7 @@ class EventPhaseDiscovery:
                     state=state,
                     counts=counts,
                     cycle_seconds=cycle_seconds,
+                    reliability=group_reliabilities[state],
                 )
             )
         return phases
@@ -401,6 +532,7 @@ class EventPhaseDiscovery:
         state: int,
         counts: np.ndarray,
         cycle_seconds: float,
+        reliability: float,
     ) -> EventPhase:
         indices = self._interval_indices(
             start_idx,
@@ -417,7 +549,10 @@ class EventPhaseDiscovery:
         supporting = int(group_counts)
         contradictory = int(contradiction_counts)
         total = supporting + contradictory
-        confidence = supporting / total if total else 0.0
+        consistency = supporting / total if total else 0.0
+        confidence = consistency * float(
+            np.clip(reliability, 0.0, 1.0)
+        )
         group = self.groups[state]
 
         return EventPhase(
