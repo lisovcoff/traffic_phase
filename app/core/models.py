@@ -10,6 +10,7 @@ class Detection:
     millis: int
     lat: float
     lng: float
+    zone: str | None = None
 
 
 @dataclass(frozen=True)

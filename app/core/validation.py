@@ -317,7 +317,15 @@ def validate_signal(
             now_ms - int(recent_window_seconds * 1000.0),
             now_ms,
         )
-        result = estimator.estimate(timestamp_s, window_events)
+        base_result = estimator.estimate(timestamp_s, window_events)
+        aware_result = anomaly.estimate(
+            base_result,
+            window_events,
+            current_time_s=timestamp_s,
+            recent_window_s=recent_window_seconds,
+            origin_ms=origin,
+        )
+        result = aware_result.signal
 
         for state in result.approaches:
             total_states += 1
@@ -354,21 +362,14 @@ def validate_signal(
                     ) if boundaries else phase_model.cycle_seconds
                     transition_consistent += distance <= transition_tolerance_seconds
 
-        aware_result = anomaly.estimate(
-            result,
-            window_events,
-            current_time_s=timestamp_s,
-            recent_window_s=recent_window_seconds,
-            origin_ms=origin,
-        )
         anomaly_scores.append(aware_result.indicators.anomaly_score)
         base_states = {
             item.approach: item.state
-            for item in result.approaches
+            for item in base_result.approaches
         }
         aware_states = {
             item.approach: item.state
-            for item in aware_result.signal.approaches
+            for item in result.approaches
         }
         for approach, base_state in base_states.items():
             aware_state = aware_states[approach]

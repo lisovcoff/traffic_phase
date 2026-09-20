@@ -51,7 +51,16 @@ def _parse_detection(item: Any) -> Detection | None:
     if not _finite_number(lng) or not -180.0 <= float(lng) <= 180.0:
         return None
 
-    return Detection(millis=int(millis), lat=float(lat), lng=float(lng))
+    zone = item.get("zone")
+    if zone is not None:
+        zone = str(zone)
+
+    return Detection(
+        millis=int(millis),
+        lat=float(lat),
+        lng=float(lng),
+        zone=zone,
+    )
 
 
 def normalize_detections(

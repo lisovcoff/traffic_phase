@@ -125,6 +125,39 @@ def _event_confidence(base: float, strength: float) -> float:
     return round(max(0.0, min(1.0, base * strength)), 4)
 
 
+def _zone_crossing_timestamp(
+    detections,
+    *,
+    zone_in: str,
+    zone_out: str,
+) -> tuple[int | None, bool]:
+    """Return an observed entry into the intersection from detection zones.
+
+    The transition is usable only after the incoming zone has actually been
+    observed.  A following unzoned detection represents the intersection
+    interior in the supplied data; a direct transition to the configured
+    outgoing zone is also accepted.  The boolean reports whether any named
+    detection-zone information exists, so an incomplete zoned trajectory is
+    not silently replaced with the end-of-track fallback.
+    """
+    seen_incoming = False
+    has_named_zone = False
+
+    for detection in detections:
+        zone = getattr(detection, "zone", None)
+        if zone is not None:
+            has_named_zone = True
+
+        if zone == zone_in:
+            seen_incoming = True
+            continue
+
+        if seen_incoming and (zone is None or zone == zone_out):
+            return int(detection.millis), True
+
+    return None, has_named_zone
+
+
 def extract_trajectory_events(
     trajectory: Trajectory,
     geometry: TrajectoryGeometry,
@@ -197,11 +230,31 @@ def extract_trajectory_events(
                 )
             )
 
-    crossing_timestamp = (
-        intersection.stop_line_provider.crossing_timestamp_ms(detections)
-        if intersection is not None and intersection.stop_line_provider is not None
-        else detections[-1].millis
+    crossing_timestamp = None
+    crossing_strength = 0.0
+    stop_line_provider = (
+        intersection.stop_line_provider
+        if intersection is not None
+        else None
     )
+
+    if stop_line_provider is not None:
+        crossing_timestamp = stop_line_provider.crossing_timestamp_ms(detections)
+        crossing_strength = 1.0 if len(detections) >= 5 else 0.6
+    else:
+        crossing_timestamp, zone_data_present = _zone_crossing_timestamp(
+            detections,
+            zone_in=trajectory.zone_in,
+            zone_out=trajectory.zone_out,
+        )
+        if crossing_timestamp is not None:
+            crossing_strength = 1.0 if len(detections) >= 5 else 0.6
+        elif not zone_data_present:
+            # With no detection-zone information, the track end is only a
+            # weak proxy for intersection entry.  Keep it for compatibility,
+            # but ensure it cannot look as reliable as an observed crossing.
+            crossing_timestamp = detections[-1].millis
+            crossing_strength = 0.35 if len(detections) >= 5 else 0.2
 
     if crossing_timestamp is not None and crossing_timestamp >= detections[0].millis:
         events.append(
@@ -212,7 +265,7 @@ def extract_trajectory_events(
                 movement=movement,
                 confidence=_event_confidence(
                     base_confidence,
-                    1.0 if len(detections) >= 5 else 0.6,
+                    crossing_strength,
                 ),
                 quality=quality,
             )

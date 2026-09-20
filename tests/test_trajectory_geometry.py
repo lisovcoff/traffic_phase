@@ -143,3 +143,15 @@ def test_normal_trajectory_builds_full_detection_model():
         Detection(3000, 55.0005, 61.0005),
         Detection(4000, 55.001, 61.001),
     )
+
+
+def test_detection_zone_is_preserved_when_present():
+    result = normalize_detections(
+        [
+            {"millis": 1000, "lat": 55.0, "lng": 61.0, "zone": "N"},
+            {"millis": 2000, "lat": 55.001, "lng": 61.0, "zone": None},
+            {"millis": 3000, "lat": 55.002, "lng": 61.0, "zone": "_S"},
+        ]
+    )
+
+    assert [item.zone for item in result.detections] == ["N", None, "_S"]

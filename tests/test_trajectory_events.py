@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.core.models import EventType, Trajectory
-from app.core.trajectory_events import extract_trajectory_events
+from app.core.trajectory_events import IntersectionGeometry, extract_trajectory_events
 from app.core.trajectory_geometry import build_trajectory_geometry
 
 
@@ -21,8 +21,14 @@ def _trajectory(detections):
     )
 
 
-def _point(millis, lat, lng=61.0):
-    return {"millis": millis, "lat": lat, "lng": lng}
+_MISSING = object()
+
+
+def _point(millis, lat, lng=61.0, zone=_MISSING):
+    point = {"millis": millis, "lat": lat, "lng": lng}
+    if zone is not _MISSING:
+        point["zone"] = zone
+    return point
 
 
 def _event_types(events):
@@ -108,9 +114,71 @@ def test_invalid_detections_lower_confidence_without_crash():
     assert events and all(event.confidence < 1.0 for event in events)
 
 
-def test_crossing_uses_last_detection_without_stop_line_geometry():
-    detections = [_point(1000, 55.0), _point(2000, 55.00003), _point(3000, 55.00006)]
+def test_crossing_uses_zone_exit_as_intersection_entry():
+    detections = [
+        _point(1000, 55.0, zone="N"),
+        _point(2000, 55.00003, zone="N"),
+        _point(3000, 55.00006, zone=None),
+        _point(4000, 55.00009, zone=None),
+        _point(5000, 55.00012, zone="_S"),
+    ]
     geometry = build_trajectory_geometry({"detections": detections})
     events = extract_trajectory_events(_trajectory(detections), geometry)
+
     crossing = next(event for event in events if event.event_type == EventType.CROSSING)
+
     assert crossing.timestamp_ms == 3000
+    assert crossing.confidence == 1.0
+
+
+def test_crossing_falls_back_to_track_end_with_lower_confidence_without_zones():
+    detections = [
+        _point(1000, 55.0),
+        _point(2000, 55.00003),
+        _point(3000, 55.00006),
+        _point(4000, 55.00009),
+        _point(5000, 55.00012),
+    ]
+    geometry = build_trajectory_geometry({"detections": detections})
+    events = extract_trajectory_events(_trajectory(detections), geometry)
+
+    crossing = next(event for event in events if event.event_type == EventType.CROSSING)
+
+    assert crossing.timestamp_ms == 5000
+    assert crossing.confidence == 0.35
+
+
+def test_incomplete_zoned_trajectory_does_not_invent_crossing():
+    detections = [
+        _point(1000, 55.00006, zone=None),
+        _point(2000, 55.00009, zone=None),
+        _point(3000, 55.00012, zone="_S"),
+    ]
+    geometry = build_trajectory_geometry({"detections": detections})
+    events = extract_trajectory_events(_trajectory(detections), geometry)
+
+    assert EventType.CROSSING not in _event_types(events)
+
+
+def test_stop_line_provider_has_priority_over_detection_zones():
+    class Provider:
+        def crossing_timestamp_ms(self, detections):
+            return 4500
+
+    detections = [
+        _point(1000, 55.0, zone="N"),
+        _point(2000, 55.00003, zone="N"),
+        _point(3000, 55.00006, zone=None),
+        _point(4000, 55.00009, zone=None),
+        _point(5000, 55.00012, zone="_S"),
+    ]
+    geometry = build_trajectory_geometry({"detections": detections})
+    events = extract_trajectory_events(
+        _trajectory(detections),
+        geometry,
+        intersection=IntersectionGeometry(stop_line_provider=Provider()),
+    )
+
+    crossing = next(event for event in events if event.event_type == EventType.CROSSING)
+
+    assert crossing.timestamp_ms == 4500

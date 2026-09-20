@@ -117,3 +117,48 @@ def test_validate_realtime_clamps_events_before_phase_origin():
     assert report["status"] == "ok"
     assert report["event_count"] == 2
     assert report["agreement_comparisons"] >= 1
+
+
+def test_validate_signal_metrics_use_anomaly_aware_final_state():
+    from app.core.anomaly_profile import TrafficBaselineProfile
+    from app.core.event_phase_discovery import EventPhase, EventPhaseDiscoveryResult
+    from app.core.validation import validate_signal
+
+    model = EventPhaseDiscoveryResult(
+        cycle_seconds=100.0,
+        bin_seconds=2.0,
+        phases=(
+            EventPhase(1, 0.0, 50.0, ("N", "S"), 0.9, 10, 1, ("N", "S")),
+            EventPhase(2, 50.0, 100.0, ("E", "W"), 0.9, 10, 1, ("E", "W")),
+        ),
+        profiles=(),
+        cycle_coverage=1.0,
+        overlap=0.0,
+        supporting_event_count=20,
+        contradictory_event_count=2,
+        origin_timestamp_ms=0,
+    )
+    events = [
+        event(EventType.RELEASE, 0.0, "N"),
+        event(EventType.RELEASE, 1.0, "N"),
+    ]
+    baseline = TrafficBaselineProfile.from_events(
+        [
+            event(EventType.APPROACH, 0.0, "N"),
+            event(EventType.APPROACH, 1.0, "S"),
+        ],
+        window_seconds=12.0,
+    )
+
+    report = validate_signal(
+        events,
+        model,
+        sample_seconds=1.0,
+        transition_tolerance_seconds=3.0,
+        baseline=baseline,
+    )
+
+    assert report["unknown_rate"] == 1.0
+    assert report["mean_state_confidence"] == 0.0
+    assert report["state_continuity"] == 1.0
+    assert report["transition_count"] == 0
