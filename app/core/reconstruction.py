@@ -238,7 +238,7 @@ def _reconstruction_confidence(
     )
 
 
-def _build_session_result(
+def reconstruct_event_session(
     events: Sequence[TrajectoryEvent],
     *,
     start_timestamp_ms: int,
@@ -330,7 +330,7 @@ def reconstruct_trajectory_sessions(
         end_timestamp_ms = max(end for _, end in intervals)
         events = extract_events_from_trajectories(session)
         results.append(
-            _build_session_result(
+            reconstruct_event_session(
                 events,
                 start_timestamp_ms=start_timestamp_ms,
                 end_timestamp_ms=end_timestamp_ms,
@@ -361,7 +361,7 @@ def reconstruct_event_sessions(
         start_timestamp_ms = session[0].timestamp_ms
         end_timestamp_ms = session[-1].timestamp_ms
         results.append(
-            _build_session_result(
+            reconstruct_event_session(
                 session,
                 start_timestamp_ms=start_timestamp_ms,
                 end_timestamp_ms=end_timestamp_ms,
