@@ -103,6 +103,42 @@ def test_low_confidence_events_can_be_filtered():
     assert result.phases
 
 
+def test_empty_absolute_cycles_do_not_zero_median_phase_profile():
+    # This models a daytime-only archive with a long gap between observed
+    # periods.  Empty absolute cycles must not be interpreted as zero evidence
+    # for every phase, otherwise their majority makes the complete median
+    # profile zero and the phase optimizer falls back to its first 8-second
+    # interval.
+    events = []
+    for repeat in (0, 1, 100, 101):
+        base = repeat * 120.0
+        for offset, approach in (
+            (10, "N"),
+            (20, "S"),
+            (70, "E"),
+            (80, "W"),
+        ):
+            events.extend(
+                (
+                    _event(EventType.RELEASE, base + offset, approach),
+                    _event(EventType.CROSSING, base + offset + 1, approach),
+                )
+            )
+
+    result = EventPhaseDiscovery().discover(events, cycle_seconds=120.0)
+    profiles = {profile.group: profile for profile in result.profiles}
+
+    assert profiles["NS"].cycle_count == 4
+    assert profiles["NS"].values[5] > 0.0
+    assert profiles["EW"].values[35] > 0.0
+    phases = {
+        phase.active_approaches: phase
+        for phase in result.phases
+    }
+    assert phases[("N", "S")].phase_end != 8.0
+    assert phases[("E", "W")].phase_start != 8.0
+
+
 def test_phase_groups_are_extensible():
     discovery = EventPhaseDiscovery(
         groups=(

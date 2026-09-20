@@ -277,6 +277,32 @@ python scripts/validate.py `
   --output-dir validation_output
 ```
 
+### Quick validation
+
+Use the same local manifest and select only the compact smoke set while
+iterating locally. This avoids maintaining a second local manifest with
+duplicated machine-specific archive paths:
+
+```powershell
+python scripts/validate.py `
+  --manifest validation/manifest.local.json `
+  --dataset reference_chicherina `
+  --dataset accident_lenina_sverdlovsky `
+  --dataset lane_closure_chicherina `
+  --sample-seconds 10 `
+  --output-dir validation_quick
+```
+
+`--dataset` can be repeated for any names in the manifest. `--sample-seconds
+10` reduces only the density of signal-state samples; use the default `1` and
+the full manifest before release when comparing detailed signal metrics.
+
+The quick set excludes the large multi-day reference archives and missing
+Lenina-Engelsa archives. It is a smoke check, not a replacement for full
+validation. To verify a change specifically against the Lenina-Sverdlovsky
+reference archive, select `reference_lenina_sverdlovsky`; it remains a large
+archive and is intentionally part of full validation.
+
 The command produces:
 
 - `validation_output/validation_report.json` — machine-readable report;

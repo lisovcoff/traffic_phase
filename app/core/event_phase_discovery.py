@@ -137,7 +137,7 @@ class EventPhaseDiscovery:
             events,
             cycle_seconds=cycle_seconds,
         )
-        states = self._best_schedule(evidence)
+        states = self._best_schedule(evidence, counts)
         phases = self._build_phases(
             states,
             counts,
@@ -216,6 +216,17 @@ class EventPhaseDiscovery:
             evidence[cycle_id, group_id, bin_id] += weight
             counts[cycle_id, group_id, bin_id] += 1
 
+        # A cycle with no usable event is an absence of observation, not
+        # evidence that every approach was red.  In multi-day archives, such
+        # as daytime-only exports, including those empty cycles in a median
+        # would turn every bin into zero once gaps outnumber observed cycles.
+        # Keep zero-valued bins from cycles where *some* evidence was observed:
+        # those are meaningful negative evidence for the competing group.
+        observed_cycle_mask = self._observed_cycle_mask(counts)
+        observed_evidence = evidence[observed_cycle_mask]
+        observed_counts = counts[observed_cycle_mask]
+        observed_cycle_count = int(observed_cycle_mask.sum())
+
         profiles: list[EventPhaseProfile] = []
         for group_id, group in enumerate(self.groups):
             profiles.append(
@@ -223,23 +234,37 @@ class EventPhaseDiscovery:
                     group=group.name,
                     values=tuple(
                         np.round(
-                            np.median(evidence[:, group_id, :], axis=0),
+                            np.median(observed_evidence[:, group_id, :], axis=0),
                             6,
                         )
                     ),
                     event_counts=tuple(
                         np.median(
-                            counts[:, group_id, :],
+                            observed_counts[:, group_id, :],
                             axis=0,
                         ).astype(int).tolist()
                     ),
-                    cycle_count=cycle_count,
+                    cycle_count=observed_cycle_count,
                 )
             )
         return profiles, evidence, counts
 
-    def _best_schedule(self, evidence: np.ndarray) -> np.ndarray:
-        profile = np.median(evidence, axis=0)
+    @staticmethod
+    def _observed_cycle_mask(counts: np.ndarray) -> np.ndarray:
+        return counts.sum(axis=(1, 2)) > 0
+
+    def _best_schedule(
+        self,
+        evidence: np.ndarray,
+        counts: np.ndarray,
+    ) -> np.ndarray:
+        # Use exactly the same observed-cycle population as build_profiles.
+        # Otherwise the externally reported profile can be correct while the
+        # optimizer still receives a zero median from long unobserved gaps.
+        profile = np.median(
+            evidence[self._observed_cycle_mask(counts)],
+            axis=0,
+        )
         if len(self.groups) == 2:
             return self._best_two_group_schedule(profile)
 

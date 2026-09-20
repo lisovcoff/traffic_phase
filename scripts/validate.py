@@ -33,6 +33,23 @@ def load_manifest(path: Path) -> list[ValidationDataset]:
     ]
 
 
+def select_datasets(
+    datasets: list[ValidationDataset],
+    names: list[str] | None,
+) -> list[ValidationDataset]:
+    """Keep manifest order while selecting an optional validation subset."""
+    if not names:
+        return datasets
+    requested = set(names)
+    available = {dataset.name for dataset in datasets}
+    unknown = sorted(requested - available)
+    if unknown:
+        raise ValueError(
+            "unknown dataset name(s): " + ", ".join(unknown)
+        )
+    return [dataset for dataset in datasets if dataset.name in requested]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run the complete traffic-phase validation pipeline."
@@ -45,13 +62,26 @@ def main() -> None:
     )
     parser.add_argument("--sample-seconds", type=float, default=1.0)
     parser.add_argument(
+        "--dataset",
+        action="append",
+        dest="dataset_names",
+        metavar="NAME",
+        help=(
+            "validate only this manifest dataset; repeat to select several "
+            "datasets"
+        ),
+    )
+    parser.add_argument(
         "--transition-tolerance-seconds",
         type=float,
         default=3.0,
     )
     args = parser.parse_args()
 
-    datasets = load_manifest(args.manifest)
+    datasets = select_datasets(
+        load_manifest(args.manifest),
+        args.dataset_names,
+    )
 
     def progress(message: str) -> None:
         print(f"[validation] {message}", flush=True)

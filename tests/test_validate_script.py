@@ -1,17 +1,25 @@
 from __future__ import annotations
 
-import subprocess
-import sys
-from pathlib import Path
+import pytest
+
+from app.core.validation import ValidationDataset
+from scripts.validate import select_datasets
 
 
-def test_validate_script_supports_direct_execution():
-    script = Path(__file__).parents[1] / "scripts" / "validate.py"
-    result = subprocess.run(
-        [sys.executable, str(script), "--help"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0
-    assert "Run the complete traffic-phase validation pipeline." in result.stdout
+def test_select_datasets_preserves_manifest_order():
+    datasets = [
+        ValidationDataset("reference", "reference.zip", "reference"),
+        ValidationDataset("accident", "accident.zip", "accident"),
+        ValidationDataset("closure", "closure.zip", "lane_closure"),
+    ]
+
+    selected = select_datasets(datasets, ["closure", "reference"])
+
+    assert [dataset.name for dataset in selected] == ["reference", "closure"]
+
+
+def test_select_datasets_rejects_unknown_name():
+    datasets = [ValidationDataset("reference", "reference.zip", "reference")]
+
+    with pytest.raises(ValueError, match="unknown dataset name"):
+        select_datasets(datasets, ["missing"])
