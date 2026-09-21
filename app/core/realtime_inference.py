@@ -6,9 +6,15 @@ import json
 from threading import RLock
 from typing import Iterable, Sequence
 
-from app.core.models import TrajectoryEvent
+from app.core.adaptive_realtime import (
+    AXIS_APPROACHES,
+    AdaptiveRealtimeDecision,
+    AdaptiveRealtimeMode,
+    AdaptiveRealtimeOverride,
+)
 from app.core.anomaly_profile import TrafficBaselineProfile
 from app.core.anomaly_inference import AnomalyAwareSignalInference
+from app.core.models import TrajectoryEvent
 from app.core.realtime_phase_sync import (
     PhaseSynchronization,
     RealtimePhaseSynchronizer,
@@ -16,7 +22,10 @@ from app.core.realtime_phase_sync import (
 )
 from app.core.signal_state_estimator import SignalStateEstimator
 from app.core.trajectory_events import extract_trajectory_events
-from app.core.trajectory_geometry import build_trajectory_geometry, build_trajectory_model
+from app.core.trajectory_geometry import (
+    build_trajectory_geometry,
+    build_trajectory_model,
+)
 
 
 @dataclass(frozen=True)
@@ -38,6 +47,14 @@ class RealtimeInferenceSnapshot:
     synchronization_confidence: float = 0.0
     synchronization_evidence_count: int = 0
     anomaly: dict[str, object] | None = None
+    adaptive_mode: str = "NORMAL"
+    effective_axis: str | None = None
+    template_expected_axis: str | None = None
+    template_disagreement: bool = False
+    adaptive_confidence: float = 0.0
+    adaptive_reason: str | None = None
+    observed_live_approaches: tuple[str, ...] = ()
+    template_signal_states: dict[str, str] | None = None
     duplicate: bool = False
 
     def to_dict(self) -> dict[str, object]:
@@ -49,7 +66,13 @@ class DuplicateEventError(ValueError):
 
 
 class RealtimeSignalInferenceEngine:
-    """Warm-start realtime inference with an online phase synchronizer."""
+    """Warm-start realtime inference with a conservative live override.
+
+    The validated phase template is the normal operating prior. Repeated
+    orthogonal RELEASE evidence may temporarily override the effective signal
+    state without mutating that template. Synchronization scoring is frozen
+    while the deviation is suspect/active and restarted during recovery.
+    """
 
     def __init__(
         self,
@@ -67,7 +90,9 @@ class RealtimeSignalInferenceEngine:
         if recent_window_s <= 0:
             raise ValueError("recent_window_s must be positive")
 
-        self.phase_template = RealtimePhaseTemplate.from_phase_model(phase_model)
+        self.phase_template = RealtimePhaseTemplate.from_phase_model(
+            phase_model
+        )
         self.phase_model = self.phase_template.to_phase_model()
         self.recent_window_s = float(recent_window_s)
         self.event_origin_ms = (
@@ -84,6 +109,9 @@ class RealtimeSignalInferenceEngine:
         self._anomaly_inference = AnomalyAwareSignalInference(
             self.phase_model,
             baseline,
+        )
+        self._adaptive_override = AdaptiveRealtimeOverride(
+            evidence_window_seconds=min(8.0, self.recent_window_s),
         )
         self._synchronizer = RealtimePhaseSynchronizer(
             self.phase_template,
@@ -111,6 +139,10 @@ class RealtimeSignalInferenceEngine:
     @property
     def synchronization(self) -> PhaseSynchronization:
         return self._synchronizer.snapshot()
+
+    @property
+    def adaptive_mode(self) -> AdaptiveRealtimeMode:
+        return self._adaptive_override.mode
 
     def ingest_event(
         self,
@@ -146,7 +178,11 @@ class RealtimeSignalInferenceEngine:
             if event.timestamp_ms >= cutoff_ms:
                 self._events[key] = event
 
-            self._synchronizer.ingest(event)
+            if self._adaptive_override.mode not in {
+                AdaptiveRealtimeMode.SUSPECT,
+                AdaptiveRealtimeMode.LIVE_OVERRIDE,
+            }:
+                self._synchronizer.ingest(event)
             self._trim(cutoff_ms)
             return self._snapshot(duplicate=False)
 
@@ -219,6 +255,7 @@ class RealtimeSignalInferenceEngine:
             self._current_timestamp_ms = None
             self._stream_start_timestamp_ms = None
             self._synchronizer.reset()
+            self._adaptive_override.reset()
 
     def _snapshot(self, *, duplicate: bool) -> RealtimeInferenceSnapshot:
         if self._current_timestamp_ms is None:
@@ -228,10 +265,20 @@ class RealtimeSignalInferenceEngine:
         elapsed_s = (
             (
                 self._current_timestamp_ms
-                - (self._stream_start_timestamp_ms or self._current_timestamp_ms)
+                - (
+                    self._stream_start_timestamp_ms
+                    or self._current_timestamp_ms
+                )
             )
             / 1000.0
         )
+
+        if (
+            self._adaptive_override.mode == AdaptiveRealtimeMode.RECOVERY
+            and synchronization.synchronized
+        ):
+            self._adaptive_override.mark_resynchronized()
+
         if not synchronization.synchronized:
             return self._warmup_snapshot(
                 elapsed_s=elapsed_s,
@@ -245,10 +292,45 @@ class RealtimeSignalInferenceEngine:
         )
         assert cycle_position_s is not None
 
+        template_phase = self.phase_template.phase_at(
+            cycle_position_s
+        )
+        buffered_events = tuple(self._events.values())
+        previous_mode = self._adaptive_override.mode
+        adaptive = self._adaptive_override.evaluate(
+            timestamp_ms=self._current_timestamp_ms,
+            cycle_position_s=cycle_position_s,
+            phase=template_phase,
+            events=buffered_events,
+            cycle_seconds=self.phase_template.cycle_seconds,
+        )
+
+        if (
+            previous_mode == AdaptiveRealtimeMode.LIVE_OVERRIDE
+            and adaptive.mode == AdaptiveRealtimeMode.RECOVERY
+        ):
+            self._synchronizer.reset()
+            synchronization = self._synchronizer.snapshot()
+            if synchronization.synchronized:
+                self._adaptive_override.mark_resynchronized()
+                adaptive = self._adaptive_override.evaluate(
+                    timestamp_ms=self._current_timestamp_ms,
+                    cycle_position_s=cycle_position_s,
+                    phase=template_phase,
+                    events=buffered_events,
+                    cycle_seconds=self.phase_template.cycle_seconds,
+                )
+            else:
+                return self._warmup_snapshot(
+                    elapsed_s=elapsed_s,
+                    synchronization=synchronization,
+                    duplicate=duplicate,
+                    adaptive=adaptive,
+                )
+
         realtime_origin_ms = self._current_timestamp_ms - int(
             round(cycle_position_s * 1000.0)
         )
-        buffered_events = tuple(self._events.values())
         estimator = SignalStateEstimator(
             self.phase_model,
             recent_window_s=self.recent_window_s,
@@ -258,12 +340,12 @@ class RealtimeSignalInferenceEngine:
             conflict_persistence_seconds=self._conflict_persistence_seconds,
             event_origin_ms=realtime_origin_ms,
         )
-        result = estimator.estimate(
+        base_result = estimator.estimate(
             cycle_position_s,
             buffered_events,
         )
         aware = self._anomaly_inference.estimate(
-            result,
+            base_result,
             buffered_events,
             current_time_s=cycle_position_s,
             recent_window_s=self.recent_window_s,
@@ -279,41 +361,67 @@ class RealtimeSignalInferenceEngine:
             ),
             None,
         )
-        signal_states = {
+        template_signal_states = {
             item.approach: item.state.value
             for item in result.approaches
         }
+        signal_states = dict(template_signal_states)
         active_movements = [
             stage.to_dict()
             for stage in self.phase_template.active_movements_at(
                 cycle_position_s
             )
         ]
+
+        if adaptive.mode == AdaptiveRealtimeMode.LIVE_OVERRIDE:
+            signal_states = self._override_signal_states(adaptive)
+            active_movements = []
+
         evidence_summary = {
             item.approach: {
-                "state": item.state.value,
+                "state": signal_states[item.approach],
                 "evidence_weight": item.evidence_weight,
                 "supporting_event_count": item.supporting_event_count,
                 "contradictory_event_count": item.contradictory_event_count,
-                "traffic_evidence_confidence": item.traffic_evidence_confidence,
+                "traffic_evidence_confidence": (
+                    item.traffic_evidence_confidence
+                ),
                 "confidence": item.confidence,
             }
             for item in result.approaches
         }
-        confidence = round(
-            max(
-                0.0,
-                min(
-                    1.0,
-                    synchronization.confidence
-                    * (
-                        0.70 * result.phase_confidence
-                        + 0.30 * result.traffic_evidence_confidence
+
+        if adaptive.mode == AdaptiveRealtimeMode.LIVE_OVERRIDE:
+            confidence = round(
+                max(
+                    0.0,
+                    min(
+                        1.0,
+                        synchronization.confidence
+                        * adaptive.confidence,
                     ),
                 ),
-            ),
-            4,
-        )
+                4,
+            )
+        else:
+            confidence = round(
+                max(
+                    0.0,
+                    min(
+                        1.0,
+                        synchronization.confidence
+                        * (
+                            0.70 * result.phase_confidence
+                            + 0.30
+                            * result.traffic_evidence_confidence
+                        ),
+                    ),
+                ),
+                4,
+            )
+            if adaptive.mode == AdaptiveRealtimeMode.SUSPECT:
+                confidence = round(confidence * 0.75, 4)
+
         return RealtimeInferenceSnapshot(
             timestamp_ms=self._current_timestamp_ms,
             timestamp_s=round(elapsed_s, 3),
@@ -323,7 +431,9 @@ class RealtimeSignalInferenceEngine:
             active_movements=active_movements,
             confidence=confidence,
             phase_confidence=result.phase_confidence,
-            traffic_evidence_confidence=result.traffic_evidence_confidence,
+            traffic_evidence_confidence=(
+                result.traffic_evidence_confidence
+            ),
             cycle_position_s=result.cycle_phase_s,
             evidence_summary=evidence_summary,
             buffer_event_count=len(self._events),
@@ -332,6 +442,14 @@ class RealtimeSignalInferenceEngine:
             synchronization_confidence=synchronization.confidence,
             synchronization_evidence_count=synchronization.evidence_count,
             anomaly=aware.indicators.to_dict(),
+            adaptive_mode=adaptive.mode.value,
+            effective_axis=adaptive.effective_axis,
+            template_expected_axis=adaptive.expected_axis,
+            template_disagreement=adaptive.template_disagreement,
+            adaptive_confidence=adaptive.confidence,
+            adaptive_reason=adaptive.reason,
+            observed_live_approaches=adaptive.observed_approaches,
+            template_signal_states=template_signal_states,
             duplicate=duplicate,
         )
 
@@ -341,8 +459,12 @@ class RealtimeSignalInferenceEngine:
         elapsed_s: float,
         synchronization: PhaseSynchronization,
         duplicate: bool,
+        adaptive: AdaptiveRealtimeDecision | None = None,
     ) -> RealtimeInferenceSnapshot:
-        states = {approach: "UNKNOWN" for approach in ("N", "S", "E", "W")}
+        states = {
+            approach: "UNKNOWN"
+            for approach in ("N", "S", "E", "W")
+        }
         evidence_summary = {
             approach: {
                 "state": "UNKNOWN",
@@ -354,6 +476,11 @@ class RealtimeSignalInferenceEngine:
             }
             for approach in states
         }
+        mode = (
+            adaptive.mode.value
+            if adaptive is not None
+            else self._adaptive_override.mode.value
+        )
         return RealtimeInferenceSnapshot(
             timestamp_ms=self._current_timestamp_ms,
             timestamp_s=round(elapsed_s, 3),
@@ -372,8 +499,66 @@ class RealtimeSignalInferenceEngine:
             synchronization_confidence=synchronization.confidence,
             synchronization_evidence_count=synchronization.evidence_count,
             anomaly=None,
+            adaptive_mode=mode,
+            effective_axis=(
+                adaptive.effective_axis
+                if adaptive is not None
+                else None
+            ),
+            template_expected_axis=(
+                adaptive.expected_axis
+                if adaptive is not None
+                else None
+            ),
+            template_disagreement=(
+                adaptive.template_disagreement
+                if adaptive is not None
+                else False
+            ),
+            adaptive_confidence=(
+                adaptive.confidence
+                if adaptive is not None
+                else 0.0
+            ),
+            adaptive_reason=(
+                adaptive.reason
+                if adaptive is not None
+                else (
+                    "resynchronizing_after_live_override"
+                    if mode == AdaptiveRealtimeMode.RECOVERY.value
+                    else None
+                )
+            ),
+            observed_live_approaches=(
+                adaptive.observed_approaches
+                if adaptive is not None
+                else ()
+            ),
+            template_signal_states=dict(states),
             duplicate=duplicate,
         )
+
+    @staticmethod
+    def _override_signal_states(
+        adaptive: AdaptiveRealtimeDecision,
+    ) -> dict[str, str]:
+        states = {
+            approach: "UNKNOWN"
+            for approach in ("N", "S", "E", "W")
+        }
+        axis = adaptive.effective_axis
+        if axis not in AXIS_APPROACHES:
+            return states
+
+        observed = set(adaptive.observed_approaches)
+        for approach in AXIS_APPROACHES[axis]:
+            if approach in observed:
+                states[approach] = "GREEN"
+
+        opposite = "EW" if axis == "NS" else "NS"
+        for approach in AXIS_APPROACHES[opposite]:
+            states[approach] = "RED"
+        return states
 
     def _trim(self, cutoff_ms: int) -> None:
         stale_keys = [

@@ -126,6 +126,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="stat"><span>Active movement groups</span><strong id="realtimeMovements">—</strong></div>
       <div class="stat"><span>Confidence</span><strong id="realtimeConfidence">0.00</strong></div>
       <div class="stat"><span>Synchronizer</span><strong id="realtimeSync" class="warmup">WARMUP</strong></div>
+      <div class="stat"><span>Adaptive mode</span><strong id="realtimeAdaptive">NORMAL</strong></div>
       <div class="stat"><span>Phase offset</span><strong id="realtimeOffset">—</strong></div>
     </div>
 
@@ -406,7 +407,14 @@ async function deleteRealtimeSilently(){
 function renderRealtimeSnapshot(snapshot){
   if(mode!=='realtime')return;
   $('sharedState').classList.remove('hidden');
-  $('sharedHint').textContent='Realtime backend snapshot. WARMUP is shown as UNKNOWN.';
+  const adaptiveMode=snapshot.adaptive_mode||'NORMAL';
+  const expectedAxis=snapshot.template_expected_axis||'—';
+  const effectiveAxis=snapshot.effective_axis||'—';
+  $('sharedHint').textContent=adaptiveMode==='LIVE_OVERRIDE'
+    ?'Live override: template '+expectedAxis+', traffic evidence '+effectiveAxis+'.'
+    :(adaptiveMode==='RECOVERY'
+      ?'Realtime backend is resynchronizing after a temporary template deviation.'
+      :'Realtime backend snapshot. WARMUP is shown as UNKNOWN.');
   const date=new Date(snapshot.simulated_timestamp_ms);
   $('realtimeTime').textContent=date.toLocaleString();
   $('realtimePhase').textContent=snapshot.phase_id==null?'UNKNOWN':'Phase '+snapshot.phase_id;
@@ -415,6 +423,8 @@ function renderRealtimeSnapshot(snapshot){
   $('realtimeConfidence').textContent=Number(snapshot.confidence||0).toFixed(2);
   $('realtimeSync').textContent=snapshot.synchronization_status||'WARMUP';
   $('realtimeSync').className=snapshot.synchronization_status==='SYNCHRONIZED'?'ok':'warmup';
+  $('realtimeAdaptive').textContent=adaptiveMode+(effectiveAxis!=='—'?' · '+effectiveAxis:'');
+  $('realtimeAdaptive').className=adaptiveMode==='NORMAL'?'ok':'warmup';
   $('realtimeOffset').textContent=snapshot.phase_offset_s==null?'—':Number(snapshot.phase_offset_s).toFixed(1)+' s';
   const progress=Math.round(Number(snapshot.progress||0)*1000)/10;
   $('realtimeProgressText').textContent=progress.toFixed(1)+'% · '+(snapshot.finished?'finished':'running');

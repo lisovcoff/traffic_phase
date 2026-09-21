@@ -315,6 +315,14 @@ class RealtimeArchiveSimulation:
                 synchronization_confidence = 0.0
                 synchronization_evidence_count = 0
                 buffer_event_count = 0
+                adaptive_mode = "NORMAL"
+                effective_axis = None
+                template_expected_axis = None
+                template_disagreement = False
+                adaptive_confidence = 0.0
+                adaptive_reason = None
+                observed_live_approaches: list[str] = []
+                template_signal_states = dict(signal_states)
             else:
                 synchronization_status = str(
                     inference["synchronization_status"]
@@ -339,6 +347,30 @@ class RealtimeArchiveSimulation:
                 )
                 buffer_event_count = int(
                     inference["buffer_event_count"]
+                )
+                adaptive_mode = str(
+                    inference.get("adaptive_mode", "NORMAL")
+                )
+                effective_axis = inference.get("effective_axis")
+                template_expected_axis = inference.get(
+                    "template_expected_axis"
+                )
+                template_disagreement = bool(
+                    inference.get("template_disagreement", False)
+                )
+                adaptive_confidence = float(
+                    inference.get("adaptive_confidence", 0.0)
+                )
+                adaptive_reason = inference.get("adaptive_reason")
+                observed_live_approaches = list(
+                    inference.get("observed_live_approaches", ())
+                )
+                template_signal_states = dict(
+                    inference.get(
+                        "template_signal_states",
+                        signal_states,
+                    )
+                    or signal_states
                 )
 
             duration_ms = max(
@@ -378,6 +410,20 @@ class RealtimeArchiveSimulation:
                 "synchronization_status": synchronization_status,
                 "synchronization_confidence": (
                     synchronization_confidence
+                ),
+                "adaptive_mode": adaptive_mode,
+                "effective_axis": effective_axis,
+                "template_expected_axis": (
+                    template_expected_axis
+                ),
+                "template_disagreement": template_disagreement,
+                "adaptive_confidence": adaptive_confidence,
+                "adaptive_reason": adaptive_reason,
+                "observed_live_approaches": (
+                    observed_live_approaches
+                ),
+                "template_signal_states": (
+                    template_signal_states
                 ),
                 "evidence_summary": {
                     "synchronization_evidence_count": (

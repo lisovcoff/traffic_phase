@@ -555,3 +555,105 @@ def test_realtime_payload_preserves_movement_stages():
     assert len(model.movement_stages) == 1
     assert model.movement_stages[0].movement == "N->_E"
     assert model.origin_timestamp_ms == 0
+
+
+
+def test_adaptive_override_ignores_normal_template_aligned_flow():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+
+    snapshots = [
+        engine.ingest_event(
+            event(EventType.RELEASE, timestamp, approach)
+        )
+        for timestamp, approach in (
+            (44.0, "E"),
+            (46.0, "W"),
+            (48.0, "E"),
+            (50.0, "W"),
+        )
+    ]
+
+    assert all(
+        snapshot.adaptive_mode == "NORMAL"
+        for snapshot in snapshots
+    )
+    assert snapshots[-1].effective_axis == "EW"
+    assert snapshots[-1].template_disagreement is False
+    assert snapshots[-1].signal_states["E"] == "GREEN"
+
+
+def test_single_late_release_does_not_trigger_live_override():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+
+    snapshot = engine.ingest_event(
+        event(EventType.RELEASE, 46.0, "N")
+    )
+
+    assert snapshot.adaptive_mode == "NORMAL"
+    assert snapshot.template_expected_axis == "EW"
+    assert snapshot.template_disagreement is False
+
+
+def test_persistent_release_after_expected_transition_triggers_live_override():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+
+    snapshots = [
+        engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "N")
+        )
+        for timestamp in (44.0, 46.0, 48.0, 50.0)
+    ]
+    snapshot = snapshots[-1]
+
+    assert snapshots[1].adaptive_mode == "SUSPECT"
+    assert snapshot.adaptive_mode == "LIVE_OVERRIDE"
+    assert snapshot.template_expected_axis == "EW"
+    assert snapshot.effective_axis == "NS"
+    assert snapshot.template_disagreement is True
+    assert snapshot.adaptive_reason == (
+        "persistent_release_outside_template"
+    )
+    assert snapshot.signal_states["N"] == "GREEN"
+    assert snapshot.signal_states["S"] == "UNKNOWN"
+    assert snapshot.signal_states["E"] == "RED"
+    assert snapshot.signal_states["W"] == "RED"
+    assert snapshot.template_signal_states["N"] == "RED"
+    assert snapshot.active_movements == []
+    # The event that first raised suspicion is scored, then synchronization
+    # evidence is frozen while SUSPECT/LIVE_OVERRIDE is active.
+    assert snapshot.synchronization_evidence_count == 2
+
+
+def test_live_override_recovers_when_template_axis_has_persistent_release():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+    for timestamp in (44.0, 46.0, 48.0, 50.0):
+        override = engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "N")
+        )
+
+    assert override.adaptive_mode == "LIVE_OVERRIDE"
+
+    recovered = None
+    for timestamp in (54.0, 57.0, 60.0):
+        recovered = engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "E")
+        )
+
+    assert recovered is not None
+    assert recovered.adaptive_mode == "NORMAL"
+    assert recovered.template_disagreement is False
+    assert recovered.effective_axis == "EW"
+    assert recovered.signal_states["E"] == "GREEN"
+    assert recovered.synchronization_status == "SYNCHRONIZED"

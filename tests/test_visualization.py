@@ -69,3 +69,14 @@ def test_visualization_shows_movement_specific_groups_as_backend_data():
     assert "movement_stages" in html
     assert "active_movements" in html
     assert "Movement-specific groups are inferred separately" in html
+
+
+
+def test_visualization_surfaces_adaptive_realtime_override_state():
+    html = visualization_page()
+
+    assert 'id="realtimeAdaptive"' in html
+    assert "adaptive_mode" in html
+    assert "template_expected_axis" in html
+    assert "effective_axis" in html
+    assert "Live override:" in html

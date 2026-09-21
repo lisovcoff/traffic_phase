@@ -192,6 +192,9 @@ def test_start_step_status_reset_json_simulation():
         "UNKNOWN"
     }
     assert started["active_movements"] == []
+    assert started["adaptive_mode"] == "NORMAL"
+    assert started["template_disagreement"] is False
+    assert started["template_signal_states"] == started["signal_states"]
     assert (
         started["evidence_summary"][
             "emitted_trajectory_count"
