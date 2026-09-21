@@ -631,3 +631,233 @@ def test_simple_two_phase_case_has_no_movement_specific_stages():
 
     assert result.movement_stages == ()
     assert result.distinct_movement_candidates == ()
+
+
+
+def _stage_c1_candidate(
+    *,
+    approach,
+    movement,
+    start,
+    end,
+    repeatability=1.0,
+    stability=0.95,
+    events=120,
+    cycles=20,
+    score=0.9,
+):
+    return MovementActivationCandidate(
+        approach=approach,
+        movement=movement,
+        phase_start=start,
+        phase_end=end,
+        repeatability=repeatability,
+        stability=stability,
+        usable_event_count=events,
+        observed_cycle_count=cycles,
+        score=score,
+    )
+
+
+def test_degenerate_full_cycle_movement_candidate_is_never_promoted():
+    discovery = EventPhaseDiscovery()
+    phases = (
+        EventPhase(
+            1,
+            4.0,
+            44.0,
+            ("E", "W"),
+            0.98,
+            400,
+            5,
+            ("E", "W"),
+        ),
+        EventPhase(
+            2,
+            46.0,
+            114.0,
+            ("N", "S"),
+            0.99,
+            500,
+            5,
+            ("N", "S"),
+        ),
+    )
+    candidate = _stage_c1_candidate(
+        approach="W",
+        movement="W->_S",
+        start=0.0,
+        end=0.0,
+        repeatability=1.0,
+        stability=1.0,
+        events=61,
+        cycles=10,
+        score=1.0,
+    )
+
+    promoted = discovery._promote_movement_candidates(
+        (candidate,),
+        phases,
+        cycle_seconds=120.0,
+    )
+
+    assert promoted == []
+
+
+def test_chicherina_density_windows_inside_main_green_are_not_promoted():
+    discovery = EventPhaseDiscovery()
+    phases = (
+        EventPhase(
+            1,
+            72.0,
+            114.0,
+            ("E", "W"),
+            0.97,
+            900,
+            8,
+            ("E", "W"),
+        ),
+        EventPhase(
+            2,
+            116.0,
+            64.0,
+            ("N", "S"),
+            0.99,
+            1200,
+            8,
+            ("N", "S"),
+        ),
+    )
+    candidates = (
+        _stage_c1_candidate(
+            approach="E",
+            movement="E->_W",
+            start=66.0,
+            end=96.0,
+            repeatability=0.9677,
+            stability=0.9211,
+            events=355,
+            cycles=30,
+            score=0.9,
+        ),
+        _stage_c1_candidate(
+            approach="W",
+            movement="W->_E",
+            start=64.0,
+            end=82.0,
+            repeatability=1.0,
+            stability=0.935,
+            events=200,
+            cycles=30,
+            score=0.9,
+        ),
+    )
+    before = tuple(
+        (
+            phase.phase_start,
+            phase.phase_end,
+            phase.active_approaches,
+        )
+        for phase in phases
+    )
+
+    promoted = discovery._promote_movement_candidates(
+        candidates,
+        phases,
+        cycle_seconds=120.0,
+    )
+
+    assert promoted == []
+    assert tuple(
+        (
+            phase.phase_start,
+            phase.phase_end,
+            phase.active_approaches,
+        )
+        for phase in phases
+    ) == before
+
+
+def test_lenina_sverdlovsky_strong_distinct_boundaries_stay_promoted():
+    discovery = EventPhaseDiscovery()
+    phases = (
+        EventPhase(
+            1,
+            32.0,
+            50.0,
+            ("N",),
+            0.9091,
+            484,
+            34,
+            ("N",),
+        ),
+        EventPhase(
+            2,
+            50.0,
+            80.0,
+            ("N", "S"),
+            0.9694,
+            1604,
+            6,
+            ("N", "S"),
+        ),
+        EventPhase(
+            3,
+            86.0,
+            24.0,
+            ("E", "W"),
+            0.9783,
+            1351,
+            30,
+            ("E", "W"),
+        ),
+    )
+    candidates = (
+        _stage_c1_candidate(
+            approach="N",
+            movement="N->_E",
+            start=30.0,
+            end=54.0,
+            repeatability=1.0,
+            stability=0.9711,
+            events=242,
+            cycles=36,
+            score=0.8351,
+        ),
+        _stage_c1_candidate(
+            approach="E",
+            movement="E->_N",
+            start=32.0,
+            end=54.0,
+            repeatability=0.8919,
+            stability=0.9461,
+            events=167,
+            cycles=33,
+            score=0.7588,
+        ),
+        _stage_c1_candidate(
+            approach="E",
+            movement="E->_E",
+            start=98.0,
+            end=18.0,
+            repeatability=0.4595,
+            stability=0.875,
+            events=24,
+            cycles=17,
+            score=0.476,
+        ),
+    )
+
+    promoted = discovery._promote_movement_candidates(
+        candidates,
+        phases,
+        cycle_seconds=100.0,
+    )
+
+    assert {
+        stage.movement
+        for stage in promoted
+    } == {
+        "N->_E",
+        "E->_N",
+    }

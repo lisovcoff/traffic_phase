@@ -169,8 +169,10 @@ class EventPhaseDiscovery:
     MOVEMENT_STAGE_MIN_STABILITY = 0.85
     MOVEMENT_STAGE_MIN_EVENTS = 40
     MOVEMENT_STAGE_MIN_CYCLES = 8
-    MOVEMENT_STAGE_MAX_MAIN_JACCARD = 0.75
-    MOVEMENT_STAGE_MAX_DURATION_RATIO = 0.75
+    MOVEMENT_STAGE_MIN_OUTSIDE_SECONDS = 10.0
+    MOVEMENT_STAGE_BOUNDARY_ALIGNMENT_SECONDS = 4.0
+    MOVEMENT_STAGE_MIN_BOUNDARY_SEPARATION_SECONDS = 10.0
+    MOVEMENT_STAGE_MAX_SEPARATE_OVERLAP = 0.25
 
     def __init__(
         self,
@@ -666,11 +668,13 @@ class EventPhaseDiscovery:
         *,
         cycle_seconds: float,
     ) -> list[MovementSignalStage]:
-        """Promote only strong, temporally distinct movement candidates.
+        """Promote only strong movements with a distinct signal boundary.
 
-        Promotion is deliberately separate from main approach inference. A
-        movement stage never changes active_approaches and therefore cannot
-        perturb N/S/E/W signal state or realtime synchronization.
+        A narrow recurring traffic window inside a wider approach green is not
+        enough by itself: sparse demand can create the same pattern. Promotion
+        therefore requires evidence that the movement interval crosses a main
+        approach boundary, occupies a mostly separate window, or shares one
+        main boundary while the other boundary is materially separated.
         """
         n_bins = max(
             1,
@@ -688,6 +692,16 @@ class EventPhaseDiscovery:
                 < self.MOVEMENT_STAGE_MIN_EVENTS
                 or candidate.observed_cycle_count
                 < self.MOVEMENT_STAGE_MIN_CYCLES
+            ):
+                continue
+
+            # start == end is ambiguous here: the interval helper interprets
+            # it as a full cycle, while realtime interval checks interpret it
+            # as empty. Never publish that representation as a signal stage.
+            if self._same_cycle_boundary(
+                candidate.phase_start,
+                candidate.phase_end,
+                cycle_seconds,
             ):
                 continue
 
@@ -711,21 +725,12 @@ class EventPhaseDiscovery:
             if candidate_bins <= 0 or main_bins <= 0:
                 continue
 
-            union = int(np.count_nonzero(candidate_mask | main_mask))
-            intersection = int(
-                np.count_nonzero(candidate_mask & main_mask)
-            )
-            jaccard = (
-                intersection / union
-                if union
-                else 1.0
-            )
-            duration_ratio = candidate_bins / max(1, main_bins)
-            temporally_distinct = (
-                jaccard <= self.MOVEMENT_STAGE_MAX_MAIN_JACCARD
-                or duration_ratio <= self.MOVEMENT_STAGE_MAX_DURATION_RATIO
-            )
-            if not temporally_distinct:
+            if not self._movement_interval_is_distinct(
+                candidate,
+                candidate_mask,
+                main_mask,
+                cycle_seconds=cycle_seconds,
+            ):
                 continue
 
             support_factor = min(
@@ -765,6 +770,108 @@ class EventPhaseDiscovery:
             )
 
         return promoted
+
+    def _movement_interval_is_distinct(
+        self,
+        candidate: MovementActivationCandidate,
+        candidate_mask: np.ndarray,
+        main_mask: np.ndarray,
+        *,
+        cycle_seconds: float,
+    ) -> bool:
+        candidate_bins = int(np.count_nonzero(candidate_mask))
+        if candidate_bins <= 0:
+            return False
+
+        overlap_bins = int(
+            np.count_nonzero(candidate_mask & main_mask)
+        )
+        overlap_fraction = overlap_bins / candidate_bins
+        if (
+            overlap_fraction
+            <= self.MOVEMENT_STAGE_MAX_SEPARATE_OVERLAP
+        ):
+            return True
+
+        main_start, main_end = self._mask_interval_seconds(main_mask)
+        if self._same_cycle_boundary(
+            main_start,
+            main_end,
+            cycle_seconds,
+        ):
+            return False
+
+        start_delta = self._signed_cycle_delta(
+            candidate.phase_start,
+            main_start,
+            cycle_seconds,
+        )
+        end_delta = self._signed_cycle_delta(
+            candidate.phase_end,
+            main_end,
+            cycle_seconds,
+        )
+
+        # A candidate materially crossing outside the main approach green has
+        # direct temporal evidence that it is not merely a sparse subset.
+        if (
+            start_delta
+            <= -self.MOVEMENT_STAGE_MIN_OUTSIDE_SECONDS
+            or end_delta
+            >= self.MOVEMENT_STAGE_MIN_OUTSIDE_SECONDS
+        ):
+            return True
+
+        # Protected early/late substages often share one main-green boundary
+        # but terminate well before, or begin well after, the other. Requiring
+        # boundary alignment avoids promoting ordinary density windows such as
+        # the Chicherina straight-flow examples.
+        aligned_start = (
+            abs(start_delta)
+            <= self.MOVEMENT_STAGE_BOUNDARY_ALIGNMENT_SECONDS
+        )
+        aligned_end = (
+            abs(end_delta)
+            <= self.MOVEMENT_STAGE_BOUNDARY_ALIGNMENT_SECONDS
+        )
+        ends_materially_early = (
+            end_delta
+            <= -self.MOVEMENT_STAGE_MIN_BOUNDARY_SEPARATION_SECONDS
+        )
+        starts_materially_late = (
+            start_delta
+            >= self.MOVEMENT_STAGE_MIN_BOUNDARY_SEPARATION_SECONDS
+        )
+        return (
+            aligned_start
+            and ends_materially_early
+        ) or (
+            aligned_end
+            and starts_materially_late
+        )
+
+    @staticmethod
+    def _same_cycle_boundary(
+        left: float,
+        right: float,
+        cycle_seconds: float,
+    ) -> bool:
+        if cycle_seconds <= 0:
+            return left == right
+        return abs(
+            (left - right) % cycle_seconds
+        ) < 1e-9
+
+    @staticmethod
+    def _signed_cycle_delta(
+        value: float,
+        reference: float,
+        cycle_seconds: float,
+    ) -> float:
+        delta = (value - reference) % cycle_seconds
+        if delta > cycle_seconds / 2.0:
+            delta -= cycle_seconds
+        return float(delta)
 
     def _interval_mask(
         self,
