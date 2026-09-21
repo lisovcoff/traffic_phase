@@ -324,3 +324,96 @@ def test_phase_template_does_not_keep_historical_origin():
 
     assert "origin_timestamp_ms" not in template.to_dict()
     assert template.to_phase_model().origin_timestamp_ms == 0
+
+
+
+def staggered_phase_model():
+    return EventPhaseDiscoveryResult(
+        cycle_seconds=100.0,
+        bin_seconds=2.0,
+        phases=(
+            EventPhase(1, 0.0, 20.0, ("N",), 0.9, 20, 1, ("N",)),
+            EventPhase(
+                2,
+                20.0,
+                50.0,
+                ("N", "S"),
+                0.9,
+                30,
+                1,
+                ("N", "S"),
+            ),
+            EventPhase(
+                3,
+                55.0,
+                100.0,
+                ("E", "W"),
+                0.9,
+                40,
+                1,
+                ("E", "W"),
+            ),
+        ),
+        profiles=(),
+        cycle_coverage=0.95,
+        overlap=0.0,
+        supporting_event_count=90,
+        contradictory_event_count=3,
+    )
+
+
+def test_realtime_template_supports_repeated_approach_across_stages():
+    template = RealtimePhaseTemplate.from_phase_model(
+        staggered_phase_model()
+    )
+
+    assert template.phase_at(10.0).active_approaches == ("N",)
+    assert template.phase_at(30.0).active_approaches == ("N", "S")
+    assert template.phase_at(52.0) is None
+    assert template.phase_at(70.0).active_approaches == ("E", "W")
+    assert template.group_for_approach("N") == ("NS",)
+    assert template.group_for_approach("S") == ("NS",)
+    assert template.group_for_approach("E") == ("EW",)
+
+
+def test_phase_synchronizer_handles_staggered_stage_template():
+    template = RealtimePhaseTemplate.from_phase_model(
+        staggered_phase_model()
+    )
+    synchronizer = RealtimePhaseSynchronizer(
+        template,
+        min_evidence_events=6,
+        resolution_seconds=2.0,
+    )
+    true_offset = 18.0
+    desired = (
+        (10.0, "N"),
+        (34.0, "N"),
+        (36.0, "S"),
+        (76.0, "E"),
+        (78.0, "W"),
+        (12.0, "N"),
+        (38.0, "S"),
+        (80.0, "E"),
+    )
+    events = []
+    for index, (position, approach) in enumerate(desired):
+        timestamp_s = (
+            (30 + index) * 100.0
+            + ((position - true_offset) % 100.0)
+        )
+        events.append(
+            _stream_event(
+                timestamp_s,
+                approach,
+            )
+        )
+
+    state = synchronizer.ingest_many(events)
+
+    assert state.status == "SYNCHRONIZED"
+    assert state.offset_seconds is not None
+    assert _circular_error(
+        state.offset_seconds,
+        true_offset,
+    ) <= 4.0

@@ -130,10 +130,20 @@ class SignalStateEstimator:
         phase_confidence = self._phase_confidence(phase)
         recent = self._recent_events(events, current_time_s, origin_ms)
         traffic_confidence = self._traffic_confidence(recent)
-        transition_kind = self._transition_kind(position, phase)
-
-        active = set(getattr(phase, "active_approaches", ())) if phase else set()
+        active = (
+            set(getattr(phase, "active_approaches", ()))
+            if phase
+            else set()
+        )
         evidence = self._event_evidence(recent, active)
+        transition_kinds = {
+            approach: self._transition_kind_for_approach(
+                position,
+                phase,
+                approach,
+            )
+            for approach in APPROACHES
+        }
 
         states: list[ApproachState] = []
         for approach in APPROACHES:
@@ -144,6 +154,7 @@ class SignalStateEstimator:
                 contradictory,
             )
             phase_active = approach in active
+            transition_kind = transition_kinds[approach]
 
             if phase is None or phase_confidence < self.min_phase_confidence:
                 state = SignalState.UNKNOWN
@@ -169,9 +180,13 @@ class SignalStateEstimator:
                     )
                     and transition_kind is None
                 ):
-                    # Keep the phase state; only confidence is reduced.
+                    # Keep the structural stage state; only confidence falls.
                     probability = min(probability, 0.55)
-                    state = SignalState.GREEN if phase_active else SignalState.RED
+                    state = (
+                        SignalState.GREEN
+                        if phase_active
+                        else SignalState.RED
+                    )
 
             states.append(
                 ApproachState(
@@ -192,7 +207,10 @@ class SignalStateEstimator:
             timestamp_s=float(current_time_s),
             cycle_phase_s=round(float(position), 3),
             phase_id=getattr(phase, "phase_id", None),
-            transition=transition_kind is not None,
+            transition=any(
+                kind is not None
+                for kind in transition_kinds.values()
+            ),
             phase_confidence=round(phase_confidence, 4),
             traffic_evidence_confidence=round(traffic_confidence, 4),
             approaches=tuple(states),
@@ -247,16 +265,55 @@ class SignalStateEstimator:
     def _in_interval(value: float, start: float, end: float) -> bool:
         return start <= value < end if start <= end else value >= start or value < end
 
-    def _transition_kind(self, position: float, phase) -> SignalState | None:
-        if phase is None or self.yellow_duration_seconds == 0:
+    def _transition_kind_for_approach(
+        self,
+        position: float,
+        phase,
+        approach: str,
+    ) -> SignalState | None:
+        """Apply transitions to an approach, not to the whole stage.
+
+        When {N} becomes {N,S}, N remains GREEN while only S enters its
+        RED_YELLOW/start transition. Likewise an approach that remains active
+        in the next stage is not turned YELLOW at the internal stage boundary.
+        """
+        if (
+            phase is None
+            or self.yellow_duration_seconds == 0
+            or approach not in getattr(phase, "active_approaches", ())
+        ):
             return None
-        start = float(phase.phase_start) % self.phase_model.cycle_seconds
-        end = float(phase.phase_end) % self.phase_model.cycle_seconds
-        distance_to_end = (end - position) % self.phase_model.cycle_seconds
-        if 0 < distance_to_end <= self.yellow_duration_seconds:
+
+        cycle = self.phase_model.cycle_seconds
+        start = float(phase.phase_start) % cycle
+        end = float(phase.phase_end) % cycle
+        epsilon = min(0.001, max(1e-6, cycle / 1_000_000.0))
+
+        previous_phase = self._phase_at((start - epsilon) % cycle)
+        next_phase = self._phase_at((end + epsilon) % cycle)
+        previous_active = (
+            approach in getattr(previous_phase, "active_approaches", ())
+            if previous_phase is not None
+            else False
+        )
+        next_active = (
+            approach in getattr(next_phase, "active_approaches", ())
+            if next_phase is not None
+            else False
+        )
+
+        distance_to_end = (end - position) % cycle
+        if (
+            not next_active
+            and 0 < distance_to_end <= self.yellow_duration_seconds
+        ):
             return SignalState.YELLOW
-        distance_from_start = (position - start) % self.phase_model.cycle_seconds
-        if 0 <= distance_from_start <= self.yellow_duration_seconds:
+
+        distance_from_start = (position - start) % cycle
+        if (
+            not previous_active
+            and 0 <= distance_from_start <= self.yellow_duration_seconds
+        ):
             return SignalState.RED_YELLOW
         return None
 
@@ -283,44 +340,73 @@ class SignalStateEstimator:
             and event.event_type in {EventType.RELEASE, EventType.CROSSING}
         ]
 
+    @staticmethod
+    def _approaches_conflict(left: str, right: str) -> bool:
+        vertical = {"N", "S"}
+        horizontal = {"E", "W"}
+        return (
+            (left in vertical and right in horizontal)
+            or (left in horizontal and right in vertical)
+        )
+
+    @staticmethod
+    def _event_weight(event: TrajectoryEvent) -> float:
+        return (
+            1.0 if event.event_type == EventType.RELEASE else 0.5
+        ) * max(0.0, min(1.0, float(event.confidence)))
+
     def _event_evidence(
         self,
         events: Sequence[TrajectoryEvent],
         active: set[str],
     ) -> dict[str, tuple[float, int, int]]:
-        evidence = {approach: [0.0, 0, 0] for approach in APPROACHES}
-        for event in events:
-            if event.approach not in evidence:
-                continue
-            weight = (
-                1.0 if event.event_type == EventType.RELEASE else 0.5
-            ) * max(0.0, min(1.0, float(event.confidence)))
-            evidence[event.approach][0] += weight
-            if event.approach in active:
-                evidence[event.approach][1] += 1
-            else:
-                evidence[event.approach][2] += 1
+        """Score evidence against the exact active-approach set.
 
-        # For each approach, events from its own group support it; events from
-        # the opposing active group are contradictory evidence. A phase model
-        # with no active group yields no direct signal-state conclusion.
-        if active:
-            for approach in APPROACHES:
-                if approach in active:
-                    evidence[approach][1] = sum(
-                        1 for event in events if event.approach in active
+        Compatible N/S (or E/W) traffic is not treated as contradictory merely
+        because only one of the pair is currently active. This is required for
+        staggered starts such as {N} -> {N,S}.
+        """
+        result: dict[str, tuple[float, int, int]] = {}
+        for approach in APPROACHES:
+            own_events = [
+                event
+                for event in events
+                if event.approach == approach
+            ]
+            conflicting_events = [
+                event
+                for event in events
+                if self._approaches_conflict(
+                    approach,
+                    event.approach,
+                )
+            ]
+
+            if approach in active:
+                support_events = own_events
+                contradiction_events = conflicting_events
+            else:
+                support_events = [
+                    event
+                    for event in events
+                    if event.approach in active
+                    and self._approaches_conflict(
+                        approach,
+                        event.approach,
                     )
-                    evidence[approach][2] = sum(
-                        1 for event in events if event.approach not in active
-                    )
-                else:
-                    evidence[approach][1] = sum(
-                        1 for event in events if event.approach not in active
-                    )
-                    evidence[approach][2] = sum(
-                        1 for event in events if event.approach in active
-                    )
-        return {key: tuple(value) for key, value in evidence.items()}
+                ]
+                contradiction_events = own_events
+
+            support_weight = sum(
+                self._event_weight(event)
+                for event in support_events
+            )
+            result[approach] = (
+                support_weight,
+                len(support_events),
+                len(contradiction_events),
+            )
+        return result
 
     def _approach_traffic_confidence(
         self,
@@ -384,9 +470,17 @@ class SignalStateEstimator:
         conflict_times_s = [
             (event.timestamp_ms - origin_ms) / 1000.0
             for event in events
-            if ((event.approach not in active) if approach in active else (event.approach in active))
-            and event.event_type in {EventType.RELEASE, EventType.CROSSING}
-            and (event.timestamp_ms - origin_ms) / 1000.0 <= current_time_s
+            if (
+                (
+                    self._approaches_conflict(approach, event.approach)
+                    if approach in active
+                    else event.approach == approach
+                )
+                and event.event_type
+                in {EventType.RELEASE, EventType.CROSSING}
+                and (event.timestamp_ms - origin_ms) / 1000.0
+                <= current_time_s
+            )
         ]
         if not conflict_times_s:
             return False

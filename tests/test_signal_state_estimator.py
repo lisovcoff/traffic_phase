@@ -169,3 +169,55 @@ def test_absolute_event_timestamps_can_be_rebased_explicitly():
         )],
     )
     assert states(result)["N"].supporting_event_count == 1
+
+
+
+def staggered_model():
+    phases = (
+        EventPhase(1, 0.0, 20.0, ("N",), 0.9, 20, 1, ("N",)),
+        EventPhase(2, 20.0, 50.0, ("N", "S"), 0.9, 30, 1, ("N", "S")),
+        EventPhase(3, 55.0, 100.0, ("E", "W"), 0.9, 40, 1, ("E", "W")),
+    )
+    return EventPhaseDiscoveryResult(
+        cycle_seconds=100.0,
+        bin_seconds=2.0,
+        phases=phases,
+        profiles=(),
+        cycle_coverage=0.95,
+        overlap=0.0,
+        supporting_event_count=90,
+        contradictory_event_count=3,
+    )
+
+
+def test_staggered_stage_states_and_clearance_are_explicit():
+    estimator = SignalStateEstimator(staggered_model())
+
+    n_only = states(estimator.estimate(10.0, []))
+    assert n_only["N"].state == SignalState.GREEN
+    assert n_only["S"].state == SignalState.RED
+    assert n_only["E"].state == SignalState.RED
+
+    overlap = states(estimator.estimate(30.0, []))
+    assert overlap["N"].state == SignalState.GREEN
+    assert overlap["S"].state == SignalState.GREEN
+    assert overlap["E"].state == SignalState.RED
+
+    clearance = states(estimator.estimate(52.0, []))
+    assert {item.state for item in clearance.values()} == {
+        SignalState.UNKNOWN
+    }
+
+    cross = states(estimator.estimate(70.0, []))
+    assert cross["N"].state == SignalState.RED
+    assert cross["S"].state == SignalState.RED
+    assert cross["E"].state == SignalState.GREEN
+    assert cross["W"].state == SignalState.GREEN
+
+
+def test_internal_stage_boundary_does_not_turn_continuing_n_yellow():
+    estimator = SignalStateEstimator(staggered_model())
+    result = states(estimator.estimate(20.5, []))
+
+    assert result["N"].state == SignalState.GREEN
+    assert result["S"].state == SignalState.RED_YELLOW

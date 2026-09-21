@@ -120,7 +120,9 @@ def _compact_phase_model(session: SessionReconstruction) -> dict[str, object] | 
         return None
     model = session.phase_model
     total = model.supporting_event_count + model.contradictory_event_count
+    stages = [phase.to_dict() for phase in model.phases]
     return {
+        "model_type": "recurring_signal_stages",
         "cycle_seconds": model.cycle_seconds,
         "bin_seconds": model.bin_seconds,
         "origin_timestamp_ms": model.origin_timestamp_ms,
@@ -132,7 +134,10 @@ def _compact_phase_model(session: SessionReconstruction) -> dict[str, object] | 
             if total
             else None
         ),
-        "phases": [phase.to_dict() for phase in model.phases],
+        # phases is retained for API compatibility; stages is the preferred
+        # name now that N/S/E/W activation is inferred independently.
+        "phases": stages,
+        "stages": stages,
     }
 
 

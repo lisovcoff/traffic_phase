@@ -84,10 +84,23 @@ class RealtimePhaseTemplate:
         return None
 
     def group_for_approach(self, approach: str) -> tuple[str, ...] | None:
-        for phase in self.phases:
-            if approach in phase.active_approaches:
-                return tuple(sorted(phase.active_approaches))
-        return None
+        """Return a stable synchronization family, not a stage membership.
+
+        An approach may appear in several stages ({N} and {N,S}), so using the
+        first active-stage tuple as its identity would make synchronization
+        depend on stage ordering. The orthogonal axis remains a stable family
+        for requiring evidence from both sides of the intersection.
+        """
+        if not any(
+            approach in phase.active_approaches
+            for phase in self.phases
+        ):
+            return None
+        if approach in {"N", "S"}:
+            return ("NS",)
+        if approach in {"E", "W"}:
+            return ("EW",)
+        return (approach,)
 
 
 @dataclass(frozen=True)

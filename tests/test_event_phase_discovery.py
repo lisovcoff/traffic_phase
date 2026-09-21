@@ -180,7 +180,7 @@ def test_phase_schedule_is_not_dominated_by_group_traffic_volume():
     assert max(durations) <= 100.0
 
 
-def test_sparse_random_second_group_does_not_force_minimum_phase():
+def test_sparse_random_second_group_becomes_unknown_not_minimum_phase():
     events = []
     for repeat in range(10):
         base = repeat * 120.0
@@ -188,23 +188,22 @@ def test_sparse_random_second_group_does_not_force_minimum_phase():
             events.append(_event(EventType.RELEASE, base + offset, "N"))
 
     # Only three isolated EW observations across ten otherwise observed
-    # cycles. Independent normalization used to turn this sparse group into a
-    # full-strength timing profile.
+    # cycles. They must not create an artificial minimum-duration green.
     for timestamp in (67.0, 3 * 120.0 + 83.0, 8 * 120.0 + 71.0):
         events.append(_event(EventType.RELEASE, timestamp, "E"))
 
     result = EventPhaseDiscovery().discover(events, cycle_seconds=120.0)
     profiles = {profile.group: profile for profile in result.profiles}
-    phases = {
-        phase.active_approaches: phase
-        for phase in result.phases
-    }
 
     assert profiles["EW"].usable_event_count == 3
     assert profiles["EW"].observed_cycle_count == 3
     assert profiles["EW"].reliability < 0.2
-    assert _phase_duration(phases[("E", "W")]) > 8.0
-    assert phases[("E", "W")].confidence < 0.2
+    assert all(
+        "E" not in phase.active_approaches
+        and "W" not in phase.active_approaches
+        for phase in result.phases
+    )
+    assert result.cycle_coverage < 1.0
 
 
 def test_symmetric_two_phase_signal_keeps_high_group_reliability():
@@ -240,3 +239,77 @@ def test_reliability_ignores_empty_cycles_in_long_gaps():
     assert profiles["EW"].observed_cycle_count == 4
     assert profiles["NS"].reliability == 1.0
     assert profiles["EW"].reliability == 1.0
+
+
+
+def _staggered_video_like_events(repeats=12):
+    result = []
+    for repeat in range(repeats):
+        base = repeat * 100.0
+        for offset in range(2, 50, 4):
+            result.append(_event(EventType.RELEASE, base + offset, "N"))
+            result.append(_event(EventType.CROSSING, base + offset + 1, "N"))
+        for offset in range(22, 50, 4):
+            result.append(_event(EventType.RELEASE, base + offset, "S"))
+            result.append(_event(EventType.CROSSING, base + offset + 1, "S"))
+        for approach in ("E", "W"):
+            for offset in range(56, 98, 4):
+                result.append(
+                    _event(EventType.RELEASE, base + offset, approach)
+                )
+                result.append(
+                    _event(EventType.CROSSING, base + offset + 1, approach)
+                )
+    return result
+
+
+def test_discovers_staggered_overlapping_approach_stages():
+    result = EventPhaseDiscovery().discover(
+        _staggered_video_like_events(),
+        cycle_seconds=100.0,
+    )
+
+    active_sets = {
+        phase.active_approaches
+        for phase in result.phases
+    }
+    assert ("N",) in active_sets
+    assert ("N", "S") in active_sets
+    assert ("E", "W") in active_sets
+    assert result.cycle_coverage < 1.0
+
+    n_only = next(
+        phase
+        for phase in result.phases
+        if phase.active_approaches == ("N",)
+    )
+    ns = next(
+        phase
+        for phase in result.phases
+        if phase.active_approaches == ("N", "S")
+    )
+    ew = next(
+        phase
+        for phase in result.phases
+        if phase.active_approaches == ("E", "W")
+    )
+
+    assert 14.0 <= _phase_duration(n_only, 100.0) <= 26.0
+    assert 20.0 <= _phase_duration(ns, 100.0) <= 36.0
+    assert 34.0 <= _phase_duration(ew, 100.0) <= 48.0
+
+
+def test_simple_sparse_two_phase_case_remains_supported():
+    result = EventPhaseDiscovery().discover(
+        _events(cycle=120.0, repeats=8),
+        cycle_seconds=120.0,
+    )
+
+    assert {
+        phase.active_approaches
+        for phase in result.phases
+    } == {
+        ("N", "S"),
+        ("E", "W"),
+    }
+    assert result.cycle_coverage == 1.0
