@@ -138,6 +138,10 @@ def _compact_phase_model(session: SessionReconstruction) -> dict[str, object] | 
         # name now that N/S/E/W activation is inferred independently.
         "phases": stages,
         "stages": stages,
+        "distinct_movement_candidates": [
+            candidate.to_dict()
+            for candidate in model.distinct_movement_candidates
+        ],
     }
 
 

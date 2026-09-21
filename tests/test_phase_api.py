@@ -103,6 +103,7 @@ def test_json_api_returns_session_based_result():
     assert len(session["phase_model"]["phases"]) == 2
     assert session["phase_model"]["model_type"] == "recurring_signal_stages"
     assert session["phase_model"]["stages"] == session["phase_model"]["phases"]
+    assert "distinct_movement_candidates" in session["phase_model"]
     assert session["timeline"]
     first_point = session["timeline"][0]
     assert set(first_point["states"]) == {"N", "S", "E", "W"}

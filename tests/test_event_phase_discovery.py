@@ -6,12 +6,18 @@ from app.core.event_phase_discovery import EventPhaseDiscovery, PhaseGroup
 from app.core.models import EventType, TrajectoryEvent
 
 
-def _event(event_type, timestamp_s, approach, confidence=1.0):
+def _event(
+    event_type,
+    timestamp_s,
+    approach,
+    confidence=1.0,
+    movement=None,
+):
     return TrajectoryEvent(
         event_type=event_type,
         timestamp_ms=int(timestamp_s * 1000),
         approach=approach,
-        movement=f"{approach}->x",
+        movement=movement or f"{approach}->x",
         confidence=confidence,
         quality="HIGH",
     )
@@ -313,3 +319,194 @@ def test_simple_sparse_two_phase_case_remains_supported():
         ("E", "W"),
     }
     assert result.cycle_coverage == 1.0
+
+
+
+def _movement_cluster_regression_events(repeats=12):
+    events = []
+    for repeat in range(repeats):
+        base = repeat * 100.0
+
+        for offset in range(30, 82, 4):
+            events.extend(
+                (
+                    _event(
+                        EventType.RELEASE,
+                        base + offset,
+                        "N",
+                        movement="N->_S",
+                    ),
+                    _event(
+                        EventType.CROSSING,
+                        base + offset + 1,
+                        "N",
+                        movement="N->_S",
+                    ),
+                )
+            )
+
+        for offset in range(50, 84, 4):
+            events.extend(
+                (
+                    _event(
+                        EventType.RELEASE,
+                        base + offset,
+                        "S",
+                        movement="S->_N",
+                    ),
+                    _event(
+                        EventType.CROSSING,
+                        base + offset + 1,
+                        "S",
+                        movement="S->_N",
+                    ),
+                )
+            )
+
+        for offset in list(range(82, 100, 4)) + list(range(0, 30, 4)):
+            events.extend(
+                (
+                    _event(
+                        EventType.RELEASE,
+                        base + offset,
+                        "E",
+                        movement="E->_W",
+                    ),
+                    _event(
+                        EventType.CROSSING,
+                        base + offset + 1,
+                        "E",
+                        movement="E->_W",
+                    ),
+                )
+            )
+
+        # Strong and recurring, but temporally distinct secondary movement.
+        # It must be retained as a candidate without widening main E green.
+        for offset in range(34, 50, 4):
+            events.append(
+                _event(
+                    EventType.RELEASE,
+                    base + offset,
+                    "E",
+                    movement="E->_N",
+                )
+            )
+
+        for offset in list(range(84, 100, 4)) + list(range(0, 30, 4)):
+            events.extend(
+                (
+                    _event(
+                        EventType.RELEASE,
+                        base + offset,
+                        "W",
+                        movement="W->_E",
+                    ),
+                    _event(
+                        EventType.CROSSING,
+                        base + offset + 1,
+                        "W",
+                        movement="W->_E",
+                    ),
+                )
+            )
+    return events
+
+
+def test_secondary_movement_does_not_widen_main_approach_activation():
+    events = _movement_cluster_regression_events()
+    discovery = EventPhaseDiscovery()
+
+    profiles, evidence, counts = discovery.build_profiles(
+        events,
+        cycle_seconds=100.0,
+    )
+    masks = discovery._independent_activation_masks(
+        evidence,
+        counts,
+    )
+    by_group = {
+        group.name: masks[index]
+        for index, group in enumerate(discovery.groups)
+    }
+
+    e_bins = [
+        index * discovery.bin_seconds
+        for index, active in enumerate(by_group["E"])
+        if active
+    ]
+    assert e_bins
+    # Main E is the wrap-around straight movement. The secondary 34-50 s
+    # turn must not extend the E approach mask into the N-only window.
+    assert not any(34.0 <= value < 50.0 for value in e_bins)
+
+
+def test_distinct_secondary_movement_is_preserved_as_candidate():
+    result = EventPhaseDiscovery().discover(
+        _movement_cluster_regression_events(),
+        cycle_seconds=100.0,
+    )
+
+    candidate = next(
+        item
+        for item in result.distinct_movement_candidates
+        if item.movement == "E->_N"
+    )
+
+    assert candidate.approach == "E"
+    assert candidate.repeatability >= 0.9
+    assert candidate.stability >= 0.8
+    assert 30.0 <= candidate.phase_start <= 38.0
+    assert 48.0 <= candidate.phase_end <= 54.0
+
+
+def test_secondary_turn_no_longer_destroys_n_only_stage():
+    result = EventPhaseDiscovery().discover(
+        _movement_cluster_regression_events(),
+        cycle_seconds=100.0,
+    )
+    active_sets = {
+        phase.active_approaches
+        for phase in result.phases
+    }
+
+    assert ("N",) in active_sets
+    assert ("N", "S") in active_sets
+    assert ("E", "W") in active_sets
+
+    n_only = next(
+        phase
+        for phase in result.phases
+        if phase.active_approaches == ("N",)
+    )
+    assert 12.0 <= _phase_duration(n_only, 100.0) <= 24.0
+
+
+def test_weak_secondary_movement_does_not_create_candidate():
+    events = _movement_cluster_regression_events()
+    events.extend(
+        (
+            _event(
+                EventType.CROSSING,
+                36.0,
+                "E",
+                movement="E->_E",
+            ),
+            _event(
+                EventType.CROSSING,
+                38.0,
+                "E",
+                movement="E->_E",
+            ),
+        )
+    )
+
+    result = EventPhaseDiscovery().discover(
+        events,
+        cycle_seconds=100.0,
+    )
+
+    assert all(
+        item.movement != "E->_E"
+        for item in result.distinct_movement_candidates
+    )
