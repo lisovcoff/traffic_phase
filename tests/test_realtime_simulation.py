@@ -191,6 +191,7 @@ def test_start_step_status_reset_json_simulation():
     assert set(started["signal_states"].values()) == {
         "UNKNOWN"
     }
+    assert started["active_movements"] == []
     assert (
         started["evidence_summary"][
             "emitted_trajectory_count"

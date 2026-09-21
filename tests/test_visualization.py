@@ -57,3 +57,15 @@ def test_visualization_cleans_simulation_with_delete_keepalive():
 
     assert "method:'DELETE',keepalive:true" in html
     assert "navigator.sendBeacon" not in html
+
+
+
+def test_visualization_shows_movement_specific_groups_as_backend_data():
+    html = visualization_page()
+
+    assert 'id="batchActiveMovements"' in html
+    assert 'id="batchMovementList"' in html
+    assert 'id="realtimeMovements"' in html
+    assert "movement_stages" in html
+    assert "active_movements" in html
+    assert "Movement-specific groups are inferred separately" in html

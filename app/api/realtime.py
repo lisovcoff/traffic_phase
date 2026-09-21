@@ -5,7 +5,11 @@ from threading import RLock
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.core.event_phase_discovery import EventPhase, EventPhaseDiscoveryResult
+from app.core.event_phase_discovery import (
+    EventPhase,
+    EventPhaseDiscoveryResult,
+    MovementSignalStage,
+)
 from app.core.anomaly_profile import TrafficBaselineProfile
 from app.core.models import EventType, TrajectoryEvent
 from app.core.realtime_inference import (
@@ -24,6 +28,7 @@ class PhasePayload(BaseModel):
     overlap: float = Field(default=0.0, ge=0, le=1)
     supporting_event_count: int = Field(default=0, ge=0)
     contradictory_event_count: int = Field(default=0, ge=0)
+    movement_stages: list[dict[str, object]] = Field(default_factory=list)
 
 
 class BaselineProfilePayload(BaseModel):
@@ -75,6 +80,25 @@ def _build_phase_model(payload: PhasePayload) -> EventPhaseDiscoveryResult:
         )
         for item in payload.phases
     )
+    movement_stages = tuple(
+        MovementSignalStage(
+            movement_stage_id=int(item["movement_stage_id"]),
+            approach=str(item["approach"]),
+            movement=str(item["movement"]),
+            phase_start=float(item["phase_start"]),
+            phase_end=float(item["phase_end"]),
+            confidence=float(item.get("confidence", 0.0)),
+            repeatability=float(item.get("repeatability", 0.0)),
+            stability=float(item.get("stability", 0.0)),
+            supporting_event_count=int(
+                item.get("supporting_event_count", 0)
+            ),
+            observed_cycle_count=int(
+                item.get("observed_cycle_count", 0)
+            ),
+        )
+        for item in payload.movement_stages
+    )
     return EventPhaseDiscoveryResult(
         cycle_seconds=payload.cycle_seconds,
         bin_seconds=payload.bin_seconds,
@@ -86,6 +110,7 @@ def _build_phase_model(payload: PhasePayload) -> EventPhaseDiscoveryResult:
         contradictory_event_count=payload.contradictory_event_count,
         # Historical reference origin is not part of the realtime template.
         origin_timestamp_ms=0,
+        movement_stages=movement_stages,
     )
 
 

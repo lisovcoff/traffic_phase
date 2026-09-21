@@ -26,6 +26,7 @@ class RealtimeInferenceSnapshot:
     phase_id: int | None
     phase: dict[str, object] | None
     signal_states: dict[str, str]
+    active_movements: list[dict[str, object]]
     confidence: float
     phase_confidence: float
     traffic_evidence_confidence: float
@@ -282,6 +283,12 @@ class RealtimeSignalInferenceEngine:
             item.approach: item.state.value
             for item in result.approaches
         }
+        active_movements = [
+            stage.to_dict()
+            for stage in self.phase_template.active_movements_at(
+                cycle_position_s
+            )
+        ]
         evidence_summary = {
             item.approach: {
                 "state": item.state.value,
@@ -313,6 +320,7 @@ class RealtimeSignalInferenceEngine:
             phase_id=result.phase_id,
             phase=phase,
             signal_states=signal_states,
+            active_movements=active_movements,
             confidence=confidence,
             phase_confidence=result.phase_confidence,
             traffic_evidence_confidence=result.traffic_evidence_confidence,
@@ -352,6 +360,7 @@ class RealtimeSignalInferenceEngine:
             phase_id=None,
             phase=None,
             signal_states=states,
+            active_movements=[],
             confidence=0.0,
             phase_confidence=0.0,
             traffic_evidence_confidence=0.0,

@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.event_phase_discovery import EventPhaseDiscovery, PhaseGroup
+from app.core.event_phase_discovery import (
+    EventPhase,
+    EventPhaseDiscovery,
+    MovementActivationCandidate,
+    PhaseGroup,
+)
 from app.core.models import EventType, TrajectoryEvent
 
 
@@ -345,6 +350,18 @@ def _movement_cluster_regression_events(repeats=12):
                 )
             )
 
+        # Strong recurring N turn substage inside the wider N main
+        # approach interval.
+        for offset in range(30, 54, 4):
+            events.append(
+                _event(
+                    EventType.RELEASE,
+                    base + offset,
+                    "N",
+                    movement="N->_E",
+                )
+            )
+
         for offset in range(50, 84, 4):
             events.extend(
                 (
@@ -510,3 +527,107 @@ def test_weak_secondary_movement_does_not_create_candidate():
         item.movement != "E->_E"
         for item in result.distinct_movement_candidates
     )
+
+
+
+def test_strong_distinct_movements_are_promoted_conservatively():
+    result = EventPhaseDiscovery().discover(
+        _movement_cluster_regression_events(),
+        cycle_seconds=100.0,
+    )
+
+    promoted = {
+        stage.movement: stage
+        for stage in result.movement_stages
+    }
+
+    assert {"N->_E", "E->_N"} <= set(promoted)
+    assert promoted["N->_E"].repeatability >= 0.9
+    assert promoted["N->_E"].stability >= 0.85
+    assert promoted["N->_E"].supporting_event_count >= 50
+    assert promoted["E->_N"].repeatability >= 0.75
+    assert promoted["E->_N"].stability >= 0.85
+    assert all(stage.confidence >= 0.8 for stage in promoted.values())
+
+
+def test_weak_real_like_candidate_stays_diagnostic_not_signal_stage():
+    discovery = EventPhaseDiscovery()
+    phases = (
+        EventPhase(
+            1,
+            32.0,
+            50.0,
+            ("N",),
+            0.9,
+            100,
+            2,
+            ("N",),
+        ),
+        EventPhase(
+            2,
+            50.0,
+            80.0,
+            ("N", "S"),
+            0.9,
+            100,
+            2,
+            ("N", "S"),
+        ),
+        EventPhase(
+            3,
+            86.0,
+            24.0,
+            ("E", "W"),
+            0.9,
+            100,
+            2,
+            ("E", "W"),
+        ),
+    )
+    weak = MovementActivationCandidate(
+        approach="E",
+        movement="E->_E",
+        phase_start=98.0,
+        phase_end=18.0,
+        repeatability=0.4595,
+        stability=0.875,
+        usable_event_count=24,
+        observed_cycle_count=17,
+        score=0.476,
+    )
+
+    promoted = discovery._promote_movement_candidates(
+        (weak,),
+        phases,
+        cycle_seconds=100.0,
+    )
+
+    assert promoted == []
+    assert weak.movement == "E->_E"
+
+
+def test_movement_promotion_does_not_change_main_approach_stages():
+    result = EventPhaseDiscovery().discover(
+        _movement_cluster_regression_events(),
+        cycle_seconds=100.0,
+    )
+
+    assert {
+        phase.active_approaches
+        for phase in result.phases
+    } == {
+        ("N",),
+        ("N", "S"),
+        ("E", "W"),
+    }
+    assert result.movement_stages
+
+
+def test_simple_two_phase_case_has_no_movement_specific_stages():
+    result = EventPhaseDiscovery().discover(
+        _events(cycle=120.0, repeats=8),
+        cycle_seconds=120.0,
+    )
+
+    assert result.movement_stages == ()
+    assert result.distinct_movement_candidates == ()

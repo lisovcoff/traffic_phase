@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from app.core.event_phase_discovery import EventPhase, EventPhaseDiscoveryResult
+from app.core.event_phase_discovery import (
+    EventPhase,
+    EventPhaseDiscoveryResult,
+    MovementSignalStage,
+)
 from app.core.models import EventType, TrajectoryEvent
 
 
@@ -18,6 +22,7 @@ class RealtimePhaseTemplate:
     overlap: float = 0.0
     supporting_event_count: int = 0
     contradictory_event_count: int = 0
+    movement_stages: tuple[MovementSignalStage, ...] = ()
 
     @classmethod
     def from_phase_model(cls, phase_model: object) -> "RealtimePhaseTemplate":
@@ -42,6 +47,9 @@ class RealtimePhaseTemplate:
             contradictory_event_count=int(
                 getattr(phase_model, "contradictory_event_count", 0)
             ),
+            movement_stages=tuple(
+                getattr(phase_model, "movement_stages", ())
+            ),
         )
 
     def to_phase_model(self) -> EventPhaseDiscoveryResult:
@@ -56,6 +64,7 @@ class RealtimePhaseTemplate:
             supporting_event_count=self.supporting_event_count,
             contradictory_event_count=self.contradictory_event_count,
             origin_timestamp_ms=0,
+            movement_stages=self.movement_stages,
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -67,6 +76,10 @@ class RealtimePhaseTemplate:
             "overlap": self.overlap,
             "supporting_event_count": self.supporting_event_count,
             "contradictory_event_count": self.contradictory_event_count,
+            "movement_stages": [
+                stage.to_dict()
+                for stage in self.movement_stages
+            ],
         }
 
     def phase_at(self, position_s: float) -> EventPhase | None:
@@ -82,6 +95,25 @@ class RealtimePhaseTemplate:
             if inside:
                 return phase
         return None
+
+    def active_movements_at(
+        self,
+        position_s: float,
+    ) -> tuple[MovementSignalStage, ...]:
+        """Movement stages use the same cycle position as the main template."""
+        value = position_s % self.cycle_seconds
+        active: list[MovementSignalStage] = []
+        for stage in self.movement_stages:
+            start = stage.phase_start % self.cycle_seconds
+            end = stage.phase_end % self.cycle_seconds
+            inside = (
+                start <= value < end
+                if start <= end
+                else value >= start or value < end
+            )
+            if inside:
+                active.append(stage)
+        return tuple(active)
 
     def group_for_approach(self, approach: str) -> tuple[str, ...] | None:
         """Return a stable synchronization family, not a stage membership.

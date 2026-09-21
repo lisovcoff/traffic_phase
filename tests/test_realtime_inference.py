@@ -5,11 +5,16 @@ import asyncio
 from app.api.realtime import (
     PhasePayload,
     RealtimeEventPayload,
+    _build_phase_model,
     RealtimeInferenceRequest,
     infer_realtime,
     registry,
 )
-from app.core.event_phase_discovery import EventPhase, EventPhaseDiscoveryResult
+from app.core.event_phase_discovery import (
+    EventPhase,
+    EventPhaseDiscoveryResult,
+    MovementSignalStage,
+)
 from app.core.models import EventType, TrajectoryEvent
 from app.core.realtime_inference import (
     DuplicateEventError,
@@ -417,3 +422,136 @@ def test_phase_synchronizer_handles_staggered_stage_template():
         state.offset_seconds,
         true_offset,
     ) <= 4.0
+
+
+
+def test_realtime_template_carries_movement_stages_on_same_cycle_clock():
+    model = staggered_phase_model()
+    object.__setattr__(
+        model,
+        "movement_stages",
+        (
+            MovementSignalStage(
+                movement_stage_id=1,
+                approach="N",
+                movement="N->_E",
+                phase_start=0.0,
+                phase_end=20.0,
+                confidence=0.95,
+                repeatability=1.0,
+                stability=0.97,
+                supporting_event_count=120,
+                observed_cycle_count=20,
+            ),
+            MovementSignalStage(
+                movement_stage_id=2,
+                approach="E",
+                movement="E->_N",
+                phase_start=55.0,
+                phase_end=70.0,
+                confidence=0.91,
+                repeatability=0.9,
+                stability=0.94,
+                supporting_event_count=90,
+                observed_cycle_count=18,
+            ),
+        ),
+    )
+
+    template = RealtimePhaseTemplate.from_phase_model(model)
+
+    assert [
+        item.movement
+        for item in template.active_movements_at(10.0)
+    ] == ["N->_E"]
+    assert [
+        item.movement
+        for item in template.active_movements_at(60.0)
+    ] == ["E->_N"]
+    assert template.active_movements_at(30.0) == ()
+    assert template.to_phase_model().movement_stages == model.movement_stages
+
+
+def test_movement_stages_do_not_change_main_realtime_synchronization():
+    base = staggered_phase_model()
+    with_movement = staggered_phase_model()
+    object.__setattr__(
+        with_movement,
+        "movement_stages",
+        (
+            MovementSignalStage(
+                movement_stage_id=1,
+                approach="N",
+                movement="N->_E",
+                phase_start=0.0,
+                phase_end=20.0,
+                confidence=0.95,
+                repeatability=1.0,
+                stability=0.97,
+                supporting_event_count=120,
+                observed_cycle_count=20,
+            ),
+        ),
+    )
+    desired = (
+        (10.0, "N"),
+        (34.0, "N"),
+        (36.0, "S"),
+        (76.0, "E"),
+        (78.0, "W"),
+        (12.0, "N"),
+        (38.0, "S"),
+        (80.0, "E"),
+    )
+    events = []
+    true_offset = 18.0
+    for index, (position, approach) in enumerate(desired):
+        timestamp_s = (
+            (40 + index) * 100.0
+            + ((position - true_offset) % 100.0)
+        )
+        events.append(_stream_event(timestamp_s, approach))
+
+    base_sync = RealtimePhaseSynchronizer(
+        RealtimePhaseTemplate.from_phase_model(base),
+        min_evidence_events=6,
+        resolution_seconds=2.0,
+    ).ingest_many(events)
+    movement_sync = RealtimePhaseSynchronizer(
+        RealtimePhaseTemplate.from_phase_model(with_movement),
+        min_evidence_events=6,
+        resolution_seconds=2.0,
+    ).ingest_many(events)
+
+    assert base_sync.status == "SYNCHRONIZED"
+    assert movement_sync.status == base_sync.status
+    assert movement_sync.offset_seconds == base_sync.offset_seconds
+    assert movement_sync.confidence == base_sync.confidence
+
+
+def test_realtime_payload_preserves_movement_stages():
+    payload = PhasePayload(
+        cycle_seconds=100.0,
+        bin_seconds=2.0,
+        phases=[phase.to_dict() for phase in staggered_phase_model().phases],
+        movement_stages=[
+            {
+                "movement_stage_id": 1,
+                "approach": "N",
+                "movement": "N->_E",
+                "phase_start": 0.0,
+                "phase_end": 20.0,
+                "confidence": 0.95,
+                "repeatability": 1.0,
+                "stability": 0.97,
+                "supporting_event_count": 120,
+                "observed_cycle_count": 20,
+            }
+        ],
+    )
+
+    model = _build_phase_model(payload)
+
+    assert len(model.movement_stages) == 1
+    assert model.movement_stages[0].movement == "N->_E"
+    assert model.origin_timestamp_ms == 0

@@ -104,7 +104,10 @@ def test_json_api_returns_session_based_result():
     assert session["phase_model"]["model_type"] == "recurring_signal_stages"
     assert session["phase_model"]["stages"] == session["phase_model"]["phases"]
     assert "distinct_movement_candidates" in session["phase_model"]
+    assert "movement_stages" in session["phase_model"]
+    assert session["phase_model"]["movement_stages"] == []
     assert session["timeline"]
+    assert "active_movements" in session["timeline"][0]
     first_point = session["timeline"][0]
     assert set(first_point["states"]) == {"N", "S", "E", "W"}
     assert set(first_point["axis_states"]) == {"NS", "EW"}

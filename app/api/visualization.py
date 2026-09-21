@@ -73,6 +73,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="stat"><span>Cycle length</span><strong id="batchCycle">—</strong></div>
       <div class="stat"><span>Cycle confidence</span><strong id="batchCycleConfidence">—</strong></div>
       <div class="stat"><span>Current phase</span><strong id="batchPhase">UNKNOWN</strong></div>
+      <div class="stat"><span>Active movement groups</span><strong id="batchActiveMovements">—</strong></div>
       <div class="stat"><span>Phase confidence</span><strong id="batchPhaseConfidence">—</strong></div>
       <div class="stat"><span>Vehicles / events</span><strong id="batchCounts">—</strong></div>
     </div>
@@ -90,7 +91,8 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
     <div class="panel">
       <h3>Phase model</h3>
       <div id="batchPhaseList" class="phase-list"></div>
-      <div class="muted small" style="margin-top:10px">The selected successful Batch session is the warm-start template available to Realtime simulation.</div>
+      <div id="batchMovementList" class="phase-list" style="margin-top:10px"></div>
+      <div class="muted small" style="margin-top:10px">Movement-specific groups are inferred separately and do not change the main N/S/E/W stage. The selected successful Batch session is the warm-start template available to Realtime simulation.</div>
     </div>
   </div>
 </section>
@@ -121,6 +123,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
     <div class="panel stats">
       <div class="stat"><span>Simulated time</span><strong id="realtimeTime">—</strong></div>
       <div class="stat"><span>Current phase</span><strong id="realtimePhase">UNKNOWN</strong></div>
+      <div class="stat"><span>Active movement groups</span><strong id="realtimeMovements">—</strong></div>
       <div class="stat"><span>Confidence</span><strong id="realtimeConfidence">0.00</strong></div>
       <div class="stat"><span>Synchronizer</span><strong id="realtimeSync" class="warmup">WARMUP</strong></div>
       <div class="stat"><span>Phase offset</span><strong id="realtimeOffset">—</strong></div>
@@ -253,13 +256,22 @@ function openBatchSession(i){
 
 function buildBatchPhaseModel(){
   const holder=$('batchPhaseList');holder.innerHTML='';
-  const phases=(batchSession.phase_model&&batchSession.phase_model.phases)||[];
+  const movementHolder=$('batchMovementList');movementHolder.innerHTML='';
+  const model=batchSession.phase_model||{};
+  const phases=model.phases||[];
   if(!phases.length){holder.textContent='No phase model';return}
   phases.forEach(p=>{
     const chip=document.createElement('span');chip.className='phase-chip';
     chip.textContent='Phase '+p.phase_id+': '+p.active_approaches.join('/')+' · '+p.phase_start+'–'+p.phase_end+'s · conf '+p.confidence.toFixed(2);
     holder.appendChild(chip);
   });
+  const movementStages=model.movement_stages||[];
+  movementStages.forEach(stage=>{
+    const chip=document.createElement('span');chip.className='phase-chip';
+    chip.textContent='Movement '+stage.movement+' · '+stage.phase_start+'–'+stage.phase_end+'s · conf '+stage.confidence.toFixed(2);
+    movementHolder.appendChild(chip);
+  });
+  if(!movementStages.length)movementHolder.textContent='No movement-specific signal groups inferred.';
 }
 
 function buildBatchTimeline(){
@@ -284,7 +296,7 @@ function renderBatchPoint(){
   $('sharedState').classList.remove('hidden');
   $('sharedHint').textContent='Batch state at the selected session time.';
   if(!timeline.length){
-    $('batchPhase').textContent='UNKNOWN';$('batchPhaseConfidence').textContent='0.00';
+    $('batchPhase').textContent='UNKNOWN';$('batchActiveMovements').textContent='—';$('batchPhaseConfidence').textContent='0.00';
     $('batchTimeLabel').textContent='No timeline: insufficient inference data';
     renderStates({N:'UNKNOWN',S:'UNKNOWN',E:'UNKNOWN',W:'UNKNOWN'});
     return;
@@ -292,6 +304,8 @@ function renderBatchPoint(){
   const point=timeline[Math.min(batchIndex,timeline.length-1)];
   $('batchSlider').value=String(batchIndex);
   $('batchPhase').textContent=point.phase_id==null?'UNKNOWN':('Phase '+point.phase_id+(point.transition?' · transition':''));
+  const batchMovements=point.active_movements||[];
+  $('batchActiveMovements').textContent=batchMovements.length?batchMovements.map(item=>item.movement).join(', '):'—';
   $('batchPhaseConfidence').textContent=Number(point.confidence||0).toFixed(2);
   $('batchTimeLabel').textContent=point.offset_s.toFixed(1)+' s / '+batchSession.duration_s.toFixed(1)+' s';
   renderStates(point.states||{});
@@ -396,6 +410,8 @@ function renderRealtimeSnapshot(snapshot){
   const date=new Date(snapshot.simulated_timestamp_ms);
   $('realtimeTime').textContent=date.toLocaleString();
   $('realtimePhase').textContent=snapshot.phase_id==null?'UNKNOWN':'Phase '+snapshot.phase_id;
+  const realtimeMovements=snapshot.active_movements||[];
+  $('realtimeMovements').textContent=realtimeMovements.length?realtimeMovements.map(item=>item.movement).join(', '):'—';
   $('realtimeConfidence').textContent=Number(snapshot.confidence||0).toFixed(2);
   $('realtimeSync').textContent=snapshot.synchronization_status||'WARMUP';
   $('realtimeSync').className=snapshot.synchronization_status==='SYNCHRONIZED'?'ok':'warmup';

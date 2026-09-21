@@ -58,6 +58,25 @@ class MovementActivationCandidate:
 
 
 @dataclass(frozen=True)
+class MovementSignalStage:
+    """Conservatively promoted recurring signal interval for one movement."""
+
+    movement_stage_id: int
+    approach: str
+    movement: str
+    phase_start: float
+    phase_end: float
+    confidence: float
+    repeatability: float
+    stability: float
+    supporting_event_count: int
+    observed_cycle_count: int
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class EventPhase:
     """One non-overlapping recurring signal stage.
 
@@ -94,6 +113,7 @@ class EventPhaseDiscoveryResult:
     distinct_movement_candidates: tuple[
         MovementActivationCandidate, ...
     ] = ()
+    movement_stages: tuple[MovementSignalStage, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -109,6 +129,10 @@ class EventPhaseDiscoveryResult:
             "distinct_movement_candidates": [
                 candidate.to_dict()
                 for candidate in self.distinct_movement_candidates
+            ],
+            "movement_stages": [
+                stage.to_dict()
+                for stage in self.movement_stages
             ],
         }
 
@@ -141,6 +165,12 @@ class EventPhaseDiscovery:
     MIN_MOVEMENT_STABILITY = 0.60
     MIN_MOVEMENT_EVENTS = 6
     MOVEMENT_COMPATIBILITY_JACCARD = 0.60
+    MOVEMENT_STAGE_MIN_REPEATABILITY = 0.75
+    MOVEMENT_STAGE_MIN_STABILITY = 0.85
+    MOVEMENT_STAGE_MIN_EVENTS = 40
+    MOVEMENT_STAGE_MIN_CYCLES = 8
+    MOVEMENT_STAGE_MAX_MAIN_JACCARD = 0.75
+    MOVEMENT_STAGE_MAX_DURATION_RATIO = 0.75
 
     def __init__(
         self,
@@ -225,6 +255,11 @@ class EventPhaseDiscovery:
             raise ValueError(
                 "insufficient repeated evidence for a signal stage"
             )
+        movement_stages = self._promote_movement_candidates(
+            distinct_movement_candidates,
+            phases,
+            cycle_seconds=cycle_seconds,
+        )
         coverage = self._cycle_coverage(
             phases,
             cycle_seconds,
@@ -250,6 +285,7 @@ class EventPhaseDiscovery:
             distinct_movement_candidates=tuple(
                 distinct_movement_candidates
             ),
+            movement_stages=tuple(movement_stages),
         )
 
     def _selected_events(
@@ -622,6 +658,134 @@ class EventPhaseDiscovery:
             )
         )
         return main_events, distinct
+
+    def _promote_movement_candidates(
+        self,
+        candidates: Sequence[MovementActivationCandidate],
+        phases: Sequence[EventPhase],
+        *,
+        cycle_seconds: float,
+    ) -> list[MovementSignalStage]:
+        """Promote only strong, temporally distinct movement candidates.
+
+        Promotion is deliberately separate from main approach inference. A
+        movement stage never changes active_approaches and therefore cannot
+        perturb N/S/E/W signal state or realtime synchronization.
+        """
+        n_bins = max(
+            1,
+            int(round(cycle_seconds / self.bin_seconds)),
+        )
+        promoted: list[MovementSignalStage] = []
+
+        for candidate in candidates:
+            if (
+                candidate.repeatability
+                < self.MOVEMENT_STAGE_MIN_REPEATABILITY
+                or candidate.stability
+                < self.MOVEMENT_STAGE_MIN_STABILITY
+                or candidate.usable_event_count
+                < self.MOVEMENT_STAGE_MIN_EVENTS
+                or candidate.observed_cycle_count
+                < self.MOVEMENT_STAGE_MIN_CYCLES
+            ):
+                continue
+
+            candidate_mask = self._interval_mask(
+                candidate.phase_start,
+                candidate.phase_end,
+                n_bins,
+            )
+            main_mask = np.zeros(n_bins, dtype=bool)
+            for phase in phases:
+                if candidate.approach not in phase.active_approaches:
+                    continue
+                main_mask |= self._interval_mask(
+                    phase.phase_start,
+                    phase.phase_end,
+                    n_bins,
+                )
+
+            candidate_bins = int(np.count_nonzero(candidate_mask))
+            main_bins = int(np.count_nonzero(main_mask))
+            if candidate_bins <= 0 or main_bins <= 0:
+                continue
+
+            union = int(np.count_nonzero(candidate_mask | main_mask))
+            intersection = int(
+                np.count_nonzero(candidate_mask & main_mask)
+            )
+            jaccard = (
+                intersection / union
+                if union
+                else 1.0
+            )
+            duration_ratio = candidate_bins / max(1, main_bins)
+            temporally_distinct = (
+                jaccard <= self.MOVEMENT_STAGE_MAX_MAIN_JACCARD
+                or duration_ratio <= self.MOVEMENT_STAGE_MAX_DURATION_RATIO
+            )
+            if not temporally_distinct:
+                continue
+
+            support_factor = min(
+                1.0,
+                candidate.usable_event_count
+                / max(
+                    1.0,
+                    candidate.observed_cycle_count * 2.0,
+                ),
+            )
+            confidence = float(
+                np.clip(
+                    0.45 * candidate.repeatability
+                    + 0.35 * candidate.stability
+                    + 0.20 * support_factor,
+                    0.0,
+                    1.0,
+                )
+            )
+            promoted.append(
+                MovementSignalStage(
+                    movement_stage_id=len(promoted) + 1,
+                    approach=candidate.approach,
+                    movement=candidate.movement,
+                    phase_start=candidate.phase_start,
+                    phase_end=candidate.phase_end,
+                    confidence=round(confidence, 4),
+                    repeatability=candidate.repeatability,
+                    stability=candidate.stability,
+                    supporting_event_count=(
+                        candidate.usable_event_count
+                    ),
+                    observed_cycle_count=(
+                        candidate.observed_cycle_count
+                    ),
+                )
+            )
+
+        return promoted
+
+    def _interval_mask(
+        self,
+        start_s: float,
+        end_s: float,
+        n_bins: int,
+    ) -> np.ndarray:
+        mask = np.zeros(n_bins, dtype=bool)
+        start = int(
+            round(start_s / self.bin_seconds)
+        ) % n_bins
+        end = int(
+            round(end_s / self.bin_seconds)
+        ) % n_bins
+        for index in self._interval_indices(
+            start,
+            end,
+            n_bins,
+        ):
+            mask[index] = True
+        return mask
 
     def _mask_interval_seconds(
         self,

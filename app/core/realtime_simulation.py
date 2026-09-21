@@ -307,6 +307,7 @@ class RealtimeArchiveSimulation:
                     approach: "UNKNOWN"
                     for approach in ("N", "S", "E", "W")
                 }
+                active_movements: list[dict[str, object]] = []
                 confidence = 0.0
                 phase_confidence = 0.0
                 cycle_position_s = None
@@ -321,6 +322,9 @@ class RealtimeArchiveSimulation:
                 phase_id = inference["phase_id"]
                 phase = inference["phase"]
                 signal_states = dict(inference["signal_states"])
+                active_movements = list(
+                    inference.get("active_movements", [])
+                )
                 confidence = float(inference["confidence"])
                 phase_confidence = float(
                     inference["phase_confidence"]
@@ -366,6 +370,7 @@ class RealtimeArchiveSimulation:
                 "phase_id": phase_id,
                 "phase": phase,
                 "signal_states": signal_states,
+                "active_movements": active_movements,
                 "confidence": confidence,
                 "phase_confidence": phase_confidence,
                 "cycle_position_s": cycle_position_s,

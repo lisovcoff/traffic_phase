@@ -142,6 +142,10 @@ def _compact_phase_model(session: SessionReconstruction) -> dict[str, object] | 
             candidate.to_dict()
             for candidate in model.distinct_movement_candidates
         ],
+        "movement_stages": [
+            stage.to_dict()
+            for stage in model.movement_stages
+        ],
     }
 
 
@@ -163,6 +167,28 @@ def _phase_at(session: SessionReconstruction, timestamp_ms: int):
         if inside:
             return phase, round(position, 3)
     return None, round(position, 3)
+
+
+def _movement_stages_at(
+    session: SessionReconstruction,
+    cycle_position_s: float | None,
+) -> list[dict[str, object]]:
+    model = session.phase_model
+    if model is None or cycle_position_s is None:
+        return []
+    value = cycle_position_s % model.cycle_seconds
+    result: list[dict[str, object]] = []
+    for stage in model.movement_stages:
+        start = stage.phase_start % model.cycle_seconds
+        end = stage.phase_end % model.cycle_seconds
+        inside = (
+            start <= value < end
+            if start <= end
+            else value >= start or value < end
+        )
+        if inside:
+            result.append(stage.to_dict())
+    return result
 
 
 def _axis_state(
@@ -236,6 +262,10 @@ def build_session_timeline(
                     list(phase.active_approaches)
                     if phase is not None
                     else []
+                ),
+                "active_movements": _movement_stages_at(
+                    session,
+                    cycle_position_s,
                 ),
                 "confidence": signal.phase_confidence,
                 "states": states,
