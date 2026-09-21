@@ -181,3 +181,111 @@ def test_validate_signal_metrics_use_anomaly_aware_final_state():
     assert report["mean_state_confidence"] == 0.0
     assert report["state_continuity"] == 1.0
     assert report["transition_count"] == 0
+
+
+
+def test_validation_uses_production_sessions_without_averaging_phase_origins(
+    monkeypatch,
+    tmp_path,
+):
+    import app.core.validation as validation
+
+    events = []
+    for session_index in range(8):
+        base = session_index * 4_000.0
+        period = 100.0 if session_index % 2 == 0 else 120.0
+        for cycle in range(6):
+            cycle_base = base + cycle * period
+            for offset, approach in (
+                (0.10, "N"),
+                (0.25, "S"),
+                (0.60, "E"),
+                (0.75, "W"),
+            ):
+                timestamp = cycle_base + period * offset
+                events.extend(
+                    [
+                        event(EventType.RELEASE, timestamp, approach),
+                        event(
+                            EventType.CROSSING,
+                            timestamp + 1.0,
+                            approach,
+                        ),
+                    ]
+                )
+
+    monkeypatch.setattr(
+        validation,
+        "load_events",
+        lambda _path: events,
+    )
+
+    report = ValidationRunner(
+        [
+            ValidationDataset(
+                "reference",
+                str(tmp_path / "ref.zip"),
+                "test_intersection",
+                "reference",
+            )
+        ]
+    ).run()
+
+    item = report["datasets"][0]
+    assert item["session_count"] == 8
+    assert item["regime_count"] == 8
+    assert len(item["regimes"]) == 8
+    assert item["phase"]["origin_timestamp_ms"] is None
+
+    origins = [
+        regime["phase"]["origin_timestamp_ms"]
+        for regime in item["regimes"]
+        if regime["phase"]["status"] == "ok"
+    ]
+    assert len(origins) == 8
+    assert len(set(origins)) == 8
+    assert report["configuration"]["reconstruction_path"] == (
+        "production session/regime reconstruction"
+    )
+
+
+def test_validation_does_not_call_legacy_global_cycle_or_phase_helpers(
+    monkeypatch,
+    tmp_path,
+):
+    import app.core.validation as validation
+
+    events = synthetic_events()
+    monkeypatch.setattr(
+        validation,
+        "load_events",
+        lambda _path: events,
+    )
+    monkeypatch.setattr(
+        validation,
+        "validate_cycle",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("global validate_cycle must not be called")
+        ),
+    )
+    monkeypatch.setattr(
+        validation,
+        "validate_phase",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("global validate_phase must not be called")
+        ),
+    )
+
+    report = ValidationRunner(
+        [
+            ValidationDataset(
+                "reference",
+                str(tmp_path / "ref.json"),
+                "test_intersection",
+                "reference",
+            )
+        ]
+    ).run()
+
+    assert report["datasets"][0]["cycle"]["status"] == "ok"
+    assert report["datasets"][0]["phase"]["status"] == "ok"

@@ -6,6 +6,7 @@ from app.core.reconstruction import (
     BatchReconstruction,
     DEFAULT_SESSION_GAP_SECONDS,
     reconstruct_event_sessions,
+    split_event_session_into_regimes,
     split_events_into_sessions,
     split_trajectories_into_sessions,
 )
@@ -189,3 +190,34 @@ def test_short_session_returns_insufficient_data_instead_of_raising():
     assert result.phase_model is None
     assert result.event_count == 3
     assert result.error_reason
+
+
+
+def test_long_session_splits_confirmed_100_to_120_second_regime():
+    first = _synthetic_events(
+        100.0,
+        cycles=30,
+        origin_ms=0,
+    )
+    second_origin = 30 * 100 * 1000
+    second = _synthetic_events(
+        120.0,
+        cycles=30,
+        origin_ms=second_origin,
+    )
+
+    regimes = split_event_session_into_regimes(
+        first + second,
+        regime_window_seconds=900.0,
+        regime_step_seconds=300.0,
+        regime_confirmation_windows=2,
+        regime_period_tolerance_seconds=6.0,
+        regime_min_cycle_confidence=0.3,
+    )
+
+    assert len(regimes) == 2
+    assert regimes[0].end_timestamp_ms < regimes[1].start_timestamp_ms
+    assert regimes[0].rolling_period_seconds is not None
+    assert regimes[1].rolling_period_seconds is not None
+    assert 92.0 <= regimes[0].rolling_period_seconds <= 108.0
+    assert 112.0 <= regimes[1].rolling_period_seconds <= 128.0

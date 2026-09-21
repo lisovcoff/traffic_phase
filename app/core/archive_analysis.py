@@ -11,7 +11,7 @@ from app.core.reconstruction import (
     DEFAULT_SESSION_GAP_SECONDS,
     SessionReconstruction,
     extract_events_from_trajectories,
-    reconstruct_event_session,
+    reconstruct_event_regimes,
     reconstruct_trajectory_sessions,
     split_trajectories_into_sessions,
 )
@@ -40,13 +40,19 @@ class ArchiveAnalysis:
             len(session_payloads) == 1
             and session_payloads[0]["status"] == "ok"
         )
+        physical_session_count = max(
+            (session.session_index for session in self.sessions),
+            default=0,
+        )
         source = {
             "filename": self.filename,
             "format": self.source_format,
             "json_members": self.json_member_count,
             "cars_used": self.trajectory_count,
             "events_used": self.event_count,
-            "session_count": len(session_payloads),
+            "session_count": physical_session_count,
+            "regime_count": len(session_payloads),
+            "analysis_segment_count": len(session_payloads),
             "member_errors": list(self.member_errors),
         }
         if len(session_payloads) == 1:
@@ -241,6 +247,11 @@ def _session_payload(
 ) -> dict[str, object]:
     return {
         "session_id": index,
+        "physical_session_index": session.session_index,
+        "regime_index": session.regime_index,
+        "regime_count": session.regime_count,
+        "rolling_period_seconds": session.rolling_period_seconds,
+        "rolling_window_count": session.rolling_window_count,
         "start_timestamp_ms": session.start_timestamp_ms,
         "end_timestamp_ms": session.end_timestamp_ms,
         "duration_s": session.duration_s,
@@ -295,6 +306,8 @@ def analyze_zip_stream(
     current_start_ms: int | None = None
     current_end_ms: int | None = None
     current_trajectory_count = 0
+    current_trajectory_end_times: list[int] = []
+    physical_session_index = 0
     total_trajectories = 0
     total_events = 0
     member_errors: list[dict[str, str]] = []
@@ -304,15 +317,20 @@ def analyze_zip_stream(
         nonlocal current_start_ms
         nonlocal current_end_ms
         nonlocal current_trajectory_count
+        nonlocal current_trajectory_end_times
+        nonlocal physical_session_index
 
         if current_start_ms is None or current_end_ms is None:
             return
-        completed.append(
-            reconstruct_event_session(
+        physical_session_index += 1
+        completed.extend(
+            reconstruct_event_regimes(
                 current_events,
                 start_timestamp_ms=current_start_ms,
                 end_timestamp_ms=current_end_ms,
                 trajectory_count=current_trajectory_count,
+                trajectory_end_timestamps_ms=current_trajectory_end_times,
+                session_index=physical_session_index,
                 sampling_seconds=2.0,
                 bin_seconds=2.0,
             )
@@ -321,6 +339,7 @@ def analyze_zip_stream(
         current_start_ms = None
         current_end_ms = None
         current_trajectory_count = 0
+        current_trajectory_end_times = []
 
     with zipfile.ZipFile(stream) as archive:
         members = [
@@ -370,12 +389,17 @@ def analyze_zip_stream(
                 block_events = extract_events_from_trajectories(
                     trajectory_session
                 )
+                block_end_times = [
+                    _trajectory_interval_ms(item)[1]
+                    for item in trajectory_session
+                ]
                 total_events += len(block_events)
 
                 if current_start_ms is None:
                     current_start_ms = block_start_ms
                     current_end_ms = block_end_ms
                     current_trajectory_count = len(trajectory_session)
+                    current_trajectory_end_times.extend(block_end_times)
                     current_events.extend(block_events)
                     continue
 
@@ -390,12 +414,14 @@ def analyze_zip_stream(
                     current_start_ms = block_start_ms
                     current_end_ms = block_end_ms
                     current_trajectory_count = len(trajectory_session)
+                    current_trajectory_end_times.extend(block_end_times)
                     current_events.extend(block_events)
                     continue
 
                 current_start_ms = min(current_start_ms, block_start_ms)
                 current_end_ms = max(current_end_ms, block_end_ms)
                 current_trajectory_count += len(trajectory_session)
+                current_trajectory_end_times.extend(block_end_times)
                 current_events.extend(block_events)
 
     flush_current()

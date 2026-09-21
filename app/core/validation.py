@@ -19,10 +19,15 @@ from app.core.models import EventType, TrajectoryEvent
 from app.core.preprocessing import load_trajectory_file, load_trajectory_payload
 from app.core.realtime_inference import RealtimeSignalInferenceEngine
 from app.core.signal_state_estimator import SignalState, SignalStateEstimator
-from app.core.reconstruction import extract_events_from_trajectories
+from app.core.reconstruction import (
+    SessionReconstruction,
+    extract_events_from_trajectories,
+    phase_model_ambiguity_reason,
+    reconstruct_event_sessions,
+)
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -218,17 +223,10 @@ def validate_cycle(
     }, result
 
 
-def validate_phase(
+def _phase_metrics_from_model(
     events: Sequence[TrajectoryEvent],
-    cycle_seconds: float,
-) -> tuple[dict[str, object], EventPhaseDiscoveryResult | None]:
-    try:
-        model = EventPhaseDiscovery().discover(
-            events,
-            cycle_seconds=cycle_seconds,
-        )
-    except Exception as exc:
-        return {"status": "error", "error": str(exc)}, None
+    model: EventPhaseDiscoveryResult,
+) -> dict[str, object]:
     total = model.supporting_event_count + model.contradictory_event_count
     return {
         "status": "ok",
@@ -244,8 +242,30 @@ def validate_phase(
         "event_contradictory_ratio": (
             round(model.contradictory_event_count / total, 4) if total else None
         ),
+        "origin_timestamp_ms": model.origin_timestamp_ms,
         "phases": [phase.to_dict() for phase in model.phases],
-    }, model
+    }
+
+
+def validate_phase(
+    events: Sequence[TrajectoryEvent],
+    cycle_seconds: float,
+) -> tuple[dict[str, object], EventPhaseDiscoveryResult | None]:
+    try:
+        model = EventPhaseDiscovery().discover(
+            events,
+            cycle_seconds=cycle_seconds,
+        )
+    except Exception as exc:
+        return {"status": "error", "error": str(exc)}, None
+    ambiguity = phase_model_ambiguity_reason(model)
+    if ambiguity is not None:
+        return {
+            "status": "ambiguous",
+            "error": ambiguity,
+            "origin_timestamp_ms": model.origin_timestamp_ms,
+        }, None
+    return _phase_metrics_from_model(events, model), model
 
 
 def _sample_times(
@@ -524,6 +544,297 @@ def _rebase_events(
     ]
 
 
+def _events_for_reconstruction(
+    event_index: _EventWindowIndex,
+    reconstruction: SessionReconstruction,
+) -> tuple[TrajectoryEvent, ...]:
+    return event_index.between(
+        reconstruction.start_timestamp_ms,
+        reconstruction.end_timestamp_ms,
+    )
+
+
+def _cycle_metrics_from_reconstruction(
+    reconstruction: SessionReconstruction,
+    reference_period: float | None,
+) -> dict[str, object]:
+    if reconstruction.cycle is None:
+        return {
+            "status": reconstruction.status,
+            "error": reconstruction.error_reason,
+            "period_seconds": None,
+            "confidence": 0.0,
+            "reference_period_seconds": reference_period,
+            "reference_error_seconds": None,
+        }
+    result = reconstruction.cycle
+    candidate = (
+        result.estimate.candidate_periods[0]
+        if result.estimate.candidate_periods
+        else None
+    )
+    period = float(result.estimate.cycle_seconds)
+    return {
+        "status": "ok",
+        "period_seconds": period,
+        "confidence": result.estimate.confidence,
+        "stability": candidate.stability if candidate else None,
+        "repetitions": candidate.repetitions if candidate else None,
+        "candidate_count": len(result.estimate.candidate_periods),
+        "reference_period_seconds": reference_period,
+        "reference_error_seconds": (
+            round(abs(period - reference_period), 4)
+            if reference_period is not None
+            else None
+        ),
+    }
+
+
+def _median_metric(
+    reports: Sequence[dict[str, object]],
+    key: str,
+) -> float | None:
+    values = [
+        float(report[key])
+        for report in reports
+        if report.get(key) is not None
+    ]
+    return _median(values)
+
+
+def _sum_metric(
+    reports: Sequence[dict[str, object]],
+    key: str,
+) -> int:
+    return sum(
+        int(report.get(key) or 0)
+        for report in reports
+    )
+
+
+def _nearest_reference_period(
+    period: float | None,
+    options: Sequence[float],
+) -> float | None:
+    if not options:
+        return None
+    if period is None:
+        return _median(options)
+    return min(
+        (float(value) for value in options),
+        key=lambda value: abs(value - period),
+    )
+
+
+def _aggregate_cycle_metrics(
+    reports: Sequence[dict[str, object]],
+    *,
+    reference_options: Sequence[float],
+    session_count: int,
+    regime_count: int,
+    ambiguous_count: int,
+) -> dict[str, object]:
+    successful = [
+        report
+        for report in reports
+        if report.get("period_seconds") is not None
+    ]
+    periods = [
+        float(report["period_seconds"])
+        for report in successful
+    ]
+    period = _median(periods)
+    reference_period = _nearest_reference_period(
+        period,
+        reference_options,
+    )
+    return {
+        "status": "ok" if successful else "error",
+        "period_seconds": period,
+        "periods_seconds": [round(item, 4) for item in periods],
+        "confidence": _median_metric(successful, "confidence"),
+        "stability": _median_metric(successful, "stability"),
+        "repetitions": _sum_metric(successful, "repetitions"),
+        "candidate_count": _sum_metric(successful, "candidate_count"),
+        "reference_period_seconds": reference_period,
+        "reference_period_options_seconds": [
+            round(float(value), 4)
+            for value in reference_options
+        ],
+        "reference_error_seconds": (
+            round(abs(float(period) - reference_period), 4)
+            if period is not None and reference_period is not None
+            else None
+        ),
+        "session_count": session_count,
+        "regime_count": regime_count,
+        "ambiguous_regime_count": ambiguous_count,
+    }
+
+
+def _aggregate_phase_metrics(
+    reports: Sequence[dict[str, object]],
+    *,
+    ambiguous_count: int,
+) -> dict[str, object]:
+    successful = [
+        report
+        for report in reports
+        if report.get("status") == "ok"
+    ]
+    if not successful:
+        return {
+            "status": "ambiguous" if ambiguous_count else "not_run",
+            "phase_count": None,
+            "phase_coverage": None,
+            "overlap": None,
+            "cycle_consistency": None,
+            "event_support_count": 0,
+            "event_contradictory_count": 0,
+            "event_support_ratio": None,
+            "event_contradictory_ratio": None,
+            "model_count": 0,
+            "ambiguous_regime_count": ambiguous_count,
+            "phases": None,
+            "origin_timestamp_ms": None,
+        }
+
+    support = _sum_metric(successful, "event_support_count")
+    contradiction = _sum_metric(
+        successful,
+        "event_contradictory_count",
+    )
+    total = support + contradiction
+    return {
+        "status": "ok",
+        "phase_count": _median_metric(successful, "phase_count"),
+        "phase_coverage": _median_metric(successful, "phase_coverage"),
+        "overlap": _median_metric(successful, "overlap"),
+        "cycle_consistency": _median_metric(
+            successful,
+            "cycle_consistency",
+        ),
+        "event_support_count": support,
+        "event_contradictory_count": contradiction,
+        "event_support_ratio": (
+            round(support / total, 4) if total else None
+        ),
+        "event_contradictory_ratio": (
+            round(contradiction / total, 4) if total else None
+        ),
+        "model_count": len(successful),
+        "ambiguous_regime_count": ambiguous_count,
+        # Origins and physical phase intervals remain in the per-regime
+        # records below. They are intentionally never averaged together.
+        "phases": None,
+        "origin_timestamp_ms": None,
+    }
+
+
+def _aggregate_signal_metrics(
+    reports: Sequence[dict[str, object]],
+) -> dict[str, object]:
+    successful = [
+        report
+        for report in reports
+        if report.get("status") == "ok"
+    ]
+    if not successful:
+        return {"status": "not_run"}
+    return {
+        "status": "ok",
+        "sample_count": _sum_metric(successful, "sample_count"),
+        "state_continuity": _median_metric(
+            successful,
+            "state_continuity",
+        ),
+        "transition_count": _sum_metric(
+            successful,
+            "transition_count",
+        ),
+        "transition_consistency": _median_metric(
+            successful,
+            "transition_consistency",
+        ),
+        "mean_state_confidence": _median_metric(
+            successful,
+            "mean_state_confidence",
+        ),
+        "unknown_rate": _median_metric(successful, "unknown_rate"),
+        "anomaly_mean_score": _median_metric(
+            successful,
+            "anomaly_mean_score",
+        ),
+        "anomaly_max_score": max(
+            (
+                float(report["anomaly_max_score"])
+                for report in successful
+                if report.get("anomaly_max_score") is not None
+            ),
+            default=None,
+        ),
+        "false_state_switch_rate": _median_metric(
+            successful,
+            "false_state_switch_rate",
+        ),
+        "regime_metric_count": len(successful),
+    }
+
+
+def _aggregate_realtime_metrics(
+    reports: Sequence[dict[str, object]],
+) -> dict[str, object]:
+    successful = [
+        report
+        for report in reports
+        if report.get("status") == "ok"
+    ]
+    if not successful:
+        return {"status": "not_run"}
+    comparisons = _sum_metric(
+        successful,
+        "agreement_comparisons",
+    )
+    weighted_agreements = sum(
+        float(report.get("batch_realtime_agreement") or 0.0)
+        * int(report.get("agreement_comparisons") or 0)
+        for report in successful
+    )
+    return {
+        "status": "ok",
+        "event_count": _sum_metric(successful, "event_count"),
+        "latency_mean_ms": _median_metric(
+            successful,
+            "latency_mean_ms",
+        ),
+        "latency_p95_ms": _median_metric(
+            successful,
+            "latency_p95_ms",
+        ),
+        "peak_tracemalloc_bytes": max(
+            (
+                int(report.get("peak_tracemalloc_bytes") or 0)
+                for report in successful
+            ),
+            default=0,
+        ),
+        "max_rolling_buffer_events": max(
+            (
+                int(report.get("max_rolling_buffer_events") or 0)
+                for report in successful
+            ),
+            default=0,
+        ),
+        "batch_realtime_agreement": (
+            round(weighted_agreements / comparisons, 4)
+            if comparisons
+            else None
+        ),
+        "agreement_comparisons": comparisons,
+        "regime_metric_count": len(successful),
+    }
+
+
 class ValidationRunner:
     def __init__(
         self,
@@ -536,7 +847,9 @@ class ValidationRunner:
         if not datasets:
             raise ValueError("at least one dataset is required")
         if any(not dataset.intersection_id for dataset in datasets):
-            raise ValueError("every validation dataset requires intersection_id")
+            raise ValueError(
+                "every validation dataset requires intersection_id"
+            )
         if sample_seconds <= 0:
             raise ValueError("sample_seconds must be positive")
         self.datasets = tuple(datasets)
@@ -546,13 +859,21 @@ class ValidationRunner:
         )
         self.progress = progress or (lambda _message: None)
 
+    def _reconstruct(
+        self,
+        events: Sequence[TrajectoryEvent],
+    ) -> tuple[SessionReconstruction, ...]:
+        # This is intentionally the same authoritative production path used
+        # by archive analysis: physical sessions first, stable regimes next.
+        return reconstruct_event_sessions(events)
+
     def run(self) -> dict[str, object]:
-        reference_cycles: dict[str, float] = {}
-        reference_cycle_metrics: dict[str, dict[str, object]] = {}
-        reference_phase_metrics: dict[str, dict[str, object]] = {}
-        reference_phase_models: dict[str, EventPhaseDiscoveryResult] = {}
-        reference_profiles: dict[str, list[TrafficBaselineProfile]] = {}
         reference_names: dict[str, list[str]] = {}
+        reference_period_options: dict[str, list[float]] = {}
+        reference_profiles: dict[
+            str,
+            list[TrafficBaselineProfile],
+        ] = {}
 
         reference_datasets = [
             dataset
@@ -560,98 +881,129 @@ class ValidationRunner:
             if dataset.kind == "reference"
         ]
 
-        # References are prepared once, then pooled only with other references
-        # from the same physical intersection.
-        for ref_index, dataset in enumerate(reference_datasets, start=1):
+        for ref_index, dataset in enumerate(
+            reference_datasets,
+            start=1,
+        ):
             self.progress(
-                f"preparing reference {ref_index}/{len(reference_datasets)}: "
+                f"preparing reference {ref_index}/"
+                f"{len(reference_datasets)}: "
                 f"{dataset.name} [{dataset.intersection_id}]"
             )
-            reference_names.setdefault(dataset.intersection_id, []).append(
-                dataset.name
-            )
+            reference_names.setdefault(
+                dataset.intersection_id,
+                [],
+            ).append(dataset.name)
             try:
                 events = load_events(Path(dataset.path))
-                cycle_metrics, cycle_estimate = validate_cycle(events, None)
-                reference_cycle_metrics[dataset.name] = dict(cycle_metrics)
-                if cycle_estimate is None:
-                    continue
-
-                cycle_seconds = cycle_estimate.estimate.cycle_seconds
-                reference_cycles[dataset.name] = cycle_seconds
-
-                origin = min(event.timestamp_ms for event in events)
-                reference_profiles.setdefault(
-                    dataset.intersection_id,
-                    [],
-                ).append(
-                    TrafficBaselineProfile.from_events(
-                        _rebase_events(events, origin),
-                        window_seconds=12.0,
-                        source=f"reference:{dataset.name}",
+                reconstructions = self._reconstruct(events)
+                index = _EventWindowIndex.build(events)
+                for reconstruction in reconstructions:
+                    if reconstruction.cycle is not None:
+                        reference_period_options.setdefault(
+                            dataset.intersection_id,
+                            [],
+                        ).append(
+                            float(
+                                reconstruction.cycle.estimate.cycle_seconds
+                            )
+                        )
+                    regime_events = _events_for_reconstruction(
+                        index,
+                        reconstruction,
                     )
-                )
-
-                phase_metrics, phase_model = validate_phase(
-                    events,
-                    cycle_seconds,
-                )
-                reference_phase_metrics[dataset.name] = dict(phase_metrics)
-                if phase_model is not None:
-                    reference_phase_models[dataset.name] = phase_model
+                    if not regime_events:
+                        continue
+                    reference_profiles.setdefault(
+                        dataset.intersection_id,
+                        [],
+                    ).append(
+                        TrafficBaselineProfile.from_events(
+                            _rebase_events(
+                                regime_events,
+                                reconstruction.start_timestamp_ms,
+                            ),
+                            window_seconds=12.0,
+                            source=(
+                                f"reference:{dataset.name}:"
+                                f"session{reconstruction.session_index}:"
+                                f"regime{reconstruction.regime_index}"
+                            ),
+                        )
+                    )
             except Exception as exc:
-                reference_cycle_metrics.setdefault(
-                    dataset.name,
-                    {"status": "error", "error": str(exc)},
+                self.progress(
+                    f"reference preparation error: "
+                    f"{dataset.name}: {exc}"
                 )
 
-        reference_periods: dict[str, float] = {}
         baselines: dict[str, TrafficBaselineProfile] = {}
         reference_pools: dict[str, dict[str, object]] = {}
-
         for intersection_id, names in reference_names.items():
-            periods = [
-                reference_cycles[name]
-                for name in names
-                if name in reference_cycles
-            ]
-            if periods:
-                reference_periods[intersection_id] = round(
-                    float(statistics.median(periods)),
-                    4,
+            periods = sorted(
+                float(value)
+                for value in reference_period_options.get(
+                    intersection_id,
+                    [],
                 )
-
-            profiles = reference_profiles.get(intersection_id, [])
+            )
+            profiles = reference_profiles.get(
+                intersection_id,
+                [],
+            )
             if profiles:
-                baselines[intersection_id] = TrafficBaselineProfile.aggregate(
+                baselines[
+                    intersection_id
+                ] = TrafficBaselineProfile.aggregate(
                     profiles,
-                    source=f"validation_reference_pool:{intersection_id}",
+                    source=(
+                        "validation_reference_pool:"
+                        f"{intersection_id}"
+                    ),
                 )
-
             reference_pools[intersection_id] = {
                 "dataset_count": len(names),
                 "dataset_names": list(names),
-                "median_period_seconds": reference_periods.get(intersection_id),
+                "periods_seconds": [
+                    round(value, 4)
+                    for value in periods
+                ],
+                "median_period_seconds": _median(periods),
                 "median_signal_confidence": None,
             }
             self.progress(
                 "reference baseline ready: "
-                f"intersection={intersection_id}, profiles={len(profiles)}, "
-                f"period={reference_periods.get(intersection_id)}"
+                f"intersection={intersection_id}, "
+                f"profiles={len(profiles)}, "
+                f"periods={reference_pools[intersection_id]['periods_seconds']}"
             )
 
         dataset_reports: list[dict[str, object]] = []
         total_datasets = len(self.datasets)
-        for dataset_index, dataset in enumerate(self.datasets, start=1):
+
+        for dataset_index, dataset in enumerate(
+            self.datasets,
+            start=1,
+        ):
             self.progress(
                 f"validating dataset {dataset_index}/{total_datasets}: "
                 f"{dataset.name} [{dataset.intersection_id}]"
             )
             events: list[TrajectoryEvent] = []
-            cycle_metrics: dict[str, object]
-            cycle_seconds: float | None = None
-            reference_period = reference_periods.get(dataset.intersection_id)
-            baseline = baselines.get(dataset.intersection_id)
+            regime_reports: list[dict[str, object]] = []
+            cycle_reports: list[dict[str, object]] = []
+            phase_reports: list[dict[str, object]] = []
+            signal_reports: list[dict[str, object]] = []
+            realtime_reports: list[dict[str, object]] = []
+            reconstruction_error: str | None = None
+
+            options = reference_period_options.get(
+                dataset.intersection_id,
+                [],
+            )
+            baseline = baselines.get(
+                dataset.intersection_id,
+            )
             matching_reference_names = reference_names.get(
                 dataset.intersection_id,
                 [],
@@ -659,73 +1011,171 @@ class ValidationRunner:
 
             try:
                 events = load_events(Path(dataset.path))
-                if (
-                    dataset.kind == "reference"
-                    and dataset.name in reference_cycles
-                ):
-                    cycle_seconds = reference_cycles[dataset.name]
-                    cycle_metrics = dict(
-                        reference_cycle_metrics.get(
-                            dataset.name,
-                            {"status": "ok", "period_seconds": cycle_seconds},
-                        )
+                event_index = _EventWindowIndex.build(events)
+                reconstructions = self._reconstruct(events)
+                for reconstruction in reconstructions:
+                    regime_events = _events_for_reconstruction(
+                        event_index,
+                        reconstruction,
                     )
-                else:
-                    cycle_metrics, cycle_estimate = validate_cycle(events, None)
-                    cycle_seconds = (
-                        cycle_estimate.estimate.cycle_seconds
-                        if cycle_estimate is not None
+                    own_period = (
+                        float(
+                            reconstruction.cycle.estimate.cycle_seconds
+                        )
+                        if reconstruction.cycle is not None
                         else None
                     )
-            except Exception as exc:
-                cycle_metrics = {"status": "error", "error": str(exc)}
-
-            cycle_metrics["reference_period_seconds"] = reference_period
-            cycle_metrics["reference_error_seconds"] = (
-                round(abs(cycle_seconds - reference_period), 4)
-                if cycle_seconds is not None and reference_period is not None
-                else None
-            )
-
-            phase_metrics: dict[str, object] = {"status": "not_run"}
-            signal_metrics: dict[str, object] = {"status": "not_run"}
-            realtime_metrics: dict[str, object] = {"status": "not_run"}
-            phase_model = None
-            if cycle_seconds is not None and events:
-                if (
-                    dataset.kind == "reference"
-                    and dataset.name in reference_phase_models
-                ):
-                    phase_metrics = dict(
-                        reference_phase_metrics.get(
-                            dataset.name,
-                            {"status": "ok"},
+                    nearest_reference = _nearest_reference_period(
+                        own_period,
+                        options,
+                    )
+                    cycle_metrics = (
+                        _cycle_metrics_from_reconstruction(
+                            reconstruction,
+                            nearest_reference,
                         )
                     )
-                    phase_model = reference_phase_models[dataset.name]
-                else:
-                    phase_metrics, phase_model = validate_phase(
-                        events,
-                        cycle_seconds,
-                    )
+                    cycle_reports.append(cycle_metrics)
 
-                if phase_model is not None:
-                    signal_metrics = validate_signal(
-                        events,
-                        phase_model,
-                        sample_seconds=self.sample_seconds,
-                        transition_tolerance_seconds=self.transition_tolerance_seconds,
-                        baseline=baseline,
+                    if reconstruction.status == "ambiguous":
+                        phase_metrics = {
+                            "status": "ambiguous",
+                            "error": reconstruction.error_reason,
+                            "phase_count": None,
+                            "origin_timestamp_ms": None,
+                            "phases": None,
+                        }
+                        signal_metrics = {"status": "not_run"}
+                        realtime_metrics = {"status": "not_run"}
+                    elif reconstruction.phase_model is not None:
+                        phase_metrics = _phase_metrics_from_model(
+                            regime_events,
+                            reconstruction.phase_model,
+                        )
+                        signal_metrics = validate_signal(
+                            regime_events,
+                            reconstruction.phase_model,
+                            sample_seconds=self.sample_seconds,
+                            transition_tolerance_seconds=(
+                                self.transition_tolerance_seconds
+                            ),
+                            baseline=baseline,
+                        )
+                        realtime_metrics = validate_realtime(
+                            regime_events,
+                            reconstruction.phase_model,
+                        )
+                    else:
+                        phase_metrics = {
+                            "status": reconstruction.status,
+                            "error": reconstruction.error_reason,
+                            "phase_count": None,
+                            "origin_timestamp_ms": None,
+                            "phases": None,
+                        }
+                        signal_metrics = {"status": "not_run"}
+                        realtime_metrics = {"status": "not_run"}
+
+                    phase_reports.append(phase_metrics)
+                    signal_reports.append(signal_metrics)
+                    realtime_reports.append(realtime_metrics)
+                    regime_reports.append(
+                        {
+                            "session_index": (
+                                reconstruction.session_index
+                            ),
+                            "regime_index": (
+                                reconstruction.regime_index
+                            ),
+                            "regime_count": (
+                                reconstruction.regime_count
+                            ),
+                            "start_timestamp_ms": (
+                                reconstruction.start_timestamp_ms
+                            ),
+                            "end_timestamp_ms": (
+                                reconstruction.end_timestamp_ms
+                            ),
+                            "duration_s": reconstruction.duration_s,
+                            "status": reconstruction.status,
+                            "confidence": reconstruction.confidence,
+                            "error_reason": (
+                                reconstruction.error_reason
+                            ),
+                            "rolling_period_seconds": (
+                                reconstruction.rolling_period_seconds
+                            ),
+                            "rolling_window_count": (
+                                reconstruction.rolling_window_count
+                            ),
+                            "event_count": len(regime_events),
+                            "cycle": cycle_metrics,
+                            "phase": phase_metrics,
+                            "signal": signal_metrics,
+                            "realtime": realtime_metrics,
+                        }
                     )
-                    realtime_metrics = validate_realtime(events, phase_model)
+            except Exception as exc:
+                reconstruction_error = str(exc)
+
+            session_count = len(
+                {
+                    item["session_index"]
+                    for item in regime_reports
+                }
+            )
+            ambiguous_count = sum(
+                item["status"] == "ambiguous"
+                for item in regime_reports
+            )
+            cycle_metrics = _aggregate_cycle_metrics(
+                cycle_reports,
+                reference_options=options,
+                session_count=session_count,
+                regime_count=len(regime_reports),
+                ambiguous_count=ambiguous_count,
+            )
+            if reconstruction_error is not None:
+                cycle_metrics = {
+                    "status": "error",
+                    "error": reconstruction_error,
+                    "period_seconds": None,
+                    "reference_period_seconds": (
+                        _median(options)
+                    ),
+                    "reference_error_seconds": None,
+                    "session_count": 0,
+                    "regime_count": 0,
+                    "ambiguous_regime_count": 0,
+                }
+
+            phase_metrics = _aggregate_phase_metrics(
+                phase_reports,
+                ambiguous_count=ambiguous_count,
+            )
+            signal_metrics = _aggregate_signal_metrics(
+                signal_reports
+            )
+            realtime_metrics = _aggregate_realtime_metrics(
+                realtime_reports
+            )
+            reference_period = cycle_metrics.get(
+                "reference_period_seconds"
+            )
 
             dataset_reports.append(
                 {
                     "dataset": dataset.to_dict(),
                     "reference": {
                         "intersection_id": dataset.intersection_id,
-                        "dataset_names": list(matching_reference_names),
+                        "dataset_names": list(
+                            matching_reference_names
+                        ),
                         "period_seconds": reference_period,
+                        "period_options_seconds": [
+                            round(float(value), 4)
+                            for value in options
+                        ],
                         "baseline_source": (
                             baseline.source
                             if baseline is not None
@@ -733,15 +1183,22 @@ class ValidationRunner:
                         ),
                     },
                     "event_count": len(events),
+                    "session_count": session_count,
+                    "regime_count": len(regime_reports),
+                    "ambiguous_regime_count": ambiguous_count,
                     "cycle": cycle_metrics,
                     "phase": phase_metrics,
                     "signal": signal_metrics,
                     "realtime": realtime_metrics,
+                    "regimes": regime_reports,
                 }
             )
             self.progress(
                 f"finished dataset {dataset_index}/{total_datasets}: "
-                f"{dataset.name} events={len(events)}"
+                f"{dataset.name} events={len(events)} "
+                f"sessions={session_count} "
+                f"regimes={len(regime_reports)} "
+                f"ambiguous={ambiguous_count}"
             )
 
         for intersection_id, pool in reference_pools.items():
@@ -750,39 +1207,44 @@ class ValidationRunner:
                 for item in dataset_reports
                 if item["dataset"]["kind"] == "reference"
                 and item["dataset"]["intersection_id"] == intersection_id
-                and item["signal"].get("mean_state_confidence") is not None
+                and item["signal"].get(
+                    "mean_state_confidence"
+                ) is not None
             ]
-            reference_confidence = (
-                statistics.median(confidence_values)
-                if confidence_values
-                else None
-            )
             pool["median_signal_confidence"] = (
-                round(reference_confidence, 4)
-                if reference_confidence is not None
-                else None
+                _median(confidence_values)
             )
 
         for item in dataset_reports:
             signal_metrics = item["signal"]
-            if not isinstance(signal_metrics, dict):
-                continue
-            intersection_id = item["dataset"]["intersection_id"]
+            intersection_id = item["dataset"][
+                "intersection_id"
+            ]
             reference_confidence = reference_pools.get(
                 intersection_id,
                 {},
             ).get("median_signal_confidence")
             if (
                 reference_confidence is not None
-                and signal_metrics.get("mean_state_confidence") is not None
+                and signal_metrics.get(
+                    "mean_state_confidence"
+                ) is not None
             ):
-                signal_metrics["reference_confidence_delta"] = round(
+                signal_metrics[
+                    "reference_confidence_delta"
+                ] = round(
                     float(reference_confidence)
-                    - float(signal_metrics["mean_state_confidence"]),
+                    - float(
+                        signal_metrics[
+                            "mean_state_confidence"
+                        ]
+                    ),
                     4,
                 )
             else:
-                signal_metrics["reference_confidence_delta"] = None
+                signal_metrics[
+                    "reference_confidence_delta"
+                ] = None
 
         return {
             "schema_version": SCHEMA_VERSION,
@@ -793,24 +1255,32 @@ class ValidationRunner:
             "reference_pools": reference_pools,
             "configuration": {
                 "sample_seconds": self.sample_seconds,
-                "transition_tolerance_seconds": self.transition_tolerance_seconds,
+                "transition_tolerance_seconds": (
+                    self.transition_tolerance_seconds
+                ),
                 "accuracy_claim": False,
                 "accuracy_note": (
-                    "Signal-state metrics are consistency/behaviour metrics, "
-                    "not signal-light classification accuracy, because the "
-                    "trajectory archives contain no ground-truth signal state."
+                    "Signal-state metrics are consistency/behaviour "
+                    "metrics, not signal-light classification accuracy, "
+                    "because the trajectory archives contain no "
+                    "ground-truth signal state."
+                ),
+                "reconstruction_path": (
+                    "production session/regime reconstruction"
                 ),
             },
             "datasets": dataset_reports,
         }
+
+
 def report_markdown(report: dict[str, object]) -> str:
     lines = [
         "# Traffic Phase Validation Report",
         "",
         "Signal-state values below are consistency/behaviour metrics, not signal-light accuracy.",
         "",
-        "| Dataset | Intersection | Kind | Reference | Period | Ref period | Ref error | Phase coverage | Overlap | Cycle consistency | Support ratio | Contradiction ratio | State continuity | Transition consistency | Mean confidence | UNKNOWN rate | RT agreement | RT p95 ms | Mean anomaly | False switch |",
-        "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Dataset | Intersection | Kind | Sessions | Regimes | Ambiguous | Reference | Period | Ref period | Ref error | Phase coverage | Overlap | Cycle consistency | Support ratio | Contradiction ratio | State continuity | Transition consistency | Mean confidence | UNKNOWN rate | RT agreement | RT p95 ms | Mean anomaly | False switch |",
+        "|---|---|---|---:|---:|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for item in report["datasets"]:
         dataset = item["dataset"]
@@ -821,10 +1291,13 @@ def report_markdown(report: dict[str, object]) -> str:
         realtime = item["realtime"]
         reference_names = ", ".join(reference.get("dataset_names", [])) or "-"
         lines.append(
-            "| {name} | {intersection} | {kind} | {reference} | {period} | {ref_period} | {err} | {coverage} | {overlap} | {consistency} | {support} | {contradiction} | {continuity} | {transition} | {confidence} | {unknown} | {agreement} | {p95} | {anomaly} | {switch} |".format(
+            "| {name} | {intersection} | {kind} | {sessions} | {regimes} | {ambiguous} | {reference} | {period} | {ref_period} | {err} | {coverage} | {overlap} | {consistency} | {support} | {contradiction} | {continuity} | {transition} | {confidence} | {unknown} | {agreement} | {p95} | {anomaly} | {switch} |".format(
                 name=dataset["name"],
                 intersection=dataset["intersection_id"],
                 kind=dataset["kind"],
+                sessions=item.get("session_count", 0),
+                regimes=item.get("regime_count", 0),
+                ambiguous=item.get("ambiguous_regime_count", 0),
                 reference=reference_names,
                 period=cycle.get("period_seconds"),
                 ref_period=cycle.get("reference_period_seconds"),
@@ -863,6 +1336,7 @@ def report_markdown(report: dict[str, object]) -> str:
                 f"### {intersection_id}",
                 "",
                 f"Reference datasets: {names}",
+                f"Reference regime periods: {pool.get('periods_seconds', [])}",
                 f"Median reference period: {pool.get('median_period_seconds')}",
                 f"Median reference state confidence: {pool.get('median_signal_confidence')}",
                 "",
@@ -874,6 +1348,9 @@ def report_markdown(report: dict[str, object]) -> str:
             "## Metric interpretation",
             "",
             "Cycle and phase metrics measure temporal and event consistency.",
+            "Long gaps create independent sessions; confirmed rolling period changes create independent regimes.",
+            "Phase origins and physical phase intervals are reported per regime and are never averaged across regimes.",
+            "A minimum-duration phase with weak/conflicting evidence is reported as ambiguous rather than as a physical phase.",
             "Reference comparisons and anomaly baselines are scoped to the same physical intersection.",
             "Signal metrics measure continuity, transition behaviour, confidence and UNKNOWN usage.",
             "Realtime agreement compares batch and stateful realtime inference on the same event stream.",
