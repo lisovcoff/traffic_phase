@@ -1,3 +1,9 @@
+"""Legacy trajectory-based baseline retained for benchmark comparison only.
+
+Production API and validation code must use the event-based reconstruction
+path in app.core.reconstruction instead of this module.
+"""
+
 from __future__ import annotations
 
 import json

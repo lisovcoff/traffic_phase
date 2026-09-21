@@ -261,6 +261,10 @@ class RealtimeArchiveSimulation:
                 self._simulated_timestamp_ms + advance_ms,
             )
             self._emit_available(target_ms)
+            if self._engine.current_timestamp_ms is not None:
+                self._last_inference = (
+                    self._engine.snapshot_at(target_ms).to_dict()
+                )
             self._simulated_timestamp_ms = target_ms
             return self.snapshot()
 

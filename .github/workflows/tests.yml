@@ -16,3 +16,4 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m compileall -q app scripts tests
       - run: python -m pytest -q
+      - run: python -m scripts.e2e_smoke

@@ -194,6 +194,23 @@ class RealtimeSignalInferenceEngine:
         with self._lock:
             return self._snapshot(duplicate=False)
 
+    def snapshot_at(self, timestamp_ms: int) -> RealtimeInferenceSnapshot:
+        """Advance inference time without adding traffic evidence."""
+        with self._lock:
+            if self._current_timestamp_ms is None:
+                raise ValueError("no realtime event has been ingested")
+            target_ms = int(timestamp_ms)
+            if target_ms < self._current_timestamp_ms:
+                raise ValueError(
+                    "snapshot timestamp cannot move backwards"
+                )
+            self._current_timestamp_ms = target_ms
+            cutoff_ms = target_ms - int(
+                self.recent_window_s * 1000.0
+            )
+            self._trim(cutoff_ms)
+            return self._snapshot(duplicate=False)
+
     def reset(self) -> None:
         with self._lock:
             self._events.clear()

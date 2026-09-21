@@ -428,7 +428,7 @@ function setState(id,label,state){
   el.textContent=label?(label+' · '+value):value;
 }
 
-window.addEventListener('beforeunload',()=>{if(realtimeId)navigator.sendBeacon('/api/v1/realtime/simulations/'+encodeURIComponent(realtimeId))});
+window.addEventListener('beforeunload',()=>{if(realtimeId)fetch('/api/v1/realtime/simulations/'+encodeURIComponent(realtimeId),{method:'DELETE',keepalive:true}).catch(()=>{})});
 updateTemplateStatus();
 </script>
 </main>

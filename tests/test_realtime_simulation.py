@@ -422,3 +422,82 @@ def test_corrupted_zip_start_returns_422():
 
     assert exc.value.status_code == 422
     assert "corrupted ZIP" in exc.value.detail
+
+
+
+def test_simulated_time_advances_phase_without_new_evidence():
+    from app.core.models import EventType, TrajectoryEvent
+    from app.core.realtime_simulation import (
+        RealtimeSimulationSource,
+        ScheduledTrajectoryEvidence,
+    )
+
+    events = tuple(
+        TrajectoryEvent(
+            event_type=EventType.RELEASE,
+            timestamp_ms=int(timestamp_s * 1000),
+            approach=approach,
+            movement=f"{approach}->x",
+            confidence=1.0,
+            quality="HIGH",
+        )
+        for timestamp_s, approach in (
+            (4.0, "N"),
+            (18.0, "S"),
+            (36.0, "N"),
+            (44.0, "E"),
+            (62.0, "W"),
+            (82.0, "E"),
+        )
+    )
+    source = RealtimeSimulationSource(
+        filename="clock.json",
+        source_format="json",
+        start_timestamp_ms=0,
+        end_timestamp_ms=190_000,
+        trajectory_count=2,
+        event_count=len(events),
+        items=(
+            ScheduledTrajectoryEvidence(
+                available_timestamp_ms=90_000,
+                start_timestamp_ms=0,
+                trajectory_key="evidence",
+                events=events,
+            ),
+            ScheduledTrajectoryEvidence(
+                available_timestamp_ms=190_000,
+                start_timestamp_ms=180_000,
+                trajectory_key="future-empty",
+                events=(),
+            ),
+        ),
+    )
+    simulation = RealtimeArchiveSimulation(
+        source,
+        _phase_model(),
+    )
+
+    at_ninety = simulation.step(90.0)
+    assert at_ninety["synchronization_status"] == "SYNCHRONIZED"
+    assert at_ninety["phase_id"] == 2
+    evidence_count = at_ninety["evidence_summary"][
+        "synchronization_evidence_count"
+    ]
+
+    at_one_ten = simulation.step(20.0)
+    assert at_one_ten["simulated_timestamp_ms"] == 110_000
+    assert at_one_ten["phase_id"] == 1
+    assert (
+        (
+            at_one_ten["cycle_position_s"]
+            - at_ninety["cycle_position_s"]
+        )
+        % 100.0
+        == 20.0
+    )
+    assert (
+        at_one_ten["evidence_summary"][
+            "synchronization_evidence_count"
+        ]
+        == evidence_count
+    )

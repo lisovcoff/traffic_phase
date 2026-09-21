@@ -1,3 +1,10 @@
+"""Legacy trajectory/profile phase discovery for comparison tests only.
+
+The production API uses app.core.event_phase_discovery.EventPhaseDiscovery.
+Keep this module for historical benchmark/regression comparisons; do not add
+new production imports from it.
+"""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass

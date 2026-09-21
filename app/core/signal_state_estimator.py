@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
 from app.core.models import EventType, TrajectoryEvent
-from app.core.phase_discovery import APPROACHES
 from app.core.preprocessing import load_trajectory_file
 
 
@@ -17,6 +16,7 @@ DEFAULT_RECENT_WINDOW_SECONDS = 12.0
 DEFAULT_MIN_PHASE_CONFIDENCE = 0.20
 DEFAULT_MIN_TRAFFIC_CONFIDENCE = 0.12
 DEFAULT_CONFLICT_PERSISTENCE_SECONDS = 3.0
+APPROACHES = ("N", "S", "E", "W")
 
 
 class SignalState(str, Enum):

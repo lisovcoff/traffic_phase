@@ -49,3 +49,11 @@ def test_visualization_uses_backend_phase_model_not_client_inference():
     assert "phase_at(" not in html
     assert "cycle_position =" not in html
     assert "/visualization/playback" not in html
+
+
+
+def test_visualization_cleans_simulation_with_delete_keepalive():
+    html = visualization_page()
+
+    assert "method:'DELETE',keepalive:true" in html
+    assert "navigator.sendBeacon" not in html

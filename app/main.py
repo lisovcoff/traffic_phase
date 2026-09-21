@@ -7,7 +7,7 @@ from app.api.realtime_simulation import router as realtime_simulation_router
 
 app = FastAPI(
     title="Traffic Phase Estimator",
-    version="0.6.0",
+    version="0.10.0",
     description="Estimate recurring traffic-light phase structure from vehicle trajectories.",
 )
 
@@ -24,4 +24,4 @@ def health() -> dict[str, str]:
 
 @app.get("/")
 def root() -> dict[str, str]:
-    return {"service": "traffic-phase", "version": "0.6.0", "visualization": "/visualization"}
+    return {"service": "traffic-phase", "version": "0.10.0", "visualization": "/visualization"}
