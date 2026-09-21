@@ -15,6 +15,10 @@ from app.core.realtime_inference import (
     DuplicateEventError,
     RealtimeSignalInferenceEngine,
 )
+from app.core.realtime_phase_sync import (
+    RealtimePhaseSynchronizer,
+    RealtimePhaseTemplate,
+)
 from app.core.signal_state_estimator import SignalState, SignalStateEstimator
 
 
@@ -57,14 +61,16 @@ def states(snapshot):
     return snapshot.signal_states
 
 
-def test_sequence_of_events_updates_incrementally():
+def test_stream_starts_in_warmup_without_realtime_origin():
     engine = RealtimeSignalInferenceEngine(phase_model())
     first = engine.ingest_event(event(EventType.RELEASE, 10, "N"))
     second = engine.ingest_event(event(EventType.RELEASE, 20, "S"))
-    assert first.phase_id == 1
-    assert second.phase_id == 1
-    assert second.cycle_position_s == 20.0
-    assert states(second)["N"] == SignalState.GREEN.value
+
+    assert first.synchronization_status == "WARMUP"
+    assert second.synchronization_status == "WARMUP"
+    assert first.phase_id is None
+    assert second.cycle_position_s is None
+    assert set(second.signal_states.values()) == {SignalState.UNKNOWN.value}
     assert engine.buffer_event_count == 2
 
 
@@ -99,7 +105,11 @@ def test_reused_id_with_different_payload_is_rejected():
 
 
 def test_out_of_order_event_is_accepted_without_moving_current_time_backwards():
-    engine = RealtimeSignalInferenceEngine(phase_model(), recent_window_s=12.0)
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        recent_window_s=12.0,
+        event_origin_ms=0,
+    )
     latest = engine.ingest_event(event(EventType.RELEASE, 20, "N"))
     earlier = engine.ingest_event(event(EventType.RELEASE, 15, "S"))
     assert latest.timestamp_ms == 20_000
@@ -108,12 +118,17 @@ def test_out_of_order_event_is_accepted_without_moving_current_time_backwards():
     assert engine.buffer_event_count == 2
 
 
-def test_missing_events_keep_phase_structure_but_reduce_evidence():
-    engine = RealtimeSignalInferenceEngine(phase_model())
+def test_explicit_realtime_origin_can_skip_warmup_for_compatibility():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
     snapshot = engine.ingest_event(event(EventType.RELEASE, 10, "N"))
+
+    assert snapshot.synchronization_status == "SYNCHRONIZED"
     assert snapshot.phase_id == 1
     assert snapshot.signal_states["N"] == SignalState.GREEN.value
-    assert snapshot.traffic_evidence_confidence > 0
+    assert snapshot.phase_offset_s == 0.0
 
 
 def test_rolling_buffer_drops_old_events():
@@ -149,7 +164,10 @@ def test_realtime_matches_batch_on_same_event_set():
     ]
     batch = SignalStateEstimator(phase_model()).estimate(20.0, events)
 
-    engine = RealtimeSignalInferenceEngine(phase_model())
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
     realtime = None
     for item in events:
         realtime = engine.ingest_event(item)
@@ -189,3 +207,120 @@ def test_endpoint_is_idempotent_for_duplicate_event():
     assert first["signal_states"] == duplicate["signal_states"]
     assert duplicate["duplicate"] is True
     registry.reset(stream_id)
+
+
+
+def _stream_event(timestamp_s, approach, event_type=EventType.RELEASE):
+    return event(event_type, timestamp_s, approach)
+
+
+def _events_for_known_offset(offset_s):
+    desired = (
+        (4.0, "N"),
+        (18.0, "S"),
+        (36.0, "N"),
+        (44.0, "E"),
+        (62.0, "W"),
+        (82.0, "E"),
+        (96.0, "W"),
+        (8.0, "S"),
+    )
+    result = []
+    base_cycle = 20
+    for index, (position, approach) in enumerate(desired):
+        cycle = base_cycle + index
+        timestamp_s = (
+            cycle * 100.0
+            + ((position - offset_s) % 100.0)
+        )
+        result.append(_stream_event(timestamp_s, approach))
+    return result
+
+
+def _circular_error(left, right, cycle=100.0):
+    delta = abs(left - right) % cycle
+    return min(delta, cycle - delta)
+
+
+def test_phase_synchronizer_recovers_arbitrary_realtime_offset():
+    template = RealtimePhaseTemplate.from_phase_model(phase_model())
+    synchronizer = RealtimePhaseSynchronizer(
+        template,
+        min_evidence_events=6,
+        resolution_seconds=2.0,
+    )
+    true_offset = 26.0
+
+    state = synchronizer.ingest_many(
+        _events_for_known_offset(true_offset)
+    )
+
+    assert state.status == "SYNCHRONIZED"
+    assert state.offset_seconds is not None
+    assert _circular_error(state.offset_seconds, true_offset) <= 4.0
+    assert state.confidence >= 0.8
+
+
+def test_realtime_engine_warms_up_then_synchronizes_without_reference_origin():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        synchronization_min_events=6,
+    )
+    source = _events_for_known_offset(26.0)
+
+    for item in source[:5]:
+        snapshot = engine.ingest_event(item)
+        assert snapshot.synchronization_status == "WARMUP"
+        assert snapshot.phase_id is None
+        assert set(snapshot.signal_states.values()) == {"UNKNOWN"}
+
+    snapshot = None
+    for item in source[5:]:
+        snapshot = engine.ingest_event(item)
+
+    assert snapshot is not None
+    assert snapshot.synchronization_status == "SYNCHRONIZED"
+    assert snapshot.phase_offset_s is not None
+    assert _circular_error(snapshot.phase_offset_s, 26.0) <= 4.0
+    assert snapshot.phase_id is not None
+    assert snapshot.cycle_position_s is not None
+
+
+def test_synchronization_has_no_lookahead():
+    prefix = _events_for_known_offset(26.0)[:5]
+    first = RealtimeSignalInferenceEngine(
+        phase_model(),
+        synchronization_min_events=6,
+    )
+    second = RealtimeSignalInferenceEngine(
+        phase_model(),
+        synchronization_min_events=6,
+    )
+
+    first_snapshots = [
+        first.ingest_event(item).to_dict()
+        for item in prefix
+    ]
+    second_snapshots = [
+        second.ingest_event(item).to_dict()
+        for item in prefix
+    ]
+
+    assert first_snapshots == second_snapshots
+    assert first_snapshots[-1]["synchronization_status"] == "WARMUP"
+
+    for item in _events_for_known_offset(26.0)[5:]:
+        future_snapshot = first.ingest_event(item)
+
+    assert future_snapshot.synchronization_status == "SYNCHRONIZED"
+    assert second.snapshot().synchronization_status == "WARMUP"
+
+
+def test_phase_template_does_not_keep_historical_origin():
+    historical = phase_model()
+    object.__setattr__(historical, "origin_timestamp_ms", 987654321000)
+
+    template = RealtimePhaseTemplate.from_phase_model(historical)
+
+    assert "origin_timestamp_ms" not in template.to_dict()
+    assert template.to_phase_model().origin_timestamp_ms == 0

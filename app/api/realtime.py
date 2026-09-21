@@ -12,6 +12,7 @@ from app.core.realtime_inference import (
     DuplicateEventError,
     RealtimeSignalInferenceEngine,
 )
+from app.core.realtime_phase_sync import RealtimePhaseTemplate
 
 
 class PhasePayload(BaseModel):
@@ -83,7 +84,8 @@ def _build_phase_model(payload: PhasePayload) -> EventPhaseDiscoveryResult:
         overlap=payload.overlap,
         supporting_event_count=payload.supporting_event_count,
         contradictory_event_count=payload.contradictory_event_count,
-        origin_timestamp_ms=payload.origin_timestamp_ms,
+        # Historical reference origin is not part of the realtime template.
+        origin_timestamp_ms=0,
     )
 
 
@@ -107,7 +109,10 @@ class RealtimeEngineRegistry:
             if engine is not None:
                 if (
                     phase_model is not None
-                    and phase_model.to_dict() != engine.phase_model.to_dict()
+                    and RealtimePhaseTemplate.from_phase_model(
+                        phase_model
+                    ).to_dict()
+                    != engine.phase_template.to_dict()
                 ):
                     raise ValueError(
                         "stream already exists with a different phase model"

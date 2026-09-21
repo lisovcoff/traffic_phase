@@ -5,7 +5,7 @@ from app.core.models import EventType, TrajectoryEvent
 from app.core.realtime_inference import RealtimeSignalInferenceEngine
 
 
-def test_realtime_engine_uses_phase_model_origin_by_default():
+def test_realtime_engine_ignores_historical_phase_model_origin():
     origin_ms = 5_000_000
     model = EventPhaseDiscoveryResult(
         cycle_seconds=100.0,
@@ -32,5 +32,10 @@ def test_realtime_engine_uses_phase_model_origin_by_default():
             "HIGH",
         )
     )
+
+    assert engine.phase_model.origin_timestamp_ms == 0
     assert snapshot.timestamp_ms == origin_ms + 20_000
-    assert snapshot.timestamp_s == 20.0
+    assert snapshot.timestamp_s == 0.0
+    assert snapshot.synchronization_status == "WARMUP"
+    assert snapshot.phase_id is None
+    assert set(snapshot.signal_states.values()) == {"UNKNOWN"}
