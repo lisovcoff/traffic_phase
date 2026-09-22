@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 import json
-from typing import BinaryIO, Iterable
+from typing import BinaryIO, Iterable, Sequence
 import zipfile
 
 from app.core.models import Trajectory, TrajectoryEvent
@@ -33,6 +34,9 @@ class ArchiveAnalysis:
     trajectory_count: int
     event_count: int
     sessions: tuple[SessionReconstruction, ...]
+    segment_events: tuple[
+        tuple[TrajectoryEvent, ...], ...
+    ] = ()
     member_errors: tuple[dict[str, str], ...] = ()
 
     def to_dict(self, *, timeline_points: int = DEFAULT_TIMELINE_POINTS) -> dict[str, object]:
@@ -40,7 +44,10 @@ class ArchiveAnalysis:
             _session_payload(index, session, timeline_points=timeline_points)
             for index, session in enumerate(self.sessions, start=1)
         ]
-        regime_families = build_regime_families(self.sessions)
+        regime_families = build_regime_families(
+            self.sessions,
+            segment_events=self.segment_events,
+        )
         family_payloads = [
             family.to_dict()
             for family in regime_families
@@ -64,6 +71,15 @@ class ArchiveAnalysis:
                         ),
                         "regime_family_consensus_coverage": (
                             family.consensus_coverage
+                        ),
+                        "regime_family_pooled_coverage": (
+                            family.pooled_coverage
+                        ),
+                        "regime_family_pooled_quality": (
+                            family.pooled_model_quality
+                        ),
+                        "regime_family_pooling_status": (
+                            family.pooling_status
                         ),
                     }
                 )
@@ -461,6 +477,7 @@ def _gap_semantics(
         return {
             "gaps": [],
             "clearance_candidate_rate": 0.0,
+            "transition_ambiguous_rate": 0.0,
             "unresolved_stage_rate": 0.0,
             "unobserved_rate": 0.0,
             "unresolved_unknown_rate": 0.0,
@@ -477,6 +494,7 @@ def _gap_semantics(
     classified: list[dict[str, object]] = []
     duration_by_kind = {
         "CLEARANCE_CANDIDATE": 0.0,
+        "TRANSITION_AMBIGUOUS": 0.0,
         "UNRESOLVED_STAGE": 0.0,
         "UNOBSERVED": 0.0,
     }
@@ -503,6 +521,16 @@ def _gap_semantics(
         if promoted:
             kind = "UNRESOLVED_STAGE"
             reason = "promoted movement stage overlaps uncovered interval"
+        elif (
+            duration <= CLEARANCE_CANDIDATE_MAX_SECONDS
+            and conflicting_boundary
+            and movement_evidence
+        ):
+            kind = "TRANSITION_AMBIGUOUS"
+            reason = (
+                "short conflict-family transition also contains recurring "
+                "movement evidence"
+            )
         elif (
             duration <= CLEARANCE_CANDIDATE_MAX_SECONDS
             and conflicting_boundary
@@ -555,13 +583,18 @@ def _gap_semantics(
         for kind, duration in duration_by_kind.items()
     }
     unresolved = (
-        rates["UNRESOLVED_STAGE"]
+        rates["TRANSITION_AMBIGUOUS"]
+        + rates["UNRESOLVED_STAGE"]
         + rates["UNOBSERVED"]
     )
     return {
         "gaps": classified,
         "clearance_candidate_rate": round(
             rates["CLEARANCE_CANDIDATE"],
+            4,
+        ),
+        "transition_ambiguous_rate": round(
+            rates["TRANSITION_AMBIGUOUS"],
             4,
         ),
         "unresolved_stage_rate": round(
@@ -876,7 +909,45 @@ def _session_payload(
         "regime_family_member_count": 0,
         "regime_family_quality": None,
         "regime_family_consensus_coverage": None,
+        "regime_family_pooled_coverage": None,
+        "regime_family_pooled_quality": None,
+        "regime_family_pooling_status": None,
     }
+
+
+def _partition_segment_events(
+    events: Sequence[TrajectoryEvent],
+    sessions: Sequence[SessionReconstruction],
+) -> tuple[tuple[TrajectoryEvent, ...], ...]:
+    ordered = tuple(
+        sorted(
+            events,
+            key=lambda event: (
+                event.timestamp_ms,
+                event.event_type.value,
+                event.approach,
+                event.movement,
+            ),
+        )
+    )
+    if not sessions:
+        return ()
+    if not ordered:
+        return tuple(() for _ in sessions)
+
+    timestamps = [event.timestamp_ms for event in ordered]
+    result: list[tuple[TrajectoryEvent, ...]] = []
+    for session in sessions:
+        left = bisect_left(
+            timestamps,
+            int(session.start_timestamp_ms),
+        )
+        right = bisect_right(
+            timestamps,
+            int(session.end_timestamp_ms),
+        )
+        result.append(tuple(ordered[left:right]))
+    return tuple(result)
 
 
 def analyze_json_stream(
@@ -891,13 +962,21 @@ def analyze_json_stream(
         trajectories,
         session_gap_seconds=session_gap_seconds,
     )
+    all_events = tuple(
+        extract_events_from_trajectories(trajectories)
+    )
+    segment_events = _partition_segment_events(
+        all_events,
+        sessions,
+    )
     return ArchiveAnalysis(
         filename=filename,
         source_format="json",
         json_member_count=1,
         trajectory_count=len(trajectories),
-        event_count=sum(session.event_count for session in sessions),
+        event_count=len(all_events),
         sessions=sessions,
+        segment_events=segment_events,
     )
 
 
@@ -912,6 +991,9 @@ def analyze_zip_stream(
     gap_ms = int(round(session_gap_seconds * 1000.0))
 
     completed: list[SessionReconstruction] = []
+    completed_segment_events: list[
+        tuple[TrajectoryEvent, ...]
+    ] = []
     current_events: list[TrajectoryEvent] = []
     current_start_ms: int | None = None
     current_end_ms: int | None = None
@@ -943,16 +1025,21 @@ def analyze_zip_stream(
         if current_start_ms is None or current_end_ms is None:
             return
         physical_session_index += 1
-        completed.extend(
-            reconstruct_event_regimes(
+        regimes = reconstruct_event_regimes(
+            current_events,
+            start_timestamp_ms=current_start_ms,
+            end_timestamp_ms=current_end_ms,
+            trajectory_count=current_trajectory_count,
+            trajectory_end_timestamps_ms=current_trajectory_end_times,
+            session_index=physical_session_index,
+            sampling_seconds=2.0,
+            bin_seconds=2.0,
+        )
+        completed.extend(regimes)
+        completed_segment_events.extend(
+            _partition_segment_events(
                 current_events,
-                start_timestamp_ms=current_start_ms,
-                end_timestamp_ms=current_end_ms,
-                trajectory_count=current_trajectory_count,
-                trajectory_end_timestamps_ms=current_trajectory_end_times,
-                session_index=physical_session_index,
-                sampling_seconds=2.0,
-                bin_seconds=2.0,
+                regimes,
             )
         )
         current_events = []
@@ -1084,6 +1171,7 @@ def analyze_zip_stream(
         trajectory_count=total_trajectories,
         event_count=total_events,
         sessions=tuple(completed),
+        segment_events=tuple(completed_segment_events),
         member_errors=tuple(member_errors),
     )
 

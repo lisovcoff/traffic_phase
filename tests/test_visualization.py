@@ -103,7 +103,7 @@ def test_visualization_surfaces_batch_quality_and_boundary_recovery():
     assert "model_quality" in html
     assert "boundary_recovered_fraction" in html
     assert "batchSession.model_quality==='GOOD'" in html
-    assert "family.model_quality==='GOOD'" in html
+    assert "family.pooled_model_quality==='GOOD'" in html
 
 
 
@@ -113,7 +113,10 @@ def test_visualization_surfaces_gap_semantics_and_regime_families():
     assert 'id="batchGapSemantics"' in html
     assert 'id="batchUnresolved"' in html
     assert 'id="batchRegimeFamily"' in html
+    assert 'id="batchPooled"' in html
     assert "function currentRegimeFamily" in html
     assert "function effectiveTemplate" in html
-    assert "regime family '+family.family_id+' consensus" in html
+    assert "pooled raw-event regime family '+family.family_id" in html
+    assert "pooled_phase_model" in html
+    assert "transition ambiguous" in html
     assert "Analysis segment:" in html

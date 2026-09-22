@@ -84,6 +84,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="stat"><span>Gap semantics</span><strong id="batchGapSemantics">—</strong></div>
       <div class="stat"><span>Unresolved UNKNOWN</span><strong id="batchUnresolved">—</strong></div>
       <div class="stat"><span>Regime family</span><strong id="batchRegimeFamily">—</strong></div>
+      <div class="stat"><span>Pooled raw reconstruction</span><strong id="batchPooled">—</strong></div>
       <div class="stat"><span>UNKNOWN cause</span><strong id="batchUnknownCause">—</strong></div>
     </div>
 
@@ -101,7 +102,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <h3>Phase model</h3>
       <div id="batchPhaseList" class="phase-list"></div>
       <div id="batchMovementList" class="phase-list" style="margin-top:10px"></div>
-      <div class="muted small" style="margin-top:10px">Movement-specific groups are inferred separately and do not change the main N/S/E/W stage. Realtime uses the selected GOOD local model, or a GOOD cross-session regime-family consensus when the local segment is weaker.</div>
+      <div class="muted small" style="margin-top:10px">Movement-specific groups are inferred separately and do not change the main N/S/E/W stage. Realtime prefers a GOOD phase model reconstructed from pooled raw events across a recurring regime family; otherwise it falls back to a usable local segment.</div>
     </div>
   </div>
 </section>
@@ -275,11 +276,12 @@ function openBatchSession(i){
   const gapText=gaps.length?(' · gaps '+gaps.map(g=>Number(g.start_s).toFixed(1)+'–'+Number(g.end_s).toFixed(1)+'s').join(', ')):'';
   $('batchUnknownCause').textContent=(reasons.length?reasons.join(' · '):'none')+gapText;
   const gapMetrics=batchSession.gap_metrics||{};
-  $('batchGapSemantics').textContent='clearance '+(Number(gapMetrics.clearance_candidate_rate||0)*100).toFixed(1)+'% · unresolved stage '+(Number(gapMetrics.unresolved_stage_rate||0)*100).toFixed(1)+'% · unobserved '+(Number(gapMetrics.unobserved_rate||0)*100).toFixed(1)+'%';
+  $('batchGapSemantics').textContent='clearance '+(Number(gapMetrics.clearance_candidate_rate||0)*100).toFixed(1)+'% · transition ambiguous '+(Number(gapMetrics.transition_ambiguous_rate||0)*100).toFixed(1)+'% · unresolved stage '+(Number(gapMetrics.unresolved_stage_rate||0)*100).toFixed(1)+'% · unobserved '+(Number(gapMetrics.unobserved_rate||0)*100).toFixed(1)+'%';
   const unresolved=gapMetrics.unresolved_unknown_rate;
   $('batchUnresolved').textContent=unresolved==null?'—':(Number(unresolved)*100).toFixed(2)+'% '+(gapMetrics.meets_unresolved_target?'✓ <1%':'');
   const family=currentRegimeFamily();
-  $('batchRegimeFamily').textContent=family?(family.family_id+' · '+family.member_count+' member(s) · '+family.model_quality+' · consensus '+(Number(family.consensus_coverage||0)*100).toFixed(1)+'%'):'—';
+  $('batchRegimeFamily').textContent=family?(family.family_id+' · '+family.member_count+' member(s) · '+family.model_quality+' · vote '+(Number(family.consensus_coverage||0)*100).toFixed(1)+'%'):'—';
+  $('batchPooled').textContent=family?(family.pooling_status+' · '+(family.pooled_event_count||0)+' events · '+(family.pooled_cycle_count||0)+' cycles · coverage '+(family.pooled_coverage==null?'—':(Number(family.pooled_coverage)*100).toFixed(1)+'%')+' · quality '+(family.pooled_model_quality||'—')+' · movement candidates '+(family.pooled_movement_candidate_count||0)+' / stages '+(family.pooled_movement_stage_count||0)):'—';
   const timeline=batchSession.timeline||[];
   $('batchSlider').max=String(Math.max(0,timeline.length-1));
   $('batchSlider').value='0';
@@ -315,7 +317,21 @@ function buildBatchPhaseModel(){
     chip.textContent='Gap '+Number(gap.start_s).toFixed(1)+'–'+Number(gap.end_s).toFixed(1)+'s · '+gap.kind+' · '+item.movement+' candidate · conf '+Number(item.confidence||0).toFixed(2);
     movementHolder.appendChild(chip);
   });
-  if(!movementStages.length&&!gapProbes.length)movementHolder.textContent='No movement-specific signal groups inferred.';
+  const family=currentRegimeFamily();
+  const pooled=family&&family.pooled_phase_model?family.pooled_phase_model:null;
+  const pooledStages=pooled?(pooled.movement_stages||[]):[];
+  const pooledCandidates=pooled?(pooled.distinct_movement_candidates||[]):[];
+  pooledStages.forEach(stage=>{
+    const chip=document.createElement('span');chip.className='phase-chip';
+    chip.textContent='Pooled movement '+stage.movement+' · '+stage.phase_start+'–'+stage.phase_end+'s · conf '+Number(stage.confidence||0).toFixed(2);
+    movementHolder.appendChild(chip);
+  });
+  pooledCandidates.forEach(item=>{
+    const chip=document.createElement('span');chip.className='phase-chip';
+    chip.textContent='Pooled candidate '+item.movement+' · '+item.phase_start+'–'+item.phase_end+'s · score '+Number(item.score||0).toFixed(2);
+    movementHolder.appendChild(chip);
+  });
+  if(!movementStages.length&&!gapProbes.length&&!pooledStages.length&&!pooledCandidates.length)movementHolder.textContent='No movement-specific signal groups inferred.';
 }
 
 function buildBatchTimeline(){
@@ -375,12 +391,12 @@ function currentRegimeFamily(){
 }
 function effectiveTemplate(){
   if(!batchSession||batchSession.status!=='ok')return null;
+  const family=currentRegimeFamily();
+  if(family&&family.member_count>=2&&family.pooled_model_quality==='GOOD'&&family.pooled_phase_model&&family.pooled_phase_model.phases&&family.pooled_phase_model.phases.length){
+    return {model:family.pooled_phase_model,source:'pooled raw-event regime family '+family.family_id};
+  }
   if(batchSession.model_quality==='GOOD'&&batchSession.phase_model&&batchSession.phase_model.phases&&batchSession.phase_model.phases.length){
     return {model:batchSession.phase_model,source:'local GOOD segment'};
-  }
-  const family=currentRegimeFamily();
-  if(family&&family.member_count>=2&&family.model_quality==='GOOD'&&family.consensus_phase_model&&family.consensus_phase_model.phases&&family.consensus_phase_model.phases.length){
-    return {model:family.consensus_phase_model,source:'regime family '+family.family_id+' consensus'};
   }
   if(batchSession.model_quality==='PARTIAL'&&batchSession.phase_model&&batchSession.phase_model.phases&&batchSession.phase_model.phases.length){
     return {model:batchSession.phase_model,source:'local PARTIAL segment'};

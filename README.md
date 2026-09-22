@@ -166,10 +166,24 @@ rate so clearance candidates do not artificially count as unexplained signal
 state.
 
 Recurring regimes from different physical sessions are clustered by cycle
-length and cyclically aligned N/S/E/W stage structure. A family consensus is
-built only from agreeing stage evidence. Distinct same-cycle timing plans stay
-separate, and a GOOD multi-session consensus may be used as the realtime
-warm-start when the selected local segment is weak or partial.
+length and cyclically aligned N/S/E/W structure. D.8 retains the raw
+RELEASE/CROSSING events for each analysis segment, aligns members of a regime
+family into one synthetic cycle frame, and reruns EventPhaseDiscovery on the
+pooled evidence instead of treating already reconstructed phases as ground
+truth. Movement candidates and promoted movement stages are therefore inferred
+again from the combined cross-day evidence. The older phase-vote consensus is
+kept only as a diagnostic comparison.
+
+Weak segments may use coarse NS/EW raw-event similarity to attach to an
+established timing-plan family, while strong segments still have to agree on
+fine N/S/E/W stage structure. Ambiguous weak segments are kept separate rather
+than contaminating two plausible families. Realtime prefers a GOOD pooled
+raw-event family model when at least two members support it.
+
+Short gaps between conflicting families are no longer automatically called
+clearance when recurring movement evidence is present. Such gaps are reported
+as TRANSITION_AMBIGUOUS and still count toward unresolved UNKNOWN until pooled
+cross-day evidence resolves them.
 
 Realtime snapshots expose template-compatibility diagnostics, instantaneous
 UNKNOWN reasons, cumulative/post-sync/rolling-60s UNKNOWN rates, and temporary

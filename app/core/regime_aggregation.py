@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import floor
 from statistics import median
 from typing import Sequence
 
-from app.core.event_phase_discovery import EventPhase
+from app.core.event_phase_discovery import (
+    EventPhase,
+    EventPhaseDiscovery,
+    EventPhaseDiscoveryResult,
+)
+from app.core.models import EventType, TrajectoryEvent
 from app.core.reconstruction import (
     GOOD_MODEL_MIN_COVERAGE,
     GOOD_MODEL_MIN_CYCLE_CONFIDENCE,
@@ -13,12 +19,16 @@ from app.core.reconstruction import (
     PARTIAL_MODEL_MIN_CYCLE_CONFIDENCE,
     PARTIAL_MODEL_MIN_PHASE_CONFIDENCE,
     SessionReconstruction,
+    phase_model_ambiguity_reason,
 )
 
 
 SIGNATURE_BINS = 60
 CYCLE_TOLERANCE_SECONDS = 6.0
 MIN_FAMILY_SIMILARITY = 0.82
+MIN_WEAK_COARSE_SIMILARITY = 0.82
+MIN_WEAK_FINE_SIMILARITY = 0.45
+AMBIGUOUS_FAMILY_SCORE_MARGIN = 0.03
 
 _APPROACH_BITS = {
     "N": 1,
@@ -38,6 +48,7 @@ class RegimeFamilyMember:
     cycle_seconds: float
     cycle_coverage: float
     similarity: float
+    coarse_similarity: float
     alignment_seconds: float
 
     def to_dict(self) -> dict[str, object]:
@@ -49,6 +60,7 @@ class RegimeFamilyMember:
             "cycle_seconds": self.cycle_seconds,
             "cycle_coverage": self.cycle_coverage,
             "similarity": self.similarity,
+            "coarse_similarity": self.coarse_similarity,
             "alignment_seconds": self.alignment_seconds,
         }
 
@@ -63,8 +75,18 @@ class RegimeFamilySummary:
     similarity_mean: float
     consensus_coverage: float
     consensus_confidence: float
+    consensus_model_quality: str
     model_quality: str
     consensus_phase_model: dict[str, object] | None
+    pooled_event_count: int
+    pooled_cycle_count: int
+    pooled_coverage: float | None
+    pooled_confidence: float | None
+    pooled_model_quality: str | None
+    pooled_phase_model: dict[str, object] | None
+    pooled_movement_candidate_count: int
+    pooled_movement_stage_count: int
+    pooling_status: str
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -76,8 +98,22 @@ class RegimeFamilySummary:
             "similarity_mean": self.similarity_mean,
             "consensus_coverage": self.consensus_coverage,
             "consensus_confidence": self.consensus_confidence,
+            "consensus_model_quality": self.consensus_model_quality,
             "model_quality": self.model_quality,
             "consensus_phase_model": self.consensus_phase_model,
+            "pooled_event_count": self.pooled_event_count,
+            "pooled_cycle_count": self.pooled_cycle_count,
+            "pooled_coverage": self.pooled_coverage,
+            "pooled_confidence": self.pooled_confidence,
+            "pooled_model_quality": self.pooled_model_quality,
+            "pooled_phase_model": self.pooled_phase_model,
+            "pooled_movement_candidate_count": (
+                self.pooled_movement_candidate_count
+            ),
+            "pooled_movement_stage_count": (
+                self.pooled_movement_stage_count
+            ),
+            "pooling_status": self.pooling_status,
         }
 
 
@@ -86,6 +122,7 @@ class _FamilyWork:
     reference_id: int
     reference: SessionReconstruction
     reference_signature: tuple[int, ...]
+    reference_axis_signature: tuple[int, ...]
     members: list[tuple[int, SessionReconstruction, int, float]]
 
 
@@ -139,6 +176,257 @@ def _session_signature(
                 break
         signature.append(_stage_bits(active))
     return tuple(signature)
+
+
+def _raw_axis_signature(
+    session: SessionReconstruction,
+    events: Sequence[TrajectoryEvent],
+    *,
+    bins: int = SIGNATURE_BINS,
+) -> tuple[int, ...]:
+    model = session.phase_model
+    if model is None or bins <= 0:
+        return ()
+    cycle = float(model.cycle_seconds)
+    if cycle <= 0:
+        return ()
+    counts = [
+        [0.0 for _ in range(bins)],
+        [0.0 for _ in range(bins)],
+    ]
+    origin_ms = int(model.origin_timestamp_ms)
+    for event in events:
+        if event.event_type not in {
+            EventType.RELEASE,
+            EventType.CROSSING,
+        }:
+            continue
+        if event.approach in {"N", "S"}:
+            axis_index = 0
+        elif event.approach in {"E", "W"}:
+            axis_index = 1
+        else:
+            continue
+        position = (
+            ((event.timestamp_ms - origin_ms) / 1000.0)
+            % cycle
+        )
+        bin_index = min(
+            bins - 1,
+            int(position / cycle * bins),
+        )
+        weight = float(event.confidence)
+        if event.event_type == EventType.CROSSING:
+            weight *= 0.5
+        counts[axis_index][bin_index] += max(0.0, weight)
+
+    dilated = [values[:] for values in counts]
+    for axis_index in range(2):
+        for index in range(bins):
+            dilated[axis_index][index] = max(
+                counts[axis_index][index],
+                counts[axis_index][(index - 1) % bins],
+                counts[axis_index][(index + 1) % bins],
+            )
+
+    signature: list[int] = []
+    for index in range(bins):
+        ns = dilated[0][index]
+        ew = dilated[1][index]
+        if ns <= 0.0 and ew <= 0.0:
+            signature.append(0)
+        elif ns >= ew:
+            signature.append(1)
+        else:
+            signature.append(2)
+    return tuple(signature)
+
+
+def _axis_signature_similarity(
+    left: Sequence[int],
+    right: Sequence[int],
+) -> float:
+    if not left or len(left) != len(right):
+        return 0.0
+    exact = 0.0
+    conflict = 0.0
+    missing = 0.0
+    for a, b in zip(left, right):
+        if a and b:
+            if a == b:
+                exact += 1.0
+            else:
+                conflict += 1.0
+        elif bool(a) != bool(b):
+            missing += 1.0
+    denominator = exact + conflict + 0.20 * missing
+    if denominator <= 0:
+        return 0.0
+    return exact / denominator
+
+
+def _best_axis_alignment(
+    reference: Sequence[int],
+    candidate: Sequence[int],
+) -> tuple[int, float]:
+    if not reference or len(reference) != len(candidate):
+        return 0, 0.0
+    best_shift = 0
+    best_similarity = -1.0
+    for shift in range(len(reference)):
+        similarity = _axis_signature_similarity(
+            reference,
+            _rotated(candidate, shift),
+        )
+        if similarity > best_similarity:
+            best_similarity = similarity
+            best_shift = shift
+    return best_shift, max(0.0, best_similarity)
+
+
+def _fine_similarity_at_shift(
+    reference: Sequence[int],
+    candidate: Sequence[int],
+    shift: int,
+) -> float:
+    if not reference or len(reference) != len(candidate):
+        return 0.0
+    return _signature_similarity(
+        reference,
+        _rotated(candidate, shift),
+    )
+
+
+def _phase_confidence_from_model(
+    model: EventPhaseDiscoveryResult,
+) -> float:
+    if not model.phases:
+        return 0.0
+    return sum(
+        float(phase.confidence)
+        for phase in model.phases
+    ) / len(model.phases)
+
+
+def _aligned_pooled_events(
+    members: Sequence[
+        tuple[int, SessionReconstruction, int, float]
+    ],
+    segment_events: Sequence[Sequence[TrajectoryEvent]],
+    *,
+    cycle_seconds: float,
+) -> tuple[tuple[TrajectoryEvent, ...], int]:
+    pooled: list[TrajectoryEvent] = []
+    base_cycle = 1
+    pooled_cycle_count = 0
+
+    for session_id, session, shift, _similarity in members:
+        if not 1 <= session_id <= len(segment_events):
+            continue
+        model = session.phase_model
+        if model is None:
+            continue
+        local_cycle = float(model.cycle_seconds)
+        if local_cycle <= 0:
+            continue
+        raw = [
+            event
+            for event in segment_events[session_id - 1]
+            if (
+                event.event_type
+                in {EventType.RELEASE, EventType.CROSSING}
+                and event.approach in _APPROACH_BITS
+            )
+        ]
+        if not raw:
+            continue
+
+        origin_ms = int(model.origin_timestamp_ms)
+        indexed: list[tuple[TrajectoryEvent, int, float]] = []
+        cycle_indices: list[int] = []
+        for event in raw:
+            elapsed_cycles = (
+                (event.timestamp_ms - origin_ms)
+                / 1000.0
+                / local_cycle
+            )
+            cycle_index = floor(elapsed_cycles)
+            local_fraction = elapsed_cycles - cycle_index
+            indexed.append(
+                (event, cycle_index, local_fraction)
+            )
+            cycle_indices.append(cycle_index)
+
+        min_cycle = min(cycle_indices)
+        max_cycle = max(cycle_indices)
+        span_cycles = max_cycle - min_cycle + 1
+        pooled_cycle_count += span_cycles
+
+        shift_fraction = shift / SIGNATURE_BINS
+        for event, cycle_index, local_fraction in indexed:
+            aligned = local_fraction - shift_fraction
+            cycle_adjust = floor(aligned)
+            aligned_fraction = aligned - cycle_adjust
+            synthetic_cycle = (
+                base_cycle
+                + cycle_index
+                - min_cycle
+                + cycle_adjust
+            )
+            synthetic_timestamp_ms = int(
+                round(
+                    (
+                        synthetic_cycle
+                        + aligned_fraction
+                    )
+                    * cycle_seconds
+                    * 1000.0
+                )
+            )
+            pooled.append(
+                TrajectoryEvent(
+                    event_type=event.event_type,
+                    timestamp_ms=synthetic_timestamp_ms,
+                    approach=event.approach,
+                    movement=event.movement,
+                    confidence=event.confidence,
+                    quality=event.quality,
+                )
+            )
+
+        base_cycle += span_cycles + 2
+
+    pooled.sort(
+        key=lambda event: (
+            event.timestamp_ms,
+            event.event_type.value,
+            event.approach,
+            event.movement,
+        )
+    )
+    return tuple(pooled), pooled_cycle_count
+
+
+def _phase_model_payload(
+    model: EventPhaseDiscoveryResult,
+    *,
+    confidence: float,
+) -> dict[str, object]:
+    payload = model.to_dict()
+    payload.pop("profiles", None)
+    payload["model_type"] = "cross_session_pooled_evidence"
+    payload["confidence"] = round(confidence, 4)
+    payload["stages"] = payload["phases"]
+    total = (
+        model.supporting_event_count
+        + model.contradictory_event_count
+    )
+    payload["support_ratio"] = (
+        round(model.supporting_event_count / total, 4)
+        if total
+        else None
+    )
+    return payload
 
 
 def _rotated(
@@ -396,6 +684,8 @@ def _consensus_phases(
 
 def build_regime_families(
     sessions: Sequence[SessionReconstruction],
+    *,
+    segment_events: Sequence[Sequence[TrajectoryEvent]] | None = None,
 ) -> tuple[RegimeFamilySummary, ...]:
     eligible = [
         (index, session)
@@ -425,10 +715,29 @@ def build_regime_families(
         signature = _session_signature(session)
         if not signature:
             continue
+        raw_events = (
+            segment_events[session_id - 1]
+            if (
+                segment_events is not None
+                and 1 <= session_id <= len(segment_events)
+            )
+            else ()
+        )
+        axis_signature = _raw_axis_signature(
+            session,
+            raw_events,
+        )
         cycle = float(session.phase_model.cycle_seconds)
-        best_family: _FamilyWork | None = None
-        best_shift = 0
-        best_similarity = -1.0
+        candidates: list[
+            tuple[
+                float,
+                _FamilyWork,
+                int,
+                float,
+                float,
+            ]
+        ] = []
+
         for family in families:
             reference_cycle = float(
                 family.reference.phase_model.cycle_seconds
@@ -438,24 +747,107 @@ def build_regime_families(
                 > CYCLE_TOLERANCE_SECONDS
             ):
                 continue
-            shift, similarity = _best_alignment(
-                family.reference_signature,
-                signature,
-            )
-            if similarity > best_similarity:
-                best_similarity = similarity
-                best_shift = shift
-                best_family = family
 
+            strong_pair = (
+                session.model_quality != "INSUFFICIENT"
+                and family.reference.model_quality
+                != "INSUFFICIENT"
+            )
+            if (
+                not strong_pair
+                and axis_signature
+                and family.reference_axis_signature
+            ):
+                shift, coarse_similarity = (
+                    _best_axis_alignment(
+                        family.reference_axis_signature,
+                        axis_signature,
+                    )
+                )
+                fine_similarity = _fine_similarity_at_shift(
+                    family.reference_signature,
+                    signature,
+                    shift,
+                )
+                if (
+                    coarse_similarity
+                    < MIN_WEAK_COARSE_SIMILARITY
+                    or fine_similarity
+                    < MIN_WEAK_FINE_SIMILARITY
+                ):
+                    continue
+                score = (
+                    0.70 * coarse_similarity
+                    + 0.30 * fine_similarity
+                )
+            elif not strong_pair:
+                # Backward-compatible fallback for callers that do not retain
+                # raw segment events. Production archive analysis supplies raw
+                # evidence and therefore uses the coarse-axis branch above.
+                shift, fine_similarity = _best_alignment(
+                    family.reference_signature,
+                    signature,
+                )
+                coarse_similarity = 0.0
+                if fine_similarity < MIN_WEAK_FINE_SIMILARITY:
+                    continue
+                score = fine_similarity
+            else:
+                shift, fine_similarity = _best_alignment(
+                    family.reference_signature,
+                    signature,
+                )
+                coarse_similarity = (
+                    _axis_signature_similarity(
+                        family.reference_axis_signature,
+                        _rotated(axis_signature, shift),
+                    )
+                    if (
+                        axis_signature
+                        and family.reference_axis_signature
+                    )
+                    else 0.0
+                )
+                if fine_similarity < MIN_FAMILY_SIMILARITY:
+                    continue
+                score = (
+                    fine_similarity
+                    + 0.05 * coarse_similarity
+                )
+
+            candidates.append(
+                (
+                    score,
+                    family,
+                    shift,
+                    fine_similarity,
+                    coarse_similarity,
+                )
+            )
+
+        candidates.sort(
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        chosen = candidates[0] if candidates else None
         if (
-            best_family is None
-            or best_similarity < MIN_FAMILY_SIMILARITY
+            chosen is not None
+            and session.model_quality == "INSUFFICIENT"
+            and len(candidates) > 1
+            and (
+                chosen[0] - candidates[1][0]
+                < AMBIGUOUS_FAMILY_SCORE_MARGIN
+            )
         ):
+            chosen = None
+
+        if chosen is None:
             families.append(
                 _FamilyWork(
                     reference_id=session_id,
                     reference=session,
                     reference_signature=signature,
+                    reference_axis_signature=axis_signature,
                     members=[
                         (
                             session_id,
@@ -468,6 +860,13 @@ def build_regime_families(
             )
             continue
 
+        (
+            _score,
+            best_family,
+            best_shift,
+            best_similarity,
+            _coarse_similarity,
+        ) = chosen
         best_family.members.append(
             (
                 session_id,
@@ -528,10 +927,82 @@ def build_regime_families(
                 for _id, session, _shift, _similarity in members
             )
         )
-        quality = _family_quality(
+        consensus_quality = _family_quality(
             coverage=coverage,
             cycle_confidence=cycle_confidence,
             phase_confidence=phase_confidence,
+        )
+
+        pooled_events: tuple[TrajectoryEvent, ...] = ()
+        pooled_cycle_count = 0
+        pooled_result: EventPhaseDiscoveryResult | None = None
+        pooled_coverage: float | None = None
+        pooled_confidence: float | None = None
+        pooled_quality: str | None = None
+        pooled_model: dict[str, object] | None = None
+        pooling_status = "not_available"
+
+        if segment_events is None:
+            pooling_status = "raw_events_unavailable"
+        elif len(members) < 2:
+            pooling_status = "not_enough_members"
+        else:
+            pooled_events, pooled_cycle_count = (
+                _aligned_pooled_events(
+                    members,
+                    segment_events,
+                    cycle_seconds=cycle_seconds,
+                )
+            )
+            if not pooled_events:
+                pooling_status = "no_raw_events"
+            else:
+                try:
+                    pooled_result = EventPhaseDiscovery(
+                        bin_seconds=2.0,
+                    ).discover(
+                        pooled_events,
+                        cycle_seconds=cycle_seconds,
+                    )
+                except ValueError:
+                    pooling_status = "phase_discovery_failed"
+                else:
+                    pooled_coverage = float(
+                        pooled_result.cycle_coverage
+                    )
+                    pooled_phase_confidence = (
+                        _phase_confidence_from_model(
+                            pooled_result
+                        )
+                    )
+                    pooled_confidence = min(
+                        cycle_confidence,
+                        pooled_phase_confidence,
+                    )
+                    pooled_quality = _family_quality(
+                        coverage=pooled_coverage,
+                        cycle_confidence=cycle_confidence,
+                        phase_confidence=(
+                            pooled_phase_confidence
+                        ),
+                    )
+                    ambiguity = phase_model_ambiguity_reason(
+                        pooled_result
+                    )
+                    if ambiguity is not None:
+                        pooled_quality = "INSUFFICIENT"
+                        pooling_status = "ambiguous_phase_model"
+                    else:
+                        pooling_status = "ok"
+                    pooled_model = _phase_model_payload(
+                        pooled_result,
+                        confidence=pooled_confidence,
+                    )
+
+        quality = (
+            pooled_quality
+            if pooled_quality is not None
+            else consensus_quality
         )
         supporting = sum(
             int(session.phase_model.supporting_event_count)
@@ -584,6 +1055,29 @@ def build_regime_families(
                     session.phase_model.cycle_coverage
                 ),
                 similarity=round(similarity, 4),
+                coarse_similarity=round(
+                    (
+                        _axis_signature_similarity(
+                            family.reference_axis_signature,
+                            _rotated(
+                                _raw_axis_signature(
+                                    session,
+                                    segment_events[
+                                        session_id - 1
+                                    ],
+                                ),
+                                shift,
+                            ),
+                        )
+                        if (
+                            segment_events is not None
+                            and family.reference_axis_signature
+                            and 1 <= session_id <= len(segment_events)
+                        )
+                        else 0.0
+                    ),
+                    4,
+                ),
                 alignment_seconds=round(
                     shift
                     / SIGNATURE_BINS
@@ -616,8 +1110,36 @@ def build_regime_families(
                 ),
                 consensus_coverage=round(coverage, 4),
                 consensus_confidence=round(confidence, 4),
+                consensus_model_quality=consensus_quality,
                 model_quality=quality,
                 consensus_phase_model=consensus_model,
+                pooled_event_count=len(pooled_events),
+                pooled_cycle_count=pooled_cycle_count,
+                pooled_coverage=(
+                    round(pooled_coverage, 4)
+                    if pooled_coverage is not None
+                    else None
+                ),
+                pooled_confidence=(
+                    round(pooled_confidence, 4)
+                    if pooled_confidence is not None
+                    else None
+                ),
+                pooled_model_quality=pooled_quality,
+                pooled_phase_model=pooled_model,
+                pooled_movement_candidate_count=(
+                    len(
+                        pooled_result.distinct_movement_candidates
+                    )
+                    if pooled_result is not None
+                    else 0
+                ),
+                pooled_movement_stage_count=(
+                    len(pooled_result.movement_stages)
+                    if pooled_result is not None
+                    else 0
+                ),
+                pooling_status=pooling_status,
             )
         )
 

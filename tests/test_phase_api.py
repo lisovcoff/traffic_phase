@@ -134,6 +134,7 @@ def test_json_api_returns_session_based_result():
     assert "boundary_recovered_fraction" in session["phase_model"]
     assert "gap_semantics" in session
     assert "gap_metrics" in session
+    assert "transition_ambiguous_rate" in session["gap_metrics"]
     assert "regime_families" in response
     assert response["source"]["regime_family_count"] >= 1
     assert session["regime_family_id"] is not None
@@ -293,6 +294,14 @@ def test_repeated_physical_sessions_expose_cross_session_regime_family():
     )
     assert family["consensus_phase_model"] is not None
     assert family["consensus_coverage"] > 0.0
+    assert family["pooled_event_count"] > 0
+    assert family["pooled_cycle_count"] > 0
+    assert family["pooled_phase_model"] is not None
+    assert family["pooled_coverage"] is not None
+    assert family["pooling_status"] in {
+        "ok",
+        "ambiguous_phase_model",
+    }
     member_ids = {
         item["analysis_segment_id"]
         for item in family["members"]
