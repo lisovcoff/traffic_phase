@@ -437,4 +437,5 @@ def test_family_reconstructs_phase_model_from_pooled_raw_evidence():
     )
     assert "movement_stages" in family.pooled_phase_model
     assert "distinct_movement_candidates" in family.pooled_phase_model
+    assert "movement_stage_decisions" in family.pooled_phase_model
     assert family.pooled_coverage is not None

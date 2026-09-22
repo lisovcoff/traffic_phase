@@ -311,6 +311,13 @@ function buildBatchPhaseModel(){
     chip.textContent='Movement '+stage.movement+' · '+stage.phase_start+'–'+stage.phase_end+'s · conf '+stage.confidence.toFixed(2);
     movementHolder.appendChild(chip);
   });
+  const movementDecisions=model.movement_stage_decisions||[];
+  movementDecisions.forEach(item=>{
+    const chip=document.createElement('span');chip.className='phase-chip';
+    const residual=item.residual_start==null?'no residual':('residual '+Number(item.residual_start).toFixed(1)+'–'+Number(item.residual_end).toFixed(1)+'s · rep '+Number(item.residual_repeatability||0).toFixed(2)+' · stab '+Number(item.residual_stability||0).toFixed(2)+' · conflict '+(Number(item.conflicting_event_ratio||0)*100).toFixed(0)+'%');
+    chip.textContent='Decision '+item.movement+' · '+(item.promoted?'PROMOTE':'REJECT')+' · '+residual+' · '+item.reason;
+    movementHolder.appendChild(chip);
+  });
   const gapProbes=(batchSession.gap_semantics||[]).flatMap(gap=>(gap.movement_evidence||[]).map(item=>({gap,item})));
   gapProbes.forEach(({gap,item})=>{
     const chip=document.createElement('span');chip.className='phase-chip';
@@ -321,6 +328,7 @@ function buildBatchPhaseModel(){
   const pooled=family&&family.pooled_phase_model?family.pooled_phase_model:null;
   const pooledStages=pooled?(pooled.movement_stages||[]):[];
   const pooledCandidates=pooled?(pooled.distinct_movement_candidates||[]):[];
+  const pooledDecisions=pooled?(pooled.movement_stage_decisions||[]):[];
   pooledStages.forEach(stage=>{
     const chip=document.createElement('span');chip.className='phase-chip';
     chip.textContent='Pooled movement '+stage.movement+' · '+stage.phase_start+'–'+stage.phase_end+'s · conf '+Number(stage.confidence||0).toFixed(2);
@@ -331,7 +339,13 @@ function buildBatchPhaseModel(){
     chip.textContent='Pooled candidate '+item.movement+' · '+item.phase_start+'–'+item.phase_end+'s · score '+Number(item.score||0).toFixed(2);
     movementHolder.appendChild(chip);
   });
-  if(!movementStages.length&&!gapProbes.length&&!pooledStages.length&&!pooledCandidates.length)movementHolder.textContent='No movement-specific signal groups inferred.';
+  pooledDecisions.forEach(item=>{
+    const chip=document.createElement('span');chip.className='phase-chip';
+    const residual=item.residual_start==null?'no residual':('residual '+Number(item.residual_start).toFixed(1)+'–'+Number(item.residual_end).toFixed(1)+'s · rep '+Number(item.residual_repeatability||0).toFixed(2)+' · stab '+Number(item.residual_stability||0).toFixed(2)+' · conflict '+(Number(item.conflicting_event_ratio||0)*100).toFixed(0)+'%');
+    chip.textContent='Pooled decision '+item.movement+' · '+(item.promoted?'PROMOTE':'REJECT')+' · '+residual+' · '+item.reason;
+    movementHolder.appendChild(chip);
+  });
+  if(!movementStages.length&&!movementDecisions.length&&!gapProbes.length&&!pooledStages.length&&!pooledCandidates.length&&!pooledDecisions.length)movementHolder.textContent='No movement-specific signal groups inferred.';
 }
 
 function buildBatchTimeline(){

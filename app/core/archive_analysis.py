@@ -196,6 +196,10 @@ def _compact_phase_model(session: SessionReconstruction) -> dict[str, object] | 
             stage.to_dict()
             for stage in model.movement_stages
         ],
+        "movement_stage_decisions": [
+            decision.to_dict()
+            for decision in model.movement_stage_decisions
+        ],
         "boundary_recoveries": [
             recovery.to_dict()
             for recovery in model.boundary_recoveries

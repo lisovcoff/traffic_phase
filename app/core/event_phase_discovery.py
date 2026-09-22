@@ -77,6 +77,35 @@ class MovementSignalStage:
 
 
 @dataclass(frozen=True)
+class MovementStageDecision:
+    """Explain why a movement candidate was or was not promoted."""
+
+    approach: str
+    movement: str
+    candidate_start: float
+    candidate_end: float
+    candidate_repeatability: float
+    candidate_stability: float
+    main_overlap_fraction: float
+    residual_start: float | None
+    residual_end: float | None
+    residual_duration_seconds: float
+    residual_repeatability: float
+    residual_stability: float
+    residual_event_count: int
+    residual_observed_cycle_count: int
+    conflicting_event_count: int
+    conflicting_cycle_count: int
+    conflicting_event_ratio: float
+    promoted: bool
+    promotion_mode: str | None
+    reason: str
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class PhaseBoundaryRecovery:
     """Bins recovered from a reliable coarse conflict-family schedule."""
 
@@ -128,6 +157,7 @@ class EventPhaseDiscoveryResult:
         MovementActivationCandidate, ...
     ] = ()
     movement_stages: tuple[MovementSignalStage, ...] = ()
+    movement_stage_decisions: tuple[MovementStageDecision, ...] = ()
     boundary_recoveries: tuple[PhaseBoundaryRecovery, ...] = ()
     boundary_recovered_fraction: float = 0.0
 
@@ -149,6 +179,10 @@ class EventPhaseDiscoveryResult:
             "movement_stages": [
                 stage.to_dict()
                 for stage in self.movement_stages
+            ],
+            "movement_stage_decisions": [
+                decision.to_dict()
+                for decision in self.movement_stage_decisions
             ],
             "boundary_recoveries": [
                 recovery.to_dict()
@@ -198,6 +232,9 @@ class EventPhaseDiscovery:
     MOVEMENT_STAGE_MIN_BOUNDARY_SEPARATION_SECONDS = 10.0
     MOVEMENT_STAGE_MAX_SEPARATE_OVERLAP = 0.25
     MOVEMENT_STAGE_MAX_CYCLE_FRACTION = 0.70
+    MOVEMENT_RESIDUAL_MIN_SECONDS = 4.0
+    MOVEMENT_RESIDUAL_MAX_CYCLE_FRACTION = 0.35
+    MOVEMENT_RESIDUAL_MAX_CONFLICT_RATIO = 0.20
     BOUNDARY_RECOVERY_MIN_AXIS_RELIABILITY = 0.70
     BOUNDARY_RECOVERY_MIN_OBSERVED_CYCLES = 8
     BOUNDARY_RECOVERY_MAX_GAP_FRACTION = 0.20
@@ -319,10 +356,15 @@ class EventPhaseDiscovery:
             raise ValueError(
                 "insufficient repeated evidence for a signal stage"
             )
-        movement_stages = self._promote_movement_candidates(
+        (
+            movement_stages,
+            movement_stage_decisions,
+        ) = self._promote_movement_candidates_with_decisions(
             distinct_movement_candidates,
             phases,
             cycle_seconds=cycle_seconds,
+            events=selected,
+            origin_timestamp_ms=origin_timestamp_ms,
         )
         coverage = self._cycle_coverage(
             phases,
@@ -350,6 +392,9 @@ class EventPhaseDiscovery:
                 distinct_movement_candidates
             ),
             movement_stages=tuple(movement_stages),
+            movement_stage_decisions=tuple(
+                movement_stage_decisions
+            ),
             boundary_recoveries=tuple(boundary_recoveries),
             boundary_recovered_fraction=round(
                 recovered_fraction,
@@ -760,55 +805,56 @@ class EventPhaseDiscovery:
         phases: Sequence[EventPhase],
         *,
         cycle_seconds: float,
+        events: Sequence[TrajectoryEvent] | None = None,
+        origin_timestamp_ms: int | None = None,
     ) -> list[MovementSignalStage]:
-        """Promote only strong movements with a distinct signal boundary.
+        """Backward-compatible movement-stage promotion entrypoint."""
+        promoted, _decisions = (
+            self._promote_movement_candidates_with_decisions(
+                candidates,
+                phases,
+                cycle_seconds=cycle_seconds,
+                events=events,
+                origin_timestamp_ms=origin_timestamp_ms,
+            )
+        )
+        return promoted
 
-        A narrow recurring traffic window inside a wider approach green is not
-        enough by itself: sparse demand can create the same pattern. Promotion
-        therefore requires evidence that the movement interval crosses a main
-        approach boundary, occupies a mostly separate window, or shares one
-        main boundary while the other boundary is materially separated.
+    def _promote_movement_candidates_with_decisions(
+        self,
+        candidates: Sequence[MovementActivationCandidate],
+        phases: Sequence[EventPhase],
+        *,
+        cycle_seconds: float,
+        events: Sequence[TrajectoryEvent] | None = None,
+        origin_timestamp_ms: int | None = None,
+    ) -> tuple[
+        list[MovementSignalStage],
+        list[MovementStageDecision],
+    ]:
+        """Promote distinct whole intervals or strong residual substages.
+
+        The legacy promoter reasons over the complete movement envelope. D.9
+        additionally subtracts the parent approach green, measures the largest
+        recurring residual interval directly from raw RELEASE/CROSSING events,
+        and rejects residuals that coexist with too much conflicting-family
+        traffic. Existing conservative whole-envelope promotion remains as a
+        fallback, so the new path does not weaken historical safeguards.
         """
         n_bins = max(
             1,
             int(round(cycle_seconds / self.bin_seconds)),
         )
         promoted: list[MovementSignalStage] = []
+        decisions: list[MovementStageDecision] = []
+        raw_events = tuple(events or ())
+        if raw_events and origin_timestamp_ms is None:
+            origin_timestamp_ms = min(
+                event.timestamp_ms
+                for event in raw_events
+            )
 
         for candidate in candidates:
-            if (
-                candidate.repeatability
-                < self.MOVEMENT_STAGE_MIN_REPEATABILITY
-                or candidate.stability
-                < self.MOVEMENT_STAGE_MIN_STABILITY
-                or candidate.usable_event_count
-                < self.MOVEMENT_STAGE_MIN_EVENTS
-                or candidate.observed_cycle_count
-                < self.MOVEMENT_STAGE_MIN_CYCLES
-            ):
-                continue
-
-            # start == end is ambiguous here: the interval helper interprets
-            # it as a full cycle, while realtime interval checks interpret it
-            # as empty. Never publish that representation as a signal stage.
-            if self._same_cycle_boundary(
-                candidate.phase_start,
-                candidate.phase_end,
-                cycle_seconds,
-            ):
-                continue
-            candidate_duration = (
-                candidate.phase_end - candidate.phase_start
-            ) % cycle_seconds
-            if (
-                candidate_duration
-                >= cycle_seconds * self.MOVEMENT_STAGE_MAX_CYCLE_FRACTION
-            ):
-                # A movement-specific stage spanning most of the cycle is
-                # more plausibly mixed demand / regime evidence than a
-                # protected signal group. Keep it diagnostic only.
-                continue
-
             candidate_mask = self._interval_mask(
                 candidate.phase_start,
                 candidate.phase_end,
@@ -826,54 +872,583 @@ class EventPhaseDiscovery:
 
             candidate_bins = int(np.count_nonzero(candidate_mask))
             main_bins = int(np.count_nonzero(main_mask))
-            if candidate_bins <= 0 or main_bins <= 0:
-                continue
+            overlap_bins = int(
+                np.count_nonzero(candidate_mask & main_mask)
+            )
+            main_overlap_fraction = (
+                overlap_bins / candidate_bins
+                if candidate_bins
+                else 0.0
+            )
 
-            if not self._movement_interval_is_distinct(
+            residual_start: float | None = None
+            residual_end: float | None = None
+            residual_duration = 0.0
+            residual_repeatability = 0.0
+            residual_stability = 0.0
+            residual_event_count = 0
+            residual_cycle_count = 0
+            conflicting_event_count = 0
+            conflicting_cycle_count = 0
+            conflicting_event_ratio = 0.0
+            residual_reason = "raw_events_unavailable"
+
+            residual_mask = (
+                candidate_mask & ~main_mask
+                if candidate_bins > 0 and main_bins > 0
+                else np.zeros(n_bins, dtype=bool)
+            )
+            residual_run_mask = self._largest_true_run_mask(
+                residual_mask
+            )
+            residual_bins = int(
+                np.count_nonzero(residual_run_mask)
+            )
+            if residual_bins:
+                (
+                    residual_start,
+                    residual_end,
+                ) = self._mask_interval_seconds(
+                    residual_run_mask
+                )
+                residual_duration = (
+                    residual_bins * self.bin_seconds
+                )
+
+            if (
+                raw_events
+                and origin_timestamp_ms is not None
+                and residual_bins > 0
+            ):
+                stats = self._residual_movement_stats(
+                    candidate,
+                    residual_run_mask,
+                    main_mask,
+                    raw_events,
+                    cycle_seconds=cycle_seconds,
+                    origin_timestamp_ms=origin_timestamp_ms,
+                )
+                residual_repeatability = stats[
+                    "repeatability"
+                ]
+                residual_stability = stats["stability"]
+                residual_event_count = stats["event_count"]
+                residual_cycle_count = stats["cycle_count"]
+                conflicting_event_count = stats[
+                    "conflicting_event_count"
+                ]
+                conflicting_cycle_count = stats[
+                    "conflicting_cycle_count"
+                ]
+                conflicting_event_ratio = stats[
+                    "conflicting_event_ratio"
+                ]
+                residual_reason = (
+                    self._residual_rejection_reason(
+                        residual_duration_seconds=residual_duration,
+                        repeatability=residual_repeatability,
+                        stability=residual_stability,
+                        event_count=residual_event_count,
+                        cycle_count=residual_cycle_count,
+                        conflict_ratio=conflicting_event_ratio,
+                        cycle_seconds=cycle_seconds,
+                    )
+                )
+                if residual_reason == "residual_promoted":
+                    support_factor = min(
+                        1.0,
+                        residual_event_count
+                        / max(
+                            1.0,
+                            residual_cycle_count * 2.0,
+                        ),
+                    )
+                    confidence = float(
+                        np.clip(
+                            0.40 * residual_repeatability
+                            + 0.30 * residual_stability
+                            + 0.20 * support_factor
+                            + 0.10 * (
+                                1.0 - conflicting_event_ratio
+                            ),
+                            0.0,
+                            1.0,
+                        )
+                    )
+                    promoted.append(
+                        MovementSignalStage(
+                            movement_stage_id=len(promoted) + 1,
+                            approach=candidate.approach,
+                            movement=candidate.movement,
+                            phase_start=float(residual_start),
+                            phase_end=float(residual_end),
+                            confidence=round(confidence, 4),
+                            repeatability=round(
+                                residual_repeatability,
+                                4,
+                            ),
+                            stability=round(
+                                residual_stability,
+                                4,
+                            ),
+                            supporting_event_count=(
+                                residual_event_count
+                            ),
+                            observed_cycle_count=(
+                                residual_cycle_count
+                            ),
+                        )
+                    )
+                    decisions.append(
+                        self._movement_stage_decision(
+                            candidate,
+                            main_overlap_fraction=(
+                                main_overlap_fraction
+                            ),
+                            residual_start=residual_start,
+                            residual_end=residual_end,
+                            residual_duration=residual_duration,
+                            residual_repeatability=(
+                                residual_repeatability
+                            ),
+                            residual_stability=(
+                                residual_stability
+                            ),
+                            residual_event_count=(
+                                residual_event_count
+                            ),
+                            residual_cycle_count=(
+                                residual_cycle_count
+                            ),
+                            conflicting_event_count=(
+                                conflicting_event_count
+                            ),
+                            conflicting_cycle_count=(
+                                conflicting_cycle_count
+                            ),
+                            conflicting_event_ratio=(
+                                conflicting_event_ratio
+                            ),
+                            promoted=True,
+                            promotion_mode="residual",
+                            reason="residual_promoted",
+                        )
+                    )
+                    continue
+
+            legacy_reason = self._legacy_candidate_rejection_reason(
                 candidate,
                 candidate_mask,
                 main_mask,
                 cycle_seconds=cycle_seconds,
-            ):
+            )
+            if legacy_reason is None:
+                support_factor = min(
+                    1.0,
+                    candidate.usable_event_count
+                    / max(
+                        1.0,
+                        candidate.observed_cycle_count * 2.0,
+                    ),
+                )
+                confidence = float(
+                    np.clip(
+                        0.45 * candidate.repeatability
+                        + 0.35 * candidate.stability
+                        + 0.20 * support_factor,
+                        0.0,
+                        1.0,
+                    )
+                )
+                promoted.append(
+                    MovementSignalStage(
+                        movement_stage_id=len(promoted) + 1,
+                        approach=candidate.approach,
+                        movement=candidate.movement,
+                        phase_start=candidate.phase_start,
+                        phase_end=candidate.phase_end,
+                        confidence=round(confidence, 4),
+                        repeatability=candidate.repeatability,
+                        stability=candidate.stability,
+                        supporting_event_count=(
+                            candidate.usable_event_count
+                        ),
+                        observed_cycle_count=(
+                            candidate.observed_cycle_count
+                        ),
+                    )
+                )
+                decisions.append(
+                    self._movement_stage_decision(
+                        candidate,
+                        main_overlap_fraction=(
+                            main_overlap_fraction
+                        ),
+                        residual_start=residual_start,
+                        residual_end=residual_end,
+                        residual_duration=residual_duration,
+                        residual_repeatability=(
+                            residual_repeatability
+                        ),
+                        residual_stability=(
+                            residual_stability
+                        ),
+                        residual_event_count=(
+                            residual_event_count
+                        ),
+                        residual_cycle_count=(
+                            residual_cycle_count
+                        ),
+                        conflicting_event_count=(
+                            conflicting_event_count
+                        ),
+                        conflicting_cycle_count=(
+                            conflicting_cycle_count
+                        ),
+                        conflicting_event_ratio=(
+                            conflicting_event_ratio
+                        ),
+                        promoted=True,
+                        promotion_mode="legacy_distinct_interval",
+                        reason="legacy_distinct_interval",
+                    )
+                )
                 continue
 
-            support_factor = min(
-                1.0,
-                candidate.usable_event_count
-                / max(
-                    1.0,
-                    candidate.observed_cycle_count * 2.0,
-                ),
+            final_reason = (
+                residual_reason
+                if residual_reason
+                not in {
+                    "raw_events_unavailable",
+                    "no_residual_outside_main",
+                }
+                else legacy_reason
             )
-            confidence = float(
-                np.clip(
-                    0.45 * candidate.repeatability
-                    + 0.35 * candidate.stability
-                    + 0.20 * support_factor,
-                    0.0,
-                    1.0,
-                )
-            )
-            promoted.append(
-                MovementSignalStage(
-                    movement_stage_id=len(promoted) + 1,
-                    approach=candidate.approach,
-                    movement=candidate.movement,
-                    phase_start=candidate.phase_start,
-                    phase_end=candidate.phase_end,
-                    confidence=round(confidence, 4),
-                    repeatability=candidate.repeatability,
-                    stability=candidate.stability,
-                    supporting_event_count=(
-                        candidate.usable_event_count
+            decisions.append(
+                self._movement_stage_decision(
+                    candidate,
+                    main_overlap_fraction=(
+                        main_overlap_fraction
                     ),
-                    observed_cycle_count=(
-                        candidate.observed_cycle_count
+                    residual_start=residual_start,
+                    residual_end=residual_end,
+                    residual_duration=residual_duration,
+                    residual_repeatability=(
+                        residual_repeatability
                     ),
+                    residual_stability=residual_stability,
+                    residual_event_count=residual_event_count,
+                    residual_cycle_count=residual_cycle_count,
+                    conflicting_event_count=(
+                        conflicting_event_count
+                    ),
+                    conflicting_cycle_count=(
+                        conflicting_cycle_count
+                    ),
+                    conflicting_event_ratio=(
+                        conflicting_event_ratio
+                    ),
+                    promoted=False,
+                    promotion_mode=None,
+                    reason=final_reason,
                 )
             )
 
-        return promoted
+        return promoted, decisions
+
+    def _legacy_candidate_rejection_reason(
+        self,
+        candidate: MovementActivationCandidate,
+        candidate_mask: np.ndarray,
+        main_mask: np.ndarray,
+        *,
+        cycle_seconds: float,
+    ) -> str | None:
+        if (
+            candidate.repeatability
+            < self.MOVEMENT_STAGE_MIN_REPEATABILITY
+        ):
+            return "candidate_repeatability_below_threshold"
+        if candidate.stability < self.MOVEMENT_STAGE_MIN_STABILITY:
+            return "candidate_stability_below_threshold"
+        if (
+            candidate.usable_event_count
+            < self.MOVEMENT_STAGE_MIN_EVENTS
+        ):
+            return "candidate_event_support_below_threshold"
+        if (
+            candidate.observed_cycle_count
+            < self.MOVEMENT_STAGE_MIN_CYCLES
+        ):
+            return "candidate_cycle_support_below_threshold"
+        if self._same_cycle_boundary(
+            candidate.phase_start,
+            candidate.phase_end,
+            cycle_seconds,
+        ):
+            return "degenerate_candidate_interval"
+        candidate_duration = (
+            candidate.phase_end - candidate.phase_start
+        ) % cycle_seconds
+        if (
+            candidate_duration
+            >= cycle_seconds
+            * self.MOVEMENT_STAGE_MAX_CYCLE_FRACTION
+        ):
+            return "candidate_interval_too_large"
+        if (
+            int(np.count_nonzero(candidate_mask)) <= 0
+            or int(np.count_nonzero(main_mask)) <= 0
+        ):
+            return "missing_candidate_or_main_interval"
+        if not self._movement_interval_is_distinct(
+            candidate,
+            candidate_mask,
+            main_mask,
+            cycle_seconds=cycle_seconds,
+        ):
+            return "candidate_not_temporally_distinct"
+        return None
+
+    def _residual_rejection_reason(
+        self,
+        *,
+        residual_duration_seconds: float,
+        repeatability: float,
+        stability: float,
+        event_count: int,
+        cycle_count: int,
+        conflict_ratio: float,
+        cycle_seconds: float,
+    ) -> str:
+        if residual_duration_seconds <= 0.0:
+            return "no_residual_outside_main"
+        if (
+            residual_duration_seconds
+            < self.MOVEMENT_RESIDUAL_MIN_SECONDS
+        ):
+            return "residual_too_short"
+        if (
+            residual_duration_seconds
+            >= cycle_seconds
+            * self.MOVEMENT_RESIDUAL_MAX_CYCLE_FRACTION
+        ):
+            return "residual_interval_too_large"
+        if repeatability < self.MOVEMENT_STAGE_MIN_REPEATABILITY:
+            return "residual_repeatability_below_threshold"
+        if stability < self.MOVEMENT_STAGE_MIN_STABILITY:
+            return "residual_stability_below_threshold"
+        if event_count < self.MOVEMENT_STAGE_MIN_EVENTS:
+            return "residual_event_support_below_threshold"
+        if cycle_count < self.MOVEMENT_STAGE_MIN_CYCLES:
+            return "residual_cycle_support_below_threshold"
+        if (
+            conflict_ratio
+            > self.MOVEMENT_RESIDUAL_MAX_CONFLICT_RATIO
+        ):
+            return "conflicting_flow_present"
+        return "residual_promoted"
+
+    def _residual_movement_stats(
+        self,
+        candidate: MovementActivationCandidate,
+        residual_mask: np.ndarray,
+        main_mask: np.ndarray,
+        events: Sequence[TrajectoryEvent],
+        *,
+        cycle_seconds: float,
+        origin_timestamp_ms: int,
+    ) -> dict[str, float | int]:
+        n_bins = len(residual_mask)
+        movement = (
+            candidate.movement
+            or f"{candidate.approach}->UNKNOWN"
+        )
+        residual_event_count = 0
+        outside_main_event_count = 0
+        residual_cycles: set[int] = set()
+        conflicting_event_count = 0
+        conflicting_cycles: set[int] = set()
+        conflicting_approaches = (
+            HORIZONTAL_APPROACHES
+            if candidate.approach in VERTICAL_APPROACHES
+            else VERTICAL_APPROACHES
+        )
+
+        for event in events:
+            if event.event_type not in {
+                EventType.RELEASE,
+                EventType.CROSSING,
+            }:
+                continue
+            elapsed_s = (
+                event.timestamp_ms - origin_timestamp_ms
+            ) / 1000.0
+            cycle_id = int(
+                np.floor(elapsed_s / cycle_seconds)
+            )
+            relative_s = elapsed_s % cycle_seconds
+            bin_id = min(
+                int(relative_s / self.bin_seconds),
+                n_bins - 1,
+            )
+            event_movement = (
+                event.movement
+                or f"{event.approach}->UNKNOWN"
+            )
+
+            if (
+                event.approach == candidate.approach
+                and event_movement == movement
+            ):
+                if not main_mask[bin_id]:
+                    outside_main_event_count += 1
+                if residual_mask[bin_id]:
+                    residual_event_count += 1
+                    residual_cycles.add(cycle_id)
+                continue
+
+            if (
+                event.approach in conflicting_approaches
+                and residual_mask[bin_id]
+            ):
+                conflicting_event_count += 1
+                conflicting_cycles.add(cycle_id)
+
+        residual_cycle_count = len(residual_cycles)
+        repeatability = (
+            residual_cycle_count
+            / max(1, candidate.observed_cycle_count)
+        )
+        stability = (
+            residual_event_count
+            / max(1, outside_main_event_count)
+        )
+        conflict_ratio = (
+            conflicting_event_count
+            / max(
+                1,
+                residual_event_count
+                + conflicting_event_count,
+            )
+        )
+        return {
+            "repeatability": float(
+                np.clip(repeatability, 0.0, 1.0)
+            ),
+            "stability": float(
+                np.clip(stability, 0.0, 1.0)
+            ),
+            "event_count": residual_event_count,
+            "cycle_count": residual_cycle_count,
+            "conflicting_event_count": conflicting_event_count,
+            "conflicting_cycle_count": len(
+                conflicting_cycles
+            ),
+            "conflicting_event_ratio": float(
+                np.clip(conflict_ratio, 0.0, 1.0)
+            ),
+        }
+
+    def _largest_true_run_mask(
+        self,
+        mask: np.ndarray,
+    ) -> np.ndarray:
+        result = np.zeros_like(mask, dtype=bool)
+        runs = [
+            (start, end)
+            for start, end, value
+            in self._circular_runs(mask.tolist())
+            if bool(value)
+        ]
+        if not runs:
+            return result
+        start, end = max(
+            runs,
+            key=lambda run: self._run_length(
+                run[0],
+                run[1],
+                len(mask),
+            ),
+        )
+        for index in self._interval_indices(
+            start,
+            end,
+            len(mask),
+        ):
+            result[index] = True
+        return result
+
+    @staticmethod
+    def _movement_stage_decision(
+        candidate: MovementActivationCandidate,
+        *,
+        main_overlap_fraction: float,
+        residual_start: float | None,
+        residual_end: float | None,
+        residual_duration: float,
+        residual_repeatability: float,
+        residual_stability: float,
+        residual_event_count: int,
+        residual_cycle_count: int,
+        conflicting_event_count: int,
+        conflicting_cycle_count: int,
+        conflicting_event_ratio: float,
+        promoted: bool,
+        promotion_mode: str | None,
+        reason: str,
+    ) -> MovementStageDecision:
+        return MovementStageDecision(
+            approach=candidate.approach,
+            movement=candidate.movement,
+            candidate_start=candidate.phase_start,
+            candidate_end=candidate.phase_end,
+            candidate_repeatability=candidate.repeatability,
+            candidate_stability=candidate.stability,
+            main_overlap_fraction=round(
+                main_overlap_fraction,
+                4,
+            ),
+            residual_start=(
+                round(float(residual_start), 3)
+                if residual_start is not None
+                else None
+            ),
+            residual_end=(
+                round(float(residual_end), 3)
+                if residual_end is not None
+                else None
+            ),
+            residual_duration_seconds=round(
+                residual_duration,
+                3,
+            ),
+            residual_repeatability=round(
+                residual_repeatability,
+                4,
+            ),
+            residual_stability=round(
+                residual_stability,
+                4,
+            ),
+            residual_event_count=residual_event_count,
+            residual_observed_cycle_count=(
+                residual_cycle_count
+            ),
+            conflicting_event_count=(
+                conflicting_event_count
+            ),
+            conflicting_cycle_count=(
+                conflicting_cycle_count
+            ),
+            conflicting_event_ratio=round(
+                conflicting_event_ratio,
+                4,
+            ),
+            promoted=promoted,
+            promotion_mode=promotion_mode,
+            reason=reason,
+        )
 
     def _movement_interval_is_distinct(
         self,

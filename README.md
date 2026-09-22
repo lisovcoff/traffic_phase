@@ -185,6 +185,17 @@ clearance when recurring movement evidence is present. Such gaps are reported
 as TRANSITION_AMBIGUOUS and still count toward unresolved UNKNOWN until pooled
 cross-day evidence resolves them.
 
+D.9 evaluates movement-specific signal stages on residual evidence rather than
+only on the full traffic envelope. For each distinct movement candidate, the
+parent approach-green mask is subtracted and the largest remaining interval is
+measured directly from raw RELEASE/CROSSING events. Residual repeatability,
+stability, supporting events/cycles, and conflicting-family traffic are
+reported explicitly. A strong residual may be promoted even when the whole
+movement envelope is too demand-dependent for the legacy promoter, while
+substantial conflicting flow vetoes that promotion. The existing conservative
+whole-envelope promoter remains as a fallback and its thresholds are not
+lowered.
+
 Realtime snapshots expose template-compatibility diagnostics, instantaneous
 UNKNOWN reasons, cumulative/post-sync/rolling-60s UNKNOWN rates, and temporary
 live-override duration. A stream that uses approaches outside the configured

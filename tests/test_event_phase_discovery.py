@@ -1143,3 +1143,181 @@ def test_boundary_recovery_does_not_hide_distinct_movement_candidate():
     assert recovered[20:28] == [()] * 8
     assert diagnostics == []
     assert fraction == 0.0
+
+
+
+def _residual_movement_events(
+    *,
+    cycles: int = 20,
+    movement_cycles: int = 16,
+    conflicting_cycles: int = 0,
+):
+    events = []
+    for cycle_index in range(movement_cycles):
+        base_ms = cycle_index * 100_000
+        for offset_s in (44.0, 48.0, 52.0):
+            events.append(
+                TrajectoryEvent(
+                    event_type=EventType.RELEASE,
+                    timestamp_ms=base_ms + int(offset_s * 1000),
+                    approach="N",
+                    movement="N->_E",
+                    confidence=0.95,
+                    quality="HIGH",
+                )
+            )
+    for cycle_index in range(conflicting_cycles):
+        base_ms = cycle_index * 100_000
+        events.append(
+            TrajectoryEvent(
+                event_type=EventType.RELEASE,
+                timestamp_ms=base_ms + 46_000,
+                approach="E",
+                movement="E->_W",
+                confidence=0.95,
+                quality="HIGH",
+            )
+        )
+    return events
+
+
+def test_residual_substage_can_promote_when_whole_candidate_is_too_weak():
+    discovery = EventPhaseDiscovery()
+    phases = (
+        EventPhase(
+            1,
+            0.0,
+            40.0,
+            ("N",),
+            0.95,
+            500,
+            5,
+            ("N",),
+        ),
+        EventPhase(
+            2,
+            60.0,
+            100.0,
+            ("E", "W"),
+            0.95,
+            500,
+            5,
+            ("E", "W"),
+        ),
+    )
+    candidate = MovementActivationCandidate(
+        approach="N",
+        movement="N->_E",
+        phase_start=20.0,
+        phase_end=60.0,
+        repeatability=0.60,
+        stability=0.70,
+        usable_event_count=80,
+        observed_cycle_count=20,
+        score=0.64,
+    )
+
+    promoted, decisions = (
+        discovery._promote_movement_candidates_with_decisions(
+            (candidate,),
+            phases,
+            cycle_seconds=100.0,
+            events=_residual_movement_events(),
+            origin_timestamp_ms=0,
+        )
+    )
+
+    assert len(promoted) == 1
+    stage = promoted[0]
+    assert stage.movement == "N->_E"
+    assert stage.phase_start == 40.0
+    assert stage.phase_end == 60.0
+    assert stage.repeatability >= 0.75
+    assert stage.stability >= 0.85
+    assert stage.supporting_event_count >= 40
+
+    decision = decisions[0]
+    assert decision.promoted is True
+    assert decision.promotion_mode == "residual"
+    assert decision.reason == "residual_promoted"
+    assert decision.residual_start == 40.0
+    assert decision.residual_end == 60.0
+    assert decision.residual_repeatability == 0.8
+    assert decision.conflicting_event_ratio == 0.0
+
+
+def test_residual_substage_is_rejected_when_conflicting_flow_is_present():
+    discovery = EventPhaseDiscovery()
+    phases = (
+        EventPhase(
+            1,
+            0.0,
+            40.0,
+            ("N",),
+            0.95,
+            500,
+            5,
+            ("N",),
+        ),
+        EventPhase(
+            2,
+            60.0,
+            100.0,
+            ("E", "W"),
+            0.95,
+            500,
+            5,
+            ("E", "W"),
+        ),
+    )
+    candidate = MovementActivationCandidate(
+        approach="N",
+        movement="N->_E",
+        phase_start=20.0,
+        phase_end=60.0,
+        repeatability=0.60,
+        stability=0.70,
+        usable_event_count=80,
+        observed_cycle_count=20,
+        score=0.64,
+    )
+
+    promoted, decisions = (
+        discovery._promote_movement_candidates_with_decisions(
+            (candidate,),
+            phases,
+            cycle_seconds=100.0,
+            events=_residual_movement_events(
+                conflicting_cycles=16,
+            ),
+            origin_timestamp_ms=0,
+        )
+    )
+
+    assert promoted == []
+    decision = decisions[0]
+    assert decision.promoted is False
+    assert decision.reason == "conflicting_flow_present"
+    assert decision.conflicting_event_count == 16
+    assert decision.conflicting_cycle_count == 16
+    assert decision.conflicting_event_ratio > 0.20
+
+
+def test_discovery_exposes_movement_stage_decisions():
+    result = EventPhaseDiscovery().discover(
+        _movement_cluster_regression_events(),
+        cycle_seconds=100.0,
+    )
+
+    assert result.movement_stage_decisions
+    assert {
+        item.movement
+        for item in result.movement_stage_decisions
+    } >= {
+        item.movement
+        for item in result.distinct_movement_candidates
+    }
+    assert all(
+        item.reason
+        for item in result.movement_stage_decisions
+    )

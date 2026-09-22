@@ -132,6 +132,7 @@ def test_json_api_returns_session_based_result():
     assert "quality_reasons" in session
     assert "boundary_recoveries" in session["phase_model"]
     assert "boundary_recovered_fraction" in session["phase_model"]
+    assert "movement_stage_decisions" in session["phase_model"]
     assert "gap_semantics" in session
     assert "gap_metrics" in session
     assert "transition_ambiguous_rate" in session["gap_metrics"]
@@ -297,6 +298,7 @@ def test_repeated_physical_sessions_expose_cross_session_regime_family():
     assert family["pooled_event_count"] > 0
     assert family["pooled_cycle_count"] > 0
     assert family["pooled_phase_model"] is not None
+    assert "movement_stage_decisions" in family["pooled_phase_model"]
     assert family["pooled_coverage"] is not None
     assert family["pooling_status"] in {
         "ok",

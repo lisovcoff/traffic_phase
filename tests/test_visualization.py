@@ -120,3 +120,13 @@ def test_visualization_surfaces_gap_semantics_and_regime_families():
     assert "pooled_phase_model" in html
     assert "transition ambiguous" in html
     assert "Analysis segment:" in html
+
+
+
+def test_visualization_surfaces_residual_movement_decisions():
+    html = visualization_page()
+
+    assert "movement_stage_decisions" in html
+    assert "Pooled decision " in html
+    assert "residual_repeatability" in html
+    assert "conflicting_event_ratio" in html
