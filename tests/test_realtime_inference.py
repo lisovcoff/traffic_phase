@@ -15,6 +15,10 @@ from app.core.event_phase_discovery import (
     EventPhaseDiscoveryResult,
     MovementSignalStage,
 )
+from app.core.intersection_topology import (
+    IntersectionTopology,
+    SignalFamily,
+)
 from app.core.models import EventType, TrajectoryEvent
 from app.core.realtime_inference import (
     DuplicateEventError,
@@ -705,3 +709,65 @@ def test_realtime_api_defaults_keep_yellow_and_red_yellow_separate():
     )
     assert payload.yellow_duration_seconds == 3.0
     assert payload.red_yellow_duration_seconds == 2.0
+
+
+
+def test_custom_topology_drives_sync_family_names_and_adaptive_override():
+    topology = IntersectionTopology(
+        families=(
+            SignalFamily("MAIN", ("N", "S")),
+            SignalFamily("CROSS", ("E", "W")),
+        ),
+        family_conflicts=(("MAIN", "CROSS"),),
+    )
+    template = RealtimePhaseTemplate.from_phase_model(
+        phase_model(),
+        topology=topology,
+    )
+    assert template.group_for_approach("N") == ("MAIN",)
+    assert template.group_for_approach("E") == ("CROSS",)
+
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+        topology=topology,
+    )
+    snapshots = [
+        engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "N")
+        )
+        for timestamp in (44.0, 46.0, 48.0, 50.0)
+    ]
+    snapshot = snapshots[-1]
+
+    assert snapshot.adaptive_mode == "LIVE_OVERRIDE"
+    assert snapshot.template_expected_axis == "CROSS"
+    assert snapshot.effective_axis == "MAIN"
+    assert snapshot.signal_states["N"] == "GREEN"
+    assert snapshot.signal_states["E"] == "RED"
+
+
+def test_realtime_phase_payload_accepts_custom_conflict_topology():
+    payload = PhasePayload(
+        cycle_seconds=100.0,
+        bin_seconds=2.0,
+        phases=[phase.to_dict() for phase in phase_model().phases],
+        topology={
+            "families": [
+                {"name": "MAIN", "approaches": ["N", "S"]},
+                {"name": "CROSS", "approaches": ["E", "W"]},
+            ],
+            "family_conflicts": [["MAIN", "CROSS"]],
+            "movement_compatibilities": [["N->x", "E->x"]],
+        },
+    )
+    topology = IntersectionTopology.from_dict(payload.topology)
+
+    assert topology.family_for_approach("S") == "MAIN"
+    assert topology.family_for_approach("W") == "CROSS"
+    assert not topology.movements_conflict(
+        "N->x",
+        "E->x",
+        left_approach="N",
+        right_approach="E",
+    )

@@ -505,3 +505,43 @@ def test_simulated_time_advances_phase_without_new_evidence():
         ]
         == evidence_count
     )
+
+
+
+def test_realtime_simulation_accepts_custom_topology_in_phase_payload():
+    simulation_registry.clear()
+    payload = json.loads(_phase_payload_json())
+    payload["topology"] = {
+        "families": [
+            {"name": "MAIN", "approaches": ["N", "S"]},
+            {"name": "CROSS", "approaches": ["E", "W"]},
+        ],
+        "family_conflicts": [["MAIN", "CROSS"]],
+    }
+    upload = _upload(
+        "topology.json",
+        _json_bytes(
+            [
+                _record(
+                    1,
+                    start_ms=0,
+                    crossing_ms=1_000,
+                    end_ms=2_000,
+                    approach="N",
+                    zone_out="_S",
+                )
+            ]
+        ),
+    )
+
+    started = asyncio.run(
+        start_realtime_simulation(
+            file=upload,
+            phase_model=json.dumps(payload),
+            speed=1.0,
+            simulation_id="topology-sim",
+        )
+    )
+
+    assert started["simulation_id"] == "topology-sim"
+    simulation_registry.clear()

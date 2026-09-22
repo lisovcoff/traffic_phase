@@ -7,13 +7,16 @@ from threading import RLock
 from typing import Iterable, Sequence
 
 from app.core.adaptive_realtime import (
-    AXIS_APPROACHES,
     AdaptiveRealtimeDecision,
     AdaptiveRealtimeMode,
     AdaptiveRealtimeOverride,
 )
 from app.core.anomaly_profile import TrafficBaselineProfile
 from app.core.anomaly_inference import AnomalyAwareSignalInference
+from app.core.intersection_topology import (
+    DEFAULT_INTERSECTION_TOPOLOGY,
+    IntersectionTopology,
+)
 from app.core.models import TrajectoryEvent
 from app.core.realtime_phase_sync import (
     PhaseSynchronization,
@@ -91,12 +94,15 @@ class RealtimeSignalInferenceEngine:
         conflict_persistence_seconds: float = 3.0,
         baseline: TrafficBaselineProfile | None = None,
         synchronization_min_events: int = 6,
+        topology: IntersectionTopology | None = None,
     ) -> None:
         if recent_window_s <= 0:
             raise ValueError("recent_window_s must be positive")
 
+        self.topology = topology or DEFAULT_INTERSECTION_TOPOLOGY
         self.phase_template = RealtimePhaseTemplate.from_phase_model(
-            phase_model
+            phase_model,
+            topology=self.topology,
         )
         self.phase_model = self.phase_template.to_phase_model()
         self.recent_window_s = float(recent_window_s)
@@ -131,6 +137,7 @@ class RealtimeSignalInferenceEngine:
         )
         self._adaptive_override = AdaptiveRealtimeOverride(
             evidence_window_seconds=min(8.0, self.recent_window_s),
+            topology=self.topology,
         )
         self._synchronizer = RealtimePhaseSynchronizer(
             self.phase_template,
@@ -367,6 +374,7 @@ class RealtimeSignalInferenceEngine:
             red_yellow_duration_seconds=self._red_yellow_duration_seconds,
             conflict_persistence_seconds=self._conflict_persistence_seconds,
             event_origin_ms=realtime_origin_ms,
+            topology=self.topology,
         )
         base_result = estimator.estimate(
             cycle_position_s,
@@ -491,7 +499,7 @@ class RealtimeSignalInferenceEngine:
     ) -> RealtimeInferenceSnapshot:
         states = {
             approach: "UNKNOWN"
-            for approach in ("N", "S", "E", "W")
+            for approach in self.topology.approaches
         }
         evidence_summary = {
             approach: {
@@ -566,26 +574,30 @@ class RealtimeSignalInferenceEngine:
             duplicate=duplicate,
         )
 
-    @staticmethod
     def _override_signal_states(
+        self,
         adaptive: AdaptiveRealtimeDecision,
     ) -> dict[str, str]:
         states = {
             approach: "UNKNOWN"
-            for approach in ("N", "S", "E", "W")
+            for approach in self.topology.approaches
         }
-        axis = adaptive.effective_axis
-        if axis not in AXIS_APPROACHES:
+        family = adaptive.effective_axis
+        if family is None:
             return states
 
         observed = set(adaptive.observed_approaches)
-        for approach in AXIS_APPROACHES[axis]:
+        for approach in self.topology.approaches_for_family(family):
             if approach in observed:
                 states[approach] = "GREEN"
 
-        opposite = "EW" if axis == "NS" else "NS"
-        for approach in AXIS_APPROACHES[opposite]:
-            states[approach] = "RED"
+        for conflicting_family in self.topology.conflicting_families_for(
+            family
+        ):
+            for approach in self.topology.approaches_for_family(
+                conflicting_family
+            ):
+                states[approach] = "RED"
         return states
 
     def _trim(self, cutoff_ms: int) -> None:

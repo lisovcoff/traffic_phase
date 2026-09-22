@@ -7,6 +7,10 @@ import math
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
+from app.core.intersection_topology import (
+    DEFAULT_INTERSECTION_TOPOLOGY,
+    IntersectionTopology,
+)
 from app.core.models import EventType, TrajectoryEvent
 from app.core.preprocessing import load_trajectory_file
 
@@ -20,7 +24,7 @@ DEFAULT_RECENT_WINDOW_SECONDS = 12.0
 DEFAULT_MIN_PHASE_CONFIDENCE = 0.20
 DEFAULT_MIN_TRAFFIC_CONFIDENCE = 0.12
 DEFAULT_CONFLICT_PERSISTENCE_SECONDS = 3.0
-APPROACHES = ("N", "S", "E", "W")
+APPROACHES = DEFAULT_INTERSECTION_TOPOLOGY.approaches
 
 
 class SignalState(str, Enum):
@@ -101,6 +105,7 @@ class SignalStateEstimator:
         red_yellow_duration_seconds: float = DEFAULT_RED_YELLOW_DURATION_SECONDS,
         conflict_persistence_seconds: float = DEFAULT_CONFLICT_PERSISTENCE_SECONDS,
         event_origin_ms: int | None = None,
+        topology: IntersectionTopology | None = None,
     ) -> None:
         cycle = float(getattr(phase_model, "cycle_seconds", 0.0))
         if cycle <= 0:
@@ -122,6 +127,7 @@ class SignalStateEstimator:
             raise ValueError("conflict_persistence_seconds must be non-negative")
 
         self.phase_model = phase_model
+        self.topology = topology or DEFAULT_INTERSECTION_TOPOLOGY
         self.recent_window_s = float(recent_window_s)
         self.min_phase_confidence = float(min_phase_confidence)
         self.min_traffic_confidence = float(min_traffic_confidence)
@@ -159,11 +165,11 @@ class SignalStateEstimator:
                 phase,
                 approach,
             )
-            for approach in APPROACHES
+            for approach in self.topology.approaches
         }
 
         states: list[ApproachState] = []
-        for approach in APPROACHES:
+        for approach in self.topology.approaches:
             support, supporting, contradictory = evidence[approach]
             traffic_conf = self._approach_traffic_confidence(
                 support,
@@ -263,6 +269,7 @@ class SignalStateEstimator:
             red_yellow_duration_seconds=self.red_yellow_duration_seconds,
             conflict_persistence_seconds=self.conflict_persistence_seconds,
             event_origin_ms=origin,
+            topology=self.topology,
         )
         return [estimator.estimate(timestamp_s, events) for timestamp_s in timestamps_s]
 
@@ -364,13 +371,53 @@ class SignalStateEstimator:
             and event.event_type in {EventType.RELEASE, EventType.CROSSING}
         ]
 
-    @staticmethod
-    def _approaches_conflict(left: str, right: str) -> bool:
-        vertical = {"N", "S"}
-        horizontal = {"E", "W"}
-        return (
-            (left in vertical and right in horizontal)
-            or (left in horizontal and right in vertical)
+    def _approaches_conflict(self, left: str, right: str) -> bool:
+        return self.topology.approaches_conflict(left, right)
+
+    def _events_conflict(
+        self,
+        left: TrajectoryEvent,
+        right: TrajectoryEvent,
+    ) -> bool:
+        return self.topology.movements_conflict(
+            left.movement,
+            right.movement,
+            left_approach=left.approach,
+            right_approach=right.approach,
+        )
+
+    def _event_conflicts_with_active_flow(
+        self,
+        event: TrajectoryEvent,
+        events: Sequence[TrajectoryEvent],
+        active: set[str],
+    ) -> bool:
+        active_events = [
+            other
+            for other in events
+            if (
+                other.approach in active
+                and other.approach != event.approach
+            )
+        ]
+        if active_events:
+            relevant = [
+                other
+                for other in active_events
+                if self._approaches_conflict(
+                    event.approach,
+                    other.approach,
+                )
+            ]
+            if relevant:
+                return any(
+                    self._events_conflict(event, other)
+                    for other in relevant
+                )
+            return False
+        return any(
+            self._approaches_conflict(event.approach, approach)
+            for approach in active
         )
 
     @staticmethod
@@ -384,42 +431,68 @@ class SignalStateEstimator:
         events: Sequence[TrajectoryEvent],
         active: set[str],
     ) -> dict[str, tuple[float, int, int]]:
-        """Score evidence against the exact active-approach set.
+        """Score observed flow against the configured conflict topology.
 
-        Compatible N/S (or E/W) traffic is not treated as contradictory merely
-        because only one of the pair is currently active. This is required for
-        staggered starts such as {N} -> {N,S}.
+        Silence and STOP are never RED/GREEN evidence. Family conflicts are
+        the conservative fallback; explicit movement compatibility can
+        suppress a false contradiction when geometry is known.
         """
         result: dict[str, tuple[float, int, int]] = {}
-        for approach in APPROACHES:
+        for approach in self.topology.approaches:
             own_events = [
                 event
                 for event in events
                 if event.approach == approach
             ]
-            conflicting_events = [
-                event
-                for event in events
-                if self._approaches_conflict(
-                    approach,
-                    event.approach,
-                )
-            ]
 
             if approach in active:
                 support_events = own_events
-                contradiction_events = conflicting_events
+                if own_events:
+                    contradiction_events = [
+                        event
+                        for event in events
+                        if (
+                            event.approach != approach
+                            and self._approaches_conflict(
+                                approach,
+                                event.approach,
+                            )
+                            and any(
+                                self._events_conflict(own, event)
+                                for own in own_events
+                            )
+                        )
+                    ]
+                else:
+                    contradiction_events = [
+                        event
+                        for event in events
+                        if self._approaches_conflict(
+                            approach,
+                            event.approach,
+                        )
+                    ]
             else:
                 support_events = [
                     event
                     for event in events
-                    if event.approach in active
-                    and self._approaches_conflict(
-                        approach,
-                        event.approach,
+                    if (
+                        event.approach in active
+                        and self._approaches_conflict(
+                            approach,
+                            event.approach,
+                        )
                     )
                 ]
-                contradiction_events = own_events
+                contradiction_events = [
+                    event
+                    for event in own_events
+                    if self._event_conflicts_with_active_flow(
+                        event,
+                        events,
+                        active,
+                    )
+                ]
 
             support_weight = sum(
                 self._event_weight(event)

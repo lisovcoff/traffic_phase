@@ -8,6 +8,10 @@ from app.core.event_phase_discovery import (
     EventPhaseDiscoveryResult,
     MovementSignalStage,
 )
+from app.core.intersection_topology import (
+    DEFAULT_INTERSECTION_TOPOLOGY,
+    IntersectionTopology,
+)
 from app.core.models import EventType, TrajectoryEvent
 
 
@@ -23,9 +27,15 @@ class RealtimePhaseTemplate:
     supporting_event_count: int = 0
     contradictory_event_count: int = 0
     movement_stages: tuple[MovementSignalStage, ...] = ()
+    topology: IntersectionTopology = DEFAULT_INTERSECTION_TOPOLOGY
 
     @classmethod
-    def from_phase_model(cls, phase_model: object) -> "RealtimePhaseTemplate":
+    def from_phase_model(
+        cls,
+        phase_model: object,
+        *,
+        topology: IntersectionTopology | None = None,
+    ) -> "RealtimePhaseTemplate":
         cycle_seconds = float(getattr(phase_model, "cycle_seconds", 0.0))
         bin_seconds = float(getattr(phase_model, "bin_seconds", 0.0))
         phases = tuple(getattr(phase_model, "phases", ()))
@@ -50,6 +60,7 @@ class RealtimePhaseTemplate:
             movement_stages=tuple(
                 getattr(phase_model, "movement_stages", ())
             ),
+            topology=topology or DEFAULT_INTERSECTION_TOPOLOGY,
         )
 
     def to_phase_model(self) -> EventPhaseDiscoveryResult:
@@ -116,23 +127,14 @@ class RealtimePhaseTemplate:
         return tuple(active)
 
     def group_for_approach(self, approach: str) -> tuple[str, ...] | None:
-        """Return a stable synchronization family, not a stage membership.
-
-        An approach may appear in several stages ({N} and {N,S}), so using the
-        first active-stage tuple as its identity would make synchronization
-        depend on stage ordering. The orthogonal axis remains a stable family
-        for requiring evidence from both sides of the intersection.
-        """
+        """Return the configured stable synchronization family."""
         if not any(
             approach in phase.active_approaches
             for phase in self.phases
         ):
             return None
-        if approach in {"N", "S"}:
-            return ("NS",)
-        if approach in {"E", "W"}:
-            return ("EW",)
-        return (approach,)
+        family = self.topology.family_for_approach(approach)
+        return (family,) if family is not None else (approach,)
 
 
 @dataclass(frozen=True)

@@ -7,7 +7,11 @@ import zipfile
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
 
-from app.api.realtime import PhasePayload, _build_phase_model
+from app.api.realtime import (
+    PhasePayload,
+    _build_phase_model,
+    _build_topology,
+)
 from app.core.realtime_simulation import (
     DEFAULT_SIMULATION_SPEED,
     RealtimeArchiveSimulation,
@@ -61,6 +65,7 @@ async def start_realtime_simulation(
             source,
             model,
             speed=speed,
+            topology=_build_topology(phase_payload),
         )
         identifier = simulation_id or uuid.uuid4().hex
         if not identifier.strip():

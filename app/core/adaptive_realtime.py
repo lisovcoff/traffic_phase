@@ -4,13 +4,16 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Iterable
 
+from app.core.intersection_topology import (
+    DEFAULT_FAMILY_APPROACHES,
+    DEFAULT_INTERSECTION_TOPOLOGY,
+    IntersectionTopology,
+)
 from app.core.models import EventType, TrajectoryEvent
 
 
-AXIS_APPROACHES = {
-    "NS": frozenset({"N", "S"}),
-    "EW": frozenset({"E", "W"}),
-}
+# Backwards-compatible alias. Adaptive logic itself now uses topology.
+AXIS_APPROACHES = DEFAULT_FAMILY_APPROACHES
 
 
 class AdaptiveRealtimeMode(str, Enum):
@@ -64,6 +67,7 @@ class AdaptiveRealtimeOverride:
         min_recovery_releases: int = 2,
         dominance_margin: float = 0.75,
         stale_override_seconds: float = 6.0,
+        topology: IntersectionTopology | None = None,
     ) -> None:
         if evidence_window_seconds <= 0:
             raise ValueError("evidence_window_seconds must be positive")
@@ -80,6 +84,7 @@ class AdaptiveRealtimeOverride:
         if stale_override_seconds <= 0:
             raise ValueError("stale_override_seconds must be positive")
 
+        self.topology = topology or DEFAULT_INTERSECTION_TOPOLOGY
         self.evidence_window_seconds = float(evidence_window_seconds)
         self.boundary_guard_seconds = float(boundary_guard_seconds)
         self.suspect_persistence_seconds = float(
@@ -138,10 +143,9 @@ class AdaptiveRealtimeOverride:
             if expected_axis is not None
             else 0
         )
-        conflicting_axis = (
-            self._opposite_axis(expected_axis)
-            if expected_axis is not None
-            else None
+        conflicting_axis = self._dominant_conflicting_axis(
+            expected_axis,
+            evidence,
         )
         conflicting_weight = (
             float(evidence[conflicting_axis]["weight"])
@@ -214,9 +218,10 @@ class AdaptiveRealtimeOverride:
                 and expected_releases >= self.min_recovery_releases
                 and expected_weight
                 >= (
-                    float(evidence[
-                        self._opposite_axis(expected_axis)
-                    ]["weight"])
+                    self._max_conflicting_weight(
+                        expected_axis,
+                        evidence,
+                    )
                     + self.dominance_margin
                 )
             )
@@ -318,7 +323,10 @@ class AdaptiveRealtimeOverride:
                     for approach in approaches
                 },
             }
-            for axis, approaches in AXIS_APPROACHES.items()
+            for axis, approaches in (
+                (family.name, family.approaches)
+                for family in self.topology.families
+            )
         }
         for event in events:
             if not lower_ms <= event.timestamp_ms <= timestamp_ms:
@@ -365,7 +373,7 @@ class AdaptiveRealtimeOverride:
         return tuple(
             sorted(
                 approach
-                for approach in AXIS_APPROACHES[axis]
+                for approach in self.topology.approaches_for_family(axis)
                 if (
                     float(weights[approach]) >= 1.0
                     and int(releases[approach]) >= 1
@@ -391,34 +399,50 @@ class AdaptiveRealtimeOverride:
             <= self.boundary_guard_seconds
         )
 
-    @staticmethod
-    def _axis_for_approach(approach: str) -> str | None:
-        if approach in AXIS_APPROACHES["NS"]:
-            return "NS"
-        if approach in AXIS_APPROACHES["EW"]:
-            return "EW"
-        return None
+    def _axis_for_approach(self, approach: str) -> str | None:
+        return self.topology.family_for_approach(approach)
 
-    @classmethod
-    def _phase_axis(cls, phase: object | None) -> str | None:
+    def _phase_axis(self, phase: object | None) -> str | None:
         if phase is None:
             return None
-        active = set(
-            getattr(phase, "active_approaches", ())
+        return self.topology.family_for_active_approaches(
+            tuple(getattr(phase, "active_approaches", ()))
         )
-        if active and active <= AXIS_APPROACHES["NS"]:
-            return "NS"
-        if active and active <= AXIS_APPROACHES["EW"]:
-            return "EW"
-        return None
 
-    @staticmethod
-    def _opposite_axis(axis: str | None) -> str | None:
-        if axis == "NS":
-            return "EW"
-        if axis == "EW":
-            return "NS"
-        return None
+    def _dominant_conflicting_axis(
+        self,
+        expected_axis: str | None,
+        evidence: dict[str, dict[str, object]],
+    ) -> str | None:
+        candidates = self.topology.conflicting_families_for(
+            expected_axis
+        )
+        if not candidates:
+            return None
+        return max(
+            candidates,
+            key=lambda family: float(
+                evidence.get(family, {}).get("weight", 0.0)
+            ),
+        )
+
+    def _max_conflicting_weight(
+        self,
+        expected_axis: str | None,
+        evidence: dict[str, dict[str, object]],
+    ) -> float:
+        return max(
+            (
+                float(
+                    evidence.get(family, {}).get("weight", 0.0)
+                )
+                for family
+                in self.topology.conflicting_families_for(
+                    expected_axis
+                )
+            ),
+            default=0.0,
+        )
 
 
 __all__ = [

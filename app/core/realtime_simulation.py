@@ -8,6 +8,7 @@ from threading import RLock
 from typing import BinaryIO
 import zipfile
 
+from app.core.intersection_topology import IntersectionTopology
 from app.core.models import Trajectory, TrajectoryEvent
 from app.core.preprocessing import load_trajectory_payload
 from app.core.realtime_inference import RealtimeSignalInferenceEngine
@@ -189,6 +190,7 @@ class RealtimeArchiveSimulation:
         recent_window_s: float = 12.0,
         yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS,
         red_yellow_duration_seconds: float = DEFAULT_RED_YELLOW_DURATION_SECONDS,
+        topology: IntersectionTopology | None = None,
     ) -> None:
         self.source = source
         self.speed = self._validated_speed(speed)
@@ -200,6 +202,7 @@ class RealtimeArchiveSimulation:
         self._red_yellow_duration_seconds = float(
             red_yellow_duration_seconds
         )
+        self._topology = topology
         self._lock = RLock()
         self._engine = self._new_engine()
         self._cursor = 0
@@ -227,6 +230,7 @@ class RealtimeArchiveSimulation:
             recent_window_s=self._recent_window_s,
             yellow_duration_seconds=self._yellow_duration_seconds,
             red_yellow_duration_seconds=self._red_yellow_duration_seconds,
+            topology=self._topology,
         )
 
     @property

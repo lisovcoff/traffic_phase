@@ -4,6 +4,10 @@ from app.core.event_phase_discovery import (
     EventPhase,
     EventPhaseDiscoveryResult,
 )
+from app.core.intersection_topology import (
+    IntersectionTopology,
+    SignalFamily,
+)
 from app.core.models import EventType, TrajectoryEvent
 from app.core.signal_state_estimator import (
     DEFAULT_RED_YELLOW_DURATION_SECONDS,
@@ -280,3 +284,62 @@ def test_continuing_approach_stays_green_across_internal_stage_boundary():
     assert just_after["S"].state == SignalState.RED_YELLOW
     assert after_red_yellow["N"].state == SignalState.GREEN
     assert after_red_yellow["S"].state == SignalState.GREEN
+
+
+
+def test_default_topology_keeps_orthogonal_release_as_contradiction():
+    result = SignalStateEstimator(model()).estimate(
+        20.0,
+        [
+            event(EventType.RELEASE, 19.0, "N"),
+            event(EventType.RELEASE, 19.5, "E"),
+        ],
+    )
+    current = states(result)
+    assert current["N"].contradictory_event_count == 1
+    assert current["E"].contradictory_event_count == 1
+
+
+def test_explicit_movement_compatibility_suppresses_false_conflict_evidence():
+    topology = IntersectionTopology(
+        families=(
+            SignalFamily("MAIN", ("N", "S")),
+            SignalFamily("CROSS", ("E", "W")),
+        ),
+        family_conflicts=(("MAIN", "CROSS"),),
+        movement_compatibilities=(("N->x", "E->x"),),
+    )
+    result = SignalStateEstimator(
+        model(),
+        topology=topology,
+    ).estimate(
+        20.0,
+        [
+            event(EventType.RELEASE, 19.0, "N"),
+            event(EventType.RELEASE, 19.5, "E"),
+        ],
+    )
+    current = states(result)
+
+    assert current["N"].contradictory_event_count == 0
+    assert current["E"].contradictory_event_count == 0
+    assert current["E"].state == SignalState.RED
+
+
+def test_no_traffic_is_not_positive_green_evidence_for_inactive_family():
+    topology = IntersectionTopology(
+        families=(
+            SignalFamily("MAIN", ("N", "S")),
+            SignalFamily("CROSS", ("E", "W")),
+        ),
+        family_conflicts=(("MAIN", "CROSS"),),
+    )
+    result = SignalStateEstimator(
+        model(),
+        topology=topology,
+    ).estimate(20.0, [])
+    current = states(result)
+
+    assert current["E"].state == SignalState.RED
+    assert current["E"].supporting_event_count == 0
+    assert current["E"].traffic_evidence_confidence == 0.0

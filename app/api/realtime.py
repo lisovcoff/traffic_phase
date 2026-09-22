@@ -11,6 +11,7 @@ from app.core.event_phase_discovery import (
     MovementSignalStage,
 )
 from app.core.anomaly_profile import TrafficBaselineProfile
+from app.core.intersection_topology import IntersectionTopology
 from app.core.models import EventType, TrajectoryEvent
 from app.core.realtime_inference import (
     DuplicateEventError,
@@ -33,6 +34,7 @@ class PhasePayload(BaseModel):
     supporting_event_count: int = Field(default=0, ge=0)
     contradictory_event_count: int = Field(default=0, ge=0)
     movement_stages: list[dict[str, object]] = Field(default_factory=list)
+    topology: dict[str, object] | None = None
 
 
 class BaselineProfilePayload(BaseModel):
@@ -132,6 +134,14 @@ def _build_phase_model(payload: PhasePayload) -> EventPhaseDiscoveryResult:
     )
 
 
+def _build_topology(
+    payload: PhasePayload | None,
+) -> IntersectionTopology | None:
+    if payload is None or payload.topology is None:
+        return None
+    return IntersectionTopology.from_dict(payload.topology)
+
+
 class RealtimeEngineRegistry:
     def __init__(self) -> None:
         self._engines: dict[str, RealtimeSignalInferenceEngine] = {}
@@ -147,6 +157,7 @@ class RealtimeEngineRegistry:
         yellow_duration_seconds: float,
         red_yellow_duration_seconds: float,
         baseline: TrafficBaselineProfile | None,
+        topology: IntersectionTopology | None,
     ) -> RealtimeSignalInferenceEngine:
         with self._lock:
             engine = self._engines.get(stream_id)
@@ -194,6 +205,13 @@ class RealtimeEngineRegistry:
                     raise ValueError(
                         "stream already exists with a different red-yellow duration"
                     )
+                if (
+                    topology is not None
+                    and topology.to_dict() != engine.topology.to_dict()
+                ):
+                    raise ValueError(
+                        "stream already exists with a different topology"
+                    )
                 return engine
 
             if phase_model is None:
@@ -208,6 +226,7 @@ class RealtimeEngineRegistry:
                 yellow_duration_seconds=yellow_duration_seconds,
                 red_yellow_duration_seconds=red_yellow_duration_seconds,
                 baseline=baseline,
+                topology=topology,
             )
             self._engines[stream_id] = engine
             return engine
@@ -238,6 +257,7 @@ async def infer_realtime(
             recent_window_s=payload.recent_window_s,
             yellow_duration_seconds=payload.yellow_duration_seconds,
             red_yellow_duration_seconds=payload.red_yellow_duration_seconds,
+            topology=_build_topology(payload.phase_model),
             baseline=TrafficBaselineProfile.from_dict(payload.baseline_profile.payload) if payload.baseline_profile else None,
         )
         event = TrajectoryEvent(
@@ -275,6 +295,7 @@ async def infer_realtime_trajectory(
             recent_window_s=payload.recent_window_s,
             yellow_duration_seconds=payload.yellow_duration_seconds,
             red_yellow_duration_seconds=payload.red_yellow_duration_seconds,
+            topology=_build_topology(payload.phase_model),
             baseline=(
                 TrafficBaselineProfile.from_dict(payload.baseline_profile.payload)
                 if payload.baseline_profile
