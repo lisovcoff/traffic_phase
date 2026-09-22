@@ -213,8 +213,15 @@ def test_start_step_status_reset_json_simulation():
         early["evidence_summary"][
             "emitted_trajectory_count"
         ]
+        == 1
+    )
+    assert (
+        early["evidence_summary"][
+            "completed_trajectory_count"
+        ]
         == 0
     )
+    assert early["evidence_summary"]["emitted_event_count"] >= 2
 
     released = asyncio.run(
         step_realtime_simulation(
@@ -334,13 +341,19 @@ def test_future_trajectory_cannot_affect_early_snapshot():
         before_completion["evidence_summary"][
             "emitted_trajectory_count"
         ]
+        == 1
+    )
+    assert (
+        before_completion["evidence_summary"][
+            "completed_trajectory_count"
+        ]
         == 0
     )
     assert (
         before_completion["evidence_summary"][
             "synchronization_evidence_count"
         ]
-        == 0
+        >= 1
     )
     assert before_completion["phase_id"] is None
     assert set(
@@ -545,3 +558,128 @@ def test_realtime_simulation_accepts_custom_topology_in_phase_payload():
 
     assert started["simulation_id"] == "topology-sim"
     simulation_registry.clear()
+
+
+def test_causal_simulation_emits_release_before_trajectory_completion():
+    from app.core.models import Detection, Trajectory
+    from app.core.realtime_simulation import (
+        RealtimeSimulationSource,
+        ScheduledTrajectoryEvidence,
+    )
+
+    detections = tuple(
+        Detection(
+            millis=millis,
+            lat=lat,
+            lng=61.0,
+            zone=zone,
+        )
+        for millis, lat, zone in (
+            (0, 55.0, "N"),
+            (1000, 55.0, "N"),
+            (2000, 55.0, "N"),
+            (3000, 55.0, "N"),
+            (4000, 55.0, "N"),
+            (5000, 55.00003, "N"),
+            (6000, 55.00006, None),
+            (20_000, 55.00030, "_S"),
+        )
+    )
+    trajectory = Trajectory(
+        vehicle_id=42,
+        timestamp_ms=20_000,
+        zone_in="N",
+        zone_out="_S",
+        movement="N->_S",
+        speed=None,
+        wait_s=0.0,
+        move_s=0.0,
+        distance=None,
+        detections=detections,
+    )
+    source = RealtimeSimulationSource(
+        filename="causal.json",
+        source_format="json",
+        start_timestamp_ms=0,
+        end_timestamp_ms=20_000,
+        trajectory_count=1,
+        event_count=0,
+        items=(
+            ScheduledTrajectoryEvidence(
+                available_timestamp_ms=20_000,
+                start_timestamp_ms=0,
+                trajectory_key="causal:42",
+                trajectory=trajectory,
+            ),
+        ),
+    )
+    simulation = RealtimeArchiveSimulation(source, _phase_model())
+
+    partial = simulation.step(6.0)
+
+    assert partial["finished"] is False
+    assert partial["evidence_summary"]["emitted_trajectory_count"] == 1
+    assert partial["evidence_summary"]["completed_trajectory_count"] == 0
+    assert partial["evidence_summary"]["emitted_event_count"] >= 4
+    assert (
+        partial["evidence_summary"]["synchronization_evidence_count"]
+        >= 2
+    )
+
+
+def test_causal_simulation_does_not_release_precomputed_future_event():
+    record = _record(
+        1,
+        start_ms=0,
+        crossing_ms=10_000,
+        end_ms=20_000,
+        approach="N",
+        zone_out="_S",
+    )
+    source = load_realtime_simulation_source(
+        BytesIO(_json_bytes([record])),
+        filename="no-lookahead.json",
+    )
+    assert source.items[0].events
+
+    simulation = RealtimeArchiveSimulation(source, _phase_model())
+    early = simulation.step(5.0)
+
+    assert early["evidence_summary"]["emitted_trajectory_count"] == 1
+    assert early["evidence_summary"]["completed_trajectory_count"] == 0
+    assert (
+        early["evidence_summary"]["synchronization_evidence_count"]
+        == 0
+    )
+
+    crossing_seen = simulation.step(5.0)
+    assert (
+        crossing_seen["evidence_summary"][
+            "synchronization_evidence_count"
+        ]
+        >= 1
+    )
+
+
+def test_warmup_reason_reports_missing_or_single_family_evidence():
+    records = [
+        _record(
+            1,
+            start_ms=0,
+            crossing_ms=2_000,
+            end_ms=10_000,
+            approach="N",
+            zone_out="_S",
+        )
+    ]
+    source = load_realtime_simulation_source(
+        BytesIO(_json_bytes(records)),
+        filename="warmup.json",
+    )
+    simulation = RealtimeArchiveSimulation(source, _phase_model())
+
+    initial = simulation.snapshot()
+    assert initial["warmup_reason"] == "no_release_or_crossing_evidence"
+
+    partial = simulation.step(3.0)
+    assert partial["warmup_reason"] == "only_one_family"

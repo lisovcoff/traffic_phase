@@ -182,3 +182,90 @@ def test_stop_line_provider_has_priority_over_detection_zones():
     crossing = next(event for event in events if event.event_type == EventType.CROSSING)
 
     assert crossing.timestamp_ms == 4500
+
+
+def test_causal_extractor_confirms_stop_and_release_without_future_points():
+    from app.core.trajectory_events import CausalTrajectoryEventExtractor
+
+    extractor = CausalTrajectoryEventExtractor(
+        approach="N",
+        movement="N->_S",
+        zone_out="_S",
+    )
+    points = [
+        _point(0, 55.0, zone="N"),
+        _point(1000, 55.0, zone="N"),
+        _point(2000, 55.0, zone="N"),
+        _point(3000, 55.0, zone="N"),
+        _point(4000, 55.0, zone="N"),
+        _point(5000, 55.00003, zone="N"),
+        _point(6000, 55.00006, zone=None),
+    ]
+    geometry = build_trajectory_geometry({"detections": points})
+
+    early = extractor.ingest_snapshot(geometry.detections[:4])
+    assert EventType.APPROACH in _event_types(early)
+    assert EventType.STOP in _event_types(early)
+    assert EventType.RELEASE not in _event_types(early)
+
+    before_release_confirmation = extractor.ingest_snapshot(
+        geometry.detections[:6]
+    )
+    assert EventType.RELEASE not in _event_types(
+        before_release_confirmation
+    )
+
+    confirmed = extractor.ingest_snapshot(geometry.detections)
+    assert EventType.RELEASE in _event_types(confirmed)
+    assert EventType.CROSSING in _event_types(confirmed)
+
+
+def test_causal_extractor_repeated_snapshots_do_not_reemit_events():
+    from app.core.trajectory_events import CausalTrajectoryEventExtractor
+
+    extractor = CausalTrajectoryEventExtractor(
+        approach="N",
+        movement="N->_S",
+        zone_out="_S",
+    )
+    geometry = build_trajectory_geometry(
+        {
+            "detections": [
+                _point(0, 55.0, zone="N"),
+                _point(1000, 55.00003, zone="N"),
+                _point(2000, 55.00006, zone=None),
+            ]
+        }
+    )
+
+    first = extractor.ingest_snapshot(geometry.detections)
+    repeated = extractor.ingest_snapshot(geometry.detections)
+
+    assert EventType.APPROACH in _event_types(first)
+    assert EventType.CROSSING in _event_types(first)
+    assert repeated == []
+
+
+def test_causal_extractor_does_not_use_future_crossing_detection():
+    from app.core.trajectory_events import CausalTrajectoryEventExtractor
+
+    extractor = CausalTrajectoryEventExtractor(
+        approach="N",
+        movement="N->_S",
+        zone_out="_S",
+    )
+    geometry = build_trajectory_geometry(
+        {
+            "detections": [
+                _point(0, 55.0, zone="N"),
+                _point(1000, 55.00001, zone="N"),
+                _point(10_000, 55.00010, zone=None),
+            ]
+        }
+    )
+
+    early = extractor.ingest_snapshot(geometry.detections[:2])
+    assert EventType.CROSSING not in _event_types(early)
+
+    later = extractor.ingest_snapshot(geometry.detections)
+    assert EventType.CROSSING in _event_types(later)

@@ -13,6 +13,7 @@ from app.core.models import Trajectory, TrajectoryEvent
 from app.core.preprocessing import load_trajectory_payload
 from app.core.realtime_inference import RealtimeSignalInferenceEngine
 from app.core.reconstruction import extract_events_from_trajectories
+from app.core.trajectory_events import CausalTrajectoryEventExtractor
 from app.core.signal_state_estimator import (
     DEFAULT_RED_YELLOW_DURATION_SECONDS,
     DEFAULT_YELLOW_DURATION_SECONDS,
@@ -29,7 +30,8 @@ class ScheduledTrajectoryEvidence:
     available_timestamp_ms: int
     start_timestamp_ms: int
     trajectory_key: str
-    events: tuple[TrajectoryEvent, ...]
+    events: tuple[TrajectoryEvent, ...] = ()
+    trajectory: Trajectory | None = None
 
 
 @dataclass(frozen=True)
@@ -78,6 +80,7 @@ def _scheduled_items(
                     f"{key_prefix}:{index}:{trajectory.vehicle_id}"
                 ),
                 events=events,
+                trajectory=trajectory,
             )
         )
     return scheduled
@@ -93,8 +96,8 @@ def _source_from_items(
         raise ValueError("no usable car trajectories found")
     items.sort(
         key=lambda item: (
-            item.available_timestamp_ms,
             item.start_timestamp_ms,
+            item.available_timestamp_ms,
             item.trajectory_key,
         )
     )
@@ -114,11 +117,13 @@ def load_realtime_simulation_source(
     *,
     filename: str,
 ) -> RealtimeSimulationSource:
-    """Prepare a compact playback schedule without retaining raw detections.
+    """Prepare a compact causal playback schedule.
 
-    ZIP members are decoded one at a time. Each completed trajectory is reduced
-    to its availability timestamp plus extracted events, then the decoded raw
-    member can be released before the next member is processed.
+    ZIP members are decoded one at a time. Full detector payloads are reduced
+    to normalized Trajectory/Detection models; bbox/score metadata is discarded.
+    Offline events are retained only for diagnostics/backward compatibility.
+    Causal playback never releases them early: it feeds normalized detections
+    to a stateful extractor only after each detection timestamp is reached.
     """
     lowered = filename.lower()
     if lowered.endswith(".json"):
@@ -208,7 +213,14 @@ class RealtimeArchiveSimulation:
         self._cursor = 0
         self._simulated_timestamp_ms = source.start_timestamp_ms
         self._emitted_trajectory_count = 0
+        self._completed_trajectory_count = 0
         self._emitted_event_count = 0
+        self._active_items: dict[str, ScheduledTrajectoryEvidence] = {}
+        self._causal_extractors: dict[
+            str,
+            CausalTrajectoryEventExtractor,
+        ] = {}
+        self._detection_cursors: dict[str, int] = {}
         self._last_inference: dict[str, object] | None = None
 
     @staticmethod
@@ -235,7 +247,10 @@ class RealtimeArchiveSimulation:
 
     @property
     def finished(self) -> bool:
-        return self._cursor >= len(self.source.items)
+        return (
+            self._completed_trajectory_count
+            >= self.source.trajectory_count
+        )
 
     def reset(self) -> dict[str, object]:
         with self._lock:
@@ -245,7 +260,11 @@ class RealtimeArchiveSimulation:
                 self.source.start_timestamp_ms
             )
             self._emitted_trajectory_count = 0
+            self._completed_trajectory_count = 0
             self._emitted_event_count = 0
+            self._active_items.clear()
+            self._causal_extractors.clear()
+            self._detection_cursors.clear()
             self._last_inference = None
             return self.snapshot()
 
@@ -284,30 +303,93 @@ class RealtimeArchiveSimulation:
     def _emit_available(self, target_ms: int) -> None:
         while self._cursor < len(self.source.items):
             item = self.source.items[self._cursor]
-            if item.available_timestamp_ms > target_ms:
+            if item.start_timestamp_ms > target_ms:
                 break
-
-            # The trajectory is only released after its final detection time.
-            # Event extraction may have happened offline, but realtime inference
-            # sees none of its events before this availability boundary.
-            if item.events:
-                event_ids = [
-                    (
-                        f"{item.trajectory_key}:{index}:"
-                        f"{event.event_type.value}:"
-                        f"{event.timestamp_ms}"
+            self._active_items[item.trajectory_key] = item
+            if item.trajectory is not None:
+                self._causal_extractors[item.trajectory_key] = (
+                    CausalTrajectoryEventExtractor(
+                        approach=item.trajectory.zone_in,
+                        movement=item.trajectory.movement,
+                        zone_out=item.trajectory.zone_out,
                     )
-                    for index, event in enumerate(item.events)
-                ]
-                inference = self._engine.ingest_events(
-                    item.events,
-                    event_ids=event_ids,
                 )
-                self._last_inference = inference.to_dict()
-                self._emitted_event_count += len(item.events)
-
-            self._emitted_trajectory_count += 1
+                self._detection_cursors[item.trajectory_key] = 0
             self._cursor += 1
+
+        confirmed: list[tuple[str, TrajectoryEvent]] = []
+        completed: list[str] = []
+
+        for key, item in tuple(self._active_items.items()):
+            trajectory = item.trajectory
+            if trajectory is None:
+                if item.available_timestamp_ms > target_ms:
+                    continue
+                if item.events:
+                    confirmed.extend((key, event) for event in item.events)
+                self._emitted_trajectory_count += 1
+                self._completed_trajectory_count += 1
+                completed.append(key)
+                continue
+
+            cursor = self._detection_cursors.get(key, 0)
+            detections = trajectory.detections
+            next_cursor = cursor
+            while (
+                next_cursor < len(detections)
+                and detections[next_cursor].millis <= target_ms
+            ):
+                next_cursor += 1
+
+            new_detections = detections[cursor:next_cursor]
+            if new_detections and cursor == 0:
+                self._emitted_trajectory_count += 1
+
+            final = (
+                next_cursor >= len(detections)
+                and item.available_timestamp_ms <= target_ms
+            )
+            extractor = self._causal_extractors[key]
+            if new_detections or final:
+                events = extractor.ingest_snapshot(
+                    new_detections,
+                    final=final,
+                )
+                confirmed.extend((key, event) for event in events)
+            self._detection_cursors[key] = next_cursor
+
+            if final:
+                if not detections:
+                    self._emitted_trajectory_count += 1
+                self._completed_trajectory_count += 1
+                completed.append(key)
+
+        confirmed.sort(
+            key=lambda item: (
+                item[1].timestamp_ms,
+                item[1].event_type.value,
+                item[1].approach,
+                item[1].movement,
+                item[0],
+            )
+        )
+        if confirmed:
+            events = [event for _key, event in confirmed]
+            event_ids = [
+                f"{key}:{event.event_type.value}:{event.timestamp_ms}"
+                for key, event in confirmed
+            ]
+            inference = self._engine.ingest_events(
+                events,
+                event_ids=event_ids,
+            )
+            self._last_inference = inference.to_dict()
+            self._emitted_event_count += len(events)
+
+        for key in completed:
+            self._active_items.pop(key, None)
+            self._causal_extractors.pop(key, None)
+            self._detection_cursors.pop(key, None)
 
     def snapshot(self) -> dict[str, object]:
         with self._lock:
@@ -396,6 +478,16 @@ class RealtimeArchiveSimulation:
                 - self.source.start_timestamp_ms
             ) / duration_ms
 
+            sync_state = self._engine.synchronization
+            if sync_state.status != "WARMUP":
+                warmup_reason = None
+            elif sync_state.evidence_count <= 0:
+                warmup_reason = "no_release_or_crossing_evidence"
+            elif sync_state.observed_group_count < 2:
+                warmup_reason = "only_one_family"
+            else:
+                warmup_reason = "insufficient_match_ratio_or_evidence"
+
             return {
                 "simulated_timestamp_ms": (
                     self._simulated_timestamp_ms
@@ -424,6 +516,10 @@ class RealtimeArchiveSimulation:
                 "synchronization_confidence": (
                     synchronization_confidence
                 ),
+                "synchronization_observed_family_count": (
+                    sync_state.observed_group_count
+                ),
+                "warmup_reason": warmup_reason,
                 "adaptive_mode": adaptive_mode,
                 "effective_axis": effective_axis,
                 "template_expected_axis": (
@@ -449,9 +545,19 @@ class RealtimeArchiveSimulation:
                     "emitted_event_count": (
                         self._emitted_event_count
                     ),
+                    "active_trajectory_count": len(
+                        self._active_items
+                    ),
+                    "completed_trajectory_count": (
+                        self._completed_trajectory_count
+                    ),
                     "remaining_trajectory_count": (
                         self.source.trajectory_count
                         - self._emitted_trajectory_count
+                    ),
+                    "unfinished_trajectory_count": (
+                        self.source.trajectory_count
+                        - self._completed_trajectory_count
                     ),
                 },
                 "source": {

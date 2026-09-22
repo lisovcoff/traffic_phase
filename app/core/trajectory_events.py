@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, Sequence
 
-from app.core.models import EventType, Trajectory, TrajectoryEvent
+from app.core.models import Detection, EventType, Trajectory, TrajectoryEvent
 from app.core.trajectory_geometry import TrajectoryGeometry, haversine_distance_m
 
 
@@ -156,6 +156,242 @@ def _zone_crossing_timestamp(
             return int(detection.millis), True
 
     return None, has_named_zone
+
+
+class CausalTrajectoryEventExtractor:
+    """Incrementally confirm trajectory events without reading future detections.
+
+    Repeated partial snapshots are supported: duplicate detections are ignored
+    and each event type is emitted at most once. Speed smoothing is trailing,
+    so STOP/RELEASE confirmation uses only segments already observed.
+    """
+
+    def __init__(
+        self,
+        *,
+        approach: str,
+        movement: str,
+        zone_out: str,
+        config: EventExtractionConfig = EventExtractionConfig(),
+    ) -> None:
+        self.approach = approach
+        self.movement = movement
+        self.zone_out = zone_out
+        self.config = config
+        self._detections: list[Detection] = []
+        self._seen_detections: set[tuple[int, float, float, str | None]] = set()
+        self._raw_speeds: list[tuple[int, float, float]] = []
+        self._emitted: set[EventType] = set()
+        self._stop_run_start_ms: int | None = None
+        self._release_run_start_ms: int | None = None
+        self._stop_timestamp_ms: int | None = None
+        self._seen_incoming = False
+        self._has_named_zone = False
+
+    @property
+    def observed_detection_count(self) -> int:
+        return len(self._detections)
+
+    def ingest_snapshot(
+        self,
+        detections: Sequence[Detection],
+        *,
+        final: bool = False,
+    ) -> list[TrajectoryEvent]:
+        events: list[TrajectoryEvent] = []
+        for detection in sorted(detections, key=lambda item: item.millis):
+            events.extend(self.ingest_detection(detection))
+        if final:
+            events.extend(self.finalize())
+        return events
+
+    def ingest_detection(
+        self,
+        detection: Detection,
+    ) -> list[TrajectoryEvent]:
+        key = (
+            int(detection.millis),
+            float(detection.lat),
+            float(detection.lng),
+            detection.zone,
+        )
+        if key in self._seen_detections:
+            return []
+        if (
+            self._detections
+            and detection.millis <= self._detections[-1].millis
+        ):
+            return []
+
+        previous = self._detections[-1] if self._detections else None
+        self._seen_detections.add(key)
+        self._detections.append(detection)
+        events: list[TrajectoryEvent] = []
+
+        if EventType.APPROACH not in self._emitted:
+            events.append(
+                self._emit(
+                    EventType.APPROACH,
+                    detection.millis,
+                    strength=1.0,
+                )
+            )
+
+        if previous is not None:
+            dt_s = (detection.millis - previous.millis) / 1000.0
+            if dt_s > 0:
+                speed_mps = haversine_distance_m(
+                    previous,
+                    detection,
+                ) / dt_s
+                self._raw_speeds.append(
+                    (detection.millis, speed_mps, dt_s)
+                )
+                smoothed_speed = _median(
+                    [
+                        item[1]
+                        for item in self._raw_speeds[
+                            -max(1, self.config.smoothing_window):
+                        ]
+                    ]
+                )
+                events.extend(
+                    self._update_motion_state(
+                        timestamp_ms=detection.millis,
+                        segment_start_ms=previous.millis,
+                        speed_mps=smoothed_speed,
+                    )
+                )
+
+        events.extend(self._update_crossing(detection))
+        return events
+
+    def finalize(self) -> list[TrajectoryEvent]:
+        if (
+            EventType.CROSSING in self._emitted
+            or not self._detections
+            or self._has_named_zone
+        ):
+            return []
+        strength = 0.35 if len(self._detections) >= 5 else 0.2
+        return [
+            self._emit(
+                EventType.CROSSING,
+                self._detections[-1].millis,
+                strength=strength,
+            )
+        ]
+
+    def _update_motion_state(
+        self,
+        *,
+        timestamp_ms: int,
+        segment_start_ms: int,
+        speed_mps: float,
+    ) -> list[TrajectoryEvent]:
+        events: list[TrajectoryEvent] = []
+
+        if EventType.STOP not in self._emitted:
+            if speed_mps <= self.config.stop_speed_mps:
+                if self._stop_run_start_ms is None:
+                    self._stop_run_start_ms = segment_start_ms
+                if (
+                    timestamp_ms - self._stop_run_start_ms
+                    >= int(self.config.stop_min_duration_s * 1000.0)
+                ):
+                    self._stop_timestamp_ms = self._stop_run_start_ms
+                    events.append(
+                        self._emit(
+                            EventType.STOP,
+                            self._stop_timestamp_ms,
+                            strength=0.9,
+                        )
+                    )
+            else:
+                self._stop_run_start_ms = None
+            return events
+
+        if (
+            EventType.RELEASE in self._emitted
+            or self._stop_timestamp_ms is None
+        ):
+            return events
+
+        release_not_before_ms = (
+            self._stop_timestamp_ms
+            + int(self.config.stop_min_duration_s * 1000.0)
+        )
+        if timestamp_ms < release_not_before_ms:
+            return events
+
+        if speed_mps >= self.config.release_speed_mps:
+            candidate_start_ms = max(
+                segment_start_ms,
+                release_not_before_ms,
+            )
+            if self._release_run_start_ms is None:
+                self._release_run_start_ms = candidate_start_ms
+            if (
+                timestamp_ms - self._release_run_start_ms
+                >= int(self.config.release_min_duration_s * 1000.0)
+            ):
+                events.append(
+                    self._emit(
+                        EventType.RELEASE,
+                        self._release_run_start_ms,
+                        strength=0.9,
+                    )
+                )
+        else:
+            self._release_run_start_ms = None
+        return events
+
+    def _update_crossing(
+        self,
+        detection: Detection,
+    ) -> list[TrajectoryEvent]:
+        if EventType.CROSSING in self._emitted:
+            return []
+
+        zone = detection.zone
+        if zone is not None:
+            self._has_named_zone = True
+        if zone == self.approach:
+            self._seen_incoming = True
+            return []
+        if not self._seen_incoming:
+            return []
+        if zone is None or zone == self.zone_out:
+            strength = 1.0 if len(self._detections) >= 5 else 0.6
+            return [
+                self._emit(
+                    EventType.CROSSING,
+                    detection.millis,
+                    strength=strength,
+                )
+            ]
+        return []
+
+    def _emit(
+        self,
+        event_type: EventType,
+        timestamp_ms: int,
+        *,
+        strength: float,
+    ) -> TrajectoryEvent:
+        confidence, quality = _trajectory_quality(
+            TrajectoryGeometry(tuple(self._detections)),
+            self.config,
+        )
+        self._emitted.add(event_type)
+        return TrajectoryEvent(
+            event_type=event_type,
+            timestamp_ms=int(timestamp_ms),
+            approach=self.approach,
+            movement=self.movement,
+            confidence=_event_confidence(confidence, strength),
+            quality=quality,
+        )
 
 
 def extract_trajectory_events(
