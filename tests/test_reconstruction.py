@@ -6,6 +6,7 @@ from app.core.reconstruction import (
     BatchReconstruction,
     DEFAULT_SESSION_GAP_SECONDS,
     reconstruct_event_sessions,
+    _raw_axis_signature,
     split_event_session_into_regimes,
     split_events_into_sessions,
     split_trajectories_into_sessions,
@@ -221,3 +222,94 @@ def test_long_session_splits_confirmed_100_to_120_second_regime():
     assert regimes[1].rolling_period_seconds is not None
     assert 92.0 <= regimes[0].rolling_period_seconds <= 108.0
     assert 112.0 <= regimes[1].rolling_period_seconds <= 128.0
+
+
+
+def _schedule_events(
+    *,
+    cycles,
+    origin_ms,
+    ns_offsets,
+    ew_offsets,
+    period_s=120.0,
+):
+    events = []
+    for cycle in range(cycles):
+        base = origin_ms + int(cycle * period_s * 1000.0)
+        for offset in ns_offsets:
+            for approach in ("N", "S"):
+                timestamp = base + int(offset * 1000.0)
+                events.append(
+                    _event(EventType.RELEASE, timestamp, approach)
+                )
+                events.append(
+                    _event(EventType.CROSSING, timestamp + 500, approach)
+                )
+        for offset in ew_offsets:
+            for approach in ("E", "W"):
+                timestamp = base + int(offset * 1000.0)
+                events.append(
+                    _event(EventType.RELEASE, timestamp, approach)
+                )
+                events.append(
+                    _event(EventType.CROSSING, timestamp + 500, approach)
+                )
+    return events
+
+
+def test_raw_axis_signature_tracks_schedule_without_phase_discovery():
+    events = _schedule_events(
+        cycles=12,
+        origin_ms=0,
+        ns_offsets=(10, 20, 30, 40),
+        ew_offsets=(60, 70, 80, 90, 100),
+    )
+
+    signature = _raw_axis_signature(
+        events,
+        cycle_seconds=120.0,
+        anchor_timestamp_ms=0,
+    )
+
+    assert len(signature) == 60
+    assert 1 in signature
+    assert 2 in signature
+    # The early cycle is NS-dominant and the late cycle is EW-dominant.
+    assert signature[10] == 1
+    assert signature[40] == 2
+
+
+def test_same_cycle_phase_plan_change_creates_new_regime():
+    first = _schedule_events(
+        cycles=30,
+        origin_ms=0,
+        ns_offsets=(10, 20, 30, 40, 50, 60),
+        ew_offsets=(75, 85, 95, 105),
+    )
+    second_origin = 30 * 120 * 1000
+    second = _schedule_events(
+        cycles=30,
+        origin_ms=second_origin,
+        ns_offsets=(10, 20, 30, 40),
+        ew_offsets=(55, 65, 75, 85, 95, 105),
+    )
+
+    regimes = split_event_session_into_regimes(
+        first + second,
+        regime_window_seconds=900.0,
+        regime_step_seconds=300.0,
+        regime_confirmation_windows=2,
+        regime_period_tolerance_seconds=6.0,
+        regime_min_cycle_confidence=0.3,
+    )
+
+    assert len(regimes) == 2
+    assert regimes[0].end_timestamp_ms < regimes[1].start_timestamp_ms
+    assert all(
+        regime.rolling_period_seconds is not None
+        for regime in regimes
+    )
+    assert all(
+        112.0 <= regime.rolling_period_seconds <= 128.0
+        for regime in regimes
+    )

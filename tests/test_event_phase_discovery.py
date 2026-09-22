@@ -861,3 +861,144 @@ def test_lenina_sverdlovsky_strong_distinct_boundaries_stay_promoted():
         "N->_E",
         "E->_N",
     }
+
+
+
+def test_raw_axis_prior_restores_temporally_misplaced_main_movement():
+    cycle = 120.0
+    events = []
+    for repeat in range(12):
+        base = repeat * cycle
+        for offset in (18.0, 30.0, 42.0, 54.0):
+            events.extend(
+                (
+                    _event(
+                        EventType.RELEASE,
+                        base + offset,
+                        "N",
+                        movement="N->_S",
+                    ),
+                    _event(
+                        EventType.RELEASE,
+                        base + offset + 2.0,
+                        "S",
+                        movement="S->_N",
+                    ),
+                )
+            )
+        for offset in (76.0, 88.0, 100.0, 112.0):
+            events.extend(
+                (
+                    _event(
+                        EventType.RELEASE,
+                        base + offset,
+                        "E",
+                        movement="E->_W",
+                    ),
+                    _event(
+                        EventType.RELEASE,
+                        base + offset + 2.0,
+                        "W",
+                        movement="W->_E",
+                    ),
+                )
+            )
+        # Strong, narrow secondary horizontal movements occur during NS.
+        for offset in (34.0, 38.0, 42.0):
+            events.extend(
+                (
+                    _event(
+                        EventType.RELEASE,
+                        base + offset,
+                        "E",
+                        movement="E->_N",
+                    ),
+                    _event(
+                        EventType.RELEASE,
+                        base + offset + 1.0,
+                        "W",
+                        movement="W->_S",
+                    ),
+                )
+            )
+
+    class MisplaceHorizontalMain(EventPhaseDiscovery):
+        def _select_main_movement_events(
+            self,
+            selected,
+            *,
+            cycle_seconds,
+            origin_timestamp_ms,
+        ):
+            _main, candidates = super()._select_main_movement_events(
+                selected,
+                cycle_seconds=cycle_seconds,
+                origin_timestamp_ms=origin_timestamp_ms,
+            )
+            main = [
+                event
+                for event in selected
+                if (
+                    event.approach in {"N", "S"}
+                    or event.movement in {"E->_N", "W->_S"}
+                )
+            ]
+            return main, candidates
+
+    result = MisplaceHorizontalMain().discover(
+        events,
+        cycle_seconds=cycle,
+    )
+
+    active_sets = {
+        phase.active_approaches
+        for phase in result.phases
+    }
+    assert ("N", "S") in active_sets
+    assert ("E", "W") in active_sets
+    assert result.cycle_coverage >= 0.70
+
+
+def test_near_full_cycle_movement_candidate_stays_diagnostic():
+    discovery = EventPhaseDiscovery()
+    phases = (
+        EventPhase(
+            1,
+            10.0,
+            55.0,
+            ("N", "S"),
+            0.95,
+            500,
+            5,
+            ("N", "S"),
+        ),
+        EventPhase(
+            2,
+            65.0,
+            115.0,
+            ("E", "W"),
+            0.95,
+            500,
+            5,
+            ("E", "W"),
+        ),
+    )
+    candidate = _stage_c1_candidate(
+        approach="S",
+        movement="S->_W",
+        start=20.0,
+        end=110.0,
+        repeatability=0.99,
+        stability=0.95,
+        events=400,
+        cycles=80,
+        score=0.95,
+    )
+
+    promoted = discovery._promote_movement_candidates(
+        (candidate,),
+        phases,
+        cycle_seconds=120.0,
+    )
+
+    assert promoted == []

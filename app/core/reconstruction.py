@@ -8,7 +8,7 @@ from typing import Iterable, Sequence
 
 from app.core.event_cycle_estimator import EventCycleEstimate, estimate_event_cycle
 from app.core.event_phase_discovery import EventPhaseDiscovery, EventPhaseDiscoveryResult
-from app.core.models import Trajectory, TrajectoryEvent
+from app.core.models import EventType, Trajectory, TrajectoryEvent
 from app.core.preprocessing import load_trajectory_file
 from app.core.trajectory_events import extract_trajectory_events
 from app.core.trajectory_geometry import build_trajectory_geometry
@@ -20,6 +20,8 @@ DEFAULT_REGIME_STEP_SECONDS = 30.0 * 60.0
 DEFAULT_REGIME_CONFIRMATION_WINDOWS = 3
 DEFAULT_REGIME_PERIOD_TOLERANCE_SECONDS = 6.0
 DEFAULT_REGIME_MIN_CYCLE_CONFIDENCE = 0.45
+DEFAULT_REGIME_PHASE_CHANGE_FRACTION = 0.10
+REGIME_PHASE_SIGNATURE_BINS = 60
 DEFAULT_MIN_PHASE_SECONDS = 8.0
 DEFAULT_PHASE_AMBIGUITY_CONFIDENCE = 0.55
 
@@ -50,6 +52,7 @@ class RollingCycleWindow:
     end_timestamp_ms: int
     period_seconds: float
     confidence: float
+    phase_signature: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -299,6 +302,147 @@ def split_events_into_sessions(
     return [tuple(session) for session in sessions]
 
 
+def _raw_axis_signature(
+    events: Sequence[TrajectoryEvent],
+    *,
+    cycle_seconds: float,
+    anchor_timestamp_ms: int,
+) -> tuple[int, ...]:
+    """Fit a coarse NS/EW timing plan directly from raw traffic evidence.
+
+    This deliberately does not call EventPhaseDiscovery. Regime detection
+    must remain able to notice a same-cycle timing-plan change even when the
+    downstream movement-specific phase model is exactly what is degraded by
+    mixing those plans.
+    """
+    cycle = float(cycle_seconds)
+    if cycle <= 0:
+        return ()
+
+    n_bins = REGIME_PHASE_SIGNATURE_BINS
+    ns = [0.0] * n_bins
+    ew = [0.0] * n_bins
+    axis_events = {"NS": 0, "EW": 0}
+    axis_cycles: dict[str, set[int]] = {
+        "NS": set(),
+        "EW": set(),
+    }
+
+    for event in events:
+        if event.event_type not in {
+            EventType.RELEASE,
+            EventType.CROSSING,
+        }:
+            continue
+        if event.approach in {"N", "S"}:
+            axis = "NS"
+            profile = ns
+        elif event.approach in {"E", "W"}:
+            axis = "EW"
+            profile = ew
+        else:
+            continue
+
+        relative_s = (
+            event.timestamp_ms - anchor_timestamp_ms
+        ) / 1000.0
+        cycle_index = int(relative_s // cycle)
+        position_s = relative_s % cycle
+        bin_id = min(
+            n_bins - 1,
+            int(position_s / cycle * n_bins),
+        )
+        weight = (
+            1.0
+            if event.event_type == EventType.RELEASE
+            else 0.5
+        ) * max(0.0, min(1.0, float(event.confidence)))
+        if weight <= 0:
+            continue
+        profile[bin_id] += weight
+        axis_events[axis] += 1
+        axis_cycles[axis].add(cycle_index)
+
+    if (
+        min(axis_events.values()) < 6
+        or min(len(value) for value in axis_cycles.values()) < 3
+    ):
+        return ()
+
+    ns_total = sum(ns)
+    ew_total = sum(ew)
+    if ns_total <= 0.0 or ew_total <= 0.0:
+        return ()
+    ns = [value / ns_total for value in ns]
+    ew = [value / ew_total for value in ew]
+
+    min_phase_bins = max(
+        1,
+        int(round(DEFAULT_MIN_PHASE_SECONDS / cycle * n_bins)),
+    )
+    if n_bins < 2 * min_phase_bins:
+        return ()
+
+    ns2 = ns + ns
+    ew2 = ew + ew
+    ns_prefix = [0.0]
+    ew_prefix = [0.0]
+    for value in ns2:
+        ns_prefix.append(ns_prefix[-1] + value)
+    for value in ew2:
+        ew_prefix.append(ew_prefix[-1] + value)
+
+    best_score = float("-inf")
+    best_start = 0
+    best_length = min_phase_bins
+    for start in range(n_bins):
+        for length in range(
+            min_phase_bins,
+            n_bins - min_phase_bins + 1,
+        ):
+            end = start + length
+            ns_inside = ns_prefix[end] - ns_prefix[start]
+            ew_inside = ew_prefix[end] - ew_prefix[start]
+            score = ns_inside + (1.0 - ew_inside)
+            if score > best_score:
+                best_score = score
+                best_start = start
+                best_length = length
+
+    signature = [2] * n_bins
+    for offset in range(best_length):
+        signature[(best_start + offset) % n_bins] = 1
+    return tuple(signature)
+
+
+def _phase_signature_distance(
+    left: Sequence[int],
+    right: Sequence[int],
+) -> float | None:
+    if not left or not right or len(left) != len(right):
+        return None
+    return sum(a != b for a, b in zip(left, right)) / len(left)
+
+
+def _consensus_phase_signature(
+    signatures: Sequence[Sequence[int]],
+) -> tuple[int, ...]:
+    usable = [tuple(item) for item in signatures if item]
+    if not usable:
+        return ()
+    size = len(usable[0])
+    usable = [item for item in usable if len(item) == size]
+    if not usable:
+        return ()
+    result: list[int] = []
+    for index in range(size):
+        values = [item[index] for item in usable]
+        result.append(
+            max(set(values), key=lambda value: (values.count(value), -value))
+        )
+    return tuple(result)
+
+
 def _rolling_cycle_windows(
     events: Sequence[TrajectoryEvent],
     *,
@@ -355,6 +499,17 @@ def _rolling_cycle_windows(
                 result is not None
                 and result.estimate.confidence >= min_cycle_confidence
             ):
+                phase_signature: tuple[int, ...] = ()
+                try:
+                    phase_signature = _raw_axis_signature(
+                        sample,
+                        cycle_seconds=result.estimate.cycle_seconds,
+                        anchor_timestamp_ms=start_ms,
+                    )
+                except ValueError:
+                    # Keep period-only regime detection if raw phase-shape
+                    # evidence in this rolling window is still unusable.
+                    pass
                 windows.append(
                     RollingCycleWindow(
                         start_timestamp_ms=window_start,
@@ -365,6 +520,7 @@ def _rolling_cycle_windows(
                         confidence=float(
                             result.estimate.confidence
                         ),
+                        phase_signature=phase_signature,
                     )
                 )
         window_start += step_ms
@@ -385,34 +541,63 @@ def confirmed_cycle_regime_boundaries(
     *,
     confirmation_windows: int = DEFAULT_REGIME_CONFIRMATION_WINDOWS,
     tolerance_seconds: float = DEFAULT_REGIME_PERIOD_TOLERANCE_SECONDS,
+    phase_change_fraction: float = DEFAULT_REGIME_PHASE_CHANGE_FRACTION,
 ) -> tuple[int, ...]:
-    """Return boundaries only after a run of consistent changed windows."""
+    """Return boundaries after a persistent cycle or phase-structure change."""
     if confirmation_windows < 2:
         raise ValueError("confirmation_windows must be at least 2")
     if tolerance_seconds <= 0:
         raise ValueError("tolerance_seconds must be positive")
+    if not 0.0 < phase_change_fraction <= 1.0:
+        raise ValueError("phase_change_fraction must be in (0, 1]")
     if len(windows) < confirmation_windows + 1:
         return ()
 
-    current_period = float(windows[0].period_seconds)
-    current_periods = [current_period]
+    current_periods = [float(windows[0].period_seconds)]
+    current_signatures = (
+        [windows[0].phase_signature]
+        if windows[0].phase_signature
+        else []
+    )
     pending: list[RollingCycleWindow] = []
+    pending_kind: str | None = None
     boundaries: list[int] = []
 
     for window in windows[1:]:
-        baseline = float(statistics.median(current_periods[-5:]))
-        if _periods_consistent(
+        baseline_period = float(
+            statistics.median(current_periods[-5:])
+        )
+        baseline_signature = _consensus_phase_signature(
+            current_signatures[-5:]
+        )
+        period_changed = not _periods_consistent(
             window.period_seconds,
-            baseline,
+            baseline_period,
             tolerance_seconds=tolerance_seconds,
-        ):
+        )
+        signature_distance = _phase_signature_distance(
+            baseline_signature,
+            window.phase_signature,
+        )
+        phase_changed = (
+            not period_changed
+            and signature_distance is not None
+            and signature_distance > phase_change_fraction
+        )
+
+        if not period_changed and not phase_changed:
             current_periods.append(float(window.period_seconds))
+            if window.phase_signature:
+                current_signatures.append(window.phase_signature)
             pending = []
+            pending_kind = None
             continue
 
-        if not pending:
+        change_kind = "period" if period_changed else "phase"
+        if not pending or pending_kind != change_kind:
             pending = [window]
-        else:
+            pending_kind = change_kind
+        elif change_kind == "period":
             pending_period = float(
                 statistics.median(
                     item.period_seconds for item in pending
@@ -426,24 +611,71 @@ def confirmed_cycle_regime_boundaries(
                 pending.append(window)
             else:
                 pending = [window]
+        else:
+            # Overlapping rolling windows around a plan transition contain
+            # mixtures of the old and new schedule. Do not publish that
+            # transient blend as its own regime: confirming windows must be
+            # materially different from the baseline *and* mutually stable.
+            pending_signature = _consensus_phase_signature(
+                [
+                    item.phase_signature
+                    for item in pending
+                    if item.phase_signature
+                ]
+            )
+            pending_distance = _phase_signature_distance(
+                pending_signature,
+                window.phase_signature,
+            )
+            if (
+                phase_changed
+                and pending_distance is not None
+                and pending_distance <= phase_change_fraction / 2.0
+            ):
+                pending.append(window)
+            else:
+                pending = [window]
 
         if len(pending) < confirmation_windows:
             continue
 
-        candidate = float(
+        candidate_period = float(
             statistics.median(
                 item.period_seconds for item in pending
             )
         )
-        if _periods_consistent(
-            candidate,
-            baseline,
+        candidate_signature = _consensus_phase_signature(
+            [
+                item.phase_signature
+                for item in pending
+                if item.phase_signature
+            ]
+        )
+        candidate_period_changed = not _periods_consistent(
+            candidate_period,
+            baseline_period,
             tolerance_seconds=tolerance_seconds,
-        ):
+        )
+        candidate_phase_distance = _phase_signature_distance(
+            baseline_signature,
+            candidate_signature,
+        )
+        candidate_phase_changed = (
+            not candidate_period_changed
+            and candidate_phase_distance is not None
+            and candidate_phase_distance > phase_change_fraction
+        )
+        if not candidate_period_changed and not candidate_phase_changed:
             current_periods.extend(
                 float(item.period_seconds) for item in pending
             )
+            current_signatures.extend(
+                item.phase_signature
+                for item in pending
+                if item.phase_signature
+            )
             pending = []
+            pending_kind = None
             continue
 
         first = pending[0]
@@ -457,11 +689,17 @@ def confirmed_cycle_regime_boundaries(
         )
         if not boundaries or boundary_ms > boundaries[-1]:
             boundaries.append(boundary_ms)
-        current_period = candidate
         current_periods = [
             float(item.period_seconds) for item in pending
         ]
+        # Any confirmed boundary is represented first by overlapping
+        # transition windows. Their phase shape is a mixture of the old and
+        # new plans (and, for a period change, may even be folded by the old
+        # cycle). Never seed the new regime's phase baseline from that blend.
+        # The first subsequent stable window establishes the new signature.
+        current_signatures = []
         pending = []
+        pending_kind = None
 
     return tuple(boundaries)
 

@@ -165,6 +165,7 @@ class EventPhaseDiscovery:
     MIN_MOVEMENT_STABILITY = 0.60
     MIN_MOVEMENT_EVENTS = 6
     MOVEMENT_COMPATIBILITY_JACCARD = 0.60
+    MAIN_AXIS_RESTORE_MIN_RECALL = 0.55
     MOVEMENT_STAGE_MIN_REPEATABILITY = 0.75
     MOVEMENT_STAGE_MIN_STABILITY = 0.85
     MOVEMENT_STAGE_MIN_EVENTS = 40
@@ -173,6 +174,7 @@ class EventPhaseDiscovery:
     MOVEMENT_STAGE_BOUNDARY_ALIGNMENT_SECONDS = 4.0
     MOVEMENT_STAGE_MIN_BOUNDARY_SEPARATION_SECONDS = 10.0
     MOVEMENT_STAGE_MAX_SEPARATE_OVERLAP = 0.25
+    MOVEMENT_STAGE_MAX_CYCLE_FRACTION = 0.70
 
     def __init__(
         self,
@@ -233,6 +235,11 @@ class EventPhaseDiscovery:
             event.timestamp_ms
             for event in selected
         )
+        raw_evidence, raw_counts = self._phase_matrices(
+            selected,
+            cycle_seconds=cycle_seconds,
+            origin_timestamp_ms=origin_timestamp_ms,
+        )
 
         (
             profiles,
@@ -243,14 +250,24 @@ class EventPhaseDiscovery:
             events,
             cycle_seconds=cycle_seconds,
         )
-        active_masks = self._independent_activation_masks(
+        (
+            active_masks,
+            raw_backed_groups,
+        ) = self._activation_masks_with_sources(
             evidence,
             counts,
+            fallback_evidence=raw_evidence,
+            fallback_counts=raw_counts,
         )
         stages = self._stage_sets(active_masks)
+        stage_counts = self._stage_count_evidence(
+            counts,
+            raw_counts,
+            raw_backed_groups,
+        )
         phases = self._build_stages(
             stages,
-            counts,
+            stage_counts,
             cycle_seconds,
         )
         if not phases:
@@ -351,59 +368,11 @@ class EventPhaseDiscovery:
         if not main_events:
             raise ValueError("no usable main-movement phase evidence")
 
-        n_bins = max(
-            1,
-            int(round(cycle_seconds / self.bin_seconds)),
+        evidence, counts = self._phase_matrices(
+            main_events,
+            cycle_seconds=cycle_seconds,
+            origin_timestamp_ms=origin_ms,
         )
-        cycle_ids = np.floor(
-            (
-                np.asarray(
-                    [event.timestamp_ms for event in main_events],
-                    dtype=float,
-                )
-                - origin_ms
-            )
-            / 1000.0
-            / cycle_seconds
-        ).astype(int)
-        cycle_count = int(cycle_ids.max()) + 1
-
-        evidence = np.zeros(
-            (
-                cycle_count,
-                len(self.groups),
-                n_bins,
-            ),
-            dtype=float,
-        )
-        counts = np.zeros(
-            (
-                cycle_count,
-                len(self.groups),
-                n_bins,
-            ),
-            dtype=int,
-        )
-
-        for event, cycle_id in zip(main_events, cycle_ids):
-            relative_s = (
-                (event.timestamp_ms - origin_ms) / 1000.0
-            ) % cycle_seconds
-            bin_id = min(
-                int(relative_s / self.bin_seconds),
-                n_bins - 1,
-            )
-            group_id = self._group_index[
-                self._group_by_approach[event.approach]
-            ]
-            weight = (
-                self.RELEASE_WEIGHT
-                if event.event_type == EventType.RELEASE
-                else self.CROSSING_WEIGHT
-            )
-            weight *= float(np.clip(event.confidence, 0.0, 1.0))
-            evidence[cycle_id, group_id, bin_id] += weight
-            counts[cycle_id, group_id, bin_id] += 1
 
         observed_cycle_mask = self._observed_cycle_mask(counts)
         profiles = self._profiles_for_groups(
@@ -428,6 +397,63 @@ class EventPhaseDiscovery:
             counts,
             distinct_candidates,
         )
+
+    def _phase_matrices(
+        self,
+        events: Sequence[TrajectoryEvent],
+        *,
+        cycle_seconds: float,
+        origin_timestamp_ms: int,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Build approach evidence matrices against one stable cycle origin."""
+        if not events:
+            raise ValueError("no usable phase evidence")
+
+        n_bins = max(
+            1,
+            int(round(cycle_seconds / self.bin_seconds)),
+        )
+        cycle_ids = np.floor(
+            (
+                np.asarray(
+                    [event.timestamp_ms for event in events],
+                    dtype=float,
+                )
+                - origin_timestamp_ms
+            )
+            / 1000.0
+            / cycle_seconds
+        ).astype(int)
+        cycle_count = int(cycle_ids.max()) + 1
+
+        evidence = np.zeros(
+            (cycle_count, len(self.groups), n_bins),
+            dtype=float,
+        )
+        counts = np.zeros(
+            (cycle_count, len(self.groups), n_bins),
+            dtype=int,
+        )
+        for event, cycle_id in zip(events, cycle_ids):
+            relative_s = (
+                (event.timestamp_ms - origin_timestamp_ms) / 1000.0
+            ) % cycle_seconds
+            bin_id = min(
+                int(relative_s / self.bin_seconds),
+                n_bins - 1,
+            )
+            group_id = self._group_index[
+                self._group_by_approach[event.approach]
+            ]
+            weight = (
+                self.RELEASE_WEIGHT
+                if event.event_type == EventType.RELEASE
+                else self.CROSSING_WEIGHT
+            )
+            weight *= float(np.clip(event.confidence, 0.0, 1.0))
+            evidence[cycle_id, group_id, bin_id] += weight
+            counts[cycle_id, group_id, bin_id] += 1
+        return evidence, counts
 
     def _select_main_movement_events(
         self,
@@ -542,6 +568,7 @@ class EventPhaseDiscovery:
                         "movement_cycles": movement_cycles,
                         "repeatability": float(repeatability),
                         "stability": float(stability),
+                        "mask_bins": mask_bins,
                         "strong": strong,
                     }
                 )
@@ -564,15 +591,31 @@ class EventPhaseDiscovery:
                     for record in strong_records
                 ),
             )
+            strong_total_mask_bins = max(
+                1,
+                sum(
+                    int(record["mask_bins"])
+                    for record in strong_records
+                ),
+            )
             for record in strong_records:
                 volume_share = (
                     int(record["usable_events"])
                     / strong_total_events
                 )
+                coverage_share = (
+                    int(record["mask_bins"])
+                    / strong_total_mask_bins
+                )
+                # A main approach movement should explain a substantial share
+                # of both traffic volume and the recurring activation window.
+                # This prevents a narrow, exceptionally stable turn from
+                # displacing the broader through movement on long archives.
                 score = (
-                    0.55 * float(record["repeatability"])
-                    + 0.25 * float(record["stability"])
-                    + 0.20 * volume_share
+                    0.35 * float(record["repeatability"])
+                    + 0.20 * float(record["stability"])
+                    + 0.30 * volume_share
+                    + 0.15 * coverage_share
                 )
                 record["score"] = float(score)
 
@@ -703,6 +746,17 @@ class EventPhaseDiscovery:
                 candidate.phase_end,
                 cycle_seconds,
             ):
+                continue
+            candidate_duration = (
+                candidate.phase_end - candidate.phase_start
+            ) % cycle_seconds
+            if (
+                candidate_duration
+                >= cycle_seconds * self.MOVEMENT_STAGE_MAX_CYCLE_FRACTION
+            ):
+                # A movement-specific stage spanning most of the cycle is
+                # more plausibly mixed demand / regime evidence than a
+                # protected signal group. Keep it diagnostic only.
                 continue
 
             candidate_mask = self._interval_mask(
@@ -1216,128 +1270,198 @@ class EventPhaseDiscovery:
             )
         return result
 
+    def _presence_mask_for_group(
+        self,
+        counts: np.ndarray,
+        observed_mask: np.ndarray,
+        group_id: int,
+    ) -> np.ndarray:
+        n_bins = counts.shape[-1]
+        if not np.any(observed_mask):
+            return np.zeros(n_bins, dtype=bool)
+        observed_counts = counts[observed_mask]
+        group_rows = observed_counts[:, group_id, :]
+        present_rows = group_rows[group_rows.sum(axis=1) > 0]
+        if len(present_rows) <= 0:
+            return np.zeros(n_bins, dtype=bool)
+        presence = np.mean(present_rows > 0, axis=0)
+        return self._direct_presence_mask(presence)
+
+    def _activation_masks_with_sources(
+        self,
+        evidence: np.ndarray,
+        counts: np.ndarray,
+        *,
+        fallback_evidence: np.ndarray | None = None,
+        fallback_counts: np.ndarray | None = None,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Infer approach masks inside a raw, movement-agnostic axis prior.
+
+        The NS/EW schedule is estimated before movement isolation from every
+        usable RELEASE/CROSSING event. Movement-specific evidence may refine
+        N versus S (or E versus W), but it cannot move an approach into the
+        orthogonal conflict-family window. If movement filtering places most
+        evidence outside that window, raw same-approach evidence is used as a
+        recovery source inside the coarse family window.
+        """
+        observed_mask = self._observed_cycle_mask(counts)
+        reliability_stats = self._group_reliability_stats(
+            counts,
+            observed_mask,
+        )
+        fallback_evidence = (
+            evidence
+            if fallback_evidence is None
+            else fallback_evidence
+        )
+        fallback_counts = (
+            counts
+            if fallback_counts is None
+            else fallback_counts
+        )
+        fallback_observed_mask = self._observed_cycle_mask(
+            fallback_counts
+        )
+        fallback_reliability_stats = self._group_reliability_stats(
+            fallback_counts,
+            fallback_observed_mask,
+        )
+
+        n_groups = len(self.groups)
+        n_bins = counts.shape[-1]
+        result = np.zeros((n_groups, n_bins), dtype=bool)
+        raw_backed = np.zeros(n_groups, dtype=bool)
+        coarse_axes = self._axis_envelopes(
+            fallback_evidence,
+            fallback_counts,
+            fallback_observed_mask,
+        )
+
+        for group_id, group in enumerate(self.groups):
+            reliability = float(reliability_stats[group_id][2])
+            fallback_reliability = float(
+                fallback_reliability_stats[group_id][2]
+            )
+            direct = (
+                self._presence_mask_for_group(
+                    counts,
+                    observed_mask,
+                    group_id,
+                )
+                if reliability >= self.MIN_GROUP_RELIABILITY
+                else np.zeros(n_bins, dtype=bool)
+            )
+            raw_direct = (
+                self._presence_mask_for_group(
+                    fallback_counts,
+                    fallback_observed_mask,
+                    group_id,
+                )
+                if fallback_reliability >= self.MIN_GROUP_RELIABILITY
+                else np.zeros(n_bins, dtype=bool)
+            )
+
+            axis_name = self._axis_name(group.approaches)
+            coarse_axis = coarse_axes.get(axis_name)
+            if coarse_axis is None:
+                # Custom/non-orthogonal group configurations keep the old
+                # independent conservative behaviour.
+                direct_coverage = (
+                    int(np.count_nonzero(direct))
+                    / max(1, n_bins)
+                )
+                if direct_coverage >= self.DIRECT_TEMPORAL_COVERAGE:
+                    result[group_id] = direct
+                continue
+
+            constrained_direct = direct & coarse_axis
+            constrained_raw = raw_direct & coarse_axis
+            direct_bins = int(np.count_nonzero(direct))
+            constrained_direct_bins = int(
+                np.count_nonzero(constrained_direct)
+            )
+            constrained_raw_bins = int(
+                np.count_nonzero(constrained_raw)
+            )
+            axis_precision = (
+                constrained_direct_bins / direct_bins
+                if direct_bins
+                else 0.0
+            )
+
+            if constrained_direct_bins >= self.min_phase_bins:
+                # Keep movement-isolated timing when it actually belongs to
+                # the coarse conflict family. A badly displaced primary
+                # movement is not allowed to create orthogonal overlap.
+                if axis_precision >= self.MAIN_AXIS_RESTORE_MIN_RECALL:
+                    result[group_id] = constrained_direct
+                    continue
+
+            if constrained_raw_bins >= self.min_phase_bins:
+                result[group_id] = constrained_raw
+                raw_backed[group_id] = True
+                continue
+
+            if (
+                fallback_reliability >= self.MIN_GROUP_RELIABILITY
+                and int(np.count_nonzero(coarse_axis))
+                >= self.min_phase_bins
+            ):
+                # Sparse same-approach evidence still inherits the recurring
+                # raw axis window rather than becoming an invented orthogonal
+                # activation.
+                result[group_id] = coarse_axis
+                raw_backed[group_id] = True
+
+        return result, raw_backed
+
     def _independent_activation_masks(
         self,
         evidence: np.ndarray,
         counts: np.ndarray,
+        *,
+        fallback_evidence: np.ndarray | None = None,
+        fallback_counts: np.ndarray | None = None,
     ) -> np.ndarray:
-        observed_mask = (
-            self._observed_cycle_mask(
-                counts
-            )
+        masks, _raw_backed = self._activation_masks_with_sources(
+            evidence,
+            counts,
+            fallback_evidence=fallback_evidence,
+            fallback_counts=fallback_counts,
         )
-        reliability_stats = (
-            self._group_reliability_stats(
-                counts,
-                observed_mask,
-            )
-        )
-        n_groups = len(
-            self.groups
-        )
-        n_bins = counts.shape[-1]
-        result = np.zeros(
-            (n_groups, n_bins),
-            dtype=bool,
-        )
-        axis_fallback = (
-            self._axis_envelopes(
-                evidence,
-                counts,
-                observed_mask,
-            )
-        )
+        return masks
 
-        observed_counts = counts[
-            observed_mask
-        ]
-        for group_id, group in enumerate(
-            self.groups
-        ):
-            reliability = float(
-                reliability_stats[
-                    group_id
-                ][2]
-            )
-            if (
-                reliability
-                < self.MIN_GROUP_RELIABILITY
-            ):
-                # Weak/non-repeating evidence
-                # remains UNKNOWN.
-                continue
-
-            group_cycle_count = int(
-                reliability_stats[
-                    group_id
-                ][1]
-            )
-            group_rows = (
-                observed_counts[
-                    :,
+    @staticmethod
+    def _stage_count_evidence(
+        filtered_counts: np.ndarray,
+        raw_counts: np.ndarray,
+        raw_backed_groups: np.ndarray,
+    ) -> np.ndarray:
+        """Use raw counts only for groups whose main mask required recovery."""
+        cycle_count = max(
+            filtered_counts.shape[0],
+            raw_counts.shape[0],
+        )
+        group_count = filtered_counts.shape[1]
+        bin_count = filtered_counts.shape[2]
+        effective = np.zeros(
+            (cycle_count, group_count, bin_count),
+            dtype=int,
+        )
+        effective[
+            : filtered_counts.shape[0],
+            :,
+            :,
+        ] = filtered_counts
+        for group_id, use_raw in enumerate(raw_backed_groups):
+            if use_raw:
+                effective[:, group_id, :] = 0
+                effective[
+                    : raw_counts.shape[0],
                     group_id,
                     :,
-                ]
-            )
-            present_rows = group_rows[
-                group_rows.sum(
-                    axis=1
-                )
-                > 0
-            ]
-            if (
-                group_cycle_count > 0
-                and len(
-                    present_rows
-                )
-                > 0
-            ):
-                presence = np.mean(
-                    present_rows > 0,
-                    axis=0,
-                )
-            else:
-                presence = np.zeros(
-                    n_bins,
-                    dtype=float,
-                )
-
-            direct = (
-                self._direct_presence_mask(
-                    presence
-                )
-            )
-            direct_coverage = (
-                float(
-                    np.count_nonzero(
-                        direct
-                    )
-                )
-                / max(1, n_bins)
-            )
-            if (
-                direct_coverage
-                >= self.DIRECT_TEMPORAL_COVERAGE
-            ):
-                result[
-                    group_id
-                ] = direct
-                continue
-
-            axis_name = (
-                self._axis_name(
-                    group.approaches
-                )
-            )
-            fallback = axis_fallback.get(
-                axis_name
-            )
-            if fallback is not None:
-                result[
-                    group_id
-                ] = fallback
-
-        return result
+                ] = raw_counts[:, group_id, :]
+        return effective
 
     @staticmethod
     def _axis_name(
