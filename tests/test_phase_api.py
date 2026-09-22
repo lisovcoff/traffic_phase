@@ -132,6 +132,11 @@ def test_json_api_returns_session_based_result():
     assert "quality_reasons" in session
     assert "boundary_recoveries" in session["phase_model"]
     assert "boundary_recovered_fraction" in session["phase_model"]
+    assert "gap_semantics" in session
+    assert "gap_metrics" in session
+    assert "regime_families" in response
+    assert response["source"]["regime_family_count"] >= 1
+    assert session["regime_family_id"] is not None
 
 
 
@@ -257,3 +262,39 @@ def test_timeline_is_bounded():
     response = asyncio.run(phase_analyze(upload))
 
     assert len(response["sessions"][0]["timeline"]) <= DEFAULT_TIMELINE_POINTS
+
+
+
+def test_repeated_physical_sessions_expose_cross_session_regime_family():
+    content = _zip_bytes(
+        [
+            ("day-1.json", _payload(cycles=10)),
+            (
+                "day-2.json",
+                _payload(
+                    origin_ms=4 * 60 * 60 * 1000,
+                    cycles=10,
+                ),
+            ),
+        ]
+    )
+
+    analysis = analyze_trajectory_stream(
+        BytesIO(content),
+        filename="repeated-regime.zip",
+    ).to_dict()
+
+    assert analysis["source"]["session_count"] == 2
+    assert analysis["source"]["regime_family_count"] >= 1
+    family = next(
+        item
+        for item in analysis["regime_families"]
+        if item["member_count"] >= 2
+    )
+    assert family["consensus_phase_model"] is not None
+    assert family["consensus_coverage"] > 0.0
+    member_ids = {
+        item["analysis_segment_id"]
+        for item in family["members"]
+    }
+    assert len(member_ids) >= 2

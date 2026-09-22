@@ -157,6 +157,20 @@ candidate. Batch sessions also expose an operational model quality class:
 GOOD, PARTIAL, or INSUFFICIENT. Technically successful but insufficient
 models are not offered as realtime warm-start templates.
 
+Uncovered cycle intervals are classified rather than treated as one generic
+UNKNOWN bucket. Short gaps between conflicting NS/EW families are reported as
+CLEARANCE_CANDIDATE; persistent gaps in an otherwise high-confidence model or
+gaps containing recurring movement evidence are UNRESOLVED_STAGE; weakly
+observed gaps are UNOBSERVED. The API reports a separate unresolved-UNKNOWN
+rate so clearance candidates do not artificially count as unexplained signal
+state.
+
+Recurring regimes from different physical sessions are clustered by cycle
+length and cyclically aligned N/S/E/W stage structure. A family consensus is
+built only from agreeing stage evidence. Distinct same-cycle timing plans stay
+separate, and a GOOD multi-session consensus may be used as the realtime
+warm-start when the selected local segment is weak or partial.
+
 Realtime snapshots expose template-compatibility diagnostics, instantaneous
 UNKNOWN reasons, cumulative/post-sync/rolling-60s UNKNOWN rates, and temporary
 live-override duration. A stream that uses approaches outside the configured

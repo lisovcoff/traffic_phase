@@ -44,7 +44,8 @@ def test_visualization_reuses_shared_intersection_and_explicit_unknown():
 def test_visualization_uses_backend_phase_model_not_client_inference():
     html = visualization_page()
 
-    assert "JSON.stringify(batchSession.phase_model)" in html
+    assert "JSON.stringify(template.model)" in html
+    assert "function effectiveTemplate" in html
     assert "The browser does not compute phases." in html
     assert "phase_at(" not in html
     assert "cycle_position =" not in html
@@ -101,4 +102,18 @@ def test_visualization_surfaces_batch_quality_and_boundary_recovery():
     assert 'id="batchRecovery"' in html
     assert "model_quality" in html
     assert "boundary_recovered_fraction" in html
-    assert "model_quality!=='INSUFFICIENT'" in html
+    assert "batchSession.model_quality==='GOOD'" in html
+    assert "family.model_quality==='GOOD'" in html
+
+
+
+def test_visualization_surfaces_gap_semantics_and_regime_families():
+    html = visualization_page()
+
+    assert 'id="batchGapSemantics"' in html
+    assert 'id="batchUnresolved"' in html
+    assert 'id="batchRegimeFamily"' in html
+    assert "function currentRegimeFamily" in html
+    assert "function effectiveTemplate" in html
+    assert "regime family '+family.family_id+' consensus" in html
+    assert "Analysis segment:" in html

@@ -16,9 +16,13 @@ from app.core.reconstruction import (
     split_trajectories_into_sessions,
 )
 from app.core.signal_state_estimator import SignalStateEstimator
+from app.core.regime_aggregation import build_regime_families
 
 
 DEFAULT_TIMELINE_POINTS = 240
+CLEARANCE_CANDIDATE_MAX_SECONDS = 4.0
+RESOLVED_MODEL_MIN_CYCLE_CONFIDENCE = 0.75
+RESOLVED_MODEL_MIN_PHASE_CONFIDENCE = 0.75
 
 
 @dataclass(frozen=True)
@@ -36,6 +40,33 @@ class ArchiveAnalysis:
             _session_payload(index, session, timeline_points=timeline_points)
             for index, session in enumerate(self.sessions, start=1)
         ]
+        regime_families = build_regime_families(self.sessions)
+        family_payloads = [
+            family.to_dict()
+            for family in regime_families
+        ]
+        for family, family_payload in zip(
+            regime_families,
+            family_payloads,
+        ):
+            for member in family.members:
+                index = member.analysis_segment_id - 1
+                if not 0 <= index < len(session_payloads):
+                    continue
+                session_payloads[index].update(
+                    {
+                        "regime_family_id": family.family_id,
+                        "regime_family_member_count": (
+                            family.member_count
+                        ),
+                        "regime_family_quality": (
+                            family.model_quality
+                        ),
+                        "regime_family_consensus_coverage": (
+                            family.consensus_coverage
+                        ),
+                    }
+                )
         single_ok = (
             len(session_payloads) == 1
             and session_payloads[0]["status"] == "ok"
@@ -53,6 +84,7 @@ class ArchiveAnalysis:
             "session_count": physical_session_count,
             "regime_count": len(session_payloads),
             "analysis_segment_count": len(session_payloads),
+            "regime_family_count": len(family_payloads),
             "member_errors": list(self.member_errors),
         }
         if len(session_payloads) == 1:
@@ -68,6 +100,7 @@ class ArchiveAnalysis:
             "ground_truth": "UNAVAILABLE",
             "source": source,
             "sessions": session_payloads,
+            "regime_families": family_payloads,
             # Backward compatibility for the original single-JSON endpoint.
             "cycle": session_payloads[0]["cycle"] if single_ok else None,
             "phase_model": (
@@ -216,6 +249,336 @@ def _phase_coverage_gaps(
             }
         )
     return gaps
+
+
+def _phase_axis(
+    active_approaches: Iterable[str],
+) -> str | None:
+    values = set(active_approaches)
+    if values and values <= {"N", "S"}:
+        return "NS"
+    if values and values <= {"E", "W"}:
+        return "EW"
+    return None
+
+
+def _circular_distance(
+    left: float,
+    right: float,
+    cycle_seconds: float,
+) -> float:
+    direct = abs(left - right)
+    return min(direct, cycle_seconds - direct)
+
+
+def _split_cycle_interval(
+    start: float,
+    end: float,
+    cycle_seconds: float,
+) -> list[tuple[float, float]]:
+    start %= cycle_seconds
+    end %= cycle_seconds
+    if abs(start - end) <= 1e-9:
+        return [(0.0, cycle_seconds)]
+    if start < end:
+        return [(start, end)]
+    return [(start, cycle_seconds), (0.0, end)]
+
+
+def _interval_overlap_seconds(
+    left_start: float,
+    left_end: float,
+    right_start: float,
+    right_end: float,
+    cycle_seconds: float,
+) -> float:
+    overlap = 0.0
+    for a_start, a_end in _split_cycle_interval(
+        left_start,
+        left_end,
+        cycle_seconds,
+    ):
+        for b_start, b_end in _split_cycle_interval(
+            right_start,
+            right_end,
+            cycle_seconds,
+        ):
+            overlap += max(
+                0.0,
+                min(a_end, b_end) - max(a_start, b_start),
+            )
+    return overlap
+
+
+def _gap_movement_probe(
+    session: SessionReconstruction,
+    gap: dict[str, float],
+) -> list[dict[str, object]]:
+    model = session.phase_model
+    if model is None:
+        return []
+    cycle = float(model.cycle_seconds)
+    gap_duration = max(0.0, float(gap["duration_s"]))
+    minimum_overlap = min(
+        2.0,
+        max(0.5, gap_duration * 0.25),
+    )
+    probes: list[dict[str, object]] = []
+
+    for candidate in model.distinct_movement_candidates:
+        overlap = _interval_overlap_seconds(
+            float(candidate.phase_start),
+            float(candidate.phase_end),
+            float(gap["start_s"]),
+            float(gap["end_s"]),
+            cycle,
+        )
+        if overlap < minimum_overlap:
+            continue
+        probes.append(
+            {
+                "source": "movement_candidate",
+                "approach": candidate.approach,
+                "movement": candidate.movement,
+                "phase_start": candidate.phase_start,
+                "phase_end": candidate.phase_end,
+                "overlap_s": round(overlap, 3),
+                "gap_overlap_fraction": round(
+                    overlap / max(gap_duration, 1e-9),
+                    4,
+                ),
+                "repeatability": candidate.repeatability,
+                "stability": candidate.stability,
+                "confidence": candidate.score,
+            }
+        )
+
+    for stage in model.movement_stages:
+        overlap = _interval_overlap_seconds(
+            float(stage.phase_start),
+            float(stage.phase_end),
+            float(gap["start_s"]),
+            float(gap["end_s"]),
+            cycle,
+        )
+        if overlap < minimum_overlap:
+            continue
+        probes.append(
+            {
+                "source": "promoted_movement_stage",
+                "approach": stage.approach,
+                "movement": stage.movement,
+                "phase_start": stage.phase_start,
+                "phase_end": stage.phase_end,
+                "overlap_s": round(overlap, 3),
+                "gap_overlap_fraction": round(
+                    overlap / max(gap_duration, 1e-9),
+                    4,
+                ),
+                "repeatability": stage.repeatability,
+                "stability": stage.stability,
+                "confidence": stage.confidence,
+            }
+        )
+
+    probes.sort(
+        key=lambda item: (
+            item["source"] == "promoted_movement_stage",
+            float(item["confidence"]),
+            float(item["overlap_s"]),
+        ),
+        reverse=True,
+    )
+    return probes
+
+
+def _adjacent_gap_axes(
+    session: SessionReconstruction,
+    gap: dict[str, float],
+) -> tuple[str | None, str | None]:
+    model = session.phase_model
+    if model is None:
+        return None, None
+    cycle = float(model.cycle_seconds)
+    tolerance = max(
+        0.001,
+        float(model.bin_seconds) * 0.75,
+    )
+    previous = None
+    following = None
+    previous_distance = float("inf")
+    following_distance = float("inf")
+    for phase in model.phases:
+        end_distance = _circular_distance(
+            float(phase.phase_end) % cycle,
+            float(gap["start_s"]) % cycle,
+            cycle,
+        )
+        if end_distance < previous_distance:
+            previous_distance = end_distance
+            previous = phase
+        start_distance = _circular_distance(
+            float(phase.phase_start) % cycle,
+            float(gap["end_s"]) % cycle,
+            cycle,
+        )
+        if start_distance < following_distance:
+            following_distance = start_distance
+            following = phase
+
+    previous_axis = (
+        _phase_axis(previous.active_approaches)
+        if previous is not None
+        and previous_distance <= tolerance
+        else None
+    )
+    following_axis = (
+        _phase_axis(following.active_approaches)
+        if following is not None
+        and following_distance <= tolerance
+        else None
+    )
+    return previous_axis, following_axis
+
+
+def _mean_phase_confidence(
+    session: SessionReconstruction,
+) -> float:
+    model = session.phase_model
+    if model is None or not model.phases:
+        return 0.0
+    return sum(
+        float(phase.confidence)
+        for phase in model.phases
+    ) / len(model.phases)
+
+
+def _gap_semantics(
+    session: SessionReconstruction,
+) -> dict[str, object]:
+    model = session.phase_model
+    if model is None or session.cycle is None:
+        return {
+            "gaps": [],
+            "clearance_candidate_rate": 0.0,
+            "unresolved_stage_rate": 0.0,
+            "unobserved_rate": 0.0,
+            "unresolved_unknown_rate": 0.0,
+            "target_rate": 0.01,
+            "meets_unresolved_target": None,
+        }
+
+    cycle = float(model.cycle_seconds)
+    cycle_confidence = float(
+        session.cycle.estimate.confidence
+    )
+    phase_confidence = _mean_phase_confidence(session)
+    gaps = _phase_coverage_gaps(model)
+    classified: list[dict[str, object]] = []
+    duration_by_kind = {
+        "CLEARANCE_CANDIDATE": 0.0,
+        "UNRESOLVED_STAGE": 0.0,
+        "UNOBSERVED": 0.0,
+    }
+
+    for gap in gaps:
+        duration = float(gap["duration_s"])
+        previous_axis, following_axis = (
+            _adjacent_gap_axes(session, gap)
+        )
+        movement_evidence = _gap_movement_probe(
+            session,
+            gap,
+        )
+        promoted = any(
+            item["source"] == "promoted_movement_stage"
+            for item in movement_evidence
+        )
+        conflicting_boundary = (
+            previous_axis is not None
+            and following_axis is not None
+            and previous_axis != following_axis
+        )
+
+        if promoted:
+            kind = "UNRESOLVED_STAGE"
+            reason = "promoted movement stage overlaps uncovered interval"
+        elif (
+            duration <= CLEARANCE_CANDIDATE_MAX_SECONDS
+            and conflicting_boundary
+        ):
+            kind = "CLEARANCE_CANDIDATE"
+            reason = (
+                "short recurring gap between conflicting signal families"
+            )
+        elif movement_evidence:
+            kind = "UNRESOLVED_STAGE"
+            reason = "recurring movement evidence exists inside the gap"
+        elif (
+            cycle_confidence
+            >= RESOLVED_MODEL_MIN_CYCLE_CONFIDENCE
+            and phase_confidence
+            >= RESOLVED_MODEL_MIN_PHASE_CONFIDENCE
+        ):
+            kind = "UNRESOLVED_STAGE"
+            reason = (
+                "high-confidence cycle and phases leave a persistent gap"
+            )
+        else:
+            kind = "UNOBSERVED"
+            reason = (
+                "insufficient cycle/phase confidence to resolve the gap"
+            )
+
+        duration_by_kind[kind] += duration
+        classified.append(
+            {
+                **gap,
+                "kind": kind,
+                "reason": reason,
+                "previous_axis": previous_axis,
+                "following_axis": following_axis,
+                "cycle_confidence": round(
+                    cycle_confidence,
+                    4,
+                ),
+                "phase_confidence": round(
+                    phase_confidence,
+                    4,
+                ),
+                "movement_evidence": movement_evidence,
+            }
+        )
+
+    rates = {
+        kind: duration / cycle
+        for kind, duration in duration_by_kind.items()
+    }
+    unresolved = (
+        rates["UNRESOLVED_STAGE"]
+        + rates["UNOBSERVED"]
+    )
+    return {
+        "gaps": classified,
+        "clearance_candidate_rate": round(
+            rates["CLEARANCE_CANDIDATE"],
+            4,
+        ),
+        "unresolved_stage_rate": round(
+            rates["UNRESOLVED_STAGE"],
+            4,
+        ),
+        "unobserved_rate": round(
+            rates["UNOBSERVED"],
+            4,
+        ),
+        "unresolved_unknown_rate": round(
+            unresolved,
+            4,
+        ),
+        "target_rate": 0.01,
+        "meets_unresolved_target": unresolved < 0.01,
+    }
 
 
 def _phase_at(session: SessionReconstruction, timestamp_ms: int):
@@ -478,6 +841,7 @@ def _session_payload(
         session,
         max_points=timeline_points,
     )
+    gap_semantics = _gap_semantics(session)
     return {
         "session_id": index,
         "physical_session_index": session.session_index,
@@ -502,6 +866,16 @@ def _session_payload(
         "uncovered_cycle_intervals": _phase_coverage_gaps(
             session.phase_model
         ),
+        "gap_semantics": gap_semantics["gaps"],
+        "gap_metrics": {
+            key: value
+            for key, value in gap_semantics.items()
+            if key != "gaps"
+        },
+        "regime_family_id": None,
+        "regime_family_member_count": 0,
+        "regime_family_quality": None,
+        "regime_family_consensus_coverage": None,
     }
 
 

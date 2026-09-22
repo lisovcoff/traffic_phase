@@ -64,7 +64,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
   </div>
 
   <div id="batchSessionRow" class="panel hidden">
-    <label for="batchSessionSelect">Session:</label>
+    <label for="batchSessionSelect">Analysis segment:</label>
     <select id="batchSessionSelect"></select>
   </div>
 
@@ -81,6 +81,9 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="stat"><span>Phase coverage</span><strong id="batchCoverage">—</strong></div>
       <div class="stat"><span>Model quality</span><strong id="batchQuality">—</strong></div>
       <div class="stat"><span>Boundary recovery</span><strong id="batchRecovery">—</strong></div>
+      <div class="stat"><span>Gap semantics</span><strong id="batchGapSemantics">—</strong></div>
+      <div class="stat"><span>Unresolved UNKNOWN</span><strong id="batchUnresolved">—</strong></div>
+      <div class="stat"><span>Regime family</span><strong id="batchRegimeFamily">—</strong></div>
       <div class="stat"><span>UNKNOWN cause</span><strong id="batchUnknownCause">—</strong></div>
     </div>
 
@@ -98,7 +101,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <h3>Phase model</h3>
       <div id="batchPhaseList" class="phase-list"></div>
       <div id="batchMovementList" class="phase-list" style="margin-top:10px"></div>
-      <div class="muted small" style="margin-top:10px">Movement-specific groups are inferred separately and do not change the main N/S/E/W stage. The selected successful Batch session is the warm-start template available to Realtime simulation.</div>
+      <div class="muted small" style="margin-top:10px">Movement-specific groups are inferred separately and do not change the main N/S/E/W stage. Realtime uses the selected GOOD local model, or a GOOD cross-session regime-family consensus when the local segment is weaker.</div>
     </div>
   </div>
 </section>
@@ -232,11 +235,11 @@ async function analyzeBatch(){
     sessions.forEach((item,i)=>{
       const option=document.createElement('option');
       option.value=String(i);
-      option.textContent='Session '+item.session_id+' · '+item.status+' · '+(item.model_quality||'UNKNOWN')+' · '+item.duration_s.toFixed(1)+' s';
+      option.textContent='Segment '+item.session_id+' · physical '+item.physical_session_index+' · regime '+item.regime_index+'/'+item.regime_count+' · '+item.status+' · '+(item.model_quality||'UNKNOWN')+' · '+item.duration_s.toFixed(1)+' s';
       select.appendChild(option);
     });
     $('batchSessionRow').classList.toggle('hidden',sessions.length===1);
-    $('batchStatus').textContent='Loaded '+batchAnalysis.source.filename+': '+sessions.length+' session(s).';
+    $('batchStatus').textContent='Loaded '+batchAnalysis.source.filename+': '+sessions.length+' analysis segment(s), '+(batchAnalysis.source.regime_family_count||0)+' regime family/families.';
     openBatchSession(0);
   }catch(error){
     $('batchViewer').classList.add('hidden');
@@ -271,6 +274,12 @@ function openBatchSession(i){
   const reasons=Object.entries(reasonRate).map(([reason,rate])=>reason+' '+(Number(rate)*100).toFixed(1)+'%');
   const gapText=gaps.length?(' · gaps '+gaps.map(g=>Number(g.start_s).toFixed(1)+'–'+Number(g.end_s).toFixed(1)+'s').join(', ')):'';
   $('batchUnknownCause').textContent=(reasons.length?reasons.join(' · '):'none')+gapText;
+  const gapMetrics=batchSession.gap_metrics||{};
+  $('batchGapSemantics').textContent='clearance '+(Number(gapMetrics.clearance_candidate_rate||0)*100).toFixed(1)+'% · unresolved stage '+(Number(gapMetrics.unresolved_stage_rate||0)*100).toFixed(1)+'% · unobserved '+(Number(gapMetrics.unobserved_rate||0)*100).toFixed(1)+'%';
+  const unresolved=gapMetrics.unresolved_unknown_rate;
+  $('batchUnresolved').textContent=unresolved==null?'—':(Number(unresolved)*100).toFixed(2)+'% '+(gapMetrics.meets_unresolved_target?'✓ <1%':'');
+  const family=currentRegimeFamily();
+  $('batchRegimeFamily').textContent=family?(family.family_id+' · '+family.member_count+' member(s) · '+family.model_quality+' · consensus '+(Number(family.consensus_coverage||0)*100).toFixed(1)+'%'):'—';
   const timeline=batchSession.timeline||[];
   $('batchSlider').max=String(Math.max(0,timeline.length-1));
   $('batchSlider').value='0';
@@ -300,7 +309,13 @@ function buildBatchPhaseModel(){
     chip.textContent='Movement '+stage.movement+' · '+stage.phase_start+'–'+stage.phase_end+'s · conf '+stage.confidence.toFixed(2);
     movementHolder.appendChild(chip);
   });
-  if(!movementStages.length)movementHolder.textContent='No movement-specific signal groups inferred.';
+  const gapProbes=(batchSession.gap_semantics||[]).flatMap(gap=>(gap.movement_evidence||[]).map(item=>({gap,item})));
+  gapProbes.forEach(({gap,item})=>{
+    const chip=document.createElement('span');chip.className='phase-chip';
+    chip.textContent='Gap '+Number(gap.start_s).toFixed(1)+'–'+Number(gap.end_s).toFixed(1)+'s · '+gap.kind+' · '+item.movement+' candidate · conf '+Number(item.confidence||0).toFixed(2);
+    movementHolder.appendChild(chip);
+  });
+  if(!movementStages.length&&!gapProbes.length)movementHolder.textContent='No movement-specific signal groups inferred.';
 }
 
 function buildBatchTimeline(){
@@ -354,15 +369,34 @@ function playBatch(){
 }
 function stopBatch(){if(batchTimer){clearInterval(batchTimer);batchTimer=null}}
 
+function currentRegimeFamily(){
+  if(!batchAnalysis||!batchSession||!batchSession.regime_family_id)return null;
+  return (batchAnalysis.regime_families||[]).find(item=>item.family_id===batchSession.regime_family_id)||null;
+}
+function effectiveTemplate(){
+  if(!batchSession||batchSession.status!=='ok')return null;
+  if(batchSession.model_quality==='GOOD'&&batchSession.phase_model&&batchSession.phase_model.phases&&batchSession.phase_model.phases.length){
+    return {model:batchSession.phase_model,source:'local GOOD segment'};
+  }
+  const family=currentRegimeFamily();
+  if(family&&family.member_count>=2&&family.model_quality==='GOOD'&&family.consensus_phase_model&&family.consensus_phase_model.phases&&family.consensus_phase_model.phases.length){
+    return {model:family.consensus_phase_model,source:'regime family '+family.family_id+' consensus'};
+  }
+  if(batchSession.model_quality==='PARTIAL'&&batchSession.phase_model&&batchSession.phase_model.phases&&batchSession.phase_model.phases.length){
+    return {model:batchSession.phase_model,source:'local PARTIAL segment'};
+  }
+  return null;
+}
 function usableTemplate(){
-  return batchSession&&batchSession.status==='ok'&&batchSession.model_quality!=='INSUFFICIENT'&&batchSession.phase_model&&batchSession.phase_model.phases&&batchSession.phase_model.phases.length;
+  return Boolean(effectiveTemplate());
 }
 function updateTemplateStatus(){
-  if(usableTemplate()){
-    $('templateStatus').textContent='Batch session '+batchSession.session_id+' · '+(batchSession.model_quality||'UNKNOWN')+' · cycle '+batchSession.phase_model.cycle_seconds.toFixed(1)+' s';
-    $('templateStatus').className=batchSession.model_quality==='GOOD'?'ok':'warmup';
+  const template=effectiveTemplate();
+  if(template){
+    $('templateStatus').textContent=template.source+' · cycle '+Number(template.model.cycle_seconds).toFixed(1)+' s';
+    $('templateStatus').className=template.source.includes('GOOD')||template.source.includes('consensus')?'ok':'warmup';
   }else{
-    $('templateStatus').textContent=batchSession&&batchSession.model_quality==='INSUFFICIENT'?'Selected Batch model is INSUFFICIENT for realtime warm-start.':'Run Batch on a successful reference session first.';
+    $('templateStatus').textContent=batchSession&&batchSession.model_quality==='INSUFFICIENT'?'Selected segment is INSUFFICIENT and has no GOOD cross-session regime consensus.':'Run Batch on a usable reference segment first.';
     $('templateStatus').className='muted';
   }
   updateRealtimeStart();
@@ -379,7 +413,9 @@ async function startRealtime(){
   if(realtimeId)await deleteRealtimeSilently();
   const form=new FormData();
   form.append('file',file);
-  form.append('phase_model',JSON.stringify(batchSession.phase_model));
+  const template=effectiveTemplate();
+  if(!template)return;
+  form.append('phase_model',JSON.stringify(template.model));
   form.append('speed',$('realtimeSpeed').value);
   try{
     const response=await fetch('/api/v1/realtime/simulations/start',{method:'POST',body:form});
