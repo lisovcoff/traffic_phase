@@ -196,7 +196,101 @@ def _axis_state(
     approaches: tuple[str, str],
 ) -> str:
     values = {states.get(approach, "UNKNOWN") for approach in approaches}
-    return next(iter(values)) if len(values) == 1 else "UNKNOWN"
+    return next(iter(values)) if len(values) == 1 else "MIXED"
+
+
+def _timeline_unknown_metrics(
+    timeline: list[dict[str, object]],
+) -> dict[str, object]:
+    approaches = ("N", "S", "E", "W")
+    target_rate = 0.01
+    if not timeline:
+        return {
+            "target_rate": target_rate,
+            "sample_count": 0,
+            "overall_rate": None,
+            "per_approach_rate": {
+                approach: None for approach in approaches
+            },
+            "longest_unknown_s": {
+                approach: None for approach in approaches
+            },
+            "meets_target": None,
+        }
+
+    if len(timeline) == 1:
+        weights = [1.0]
+    else:
+        weights = [
+            max(
+                0.0,
+                (
+                    int(timeline[index + 1]["timestamp_ms"])
+                    - int(point["timestamp_ms"])
+                )
+                / 1000.0,
+            )
+            for index, point in enumerate(timeline[:-1])
+        ]
+        weights.append(0.0)
+        if sum(weights) <= 0:
+            weights = [1.0 for _ in timeline]
+
+    total_weight = sum(weights)
+    unknown_weight = {
+        approach: 0.0 for approach in approaches
+    }
+    longest = {
+        approach: 0.0 for approach in approaches
+    }
+    current_run = {
+        approach: 0.0 for approach in approaches
+    }
+
+    for point, weight in zip(timeline, weights):
+        states = dict(point.get("states", {}) or {})
+        for approach in approaches:
+            if states.get(approach, "UNKNOWN") == "UNKNOWN":
+                unknown_weight[approach] += weight
+                current_run[approach] += weight
+                longest[approach] = max(
+                    longest[approach],
+                    current_run[approach],
+                )
+            else:
+                current_run[approach] = 0.0
+
+    per_approach = {
+        approach: round(
+            unknown_weight[approach] / total_weight,
+            4,
+        )
+        if total_weight > 0
+        else None
+        for approach in approaches
+    }
+    overall_unknown = sum(unknown_weight.values())
+    overall_denominator = total_weight * len(approaches)
+    overall_rate = (
+        round(overall_unknown / overall_denominator, 4)
+        if overall_denominator > 0
+        else None
+    )
+    return {
+        "target_rate": target_rate,
+        "sample_count": len(timeline),
+        "overall_rate": overall_rate,
+        "per_approach_rate": per_approach,
+        "longest_unknown_s": {
+            approach: round(value, 3)
+            for approach, value in longest.items()
+        },
+        "meets_target": (
+            overall_rate < target_rate
+            if overall_rate is not None
+            else None
+        ),
+    }
 
 
 def build_session_timeline(
@@ -284,6 +378,10 @@ def _session_payload(
     *,
     timeline_points: int,
 ) -> dict[str, object]:
+    timeline = build_session_timeline(
+        session,
+        max_points=timeline_points,
+    )
     return {
         "session_id": index,
         "physical_session_index": session.session_index,
@@ -301,10 +399,8 @@ def _session_payload(
         "error_reason": session.error_reason,
         "cycle": _compact_cycle(session),
         "phase_model": _compact_phase_model(session),
-        "timeline": build_session_timeline(
-            session,
-            max_points=timeline_points,
-        ),
+        "timeline": timeline,
+        "unknown_metrics": _timeline_unknown_metrics(timeline),
     }
 
 

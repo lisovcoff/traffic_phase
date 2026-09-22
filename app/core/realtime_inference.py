@@ -53,6 +53,11 @@ class RealtimeInferenceSnapshot:
     phase_offset_s: float | None = None
     synchronization_confidence: float = 0.0
     synchronization_evidence_count: int = 0
+    synchronization_match_ratio: float = 0.0
+    template_compatibility: str = "CHECKING"
+    instant_unknown_rate: float = 1.0
+    unknown_reasons: dict[str, str] | None = None
+    template_deviation_seconds: float | None = None
     anomaly: dict[str, object] | None = None
     adaptive_mode: str = "NORMAL"
     effective_axis: str | None = None
@@ -148,6 +153,7 @@ class RealtimeSignalInferenceEngine:
         self._seen: dict[str, tuple[str, int]] = {}
         self._current_timestamp_ms: int | None = None
         self._stream_start_timestamp_ms: int | None = None
+        self._ever_synchronized = False
         self._lock = RLock()
 
     @property
@@ -184,6 +190,11 @@ class RealtimeSignalInferenceEngine:
         *,
         event_id: str | None = None,
     ) -> RealtimeInferenceSnapshot:
+        if event.approach not in self.topology.approaches:
+            raise ValueError(
+                "event approach is not present in the configured "
+                f"intersection topology: {event.approach}"
+            )
         with self._lock:
             key = event_id or self._event_fingerprint(event)
             fingerprint = self._event_fingerprint(event)
@@ -290,12 +301,15 @@ class RealtimeSignalInferenceEngine:
             self._stream_start_timestamp_ms = None
             self._synchronizer.reset()
             self._adaptive_override.reset()
+            self._ever_synchronized = False
 
     def _snapshot(self, *, duplicate: bool) -> RealtimeInferenceSnapshot:
         if self._current_timestamp_ms is None:
             raise ValueError("no realtime event has been ingested")
 
         synchronization = self._synchronizer.snapshot()
+        if synchronization.synchronized:
+            self._ever_synchronized = True
         elapsed_s = (
             (
                 self._current_timestamp_ms
@@ -413,6 +427,34 @@ class RealtimeSignalInferenceEngine:
             signal_states = self._override_signal_states(adaptive)
             active_movements = []
 
+        compatibility = self._template_compatibility(synchronization)
+        unknown_reason = (
+            "live_override_partial"
+            if adaptive.mode == AdaptiveRealtimeMode.LIVE_OVERRIDE
+            else "low_confidence_or_uncovered_phase"
+        )
+        unknown_reasons = {
+            approach: unknown_reason
+            for approach, state in signal_states.items()
+            if state == "UNKNOWN"
+        }
+        template_deviation_seconds = None
+        if (
+            adaptive.mode == AdaptiveRealtimeMode.LIVE_OVERRIDE
+            and template_phase is not None
+        ):
+            template_start = (
+                float(template_phase.phase_start)
+                % self.phase_template.cycle_seconds
+            )
+            template_deviation_seconds = round(
+                (
+                    cycle_position_s - template_start
+                )
+                % self.phase_template.cycle_seconds,
+                3,
+            )
+
         evidence_summary = {
             item.approach: {
                 "state": signal_states[item.approach],
@@ -477,6 +519,11 @@ class RealtimeSignalInferenceEngine:
             phase_offset_s=synchronization.offset_seconds,
             synchronization_confidence=synchronization.confidence,
             synchronization_evidence_count=synchronization.evidence_count,
+            synchronization_match_ratio=synchronization.match_ratio,
+            template_compatibility=compatibility,
+            instant_unknown_rate=self._unknown_rate(signal_states),
+            unknown_reasons=unknown_reasons,
+            template_deviation_seconds=template_deviation_seconds,
             anomaly=aware.indicators.to_dict(),
             adaptive_mode=adaptive.mode.value,
             effective_axis=adaptive.effective_axis,
@@ -488,6 +535,52 @@ class RealtimeSignalInferenceEngine:
             template_signal_states=template_signal_states,
             duplicate=duplicate,
         )
+
+    def _template_compatibility(
+        self,
+        synchronization: PhaseSynchronization,
+    ) -> str:
+        if self._ever_synchronized or synchronization.synchronized:
+            return "COMPATIBLE"
+        if (
+            synchronization.evidence_count < 12
+            or synchronization.observed_group_count < 2
+        ):
+            return "CHECKING"
+        if synchronization.match_ratio < 0.55:
+            return "INCOMPATIBLE"
+        return "SUSPECT"
+
+    @staticmethod
+    def _unknown_rate(states: dict[str, str]) -> float:
+        if not states:
+            return 1.0
+        return round(
+            sum(value == "UNKNOWN" for value in states.values())
+            / len(states),
+            4,
+        )
+
+    def _warmup_reason(
+        self,
+        synchronization: PhaseSynchronization,
+        compatibility: str,
+        adaptive: AdaptiveRealtimeDecision | None = None,
+    ) -> str:
+        if compatibility == "INCOMPATIBLE":
+            return "template_incompatible"
+        mode = (
+            adaptive.mode
+            if adaptive is not None
+            else self._adaptive_override.mode
+        )
+        if mode == AdaptiveRealtimeMode.RECOVERY:
+            return "recovery_resynchronization"
+        if synchronization.evidence_count <= 0:
+            return "no_release_or_crossing_evidence"
+        if synchronization.observed_group_count < 2:
+            return "only_one_family"
+        return "insufficient_match_ratio_or_evidence"
 
     def _warmup_snapshot(
         self,
@@ -517,6 +610,16 @@ class RealtimeSignalInferenceEngine:
             if adaptive is not None
             else self._adaptive_override.mode.value
         )
+        compatibility = self._template_compatibility(synchronization)
+        reason = self._warmup_reason(
+            synchronization,
+            compatibility,
+            adaptive,
+        )
+        unknown_reasons = {
+            approach: reason
+            for approach in states
+        }
         return RealtimeInferenceSnapshot(
             timestamp_ms=self._current_timestamp_ms,
             timestamp_s=round(elapsed_s, 3),
@@ -534,6 +637,11 @@ class RealtimeSignalInferenceEngine:
             phase_offset_s=None,
             synchronization_confidence=synchronization.confidence,
             synchronization_evidence_count=synchronization.evidence_count,
+            synchronization_match_ratio=synchronization.match_ratio,
+            template_compatibility=compatibility,
+            instant_unknown_rate=1.0,
+            unknown_reasons=unknown_reasons,
+            template_deviation_seconds=None,
             anomaly=None,
             adaptive_mode=mode,
             effective_axis=(

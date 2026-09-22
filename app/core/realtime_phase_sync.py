@@ -144,6 +144,7 @@ class PhaseSynchronization:
     confidence: float
     evidence_count: int
     observed_group_count: int
+    match_ratio: float = 0.0
 
     @property
     def synchronized(self) -> bool:
@@ -269,6 +270,7 @@ class RealtimePhaseSynchronizer:
                 confidence=1.0,
                 evidence_count=self._evidence_count,
                 observed_group_count=len(self._groups),
+                match_ratio=1.0,
             )
 
         if not self._scores or self._total_weight <= 0:
@@ -278,6 +280,7 @@ class RealtimePhaseSynchronizer:
                 confidence=0.0,
                 evidence_count=self._evidence_count,
                 observed_group_count=len(self._groups),
+                match_ratio=0.0,
             )
 
         best_index = max(
@@ -312,6 +315,7 @@ class RealtimePhaseSynchronizer:
             confidence=round(confidence, 4),
             evidence_count=self._evidence_count,
             observed_group_count=len(self._groups),
+            match_ratio=round(match_ratio, 4),
         )
 
     def cycle_position_s(

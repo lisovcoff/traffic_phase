@@ -37,7 +37,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
 .signal{position:absolute;width:100px;text-align:center;padding:9px;border-radius:10px;background:#0d1015;border:1px solid #454d59;font-weight:700}
 .signal.n{top:18px;left:50%;transform:translateX(-50%)}.signal.s{bottom:18px;left:50%;transform:translateX(-50%)}
 .signal.w{left:18px;top:50%;transform:translateY(-50%)}.signal.e{right:18px;top:50%;transform:translateY(-50%)}
-.state-GREEN{color:#49d17d}.state-YELLOW{color:#f2cc5c}.state-RED{color:#ef6576}.state-RED_YELLOW{color:#f29d5c}.state-UNKNOWN{color:#a7afba}
+.state-GREEN{color:#49d17d}.state-YELLOW{color:#f2cc5c}.state-RED{color:#ef6576}.state-RED_YELLOW{color:#f29d5c}.state-UNKNOWN{color:#a7afba}.state-MIXED{color:#8fb7ff}
 .axis{display:grid;grid-template-columns:1fr 1fr;gap:10px}.axis-card{background:#10141a;border-radius:10px;padding:12px;text-align:center}
 .phase-list{display:flex;gap:8px;flex-wrap:wrap}.phase-chip{background:#242a33;border-radius:999px;padding:7px 10px;font-size:12px}
 .notice{line-height:1.45}.error{color:#ef8794}.ok{color:#49d17d}.warmup{color:#f2cc5c}
@@ -76,6 +76,8 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="stat"><span>Active movement groups</span><strong id="batchActiveMovements">—</strong></div>
       <div class="stat"><span>Phase confidence</span><strong id="batchPhaseConfidence">—</strong></div>
       <div class="stat"><span>Vehicles / events</span><strong id="batchCounts">—</strong></div>
+      <div class="stat"><span>UNKNOWN rate</span><strong id="batchUnknown">—</strong></div>
+      <div class="stat"><span>UNKNOWN N/S/E/W</span><strong id="batchUnknownByApproach">—</strong></div>
     </div>
 
     <div class="panel">
@@ -116,7 +118,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
 
   <div class="panel notice">
     <strong>Warm-start template:</strong> <span id="templateStatus" class="muted">Run Batch on a reference archive first.</span><br>
-    <span class="muted small">Realtime inference receives only trajectories whose final detection time has already been reached. The browser does not compute phases.</span>
+    <span class="muted small">Realtime inference is causal: detections become visible only when their own timestamp is reached. The browser does not compute phases.</span>
   </div>
 
   <div id="realtimeViewer" class="hidden">
@@ -128,6 +130,10 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="stat"><span>Synchronizer</span><strong id="realtimeSync" class="warmup">WARMUP</strong></div>
       <div class="stat"><span>Adaptive mode</span><strong id="realtimeAdaptive">NORMAL</strong></div>
       <div class="stat"><span>Phase offset</span><strong id="realtimeOffset">—</strong></div>
+      <div class="stat"><span>Template compatibility</span><strong id="realtimeCompatibility">CHECKING</strong></div>
+      <div class="stat"><span>UNKNOWN post-sync</span><strong id="realtimeUnknownPostSync">—</strong></div>
+      <div class="stat"><span>UNKNOWN last 60s</span><strong id="realtimeUnknownRolling">—</strong></div>
+      <div class="stat"><span>Deviation / reason</span><strong id="realtimeDeviation">—</strong></div>
     </div>
 
     <div class="panel">
@@ -243,6 +249,10 @@ function openBatchSession(i){
   $('batchCycle').textContent=cycle?cycle.estimated_cycle.toFixed(1)+' s':'—';
   $('batchCycleConfidence').textContent=cycle?cycle.confidence.toFixed(2):'—';
   $('batchCounts').textContent=batchSession.trajectory_count+' / '+batchSession.event_count;
+  const unknown=batchSession.unknown_metrics||{};
+  $('batchUnknown').textContent=unknown.overall_rate==null?'—':(unknown.overall_rate*100).toFixed(2)+'% '+(unknown.meets_target?'✓ <1%':'');
+  const byApproach=unknown.per_approach_rate||{};
+  $('batchUnknownByApproach').textContent=['N','S','E','W'].map(a=>a+' '+(byApproach[a]==null?'—':(byApproach[a]*100).toFixed(1)+'%')).join(' · ');
   const timeline=batchSession.timeline||[];
   $('batchSlider').max=String(Math.max(0,timeline.length-1));
   $('batchSlider').value='0';
@@ -283,7 +293,9 @@ function buildBatchTimeline(){
     const seg=document.createElement('div');
     const ns=(point.axis_states&&point.axis_states.NS)||'UNKNOWN';
     const ew=(point.axis_states&&point.axis_states.EW)||'UNKNOWN';
-    const cls=(ns==='GREEN'||ns==='YELLOW'||ns==='RED_YELLOW')?'ns':((ew==='GREEN'||ew==='YELLOW'||ew==='RED_YELLOW')?'ew':'unknown');
+    const states=point.states||{};
+    const active=v=>v==='GREEN'||v==='YELLOW'||v==='RED_YELLOW';
+    const cls=(active(states.N)||active(states.S))?'ns':((active(states.E)||active(states.W))?'ew':'unknown');
     seg.className='segment '+cls;
     seg.style.width=(100/timeline.length)+'%';
     seg.title=point.offset_s.toFixed(1)+'s · phase '+(point.phase_id==null?'UNKNOWN':point.phase_id)+' · NS '+ns+' · EW '+ew;
@@ -426,6 +438,16 @@ function renderRealtimeSnapshot(snapshot){
   $('realtimeAdaptive').textContent=adaptiveMode+(effectiveAxis!=='—'?' · '+effectiveAxis:'');
   $('realtimeAdaptive').className=adaptiveMode==='NORMAL'?'ok':'warmup';
   $('realtimeOffset').textContent=snapshot.phase_offset_s==null?'—':Number(snapshot.phase_offset_s).toFixed(1)+' s';
+  const compatibility=snapshot.template_compatibility||'CHECKING';
+  $('realtimeCompatibility').textContent=compatibility+' · match '+(Number(snapshot.synchronization_match_ratio||0)*100).toFixed(0)+'%';
+  $('realtimeCompatibility').className=compatibility==='COMPATIBLE'?'ok':(compatibility==='INCOMPATIBLE'?'error':'warmup');
+  const unknown=snapshot.unknown_metrics||{};
+  $('realtimeUnknownPostSync').textContent=unknown.post_sync_rate==null?'—':(unknown.post_sync_rate*100).toFixed(2)+'% '+(unknown.meets_post_sync_target?'✓ <1%':'');
+  $('realtimeUnknownRolling').textContent=unknown.rolling_60s_rate==null?'—':(unknown.rolling_60s_rate*100).toFixed(2)+'%';
+  const reasonValues=Object.values(snapshot.unknown_reasons||{});
+  const reason=reasonValues.length?[...new Set(reasonValues)].join(', '):(snapshot.warmup_reason||'—');
+  const deviation=snapshot.template_deviation_seconds==null?'':(' · extension +'+Number(snapshot.template_deviation_seconds).toFixed(1)+'s');
+  $('realtimeDeviation').textContent=reason+deviation;
   const progress=Math.round(Number(snapshot.progress||0)*1000)/10;
   $('realtimeProgressText').textContent=progress.toFixed(1)+'% · '+(snapshot.finished?'finished':'running');
   $('realtimeProgressBar').style.width=progress+'%';
@@ -442,8 +464,8 @@ function renderRealtimeSnapshot(snapshot){
 function renderStates(states){
   const normalized={};
   for(const approach of ['N','S','E','W'])normalized[approach]=states[approach]||'UNKNOWN';
-  const ns=normalized.N===normalized.S?normalized.N:'UNKNOWN';
-  const ew=normalized.E===normalized.W?normalized.E:'UNKNOWN';
+  const ns=normalized.N===normalized.S?normalized.N:'MIXED';
+  const ew=normalized.E===normalized.W?normalized.E:'MIXED';
   setState('nsState','',ns);setState('ewState','',ew);
   for(const approach of ['N','S','E','W'])setState('sig'+approach,approach,normalized[approach]);
 }

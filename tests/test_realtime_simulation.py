@@ -683,3 +683,96 @@ def test_warmup_reason_reports_missing_or_single_family_evidence():
 
     partial = simulation.step(3.0)
     assert partial["warmup_reason"] == "only_one_family"
+
+
+
+def test_realtime_unknown_metrics_track_post_sync_and_rolling_rates():
+    from app.core.models import EventType, TrajectoryEvent
+    from app.core.realtime_simulation import (
+        RealtimeSimulationSource,
+        ScheduledTrajectoryEvidence,
+    )
+
+    events = tuple(
+        TrajectoryEvent(
+            event_type=EventType.RELEASE,
+            timestamp_ms=int(timestamp_s * 1000),
+            approach=approach,
+            movement=f"{approach}->x",
+            confidence=1.0,
+            quality="HIGH",
+        )
+        for timestamp_s, approach in (
+            (4.0, "N"),
+            (18.0, "S"),
+            (36.0, "N"),
+            (44.0, "E"),
+            (62.0, "W"),
+            (82.0, "E"),
+        )
+    )
+    source = RealtimeSimulationSource(
+        filename="unknown-metrics.json",
+        source_format="json",
+        start_timestamp_ms=0,
+        end_timestamp_ms=100_000,
+        trajectory_count=1,
+        event_count=len(events),
+        items=(
+            ScheduledTrajectoryEvidence(
+                available_timestamp_ms=90_000,
+                start_timestamp_ms=0,
+                trajectory_key="metrics",
+                events=events,
+            ),
+        ),
+    )
+    simulation = RealtimeArchiveSimulation(source, _phase_model())
+
+    synchronized = simulation.step(90.0)
+
+    assert synchronized["synchronization_status"] == "SYNCHRONIZED"
+    assert synchronized["template_compatibility"] == "COMPATIBLE"
+    metrics = synchronized["unknown_metrics"]
+    assert metrics["sample_count"] == 1
+    assert metrics["post_sync_sample_count"] == 1
+    assert metrics["post_sync_rate"] == 0.0
+    assert metrics["rolling_60s_rate"] == 0.0
+    assert metrics["meets_post_sync_target"] is True
+
+
+def test_realtime_source_rejects_unknown_approach_topology():
+    from app.core.models import EventType, TrajectoryEvent
+    from app.core.realtime_simulation import (
+        RealtimeSimulationSource,
+        ScheduledTrajectoryEvidence,
+    )
+
+    source = RealtimeSimulationSource(
+        filename="wrong-intersection.json",
+        source_format="json",
+        start_timestamp_ms=0,
+        end_timestamp_ms=1_000,
+        trajectory_count=1,
+        event_count=1,
+        items=(
+            ScheduledTrajectoryEvidence(
+                available_timestamp_ms=1_000,
+                start_timestamp_ms=0,
+                trajectory_key="wrong",
+                events=(
+                    TrajectoryEvent(
+                        event_type=EventType.RELEASE,
+                        timestamp_ms=1_000,
+                        approach="X",
+                        movement="X->Y",
+                        confidence=1.0,
+                        quality="HIGH",
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="incompatible realtime source"):
+        RealtimeArchiveSimulation(source, _phase_model())

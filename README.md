@@ -14,11 +14,12 @@ The repository implements two demonstration modes:
 1. **Batch archive analysis** — analyze an existing trajectory JSON or ZIP,
    split long time gaps into independent traffic sessions, estimate cycle and
    phase structure, and visualize the reconstructed state.
-2. **Realtime simulation** — replay an existing JSON/ZIP progressively. A
-   trajectory becomes visible to inference only after its final detection
-   timestamp. The realtime engine warm-starts from a timestamp-independent
-   phase template and synchronizes its current cycle offset from arrived
-   RELEASE/CROSSING evidence.
+2. **Realtime simulation** — replay an existing JSON/ZIP causally. Individual
+   detections become visible only when their own timestamp is reached, so
+   APPROACH/STOP/RELEASE/CROSSING can be confirmed before a trajectory ends.
+   The realtime engine warm-starts from a timestamp-independent phase template
+   and synchronizes its current cycle offset from arrived RELEASE/CROSSING
+   evidence.
 
 The default model is intentionally small: one four-approach intersection with
 two opposing groups, NS and EW. There is no ML model and no physical
@@ -143,9 +144,17 @@ DELETE /api/v1/realtime/simulations/{id}
 ```
 
 The simulator may know the offline playback ordering, but the realtime engine
-only receives a trajectory's extracted events after the trajectory's last
-detection timestamp has been reached. The simulation registry is bounded and
-old simulations are evicted when its capacity is exceeded.
+only receives detections whose own timestamps have been reached. Partial
+trajectory snapshots are idempotent and confirmed events are emitted once.
+The simulation registry is bounded and old simulations are evicted when its
+capacity is exceeded.
+
+Realtime snapshots expose template-compatibility diagnostics, instantaneous
+UNKNOWN reasons, cumulative/post-sync/rolling-60s UNKNOWN rates, and temporary
+live-override duration. A stream that uses approaches outside the configured
+intersection topology is rejected; a stream with enough evidence from both
+families but persistently poor fit to the Batch template is marked
+INCOMPATIBLE instead of being presented as synchronized.
 
 ## Browser demonstration
 

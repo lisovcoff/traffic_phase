@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from dataclasses import dataclass
 import json
 import math
@@ -210,6 +210,7 @@ class RealtimeArchiveSimulation:
         self._topology = topology
         self._lock = RLock()
         self._engine = self._new_engine()
+        self._validate_source_topology()
         self._cursor = 0
         self._simulated_timestamp_ms = source.start_timestamp_ms
         self._emitted_trajectory_count = 0
@@ -222,6 +223,37 @@ class RealtimeArchiveSimulation:
         ] = {}
         self._detection_cursors: dict[str, int] = {}
         self._last_inference: dict[str, object] | None = None
+        self._reset_observability()
+
+    def _validate_source_topology(self) -> None:
+        observed: set[str] = set()
+        for item in self.source.items:
+            if item.trajectory is not None:
+                observed.add(item.trajectory.zone_in)
+            observed.update(event.approach for event in item.events)
+        unknown = sorted(observed - set(self._engine.topology.approaches))
+        if unknown:
+            raise ValueError(
+                "incompatible realtime source approaches for the "
+                f"configured topology: {', '.join(unknown)}"
+            )
+
+    def _reset_observability(self) -> None:
+        approaches = tuple(self._engine.topology.approaches)
+        self._unknown_sample_count = 0
+        self._unknown_counts = {
+            approach: 0 for approach in approaches
+        }
+        self._post_sync_sample_count = 0
+        self._post_sync_unknown_counts = {
+            approach: 0 for approach in approaches
+        }
+        self._unknown_recent = deque()
+        self._override_count = 0
+        self._override_started_ms: int | None = None
+        self._override_total_ms = 0
+        self._last_override_duration_ms: int | None = None
+        self._last_adaptive_mode = "NORMAL"
 
     @staticmethod
     def _validated_speed(speed: float) -> float:
@@ -266,6 +298,7 @@ class RealtimeArchiveSimulation:
             self._causal_extractors.clear()
             self._detection_cursors.clear()
             self._last_inference = None
+            self._reset_observability()
             return self.snapshot()
 
     def set_speed(self, speed: float) -> None:
@@ -298,6 +331,7 @@ class RealtimeArchiveSimulation:
                     self._engine.snapshot_at(target_ms).to_dict()
                 )
             self._simulated_timestamp_ms = target_ms
+            self._record_observability()
             return self.snapshot()
 
     def _emit_available(self, target_ms: int) -> None:
@@ -391,6 +425,176 @@ class RealtimeArchiveSimulation:
             self._causal_extractors.pop(key, None)
             self._detection_cursors.pop(key, None)
 
+    def _record_observability(self) -> None:
+        approaches = tuple(self._engine.topology.approaches)
+        if self._last_inference is None:
+            states = {
+                approach: "UNKNOWN" for approach in approaches
+            }
+            synchronized = False
+            adaptive_mode = "NORMAL"
+        else:
+            states = {
+                approach: str(
+                    self._last_inference.get(
+                        "signal_states",
+                        {},
+                    ).get(approach, "UNKNOWN")
+                )
+                for approach in approaches
+            }
+            synchronized = (
+                self._last_inference.get("synchronization_status")
+                == "SYNCHRONIZED"
+            )
+            adaptive_mode = str(
+                self._last_inference.get(
+                    "adaptive_mode",
+                    "NORMAL",
+                )
+            )
+
+        self._unknown_sample_count += 1
+        for approach, state in states.items():
+            if state == "UNKNOWN":
+                self._unknown_counts[approach] += 1
+
+        if synchronized:
+            self._post_sync_sample_count += 1
+            for approach, state in states.items():
+                if state == "UNKNOWN":
+                    self._post_sync_unknown_counts[approach] += 1
+
+        unknown_approaches = tuple(
+            approach
+            for approach, state in states.items()
+            if state == "UNKNOWN"
+        )
+        self._unknown_recent.append(
+            (
+                self._simulated_timestamp_ms,
+                unknown_approaches,
+            )
+        )
+        cutoff_ms = self._simulated_timestamp_ms - 60_000
+        while (
+            self._unknown_recent
+            and self._unknown_recent[0][0] < cutoff_ms
+        ):
+            self._unknown_recent.popleft()
+
+        if (
+            adaptive_mode == "LIVE_OVERRIDE"
+            and self._last_adaptive_mode != "LIVE_OVERRIDE"
+        ):
+            self._override_count += 1
+            self._override_started_ms = self._simulated_timestamp_ms
+        elif (
+            adaptive_mode != "LIVE_OVERRIDE"
+            and self._last_adaptive_mode == "LIVE_OVERRIDE"
+            and self._override_started_ms is not None
+        ):
+            duration_ms = max(
+                0,
+                self._simulated_timestamp_ms
+                - self._override_started_ms,
+            )
+            self._override_total_ms += duration_ms
+            self._last_override_duration_ms = duration_ms
+            self._override_started_ms = None
+        self._last_adaptive_mode = adaptive_mode
+
+    @staticmethod
+    def _rate(
+        unknown_count: int,
+        sample_count: int,
+    ) -> float | None:
+        if sample_count <= 0:
+            return None
+        return round(unknown_count / sample_count, 4)
+
+    def _unknown_metrics(self) -> dict[str, object]:
+        approaches = tuple(self._engine.topology.approaches)
+        approach_count = max(1, len(approaches))
+        total_states = self._unknown_sample_count * approach_count
+        total_unknown = sum(self._unknown_counts.values())
+        post_sync_states = (
+            self._post_sync_sample_count * approach_count
+        )
+        post_sync_unknown = sum(
+            self._post_sync_unknown_counts.values()
+        )
+        recent_samples = len(self._unknown_recent)
+        recent_unknown = sum(
+            len(unknown)
+            for _timestamp, unknown in self._unknown_recent
+        )
+        post_sync_rate = self._rate(
+            post_sync_unknown,
+            post_sync_states,
+        )
+        return {
+            "target_rate": 0.01,
+            "sample_count": self._unknown_sample_count,
+            "overall_rate": self._rate(
+                total_unknown,
+                total_states,
+            ),
+            "per_approach_rate": {
+                approach: self._rate(
+                    self._unknown_counts[approach],
+                    self._unknown_sample_count,
+                )
+                for approach in approaches
+            },
+            "post_sync_sample_count": self._post_sync_sample_count,
+            "post_sync_rate": post_sync_rate,
+            "post_sync_per_approach_rate": {
+                approach: self._rate(
+                    self._post_sync_unknown_counts[approach],
+                    self._post_sync_sample_count,
+                )
+                for approach in approaches
+            },
+            "rolling_60s_rate": self._rate(
+                recent_unknown,
+                recent_samples * approach_count,
+            ),
+            "meets_post_sync_target": (
+                post_sync_rate < 0.01
+                if post_sync_rate is not None
+                else None
+            ),
+        }
+
+    def _override_metrics(self) -> dict[str, object]:
+        active_ms = (
+            max(
+                0,
+                self._simulated_timestamp_ms
+                - self._override_started_ms,
+            )
+            if self._override_started_ms is not None
+            else 0
+        )
+        return {
+            "count": self._override_count,
+            "active": self._override_started_ms is not None,
+            "current_duration_s": round(active_ms / 1000.0, 3),
+            "last_duration_s": (
+                round(
+                    self._last_override_duration_ms / 1000.0,
+                    3,
+                )
+                if self._last_override_duration_ms is not None
+                else None
+            ),
+            "total_duration_s": round(
+                (self._override_total_ms + active_ms) / 1000.0,
+                3,
+            ),
+        }
+
     def snapshot(self) -> dict[str, object]:
         with self._lock:
             inference = self._last_inference
@@ -418,6 +622,14 @@ class RealtimeArchiveSimulation:
                 adaptive_reason = None
                 observed_live_approaches: list[str] = []
                 template_signal_states = dict(signal_states)
+                synchronization_match_ratio = 0.0
+                template_compatibility = "CHECKING"
+                instant_unknown_rate = 1.0
+                unknown_reasons = {
+                    approach: "no_release_or_crossing_evidence"
+                    for approach in signal_states
+                }
+                template_deviation_seconds = None
             else:
                 synchronization_status = str(
                     inference["synchronization_status"]
@@ -466,6 +678,30 @@ class RealtimeArchiveSimulation:
                         signal_states,
                     )
                     or signal_states
+                )
+                synchronization_match_ratio = float(
+                    inference.get(
+                        "synchronization_match_ratio",
+                        0.0,
+                    )
+                )
+                template_compatibility = str(
+                    inference.get(
+                        "template_compatibility",
+                        "CHECKING",
+                    )
+                )
+                instant_unknown_rate = float(
+                    inference.get(
+                        "instant_unknown_rate",
+                        0.0,
+                    )
+                )
+                unknown_reasons = dict(
+                    inference.get("unknown_reasons", {}) or {}
+                )
+                template_deviation_seconds = inference.get(
+                    "template_deviation_seconds"
                 )
 
             duration_ms = max(
@@ -519,7 +755,26 @@ class RealtimeArchiveSimulation:
                 "synchronization_observed_family_count": (
                     sync_state.observed_group_count
                 ),
+                "synchronization_match_ratio": round(
+                    sync_state.match_ratio,
+                    4,
+                ),
+                "template_compatibility": (
+                    "INCONCLUSIVE"
+                    if (
+                        self.finished
+                        and template_compatibility == "CHECKING"
+                    )
+                    else template_compatibility
+                ),
                 "warmup_reason": warmup_reason,
+                "instant_unknown_rate": instant_unknown_rate,
+                "unknown_reasons": unknown_reasons,
+                "unknown_metrics": self._unknown_metrics(),
+                "template_deviation_seconds": (
+                    template_deviation_seconds
+                ),
+                "live_override_metrics": self._override_metrics(),
                 "adaptive_mode": adaptive_mode,
                 "effective_axis": effective_axis,
                 "template_expected_axis": (

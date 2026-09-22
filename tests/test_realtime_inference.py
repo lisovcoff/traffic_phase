@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 import asyncio
 
 from app.api.realtime import (
@@ -771,3 +773,71 @@ def test_realtime_phase_payload_accepts_custom_conflict_topology():
         left_approach="N",
         right_approach="E",
     )
+
+
+
+def test_template_compatibility_rejects_persistent_two_family_mismatch():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+    )
+    snapshot = None
+    for timestamp in (10.0, 20.0, 30.0, 40.0, 50.0, 60.0):
+        snapshot = engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "N")
+        )
+        snapshot = engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "E")
+        )
+
+    assert snapshot is not None
+    assert snapshot.synchronization_status == "WARMUP"
+    assert snapshot.synchronization_match_ratio <= 0.55
+    assert snapshot.template_compatibility == "INCOMPATIBLE"
+    assert snapshot.instant_unknown_rate == 1.0
+    assert set(snapshot.unknown_reasons.values()) == {
+        "template_incompatible"
+    }
+
+
+def test_realtime_rejects_approach_outside_configured_topology():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+
+    with pytest.raises(ValueError, match="configured intersection topology"):
+        engine.ingest_event(
+            event(EventType.RELEASE, 10.0, "X")
+        )
+
+
+def test_emergency_green_extension_is_observed_then_recovers():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+
+    snapshot = None
+    for timestamp in (44.0, 46.0, 48.0, 50.0):
+        snapshot = engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "N")
+        )
+
+    assert snapshot is not None
+    assert snapshot.adaptive_mode == "LIVE_OVERRIDE"
+    assert snapshot.template_compatibility == "COMPATIBLE"
+    assert snapshot.signal_states["N"] == "GREEN"
+    assert snapshot.signal_states["E"] == "RED"
+    assert snapshot.template_deviation_seconds == 10.0
+
+    recovered = None
+    for timestamp in (54.0, 57.0, 60.0):
+        recovered = engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "E")
+        )
+
+    assert recovered is not None
+    assert recovered.adaptive_mode == "NORMAL"
+    assert recovered.template_compatibility == "COMPATIBLE"
+    assert recovered.template_deviation_seconds is None
+    assert recovered.signal_states["E"] == "GREEN"
