@@ -5,7 +5,12 @@ from app.core.event_phase_discovery import (
     EventPhaseDiscoveryResult,
 )
 from app.core.models import EventType, TrajectoryEvent
-from app.core.signal_state_estimator import SignalState, SignalStateEstimator
+from app.core.signal_state_estimator import (
+    DEFAULT_RED_YELLOW_DURATION_SECONDS,
+    DEFAULT_YELLOW_DURATION_SECONDS,
+    SignalState,
+    SignalStateEstimator,
+)
 
 
 def event(kind, t, approach, confidence=1.0):
@@ -64,22 +69,43 @@ def test_green_does_not_require_stop_or_wait_evidence():
     assert states(result)["N"].state == SignalState.GREEN
 
 
-def test_green_yellow_red_sequence_for_ns():
+def test_green_yellow_red_sequence_for_ns_uses_exact_three_second_yellow():
     estimator = SignalStateEstimator(model())
-    green = estimator.estimate(20.0, [event(EventType.RELEASE, 10, "N")])
-    yellow = estimator.estimate(39.0, [event(EventType.RELEASE, 10, "N")])
-    red = estimator.estimate(45.0, [event(EventType.RELEASE, 10, "N")])
-    assert states(green)["N"].state == SignalState.GREEN
-    assert states(yellow)["N"].state == SignalState.YELLOW
+    before = estimator.estimate(36.999, [])
+    yellow_start = estimator.estimate(
+        37.0,
+        [event(EventType.CROSSING, 37.0, "N")],
+    )
+    yellow_end = estimator.estimate(
+        39.999,
+        [event(EventType.CROSSING, 39.9, "N")],
+    )
+    red = estimator.estimate(
+        40.0,
+        [event(EventType.CROSSING, 39.9, "N")],
+    )
+
+    assert DEFAULT_YELLOW_DURATION_SECONDS == 3.0
+    assert states(before)["N"].state == SignalState.GREEN
+    assert states(yellow_start)["N"].state == SignalState.YELLOW
+    assert states(yellow_end)["N"].state == SignalState.YELLOW
     assert states(red)["N"].state == SignalState.RED
+    assert states(yellow_end)["N"].supporting_event_count > 0
 
 
-def test_red_yellow_then_green_for_ew():
+def test_red_yellow_is_separate_two_second_pre_green_state():
     estimator = SignalStateEstimator(model())
-    red_yellow = estimator.estimate(40.0, [event(EventType.RELEASE, 60, "E")])
-    green = estimator.estimate(43.0, [event(EventType.RELEASE, 42, "E")])
-    assert states(red_yellow)["E"].state == SignalState.RED_YELLOW
-    assert states(red_yellow)["N"].state == SignalState.RED
+    start = estimator.estimate(40.0, [])
+    end = estimator.estimate(41.999, [])
+    green = estimator.estimate(
+        42.0,
+        [event(EventType.RELEASE, 42.0, "E")],
+    )
+
+    assert DEFAULT_RED_YELLOW_DURATION_SECONDS == 2.0
+    assert states(start)["E"].state == SignalState.RED_YELLOW
+    assert states(end)["E"].state == SignalState.RED_YELLOW
+    assert states(start)["N"].state == SignalState.RED
     assert states(green)["E"].state == SignalState.GREEN
 
 
@@ -221,3 +247,36 @@ def test_internal_stage_boundary_does_not_turn_continuing_n_yellow():
 
     assert result["N"].state == SignalState.GREEN
     assert result["S"].state == SignalState.RED_YELLOW
+
+
+
+def test_yellow_and_red_yellow_durations_are_independent():
+    estimator = SignalStateEstimator(
+        model(),
+        yellow_duration_seconds=3.0,
+        red_yellow_duration_seconds=0.0,
+    )
+    assert states(estimator.estimate(37.0, []))["N"].state == SignalState.YELLOW
+    assert states(estimator.estimate(40.0, []))["E"].state == SignalState.GREEN
+
+
+def test_signal_result_exposes_backend_transition_timing():
+    result = SignalStateEstimator(model()).estimate(20.0, [])
+    payload = result.to_dict()
+    assert result.yellow_duration_seconds == 3.0
+    assert result.red_yellow_duration_seconds == 2.0
+    assert payload["yellow_duration_seconds"] == 3.0
+    assert payload["red_yellow_duration_seconds"] == 2.0
+
+
+def test_continuing_approach_stays_green_across_internal_stage_boundary():
+    estimator = SignalStateEstimator(staggered_model())
+    before = states(estimator.estimate(19.0, []))
+    just_after = states(estimator.estimate(20.5, []))
+    after_red_yellow = states(estimator.estimate(22.0, []))
+
+    assert before["N"].state == SignalState.GREEN
+    assert just_after["N"].state == SignalState.GREEN
+    assert just_after["S"].state == SignalState.RED_YELLOW
+    assert after_red_yellow["N"].state == SignalState.GREEN
+    assert after_red_yellow["S"].state == SignalState.GREEN

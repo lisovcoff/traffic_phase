@@ -20,7 +20,11 @@ from app.core.realtime_phase_sync import (
     RealtimePhaseSynchronizer,
     RealtimePhaseTemplate,
 )
-from app.core.signal_state_estimator import SignalStateEstimator
+from app.core.signal_state_estimator import (
+    DEFAULT_RED_YELLOW_DURATION_SECONDS,
+    DEFAULT_YELLOW_DURATION_SECONDS,
+    SignalStateEstimator,
+)
 from app.core.trajectory_events import extract_trajectory_events
 from app.core.trajectory_geometry import (
     build_trajectory_geometry,
@@ -82,7 +86,8 @@ class RealtimeSignalInferenceEngine:
         event_origin_ms: int | None = None,
         min_phase_confidence: float = 0.20,
         min_traffic_confidence: float = 0.12,
-        yellow_duration_seconds: float = 2.0,
+        yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS,
+        red_yellow_duration_seconds: float = DEFAULT_RED_YELLOW_DURATION_SECONDS,
         conflict_persistence_seconds: float = 3.0,
         baseline: TrafficBaselineProfile | None = None,
         synchronization_min_events: int = 6,
@@ -103,6 +108,20 @@ class RealtimeSignalInferenceEngine:
         self._min_phase_confidence = float(min_phase_confidence)
         self._min_traffic_confidence = float(min_traffic_confidence)
         self._yellow_duration_seconds = float(yellow_duration_seconds)
+        self._red_yellow_duration_seconds = float(
+            red_yellow_duration_seconds
+        )
+        cycle = float(self.phase_template.cycle_seconds)
+        if (
+            self._yellow_duration_seconds < 0
+            or self._yellow_duration_seconds >= cycle
+        ):
+            raise ValueError("invalid yellow_duration_seconds")
+        if (
+            self._red_yellow_duration_seconds < 0
+            or self._red_yellow_duration_seconds >= cycle
+        ):
+            raise ValueError("invalid red_yellow_duration_seconds")
         self._conflict_persistence_seconds = float(
             conflict_persistence_seconds
         )
@@ -123,6 +142,14 @@ class RealtimeSignalInferenceEngine:
         self._current_timestamp_ms: int | None = None
         self._stream_start_timestamp_ms: int | None = None
         self._lock = RLock()
+
+    @property
+    def yellow_duration_seconds(self) -> float:
+        return self._yellow_duration_seconds
+
+    @property
+    def red_yellow_duration_seconds(self) -> float:
+        return self._red_yellow_duration_seconds
 
     @property
     def current_timestamp_ms(self) -> int | None:
@@ -337,6 +364,7 @@ class RealtimeSignalInferenceEngine:
             min_phase_confidence=self._min_phase_confidence,
             min_traffic_confidence=self._min_traffic_confidence,
             yellow_duration_seconds=self._yellow_duration_seconds,
+            red_yellow_duration_seconds=self._red_yellow_duration_seconds,
             conflict_persistence_seconds=self._conflict_persistence_seconds,
             event_origin_ms=realtime_origin_ms,
         )

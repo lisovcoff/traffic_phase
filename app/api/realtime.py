@@ -17,6 +17,10 @@ from app.core.realtime_inference import (
     RealtimeSignalInferenceEngine,
 )
 from app.core.realtime_phase_sync import RealtimePhaseTemplate
+from app.core.signal_state_estimator import (
+    DEFAULT_RED_YELLOW_DURATION_SECONDS,
+    DEFAULT_YELLOW_DURATION_SECONDS,
+)
 
 
 class PhasePayload(BaseModel):
@@ -51,7 +55,14 @@ class RealtimeInferenceRequest(BaseModel):
     phase_model: PhasePayload | None = None
     event_origin_ms: int | None = None
     recent_window_s: float = Field(default=12.0, gt=0)
-    yellow_duration_seconds: float = Field(default=2.0, ge=0)
+    yellow_duration_seconds: float = Field(
+        default=DEFAULT_YELLOW_DURATION_SECONDS,
+        ge=0,
+    )
+    red_yellow_duration_seconds: float = Field(
+        default=DEFAULT_RED_YELLOW_DURATION_SECONDS,
+        ge=0,
+    )
     baseline_profile: BaselineProfilePayload | None = None
 
 
@@ -62,7 +73,14 @@ class RealtimeTrajectoryPayload(BaseModel):
     phase_model: PhasePayload | None = None
     event_origin_ms: int | None = None
     recent_window_s: float = Field(default=12.0, gt=0)
-    yellow_duration_seconds: float = Field(default=2.0, ge=0)
+    yellow_duration_seconds: float = Field(
+        default=DEFAULT_YELLOW_DURATION_SECONDS,
+        ge=0,
+    )
+    red_yellow_duration_seconds: float = Field(
+        default=DEFAULT_RED_YELLOW_DURATION_SECONDS,
+        ge=0,
+    )
     baseline_profile: BaselineProfilePayload | None = None
 
 
@@ -127,6 +145,7 @@ class RealtimeEngineRegistry:
         event_origin_ms: int | None,
         recent_window_s: float,
         yellow_duration_seconds: float,
+        red_yellow_duration_seconds: float,
         baseline: TrafficBaselineProfile | None,
     ) -> RealtimeSignalInferenceEngine:
         with self._lock:
@@ -161,6 +180,20 @@ class RealtimeEngineRegistry:
                     raise ValueError(
                         "stream already exists with a different event origin"
                     )
+                if (
+                    float(yellow_duration_seconds)
+                    != engine.yellow_duration_seconds
+                ):
+                    raise ValueError(
+                        "stream already exists with a different yellow duration"
+                    )
+                if (
+                    float(red_yellow_duration_seconds)
+                    != engine.red_yellow_duration_seconds
+                ):
+                    raise ValueError(
+                        "stream already exists with a different red-yellow duration"
+                    )
                 return engine
 
             if phase_model is None:
@@ -173,6 +206,7 @@ class RealtimeEngineRegistry:
                 recent_window_s=recent_window_s,
                 event_origin_ms=event_origin_ms,
                 yellow_duration_seconds=yellow_duration_seconds,
+                red_yellow_duration_seconds=red_yellow_duration_seconds,
                 baseline=baseline,
             )
             self._engines[stream_id] = engine
@@ -203,6 +237,7 @@ async def infer_realtime(
             event_origin_ms=payload.event_origin_ms,
             recent_window_s=payload.recent_window_s,
             yellow_duration_seconds=payload.yellow_duration_seconds,
+            red_yellow_duration_seconds=payload.red_yellow_duration_seconds,
             baseline=TrafficBaselineProfile.from_dict(payload.baseline_profile.payload) if payload.baseline_profile else None,
         )
         event = TrajectoryEvent(
@@ -239,6 +274,7 @@ async def infer_realtime_trajectory(
             event_origin_ms=payload.event_origin_ms,
             recent_window_s=payload.recent_window_s,
             yellow_duration_seconds=payload.yellow_duration_seconds,
+            red_yellow_duration_seconds=payload.red_yellow_duration_seconds,
             baseline=(
                 TrafficBaselineProfile.from_dict(payload.baseline_profile.payload)
                 if payload.baseline_profile

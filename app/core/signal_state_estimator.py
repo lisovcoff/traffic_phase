@@ -11,7 +11,11 @@ from app.core.models import EventType, TrajectoryEvent
 from app.core.preprocessing import load_trajectory_file
 
 
-DEFAULT_YELLOW_DURATION_SECONDS = 2.0
+# The steady yellow interval is fixed separately from the pre-green
+# red+yellow interval. Keeping them distinct prevents UI-only transition
+# semantics and makes backend timing explicit.
+DEFAULT_YELLOW_DURATION_SECONDS = 3.0
+DEFAULT_RED_YELLOW_DURATION_SECONDS = 2.0
 DEFAULT_RECENT_WINDOW_SECONDS = 12.0
 DEFAULT_MIN_PHASE_CONFIDENCE = 0.20
 DEFAULT_MIN_TRAFFIC_CONFIDENCE = 0.12
@@ -54,6 +58,8 @@ class SignalStateResult:
     transition: bool
     phase_confidence: float
     traffic_evidence_confidence: float = 0.0
+    yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS
+    red_yellow_duration_seconds: float = DEFAULT_RED_YELLOW_DURATION_SECONDS
     approaches: tuple[ApproachState, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
@@ -64,6 +70,8 @@ class SignalStateResult:
             "transition": self.transition,
             "phase_confidence": self.phase_confidence,
             "traffic_evidence_confidence": self.traffic_evidence_confidence,
+            "yellow_duration_seconds": self.yellow_duration_seconds,
+            "red_yellow_duration_seconds": self.red_yellow_duration_seconds,
             "approaches": [state.to_dict() for state in self.approaches],
         }
 
@@ -90,6 +98,7 @@ class SignalStateEstimator:
         min_phase_confidence: float = DEFAULT_MIN_PHASE_CONFIDENCE,
         min_traffic_confidence: float = DEFAULT_MIN_TRAFFIC_CONFIDENCE,
         yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS,
+        red_yellow_duration_seconds: float = DEFAULT_RED_YELLOW_DURATION_SECONDS,
         conflict_persistence_seconds: float = DEFAULT_CONFLICT_PERSISTENCE_SECONDS,
         event_origin_ms: int | None = None,
     ) -> None:
@@ -104,6 +113,11 @@ class SignalStateEstimator:
             raise ValueError("min_traffic_confidence must be in [0, 1]")
         if yellow_duration_seconds < 0 or yellow_duration_seconds >= cycle:
             raise ValueError("invalid yellow_duration_seconds")
+        if (
+            red_yellow_duration_seconds < 0
+            or red_yellow_duration_seconds >= cycle
+        ):
+            raise ValueError("invalid red_yellow_duration_seconds")
         if conflict_persistence_seconds < 0:
             raise ValueError("conflict_persistence_seconds must be non-negative")
 
@@ -112,6 +126,9 @@ class SignalStateEstimator:
         self.min_phase_confidence = float(min_phase_confidence)
         self.min_traffic_confidence = float(min_traffic_confidence)
         self.yellow_duration_seconds = float(yellow_duration_seconds)
+        self.red_yellow_duration_seconds = float(
+            red_yellow_duration_seconds
+        )
         self.conflict_persistence_seconds = float(conflict_persistence_seconds)
         self.event_origin_ms = event_origin_ms
 
@@ -213,6 +230,8 @@ class SignalStateEstimator:
             ),
             phase_confidence=round(phase_confidence, 4),
             traffic_evidence_confidence=round(traffic_confidence, 4),
+            yellow_duration_seconds=self.yellow_duration_seconds,
+            red_yellow_duration_seconds=self.red_yellow_duration_seconds,
             approaches=tuple(states),
         )
 
@@ -241,6 +260,7 @@ class SignalStateEstimator:
             min_phase_confidence=self.min_phase_confidence,
             min_traffic_confidence=self.min_traffic_confidence,
             yellow_duration_seconds=self.yellow_duration_seconds,
+            red_yellow_duration_seconds=self.red_yellow_duration_seconds,
             conflict_persistence_seconds=self.conflict_persistence_seconds,
             event_origin_ms=origin,
         )
@@ -279,7 +299,10 @@ class SignalStateEstimator:
         """
         if (
             phase is None
-            or self.yellow_duration_seconds == 0
+            or (
+                self.yellow_duration_seconds == 0
+                and self.red_yellow_duration_seconds == 0
+            )
             or approach not in getattr(phase, "active_approaches", ())
         ):
             return None
@@ -312,7 +335,8 @@ class SignalStateEstimator:
         distance_from_start = (position - start) % cycle
         if (
             not previous_active
-            and 0 <= distance_from_start <= self.yellow_duration_seconds
+            and self.red_yellow_duration_seconds > 0
+            and 0 <= distance_from_start < self.red_yellow_duration_seconds
         ):
             return SignalState.RED_YELLOW
         return None
@@ -495,6 +519,7 @@ def result_to_json(result: SignalStateResult) -> str:
 
 
 __all__ = [
+    "DEFAULT_RED_YELLOW_DURATION_SECONDS",
     "DEFAULT_YELLOW_DURATION_SECONDS",
     "ApproachState",
     "SignalState",

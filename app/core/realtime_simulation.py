@@ -12,6 +12,10 @@ from app.core.models import Trajectory, TrajectoryEvent
 from app.core.preprocessing import load_trajectory_payload
 from app.core.realtime_inference import RealtimeSignalInferenceEngine
 from app.core.reconstruction import extract_events_from_trajectories
+from app.core.signal_state_estimator import (
+    DEFAULT_RED_YELLOW_DURATION_SECONDS,
+    DEFAULT_YELLOW_DURATION_SECONDS,
+)
 
 
 DEFAULT_SIMULATION_SPEED = 1.0
@@ -183,7 +187,8 @@ class RealtimeArchiveSimulation:
         *,
         speed: float = DEFAULT_SIMULATION_SPEED,
         recent_window_s: float = 12.0,
-        yellow_duration_seconds: float = 2.0,
+        yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS,
+        red_yellow_duration_seconds: float = DEFAULT_RED_YELLOW_DURATION_SECONDS,
     ) -> None:
         self.source = source
         self.speed = self._validated_speed(speed)
@@ -191,6 +196,9 @@ class RealtimeArchiveSimulation:
         self._recent_window_s = float(recent_window_s)
         self._yellow_duration_seconds = float(
             yellow_duration_seconds
+        )
+        self._red_yellow_duration_seconds = float(
+            red_yellow_duration_seconds
         )
         self._lock = RLock()
         self._engine = self._new_engine()
@@ -218,6 +226,7 @@ class RealtimeArchiveSimulation:
             self._phase_model,
             recent_window_s=self._recent_window_s,
             yellow_duration_seconds=self._yellow_duration_seconds,
+            red_yellow_duration_seconds=self._red_yellow_duration_seconds,
         )
 
     @property

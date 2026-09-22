@@ -24,7 +24,12 @@ from app.core.realtime_phase_sync import (
     RealtimePhaseSynchronizer,
     RealtimePhaseTemplate,
 )
-from app.core.signal_state_estimator import SignalState, SignalStateEstimator
+from app.core.signal_state_estimator import (
+    DEFAULT_RED_YELLOW_DURATION_SECONDS,
+    DEFAULT_YELLOW_DURATION_SECONDS,
+    SignalState,
+    SignalStateEstimator,
+)
 
 
 def event(event_type, timestamp_s, approach, confidence=1.0):
@@ -657,3 +662,46 @@ def test_live_override_recovers_when_template_axis_has_persistent_release():
     assert recovered.effective_axis == "EW"
     assert recovered.signal_states["E"] == "GREEN"
     assert recovered.synchronization_status == "SYNCHRONIZED"
+
+
+
+def test_realtime_defaults_use_physical_transition_durations():
+    yellow_engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+    yellow = yellow_engine.ingest_event(
+        event(EventType.CROSSING, 37.0, "N")
+    )
+
+    red_yellow_engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+    red_yellow = red_yellow_engine.ingest_event(
+        event(EventType.RELEASE, 40.0, "E")
+    )
+    green = red_yellow_engine.ingest_event(
+        event(EventType.RELEASE, 42.0, "E")
+    )
+
+    assert DEFAULT_YELLOW_DURATION_SECONDS == 3.0
+    assert DEFAULT_RED_YELLOW_DURATION_SECONDS == 2.0
+    assert yellow.signal_states["N"] == SignalState.YELLOW.value
+    assert red_yellow.signal_states["E"] == SignalState.RED_YELLOW.value
+    assert green.signal_states["E"] == SignalState.GREEN.value
+
+
+def test_realtime_api_defaults_keep_yellow_and_red_yellow_separate():
+    payload = RealtimeInferenceRequest(
+        stream_id="timing-defaults",
+        event=RealtimeEventPayload(
+            event_type=EventType.RELEASE,
+            timestamp_ms=10_000,
+            approach="N",
+            movement="N->x",
+        ),
+        phase_model=phase_payload(),
+    )
+    assert payload.yellow_duration_seconds == 3.0
+    assert payload.red_yellow_duration_seconds == 2.0
