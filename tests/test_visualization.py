@@ -80,3 +80,14 @@ def test_visualization_surfaces_adaptive_realtime_override_state():
     assert "template_expected_axis" in html
     assert "effective_axis" in html
     assert "Live override:" in html
+
+
+
+def test_visualization_surfaces_batch_unknown_diagnostics():
+    html = visualization_page()
+
+    assert 'id="batchUnknown"' in html
+    assert 'id="batchUnknownByApproach"' in html
+    assert 'id="batchCoverage"' in html
+    assert 'id="batchUnknownCause"' in html
+    assert "uncovered_cycle_intervals" in html

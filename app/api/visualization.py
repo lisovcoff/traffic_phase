@@ -78,6 +78,8 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="stat"><span>Vehicles / events</span><strong id="batchCounts">—</strong></div>
       <div class="stat"><span>UNKNOWN rate</span><strong id="batchUnknown">—</strong></div>
       <div class="stat"><span>UNKNOWN N/S/E/W</span><strong id="batchUnknownByApproach">—</strong></div>
+      <div class="stat"><span>Phase coverage</span><strong id="batchCoverage">—</strong></div>
+      <div class="stat"><span>UNKNOWN cause</span><strong id="batchUnknownCause">—</strong></div>
     </div>
 
     <div class="panel">
@@ -253,6 +255,13 @@ function openBatchSession(i){
   $('batchUnknown').textContent=unknown.overall_rate==null?'—':(unknown.overall_rate*100).toFixed(2)+'% '+(unknown.meets_target?'✓ <1%':'');
   const byApproach=unknown.per_approach_rate||{};
   $('batchUnknownByApproach').textContent=['N','S','E','W'].map(a=>a+' '+(byApproach[a]==null?'—':(byApproach[a]*100).toFixed(1)+'%')).join(' · ');
+  const model=batchSession.phase_model||{};
+  $('batchCoverage').textContent=model.cycle_coverage==null?'—':(Number(model.cycle_coverage)*100).toFixed(1)+'%';
+  const reasonRate=unknown.reason_rate||{};
+  const gaps=batchSession.uncovered_cycle_intervals||[];
+  const reasons=Object.entries(reasonRate).map(([reason,rate])=>reason+' '+(Number(rate)*100).toFixed(1)+'%');
+  const gapText=gaps.length?(' · gaps '+gaps.map(g=>Number(g.start_s).toFixed(1)+'–'+Number(g.end_s).toFixed(1)+'s').join(', ')):'';
+  $('batchUnknownCause').textContent=(reasons.length?reasons.join(' · '):'none')+gapText;
   const timeline=batchSession.timeline||[];
   $('batchSlider').max=String(Math.max(0,timeline.length-1));
   $('batchSlider').value='0';

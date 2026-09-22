@@ -117,9 +117,40 @@ def test_json_api_returns_session_based_result():
         "RED",
         "RED_YELLOW",
         "UNKNOWN",
+        "MIXED",
     }
     assert response["cycle"] is not None
     assert response["phase_model"] is not None
+    assert "cycle_coverage" in session["phase_model"]
+    assert "unknown_metrics" in session
+    assert "uncovered_cycle_intervals" in session
+
+
+
+def test_zip_members_are_sorted_by_trajectory_time_not_archive_order():
+    content = _zip_bytes(
+        [
+            (
+                "later.json",
+                _payload(
+                    origin_ms=5 * 120 * 1000,
+                    cycles=5,
+                ),
+            ),
+            ("earlier.json", _payload(cycles=5)),
+        ]
+    )
+
+    analysis = analyze_trajectory_stream(
+        BytesIO(content),
+        filename="reverse-order.zip",
+    ).to_dict()
+
+    assert analysis["source"]["json_members"] == 2
+    assert analysis["source"]["session_count"] == 1
+    assert analysis["source"]["cars_used"] == 40
+    assert len(analysis["sessions"]) == 1
+    assert analysis["sessions"][0]["status"] == "ok"
 
 
 def test_zip_api_processes_members_and_returns_sessions():

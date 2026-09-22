@@ -78,7 +78,7 @@ class ArchiveAnalysis:
             "limitations": [
                 "Traffic-light state is inferred indirectly from vehicle trajectory events.",
                 "No controller or signal-state ground truth is present in the trajectory data.",
-                "ZIP members are processed sequentially and must be chronological by trajectory time.",
+                "ZIP members are compacted and ordered by trajectory time before session reconstruction.",
                 "Timeline points are sampled from the inferred recurring phase model and are not controller telemetry.",
             ],
         }
@@ -134,6 +134,7 @@ def _compact_phase_model(session: SessionReconstruction) -> dict[str, object] | 
             if total
             else None
         ),
+        "cycle_coverage": model.cycle_coverage,
         # phases is retained for API compatibility; stages is the preferred
         # name now that N/S/E/W activation is inferred independently.
         "phases": stages,
@@ -147,6 +148,67 @@ def _compact_phase_model(session: SessionReconstruction) -> dict[str, object] | 
             for stage in model.movement_stages
         ],
     }
+
+
+def _phase_coverage_gaps(
+    phase_model: object | None,
+) -> list[dict[str, float]]:
+    if phase_model is None:
+        return []
+    cycle = float(getattr(phase_model, "cycle_seconds", 0.0))
+    if cycle <= 0:
+        return []
+
+    segments: list[tuple[float, float]] = []
+    for phase in tuple(getattr(phase_model, "phases", ())):
+        start = float(phase.phase_start) % cycle
+        end = float(phase.phase_end) % cycle
+        if abs(start - end) <= 1e-9:
+            return []
+        if start < end:
+            segments.append((start, end))
+        else:
+            segments.append((start, cycle))
+            segments.append((0.0, end))
+
+    if not segments:
+        return [
+            {
+                "start_s": 0.0,
+                "end_s": round(cycle, 3),
+                "duration_s": round(cycle, 3),
+            }
+        ]
+
+    segments.sort()
+    merged: list[list[float]] = []
+    for start, end in segments:
+        if not merged or start > merged[-1][1] + 1e-9:
+            merged.append([start, end])
+        else:
+            merged[-1][1] = max(merged[-1][1], end)
+
+    gaps: list[dict[str, float]] = []
+    cursor = 0.0
+    for start, end in merged:
+        if start > cursor + 1e-9:
+            gaps.append(
+                {
+                    "start_s": round(cursor, 3),
+                    "end_s": round(start, 3),
+                    "duration_s": round(start - cursor, 3),
+                }
+            )
+        cursor = max(cursor, end)
+    if cursor < cycle - 1e-9:
+        gaps.append(
+            {
+                "start_s": round(cursor, 3),
+                "end_s": round(cycle, 3),
+                "duration_s": round(cycle - cursor, 3),
+            }
+        )
+    return gaps
 
 
 def _phase_at(session: SessionReconstruction, timestamp_ms: int):
@@ -243,12 +305,18 @@ def _timeline_unknown_metrics(
     longest = {
         approach: 0.0 for approach in approaches
     }
+    reason_weight: dict[str, float] = {}
     current_run = {
         approach: 0.0 for approach in approaches
     }
 
     for point, weight in zip(timeline, weights):
         states = dict(point.get("states", {}) or {})
+        reason = point.get("unknown_reason")
+        if reason:
+            reason_weight[str(reason)] = (
+                reason_weight.get(str(reason), 0.0) + weight
+            )
         for approach in approaches:
             if states.get(approach, "UNKNOWN") == "UNKNOWN":
                 unknown_weight[approach] += weight
@@ -284,6 +352,14 @@ def _timeline_unknown_metrics(
         "longest_unknown_s": {
             approach: round(value, 3)
             for approach, value in longest.items()
+        },
+        "reason_rate": {
+            reason: round(weight / total_weight, 4)
+            for reason, weight in reason_weight.items()
+        } if total_weight > 0 else {},
+        "reason_seconds": {
+            reason: round(weight, 3)
+            for reason, weight in reason_weight.items()
         },
         "meets_target": (
             overall_rate < target_rate
@@ -342,6 +418,18 @@ def build_session_timeline(
             item.approach: item.state.value
             for item in signal.approaches
         }
+        has_unknown = any(
+            state == "UNKNOWN"
+            for state in states.values()
+        )
+        if not has_unknown:
+            unknown_reason = None
+        elif phase is None:
+            unknown_reason = "uncovered_phase"
+        elif signal.phase_confidence < estimator.min_phase_confidence:
+            unknown_reason = "low_phase_confidence"
+        else:
+            unknown_reason = "estimator_unknown"
         timeline.append(
             {
                 "timestamp_ms": int(timestamp_ms),
@@ -363,6 +451,7 @@ def build_session_timeline(
                 ),
                 "confidence": signal.phase_confidence,
                 "states": states,
+                "unknown_reason": unknown_reason,
                 "axis_states": {
                     "NS": _axis_state(states, ("N", "S")),
                     "EW": _axis_state(states, ("E", "W")),
@@ -401,6 +490,9 @@ def _session_payload(
         "phase_model": _compact_phase_model(session),
         "timeline": timeline,
         "unknown_metrics": _timeline_unknown_metrics(timeline),
+        "uncovered_cycle_intervals": _phase_coverage_gaps(
+            session.phase_model
+        ),
     }
 
 
@@ -446,6 +538,16 @@ def analyze_zip_stream(
     total_trajectories = 0
     total_events = 0
     member_errors: list[dict[str, str]] = []
+    compact_blocks: list[
+        tuple[
+            int,
+            int,
+            int,
+            tuple[int, ...],
+            tuple[TrajectoryEvent, ...],
+            str,
+        ]
+    ] = []
 
     def flush_current() -> None:
         nonlocal current_events
@@ -521,43 +623,65 @@ def analyze_zip_stream(
                 block_start_ms, block_end_ms = _session_bounds(
                     trajectory_session
                 )
-                block_events = extract_events_from_trajectories(
-                    trajectory_session
+                block_events = tuple(
+                    extract_events_from_trajectories(
+                        trajectory_session
+                    )
                 )
-                block_end_times = [
+                block_end_times = tuple(
                     _trajectory_interval_ms(item)[1]
                     for item in trajectory_session
-                ]
+                )
                 total_events += len(block_events)
-
-                if current_start_ms is None:
-                    current_start_ms = block_start_ms
-                    current_end_ms = block_end_ms
-                    current_trajectory_count = len(trajectory_session)
-                    current_trajectory_end_times.extend(block_end_times)
-                    current_events.extend(block_events)
-                    continue
-
-                assert current_end_ms is not None
-                if block_end_ms < current_start_ms:
-                    raise ValueError(
-                        "ZIP JSON members are not chronological by trajectory time"
+                compact_blocks.append(
+                    (
+                        block_start_ms,
+                        block_end_ms,
+                        len(trajectory_session),
+                        block_end_times,
+                        block_events,
+                        member.filename,
                     )
+                )
 
-                if block_start_ms - current_end_ms > gap_ms:
-                    flush_current()
-                    current_start_ms = block_start_ms
-                    current_end_ms = block_end_ms
-                    current_trajectory_count = len(trajectory_session)
-                    current_trajectory_end_times.extend(block_end_times)
-                    current_events.extend(block_events)
-                    continue
+    for (
+        block_start_ms,
+        block_end_ms,
+        block_trajectory_count,
+        block_end_times,
+        block_events,
+        _member_name,
+    ) in sorted(
+        compact_blocks,
+        key=lambda item: (
+            item[0],
+            item[1],
+            item[5],
+        ),
+    ):
+        if current_start_ms is None:
+            current_start_ms = block_start_ms
+            current_end_ms = block_end_ms
+            current_trajectory_count = block_trajectory_count
+            current_trajectory_end_times.extend(block_end_times)
+            current_events.extend(block_events)
+            continue
 
-                current_start_ms = min(current_start_ms, block_start_ms)
-                current_end_ms = max(current_end_ms, block_end_ms)
-                current_trajectory_count += len(trajectory_session)
-                current_trajectory_end_times.extend(block_end_times)
-                current_events.extend(block_events)
+        assert current_end_ms is not None
+        if block_start_ms - current_end_ms > gap_ms:
+            flush_current()
+            current_start_ms = block_start_ms
+            current_end_ms = block_end_ms
+            current_trajectory_count = block_trajectory_count
+            current_trajectory_end_times.extend(block_end_times)
+            current_events.extend(block_events)
+            continue
+
+        current_start_ms = min(current_start_ms, block_start_ms)
+        current_end_ms = max(current_end_ms, block_end_ms)
+        current_trajectory_count += block_trajectory_count
+        current_trajectory_end_times.extend(block_end_times)
+        current_events.extend(block_events)
 
     flush_current()
     if not completed:
