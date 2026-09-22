@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from app.core.event_phase_discovery import (
@@ -287,7 +288,9 @@ def test_discovers_staggered_overlapping_approach_stages():
     assert ("N",) in active_sets
     assert ("N", "S") in active_sets
     assert ("E", "W") in active_sets
-    assert result.cycle_coverage < 1.0
+    assert result.cycle_coverage == 1.0
+    assert result.boundary_recovered_fraction > 0.0
+    assert result.boundary_recoveries
 
     n_only = next(
         phase
@@ -307,7 +310,10 @@ def test_discovers_staggered_overlapping_approach_stages():
 
     assert 14.0 <= _phase_duration(n_only, 100.0) <= 26.0
     assert 20.0 <= _phase_duration(ns, 100.0) <= 36.0
-    assert 34.0 <= _phase_duration(ew, 100.0) <= 48.0
+    # Family-boundary recovery may place the signal boundary before the
+    # first observed EW vehicle; the original direct-evidence window was
+    # intentionally narrower.
+    assert 34.0 <= _phase_duration(ew, 100.0) <= 56.0
 
 
 def test_simple_sparse_two_phase_case_remains_supported():
@@ -1002,3 +1008,138 @@ def test_near_full_cycle_movement_candidate_stays_diagnostic():
     )
 
     assert promoted == []
+
+
+
+def test_boundary_recovery_fills_only_reliable_cross_family_gap():
+    discovery = EventPhaseDiscovery()
+    n_bins = 50
+    stages = [
+        ("N", "S") if index < 20
+        else ()
+        if index < 28
+        else ("E", "W")
+        for index in range(n_bins)
+    ]
+    coarse_axes = {
+        "NS": np.asarray(
+            [index < 24 for index in range(n_bins)],
+            dtype=bool,
+        ),
+        "EW": np.asarray(
+            [index >= 24 for index in range(n_bins)],
+            dtype=bool,
+        ),
+    }
+    raw_counts = np.zeros((12, 4, n_bins), dtype=int)
+    for cycle in range(12):
+        raw_counts[cycle, 0, 5] = 1
+        raw_counts[cycle, 1, 10] = 1
+        raw_counts[cycle, 2, 35] = 1
+        raw_counts[cycle, 3, 40] = 1
+
+    recovered, diagnostics, fraction = (
+        discovery._recover_boundary_gaps(
+            stages,
+            coarse_axes=coarse_axes,
+            raw_counts=raw_counts,
+            observed_mask=np.ones(12, dtype=bool),
+            movement_candidates=(),
+            cycle_seconds=100.0,
+        )
+    )
+
+    assert all(recovered)
+    assert recovered[20:24] == [("N", "S")] * 4
+    assert recovered[24:28] == [("E", "W")] * 4
+    assert len(diagnostics) == 2
+    assert fraction == 0.16
+
+
+def test_boundary_recovery_preserves_internal_staggered_gap():
+    discovery = EventPhaseDiscovery()
+    n_bins = 50
+    stages = [
+        ("N",) if index < 10
+        else ()
+        if index < 14
+        else ("N", "S")
+        if index < 25
+        else ("E", "W")
+        for index in range(n_bins)
+    ]
+    coarse_axes = {
+        "NS": np.asarray(
+            [index < 25 for index in range(n_bins)],
+            dtype=bool,
+        ),
+        "EW": np.asarray(
+            [index >= 25 for index in range(n_bins)],
+            dtype=bool,
+        ),
+    }
+    raw_counts = np.ones((12, 4, n_bins), dtype=int)
+
+    recovered, diagnostics, fraction = (
+        discovery._recover_boundary_gaps(
+            stages,
+            coarse_axes=coarse_axes,
+            raw_counts=raw_counts,
+            observed_mask=np.ones(12, dtype=bool),
+            movement_candidates=(),
+            cycle_seconds=100.0,
+        )
+    )
+
+    assert recovered[10:14] == [()] * 4
+    assert diagnostics == []
+    assert fraction == 0.0
+
+
+def test_boundary_recovery_does_not_hide_distinct_movement_candidate():
+    discovery = EventPhaseDiscovery()
+    n_bins = 50
+    stages = [
+        ("N", "S") if index < 20
+        else ()
+        if index < 28
+        else ("E", "W")
+        for index in range(n_bins)
+    ]
+    coarse_axes = {
+        "NS": np.asarray(
+            [index < 24 for index in range(n_bins)],
+            dtype=bool,
+        ),
+        "EW": np.asarray(
+            [index >= 24 for index in range(n_bins)],
+            dtype=bool,
+        ),
+    }
+    raw_counts = np.ones((12, 4, n_bins), dtype=int)
+    candidate = MovementActivationCandidate(
+        approach="E",
+        movement="E->_N",
+        phase_start=42.0,
+        phase_end=50.0,
+        repeatability=0.9,
+        stability=0.9,
+        usable_event_count=80,
+        observed_cycle_count=12,
+        score=0.9,
+    )
+
+    recovered, diagnostics, fraction = (
+        discovery._recover_boundary_gaps(
+            stages,
+            coarse_axes=coarse_axes,
+            raw_counts=raw_counts,
+            observed_mask=np.ones(12, dtype=bool),
+            movement_candidates=(candidate,),
+            cycle_seconds=100.0,
+        )
+    )
+
+    assert recovered[20:28] == [()] * 8
+    assert diagnostics == []
+    assert fraction == 0.0

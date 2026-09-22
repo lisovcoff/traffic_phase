@@ -124,6 +124,14 @@ def test_json_api_returns_session_based_result():
     assert "cycle_coverage" in session["phase_model"]
     assert "unknown_metrics" in session
     assert "uncovered_cycle_intervals" in session
+    assert session["model_quality"] in {
+        "GOOD",
+        "PARTIAL",
+        "INSUFFICIENT",
+    }
+    assert "quality_reasons" in session
+    assert "boundary_recoveries" in session["phase_model"]
+    assert "boundary_recovered_fraction" in session["phase_model"]
 
 
 

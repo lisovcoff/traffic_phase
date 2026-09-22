@@ -147,6 +147,13 @@ def _compact_phase_model(session: SessionReconstruction) -> dict[str, object] | 
             stage.to_dict()
             for stage in model.movement_stages
         ],
+        "boundary_recoveries": [
+            recovery.to_dict()
+            for recovery in model.boundary_recoveries
+        ],
+        "boundary_recovered_fraction": (
+            model.boundary_recovered_fraction
+        ),
     }
 
 
@@ -478,6 +485,8 @@ def _session_payload(
         "regime_count": session.regime_count,
         "rolling_period_seconds": session.rolling_period_seconds,
         "rolling_window_count": session.rolling_window_count,
+        "model_quality": session.model_quality,
+        "quality_reasons": list(session.quality_reasons),
         "start_timestamp_ms": session.start_timestamp_ms,
         "end_timestamp_ms": session.end_timestamp_ms,
         "duration_s": session.duration_s,

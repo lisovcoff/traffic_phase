@@ -79,6 +79,8 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="stat"><span>UNKNOWN rate</span><strong id="batchUnknown">—</strong></div>
       <div class="stat"><span>UNKNOWN N/S/E/W</span><strong id="batchUnknownByApproach">—</strong></div>
       <div class="stat"><span>Phase coverage</span><strong id="batchCoverage">—</strong></div>
+      <div class="stat"><span>Model quality</span><strong id="batchQuality">—</strong></div>
+      <div class="stat"><span>Boundary recovery</span><strong id="batchRecovery">—</strong></div>
       <div class="stat"><span>UNKNOWN cause</span><strong id="batchUnknownCause">—</strong></div>
     </div>
 
@@ -230,7 +232,7 @@ async function analyzeBatch(){
     sessions.forEach((item,i)=>{
       const option=document.createElement('option');
       option.value=String(i);
-      option.textContent='Session '+item.session_id+' · '+item.status+' · '+item.duration_s.toFixed(1)+' s';
+      option.textContent='Session '+item.session_id+' · '+item.status+' · '+(item.model_quality||'UNKNOWN')+' · '+item.duration_s.toFixed(1)+' s';
       select.appendChild(option);
     });
     $('batchSessionRow').classList.toggle('hidden',sessions.length===1);
@@ -257,6 +259,13 @@ function openBatchSession(i){
   $('batchUnknownByApproach').textContent=['N','S','E','W'].map(a=>a+' '+(byApproach[a]==null?'—':(byApproach[a]*100).toFixed(1)+'%')).join(' · ');
   const model=batchSession.phase_model||{};
   $('batchCoverage').textContent=model.cycle_coverage==null?'—':(Number(model.cycle_coverage)*100).toFixed(1)+'%';
+  const quality=batchSession.model_quality||'UNKNOWN';
+  const qualityReasons=batchSession.quality_reasons||[];
+  $('batchQuality').textContent=quality+(qualityReasons.length?(' · '+qualityReasons.join(', ')):'');
+  $('batchQuality').className=quality==='GOOD'?'ok':(quality==='INSUFFICIENT'?'error':'warmup');
+  const recovered=Number(model.boundary_recovered_fraction||0);
+  const recoveryItems=model.boundary_recoveries||[];
+  $('batchRecovery').textContent=(recovered*100).toFixed(1)+'%'+(recoveryItems.length?(' · '+recoveryItems.map(item=>item.axis+' '+Number(item.phase_start).toFixed(1)+'–'+Number(item.phase_end).toFixed(1)+'s').join(', ')):'');
   const reasonRate=unknown.reason_rate||{};
   const gaps=batchSession.uncovered_cycle_intervals||[];
   const reasons=Object.entries(reasonRate).map(([reason,rate])=>reason+' '+(Number(rate)*100).toFixed(1)+'%');
@@ -346,14 +355,14 @@ function playBatch(){
 function stopBatch(){if(batchTimer){clearInterval(batchTimer);batchTimer=null}}
 
 function usableTemplate(){
-  return batchSession&&batchSession.status==='ok'&&batchSession.phase_model&&batchSession.phase_model.phases&&batchSession.phase_model.phases.length;
+  return batchSession&&batchSession.status==='ok'&&batchSession.model_quality!=='INSUFFICIENT'&&batchSession.phase_model&&batchSession.phase_model.phases&&batchSession.phase_model.phases.length;
 }
 function updateTemplateStatus(){
   if(usableTemplate()){
-    $('templateStatus').textContent='Batch session '+batchSession.session_id+' · cycle '+batchSession.phase_model.cycle_seconds.toFixed(1)+' s';
-    $('templateStatus').className='ok';
+    $('templateStatus').textContent='Batch session '+batchSession.session_id+' · '+(batchSession.model_quality||'UNKNOWN')+' · cycle '+batchSession.phase_model.cycle_seconds.toFixed(1)+' s';
+    $('templateStatus').className=batchSession.model_quality==='GOOD'?'ok':'warmup';
   }else{
-    $('templateStatus').textContent='Run Batch on a successful reference session first.';
+    $('templateStatus').textContent=batchSession&&batchSession.model_quality==='INSUFFICIENT'?'Selected Batch model is INSUFFICIENT for realtime warm-start.':'Run Batch on a successful reference session first.';
     $('templateStatus').className='muted';
   }
   updateRealtimeStart();

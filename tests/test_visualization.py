@@ -91,3 +91,14 @@ def test_visualization_surfaces_batch_unknown_diagnostics():
     assert 'id="batchCoverage"' in html
     assert 'id="batchUnknownCause"' in html
     assert "uncovered_cycle_intervals" in html
+
+
+
+def test_visualization_surfaces_batch_quality_and_boundary_recovery():
+    html = visualization_page()
+
+    assert 'id="batchQuality"' in html
+    assert 'id="batchRecovery"' in html
+    assert "model_quality" in html
+    assert "boundary_recovered_fraction" in html
+    assert "model_quality!=='INSUFFICIENT'" in html

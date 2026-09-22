@@ -24,6 +24,12 @@ DEFAULT_REGIME_PHASE_CHANGE_FRACTION = 0.10
 REGIME_PHASE_SIGNATURE_BINS = 60
 DEFAULT_MIN_PHASE_SECONDS = 8.0
 DEFAULT_PHASE_AMBIGUITY_CONFIDENCE = 0.55
+GOOD_MODEL_MIN_COVERAGE = 0.95
+GOOD_MODEL_MIN_CYCLE_CONFIDENCE = 0.70
+GOOD_MODEL_MIN_PHASE_CONFIDENCE = 0.70
+PARTIAL_MODEL_MIN_COVERAGE = 0.70
+PARTIAL_MODEL_MIN_CYCLE_CONFIDENCE = 0.50
+PARTIAL_MODEL_MIN_PHASE_CONFIDENCE = 0.50
 
 
 @dataclass(frozen=True)
@@ -83,6 +89,8 @@ class SessionReconstruction:
     regime_count: int = 1
     rolling_period_seconds: float | None = None
     rolling_window_count: int = 0
+    model_quality: str = "UNKNOWN"
+    quality_reasons: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -99,6 +107,8 @@ class SessionReconstruction:
             "regime_count": self.regime_count,
             "rolling_period_seconds": self.rolling_period_seconds,
             "rolling_window_count": self.rolling_window_count,
+            "model_quality": self.model_quality,
+            "quality_reasons": list(self.quality_reasons),
             "cycle": self.cycle.to_dict() if self.cycle is not None else None,
             "phase_model": (
                 self.phase_model.to_dict()
@@ -838,6 +848,52 @@ def _reconstruction_confidence(
     )
 
 
+def batch_model_quality(
+    cycle: EventCycleEstimate,
+    phase_model: EventPhaseDiscoveryResult,
+) -> tuple[str, tuple[str, ...]]:
+    """Operational quality class for using a Batch model as a template.
+
+    This is deliberately separate from reconstruction status: a model can be
+    technically reconstructed ("ok") yet still be too incomplete for safe
+    realtime warm-starting.
+    """
+    coverage = float(phase_model.cycle_coverage)
+    cycle_confidence = float(cycle.estimate.confidence)
+    phase_confidence = float(_phase_confidence(phase_model))
+
+    good = (
+        coverage >= GOOD_MODEL_MIN_COVERAGE
+        and cycle_confidence >= GOOD_MODEL_MIN_CYCLE_CONFIDENCE
+        and phase_confidence >= GOOD_MODEL_MIN_PHASE_CONFIDENCE
+    )
+    partial = (
+        coverage >= PARTIAL_MODEL_MIN_COVERAGE
+        and cycle_confidence >= PARTIAL_MODEL_MIN_CYCLE_CONFIDENCE
+        and phase_confidence >= PARTIAL_MODEL_MIN_PHASE_CONFIDENCE
+    )
+    if good:
+        return "GOOD", ()
+    quality = "PARTIAL" if partial else "INSUFFICIENT"
+    reasons: list[str] = []
+    if coverage < GOOD_MODEL_MIN_COVERAGE:
+        reasons.append(
+            f"phase_coverage={coverage:.4f}<"
+            f"{GOOD_MODEL_MIN_COVERAGE:.2f}"
+        )
+    if cycle_confidence < GOOD_MODEL_MIN_CYCLE_CONFIDENCE:
+        reasons.append(
+            f"cycle_confidence={cycle_confidence:.4f}<"
+            f"{GOOD_MODEL_MIN_CYCLE_CONFIDENCE:.2f}"
+        )
+    if phase_confidence < GOOD_MODEL_MIN_PHASE_CONFIDENCE:
+        reasons.append(
+            f"phase_confidence={phase_confidence:.4f}<"
+            f"{GOOD_MODEL_MIN_PHASE_CONFIDENCE:.2f}"
+        )
+    return quality, tuple(reasons)
+
+
 def reconstruct_event_session(
     events: Sequence[TrajectoryEvent],
     *,
@@ -891,6 +947,8 @@ def reconstruct_event_session(
             regime_count=regime_count,
             rolling_period_seconds=rolling_period_seconds,
             rolling_window_count=rolling_window_count,
+            model_quality="INSUFFICIENT",
+            quality_reasons=("model_not_reconstructed",),
         )
     except Exception as exc:
         return SessionReconstruction(
@@ -909,6 +967,8 @@ def reconstruct_event_session(
             regime_count=regime_count,
             rolling_period_seconds=rolling_period_seconds,
             rolling_window_count=rolling_window_count,
+            model_quality="INSUFFICIENT",
+            quality_reasons=("model_error",),
         )
 
     ambiguity = phase_model_ambiguity_reason(phase_model)
@@ -929,8 +989,14 @@ def reconstruct_event_session(
             regime_count=regime_count,
             rolling_period_seconds=rolling_period_seconds,
             rolling_window_count=rolling_window_count,
+            model_quality="INSUFFICIENT",
+            quality_reasons=("ambiguous_phase_model",),
         )
 
+    model_quality, quality_reasons = batch_model_quality(
+        cycle,
+        phase_model,
+    )
     return SessionReconstruction(
         start_timestamp_ms=start_timestamp_ms,
         end_timestamp_ms=end_timestamp_ms,
@@ -950,6 +1016,8 @@ def reconstruct_event_session(
         regime_count=regime_count,
         rolling_period_seconds=rolling_period_seconds,
         rolling_window_count=rolling_window_count,
+        model_quality=model_quality,
+        quality_reasons=quality_reasons,
     )
 
 

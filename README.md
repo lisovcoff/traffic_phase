@@ -149,6 +149,14 @@ trajectory snapshots are idempotent and confirmed events are emitted once.
 The simulation registry is bounded and old simulations are evicted when its
 capacity is exceeded.
 
+Batch phase discovery can conservatively recover bounded NS/EW transition
+gaps from the recurring coarse conflict-family schedule when both families
+have strong multi-cycle support. Recovery is not allowed across an internal
+same-family boundary (for example N -> N+S) or across a distinct movement
+candidate. Batch sessions also expose an operational model quality class:
+GOOD, PARTIAL, or INSUFFICIENT. Technically successful but insufficient
+models are not offered as realtime warm-start templates.
+
 Realtime snapshots expose template-compatibility diagnostics, instantaneous
 UNKNOWN reasons, cumulative/post-sync/rolling-60s UNKNOWN rates, and temporary
 live-override duration. A stream that uses approaches outside the configured

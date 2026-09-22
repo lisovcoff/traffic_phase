@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from app.core.event_phase_discovery import EventPhaseDiscoveryResult
 from app.core.models import Detection, EventType, Trajectory, TrajectoryEvent
 from app.core.reconstruction import (
     BatchReconstruction,
+    batch_model_quality,
     DEFAULT_SESSION_GAP_SECONDS,
     reconstruct_event_sessions,
     _raw_axis_signature,
@@ -313,3 +316,40 @@ def test_same_cycle_phase_plan_change_creates_new_regime():
         112.0 <= regime.rolling_period_seconds <= 128.0
         for regime in regimes
     )
+
+
+
+def test_batch_model_quality_distinguishes_good_partial_and_insufficient():
+    cycle = SimpleNamespace(
+        estimate=SimpleNamespace(confidence=0.9)
+    )
+
+    def model(coverage, phase_confidence):
+        return SimpleNamespace(
+            cycle_coverage=coverage,
+            phases=(
+                SimpleNamespace(confidence=phase_confidence),
+                SimpleNamespace(confidence=phase_confidence),
+            ),
+        )
+
+    assert batch_model_quality(
+        cycle,
+        model(0.98, 0.9),
+    ) == ("GOOD", ())
+
+    partial_quality, partial_reasons = batch_model_quality(
+        cycle,
+        model(0.80, 0.8),
+    )
+    assert partial_quality == "PARTIAL"
+    assert any(
+        reason.startswith("phase_coverage=")
+        for reason in partial_reasons
+    )
+
+    insufficient_quality, _ = batch_model_quality(
+        cycle,
+        model(0.55, 0.8),
+    )
+    assert insufficient_quality == "INSUFFICIENT"

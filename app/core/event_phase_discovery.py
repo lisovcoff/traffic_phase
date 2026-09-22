@@ -77,6 +77,20 @@ class MovementSignalStage:
 
 
 @dataclass(frozen=True)
+class PhaseBoundaryRecovery:
+    """Bins recovered from a reliable coarse conflict-family schedule."""
+
+    axis: str
+    phase_start: float
+    phase_end: float
+    active_approaches: tuple[str, ...]
+    confidence: float
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
 class EventPhase:
     """One non-overlapping recurring signal stage.
 
@@ -114,6 +128,8 @@ class EventPhaseDiscoveryResult:
         MovementActivationCandidate, ...
     ] = ()
     movement_stages: tuple[MovementSignalStage, ...] = ()
+    boundary_recoveries: tuple[PhaseBoundaryRecovery, ...] = ()
+    boundary_recovered_fraction: float = 0.0
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -134,6 +150,13 @@ class EventPhaseDiscoveryResult:
                 stage.to_dict()
                 for stage in self.movement_stages
             ],
+            "boundary_recoveries": [
+                recovery.to_dict()
+                for recovery in self.boundary_recoveries
+            ],
+            "boundary_recovered_fraction": (
+                self.boundary_recovered_fraction
+            ),
         }
 
 
@@ -175,6 +198,10 @@ class EventPhaseDiscovery:
     MOVEMENT_STAGE_MIN_BOUNDARY_SEPARATION_SECONDS = 10.0
     MOVEMENT_STAGE_MAX_SEPARATE_OVERLAP = 0.25
     MOVEMENT_STAGE_MAX_CYCLE_FRACTION = 0.70
+    BOUNDARY_RECOVERY_MIN_AXIS_RELIABILITY = 0.70
+    BOUNDARY_RECOVERY_MIN_OBSERVED_CYCLES = 8
+    BOUNDARY_RECOVERY_MAX_GAP_FRACTION = 0.20
+    BOUNDARY_RECOVERY_MAX_SECONDS = 20.0
 
     def __init__(
         self,
@@ -260,6 +287,24 @@ class EventPhaseDiscovery:
             fallback_counts=raw_counts,
         )
         stages = self._stage_sets(active_masks)
+        raw_observed_mask = self._observed_cycle_mask(raw_counts)
+        coarse_axes = self._axis_envelopes(
+            raw_evidence,
+            raw_counts,
+            raw_observed_mask,
+        )
+        (
+            stages,
+            boundary_recoveries,
+            recovered_fraction,
+        ) = self._recover_boundary_gaps(
+            stages,
+            coarse_axes=coarse_axes,
+            raw_counts=raw_counts,
+            observed_mask=raw_observed_mask,
+            movement_candidates=distinct_movement_candidates,
+            cycle_seconds=cycle_seconds,
+        )
         stage_counts = self._stage_count_evidence(
             counts,
             raw_counts,
@@ -305,6 +350,11 @@ class EventPhaseDiscovery:
                 distinct_movement_candidates
             ),
             movement_stages=tuple(movement_stages),
+            boundary_recoveries=tuple(boundary_recoveries),
+            boundary_recovered_fraction=round(
+                recovered_fraction,
+                4,
+            ),
         )
 
     def _selected_events(
@@ -1414,6 +1464,278 @@ class EventPhaseDiscovery:
                 raw_backed[group_id] = True
 
         return result, raw_backed
+
+    def _axis_schedule_stats(
+        self,
+        counts: np.ndarray,
+        observed_mask: np.ndarray,
+    ) -> dict[str, tuple[int, float]]:
+        axis_indices = self._axis_group_indices()
+        result: dict[str, tuple[int, float]] = {}
+        for axis in ("NS", "EW"):
+            indices = axis_indices[axis]
+            if not indices:
+                continue
+            axis_counts = counts[:, indices, :].sum(
+                axis=1,
+                keepdims=True,
+            )
+            usable, observed, reliability = (
+                self._group_reliability_stats(
+                    axis_counts,
+                    observed_mask,
+                )[0]
+            )
+            _ = usable
+            result[axis] = (
+                int(observed),
+                float(reliability),
+            )
+        return result
+
+    @staticmethod
+    def _stage_axis(
+        active: Sequence[str],
+    ) -> str | None:
+        values = set(active)
+        if values and values <= VERTICAL_APPROACHES:
+            return "NS"
+        if values and values <= HORIZONTAL_APPROACHES:
+            return "EW"
+        return None
+
+    def _recover_boundary_gaps(
+        self,
+        stages: Sequence[tuple[str, ...]],
+        *,
+        coarse_axes: dict[str, np.ndarray],
+        raw_counts: np.ndarray,
+        observed_mask: np.ndarray,
+        movement_candidates: Sequence[MovementActivationCandidate],
+        cycle_seconds: float,
+    ) -> tuple[
+        list[tuple[str, ...]],
+        list[PhaseBoundaryRecovery],
+        float,
+    ]:
+        """Recover only cross-family boundary gaps with repeated evidence.
+
+        The raw NS/EW schedule uses every usable RELEASE/CROSSING event and
+        therefore estimates conflict-family boundaries more robustly than an
+        individual approach mask. We use it only when both families recur in
+        enough cycles, only for bounded gaps between *different* families, and
+        never across a distinct movement candidate. Internal N -> N+S gaps
+        remain UNKNOWN because filling them could erase a real staggered or
+        protected stage.
+        """
+        result = list(stages)
+        n_bins = len(result)
+        if (
+            n_bins <= 0
+            or "NS" not in coarse_axes
+            or "EW" not in coarse_axes
+        ):
+            return result, [], 0.0
+
+        stats = self._axis_schedule_stats(
+            raw_counts,
+            observed_mask,
+        )
+        if any(
+            axis not in stats
+            or stats[axis][0]
+            < self.BOUNDARY_RECOVERY_MIN_OBSERVED_CYCLES
+            or stats[axis][1]
+            < self.BOUNDARY_RECOVERY_MIN_AXIS_RELIABILITY
+            for axis in ("NS", "EW")
+        ):
+            return result, [], 0.0
+
+        max_gap_seconds = min(
+            self.BOUNDARY_RECOVERY_MAX_SECONDS,
+            cycle_seconds
+            * self.BOUNDARY_RECOVERY_MAX_GAP_FRACTION,
+        )
+        max_gap_bins = max(
+            1,
+            int(
+                round(
+                    max_gap_seconds
+                    / self.bin_seconds
+                )
+            ),
+        )
+        candidate_mask = np.zeros(
+            n_bins,
+            dtype=bool,
+        )
+        for candidate in movement_candidates:
+            candidate_mask |= self._interval_mask(
+                candidate.phase_start,
+                candidate.phase_end,
+                n_bins,
+            )
+
+        confidence = min(
+            stats["NS"][1],
+            stats["EW"][1],
+        )
+        recoveries: list[PhaseBoundaryRecovery] = []
+        recovered_bins = 0
+
+        for start, end, active in self._circular_runs(
+            list(stages)
+        ):
+            if active:
+                continue
+            indices = self._interval_indices(
+                start,
+                end,
+                n_bins,
+            )
+            if (
+                not indices
+                or len(indices) > max_gap_bins
+                or any(candidate_mask[index] for index in indices)
+            ):
+                continue
+
+            previous = result[
+                (start - 1) % n_bins
+            ]
+            following = result[
+                end % n_bins
+            ]
+            previous_axis = self._stage_axis(previous)
+            following_axis = self._stage_axis(following)
+            if (
+                previous_axis is None
+                or following_axis is None
+                or previous_axis == following_axis
+            ):
+                continue
+
+            coarse_assignment: list[str] = []
+            valid = True
+            for index in indices:
+                if coarse_axes[previous_axis][index]:
+                    axis = previous_axis
+                elif coarse_axes[following_axis][index]:
+                    axis = following_axis
+                else:
+                    valid = False
+                    break
+                coarse_assignment.append(axis)
+            if not valid:
+                continue
+
+            axis_sequence: list[str] = []
+            for axis in coarse_assignment:
+                if not axis_sequence or axis_sequence[-1] != axis:
+                    axis_sequence.append(axis)
+            if axis_sequence not in (
+                [previous_axis],
+                [following_axis],
+                [previous_axis, following_axis],
+            ):
+                continue
+
+            if axis_sequence == [previous_axis, following_axis]:
+                coarse_split = next(
+                    index
+                    for index, axis in enumerate(coarse_assignment)
+                    if axis == following_axis
+                )
+            elif axis_sequence == [previous_axis]:
+                coarse_split = len(indices)
+            else:
+                coarse_split = 0
+
+            # The coarse two-family optimizer has a duration-balance prior.
+            # In a traffic-silent boundary gap that prior must not stretch
+            # one phase all the way to the opposite observed edge. Keep the
+            # coarse split only when it is reasonably central; otherwise use
+            # the midpoint between the last observed stage and the next one.
+            midpoint_split = len(indices) // 2
+            split_tolerance = max(1, len(indices) // 4)
+            split = (
+                coarse_split
+                if abs(coarse_split - midpoint_split)
+                <= split_tolerance
+                else midpoint_split
+            )
+            if len(indices) >= 2:
+                split = min(
+                    len(indices) - 1,
+                    max(1, split),
+                )
+
+            assignments: list[
+                tuple[int, str, tuple[str, ...]]
+            ] = []
+            for offset, index in enumerate(indices):
+                if offset < split:
+                    assignments.append(
+                        (
+                            index,
+                            previous_axis,
+                            tuple(previous),
+                        )
+                    )
+                else:
+                    assignments.append(
+                        (
+                            index,
+                            following_axis,
+                            tuple(following),
+                        )
+                    )
+
+            for index, _axis, stage in assignments:
+                result[index] = stage
+            recovered_bins += len(assignments)
+
+            segment_start = 0
+            while segment_start < len(assignments):
+                axis = assignments[segment_start][1]
+                stage = assignments[segment_start][2]
+                segment_end = segment_start + 1
+                while (
+                    segment_end < len(assignments)
+                    and assignments[segment_end][1] == axis
+                    and assignments[segment_end][2] == stage
+                ):
+                    segment_end += 1
+                first_index = assignments[segment_start][0]
+                last_index = assignments[segment_end - 1][0]
+                recovery_end = (
+                    last_index + 1
+                ) % n_bins
+                recoveries.append(
+                    PhaseBoundaryRecovery(
+                        axis=axis,
+                        phase_start=round(
+                            first_index * self.bin_seconds,
+                            2,
+                        ),
+                        phase_end=round(
+                            recovery_end * self.bin_seconds,
+                            2,
+                        ),
+                        active_approaches=stage,
+                        confidence=round(
+                            confidence,
+                            4,
+                        ),
+                    )
+                )
+                segment_start = segment_end
+
+        return (
+            result,
+            recoveries,
+            recovered_bins / max(1, n_bins),
+        )
 
     def _independent_activation_masks(
         self,
