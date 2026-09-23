@@ -9,6 +9,17 @@ physical traffic signal is not directly visible.
 
 ## Scope
 
+The production contract is intentionally conservative: infer a signal phase
+only where indirect vehicle-flow evidence supports it. If observations are
+too sparse or ambiguous, the correct result is UNKNOWN / unable to determine.
+UNKNOWN is not an error target and the production path does not attempt to
+force cycle coverage toward 100%.
+
+Cross-day pooling is allowed because it combines additional real
+RELEASE/CROSSING observations from a recurring timing regime. In contrast,
+boundary interpolation, gap labels, and residual movement-stage analysis are
+diagnostic only and must not fill an otherwise unsupported phase interval.
+
 The repository implements two demonstration modes:
 
 1. **Batch archive analysis** — analyze an existing trajectory JSON or ZIP,
@@ -149,21 +160,21 @@ trajectory snapshots are idempotent and confirmed events are emitted once.
 The simulation registry is bounded and old simulations are evicted when its
 capacity is exceeded.
 
-Batch phase discovery can conservatively recover bounded NS/EW transition
-gaps from the recurring coarse conflict-family schedule when both families
-have strong multi-cycle support. Recovery is not allowed across an internal
-same-family boundary (for example N -> N+S) or across a distinct movement
-candidate. Batch sessions also expose an operational model quality class:
-GOOD, PARTIAL, or INSUFFICIENT. Technically successful but insufficient
-models are not offered as realtime warm-start templates.
+Batch phase discovery may compute a diagnostic NS/EW boundary suggestion
+from the recurring coarse conflict-family schedule, but that suggestion is
+not applied to the authoritative phase model. Uncovered bins remain UNKNOWN
+unless direct recurring RELEASE/CROSSING evidence supports a stage there.
+Batch sessions expose an operational model quality class: GOOD, PARTIAL, or
+INSUFFICIENT. INSUFFICIENT models are never used as realtime templates;
+PARTIAL models may be used only on their evidence-backed intervals and retain
+UNKNOWN gaps.
 
 Uncovered cycle intervals are classified rather than treated as one generic
 UNKNOWN bucket. Short gaps between conflicting NS/EW families are reported as
 CLEARANCE_CANDIDATE; persistent gaps in an otherwise high-confidence model or
 gaps containing recurring movement evidence are UNRESOLVED_STAGE; weakly
-observed gaps are UNOBSERVED. The API reports a separate unresolved-UNKNOWN
-rate so clearance candidates do not artificially count as unexplained signal
-state.
+observed gaps are UNOBSERVED. The diagnostic label does not change observability: every uncovered cycle
+interval still counts as unable to determine.
 
 Recurring regimes from different physical sessions are clustered by cycle
 length and cyclically aligned N/S/E/W structure. D.8 retains the raw
@@ -185,16 +196,11 @@ clearance when recurring movement evidence is present. Such gaps are reported
 as TRANSITION_AMBIGUOUS and still count toward unresolved UNKNOWN until pooled
 cross-day evidence resolves them.
 
-D.9 evaluates movement-specific signal stages on residual evidence rather than
-only on the full traffic envelope. For each distinct movement candidate, the
-parent approach-green mask is subtracted and the largest remaining interval is
-measured directly from raw RELEASE/CROSSING events. Residual repeatability,
-stability, supporting events/cycles, and conflicting-family traffic are
-reported explicitly. A strong residual may be promoted even when the whole
-movement envelope is too demand-dependent for the legacy promoter, while
-substantial conflicting flow vetoes that promotion. The existing conservative
-whole-envelope promoter remains as a fallback and its thresholds are not
-lowered.
+Residual movement-stage analysis is retained as a diagnostic research aid. It
+reports residual repeatability, stability, supporting events/cycles, and
+conflicting-family traffic, but it is not used to fill unsupported main-phase
+gaps or to reduce UNKNOWN for its own sake. Movement stages remain secondary
+to the evidence-backed main phase model.
 
 Realtime snapshots expose template-compatibility diagnostics, instantaneous
 UNKNOWN reasons, cumulative/post-sync/rolling-60s UNKNOWN rates, and temporary
@@ -300,8 +306,8 @@ accuracy.
 - The default phase structure assumes two opposing groups: NS and EW.
 - Sparse or imbalanced traffic can reduce phase confidence or leave the state
   UNKNOWN.
-- Yellow and RED_YELLOW are modeled transition windows, not observed lamp
-  timings.
+- Yellow and RED_YELLOW are modeled visualization windows, not directly
+  observed lamp timings and not controller telemetry.
 - A CROSSING fallback based on the final detection is weak evidence and is
   used only when named detection-zone information is absent.
 - Batch ZIP processing assumes members are chronological by trajectory time;

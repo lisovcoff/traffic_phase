@@ -533,12 +533,22 @@ class RealtimeArchiveSimulation:
             post_sync_unknown,
             post_sync_states,
         )
+        overall_rate = self._rate(
+            total_unknown,
+            total_states,
+        )
+        rolling_rate = self._rate(
+            recent_unknown,
+            recent_samples * approach_count,
+        )
         return {
-            "target_rate": 0.01,
             "sample_count": self._unknown_sample_count,
-            "overall_rate": self._rate(
-                total_unknown,
-                total_states,
+            "overall_rate": overall_rate,
+            "unable_to_determine_rate": overall_rate,
+            "determined_rate": (
+                round(1.0 - overall_rate, 4)
+                if overall_rate is not None
+                else None
             ),
             "per_approach_rate": {
                 approach: self._rate(
@@ -556,13 +566,15 @@ class RealtimeArchiveSimulation:
                 )
                 for approach in approaches
             },
-            "rolling_60s_rate": self._rate(
-                recent_unknown,
-                recent_samples * approach_count,
-            ),
-            "meets_post_sync_target": (
-                post_sync_rate < 0.01
+            "rolling_60s_rate": rolling_rate,
+            "post_sync_determined_rate": (
+                round(1.0 - post_sync_rate, 4)
                 if post_sync_rate is not None
+                else None
+            ),
+            "rolling_60s_determined_rate": (
+                round(1.0 - rolling_rate, 4)
+                if rolling_rate is not None
                 else None
             ),
         }

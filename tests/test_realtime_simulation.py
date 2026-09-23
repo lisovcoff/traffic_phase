@@ -738,7 +738,10 @@ def test_realtime_unknown_metrics_track_post_sync_and_rolling_rates():
     assert metrics["post_sync_sample_count"] == 1
     assert metrics["post_sync_rate"] == 0.0
     assert metrics["rolling_60s_rate"] == 0.0
-    assert metrics["meets_post_sync_target"] is True
+    assert metrics["post_sync_determined_rate"] == 1.0
+    assert metrics["rolling_60s_determined_rate"] == 1.0
+    assert "target_rate" not in metrics
+    assert "meets_post_sync_target" not in metrics
 
 
 def test_realtime_source_rejects_unknown_approach_topology():

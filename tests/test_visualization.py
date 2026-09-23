@@ -69,7 +69,7 @@ def test_visualization_shows_movement_specific_groups_as_backend_data():
     assert 'id="realtimeMovements"' in html
     assert "movement_stages" in html
     assert "active_movements" in html
-    assert "Movement-specific groups are inferred separately" in html
+    assert "Only evidence-backed intervals are authoritative" in html
 
 
 
@@ -101,9 +101,10 @@ def test_visualization_surfaces_batch_quality_and_boundary_recovery():
     assert 'id="batchQuality"' in html
     assert 'id="batchRecovery"' in html
     assert "model_quality" in html
-    assert "boundary_recovered_fraction" in html
-    assert "batchSession.model_quality==='GOOD'" in html
-    assert "family.pooled_model_quality==='GOOD'" in html
+    assert "boundary_suggested_fraction" in html
+    assert "suggested · not applied" in html
+    assert "effective_phase_model" in html
+    assert "determination.usable" in html
 
 
 
@@ -116,7 +117,7 @@ def test_visualization_surfaces_gap_semantics_and_regime_families():
     assert 'id="batchPooled"' in html
     assert "function currentRegimeFamily" in html
     assert "function effectiveTemplate" in html
-    assert "pooled raw-event regime family '+family.family_id" in html
+    assert "effective_phase_model" in html
     assert "pooled_phase_model" in html
     assert "transition ambiguous" in html
     assert "Analysis segment:" in html
@@ -130,3 +131,15 @@ def test_visualization_surfaces_residual_movement_decisions():
     assert "Pooled decision " in html
     assert "residual_repeatability" in html
     assert "conflicting_event_ratio" in html
+
+
+
+def test_visualization_does_not_treat_unknown_as_a_failure_target():
+    html = visualization_page()
+
+    assert "Unable to determine" in html
+    assert "Effective determination" in html
+    assert "Only evidence-backed intervals are authoritative" in html
+    assert "✓ <1%" not in html
+    assert "meets_target" not in html
+    assert "meets_unresolved_target" not in html

@@ -53,10 +53,13 @@ def test_batch_unknown_metrics_are_per_approach_and_time_weighted():
     assert metrics["per_approach_rate"]["N"] == 0.5
     assert metrics["per_approach_rate"]["S"] == 0.0
     assert metrics["longest_unknown_s"]["N"] == 5.0
-    assert metrics["meets_target"] is False
+    assert metrics["unable_to_determine_rate"] == 0.125
+    assert metrics["determined_rate"] == 0.875
+    assert "target_rate" not in metrics
+    assert "meets_target" not in metrics
 
 
-def test_batch_unknown_target_is_strictly_below_one_percent():
+def test_batch_unknown_has_no_arbitrary_failure_target():
     timeline = [
         {
             "timestamp_ms": 0,
@@ -81,8 +84,10 @@ def test_batch_unknown_target_is_strictly_below_one_percent():
     metrics = _timeline_unknown_metrics(timeline)
 
     assert metrics["overall_rate"] == 0.0
-    assert metrics["target_rate"] == 0.01
-    assert metrics["meets_target"] is True
+    assert metrics["unable_to_determine_rate"] == 0.0
+    assert metrics["determined_rate"] == 1.0
+    assert "target_rate" not in metrics
+    assert "meets_target" not in metrics
 
 
 

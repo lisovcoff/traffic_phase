@@ -107,7 +107,7 @@ class MovementStageDecision:
 
 @dataclass(frozen=True)
 class PhaseBoundaryRecovery:
-    """Bins recovered from a reliable coarse conflict-family schedule."""
+    """Diagnostic boundary suggestion from a coarse conflict-family schedule."""
 
     axis: str
     phase_start: float
@@ -160,6 +160,8 @@ class EventPhaseDiscoveryResult:
     movement_stage_decisions: tuple[MovementStageDecision, ...] = ()
     boundary_recoveries: tuple[PhaseBoundaryRecovery, ...] = ()
     boundary_recovered_fraction: float = 0.0
+    boundary_suggested_fraction: float = 0.0
+    boundary_recovery_applied: bool = False
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -190,6 +192,12 @@ class EventPhaseDiscoveryResult:
             ],
             "boundary_recovered_fraction": (
                 self.boundary_recovered_fraction
+            ),
+            "boundary_suggested_fraction": (
+                self.boundary_suggested_fraction
+            ),
+            "boundary_recovery_applied": (
+                self.boundary_recovery_applied
             ),
         }
 
@@ -331,9 +339,9 @@ class EventPhaseDiscovery:
             raw_observed_mask,
         )
         (
-            stages,
+            _suggested_stages,
             boundary_recoveries,
-            recovered_fraction,
+            suggested_fraction,
         ) = self._recover_boundary_gaps(
             stages,
             coarse_axes=coarse_axes,
@@ -342,6 +350,10 @@ class EventPhaseDiscovery:
             movement_candidates=distinct_movement_candidates,
             cycle_seconds=cycle_seconds,
         )
+        # Scope guard: boundary recovery is diagnostic only. The authoritative
+        # phase model must be supported by observed RELEASE/CROSSING evidence;
+        # an uncovered gap remains UNKNOWN instead of being interpolated from
+        # neighbouring conflict-family stages.
         stage_counts = self._stage_count_evidence(
             counts,
             raw_counts,
@@ -396,10 +408,12 @@ class EventPhaseDiscovery:
                 movement_stage_decisions
             ),
             boundary_recoveries=tuple(boundary_recoveries),
-            boundary_recovered_fraction=round(
-                recovered_fraction,
+            boundary_recovered_fraction=0.0,
+            boundary_suggested_fraction=round(
+                suggested_fraction,
                 4,
             ),
+            boundary_recovery_applied=False,
         )
 
     def _selected_events(
@@ -2093,15 +2107,12 @@ class EventPhaseDiscovery:
         list[PhaseBoundaryRecovery],
         float,
     ]:
-        """Recover only cross-family boundary gaps with repeated evidence.
+        """Build a conservative cross-family boundary suggestion.
 
-        The raw NS/EW schedule uses every usable RELEASE/CROSSING event and
-        therefore estimates conflict-family boundaries more robustly than an
-        individual approach mask. We use it only when both families recur in
-        enough cycles, only for bounded gaps between *different* families, and
-        never across a distinct movement candidate. Internal N -> N+S gaps
-        remain UNKNOWN because filling them could erase a real staggered or
-        protected stage.
+        This helper may interpolate a plausible boundary from repeated coarse
+        NS/EW evidence, but the production discovery path treats the result as
+        diagnostic only. The authoritative phase model keeps the original
+        uncovered bins UNKNOWN unless direct event evidence supports them.
         """
         result = list(stages)
         n_bins = len(result)

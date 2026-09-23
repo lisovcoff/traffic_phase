@@ -76,16 +76,16 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="stat"><span>Active movement groups</span><strong id="batchActiveMovements">—</strong></div>
       <div class="stat"><span>Phase confidence</span><strong id="batchPhaseConfidence">—</strong></div>
       <div class="stat"><span>Vehicles / events</span><strong id="batchCounts">—</strong></div>
-      <div class="stat"><span>UNKNOWN rate</span><strong id="batchUnknown">—</strong></div>
-      <div class="stat"><span>UNKNOWN N/S/E/W</span><strong id="batchUnknownByApproach">—</strong></div>
-      <div class="stat"><span>Phase coverage</span><strong id="batchCoverage">—</strong></div>
+      <div class="stat"><span>Unable to determine</span><strong id="batchUnknown">—</strong></div>
+      <div class="stat"><span>Unable N/S/E/W</span><strong id="batchUnknownByApproach">—</strong></div>
+      <div class="stat"><span>Local determined coverage</span><strong id="batchCoverage">—</strong></div>
       <div class="stat"><span>Model quality</span><strong id="batchQuality">—</strong></div>
-      <div class="stat"><span>Boundary recovery</span><strong id="batchRecovery">—</strong></div>
-      <div class="stat"><span>Gap semantics</span><strong id="batchGapSemantics">—</strong></div>
-      <div class="stat"><span>Unresolved UNKNOWN</span><strong id="batchUnresolved">—</strong></div>
+      <div class="stat"><span>Boundary suggestion (diagnostic)</span><strong id="batchRecovery">—</strong></div>
+      <div class="stat"><span>Gap diagnostics</span><strong id="batchGapSemantics">—</strong></div>
+      <div class="stat"><span>Effective determination</span><strong id="batchUnresolved">—</strong></div>
       <div class="stat"><span>Regime family</span><strong id="batchRegimeFamily">—</strong></div>
       <div class="stat"><span>Pooled raw reconstruction</span><strong id="batchPooled">—</strong></div>
-      <div class="stat"><span>UNKNOWN cause</span><strong id="batchUnknownCause">—</strong></div>
+      <div class="stat"><span>Unable-to-determine cause</span><strong id="batchUnknownCause">—</strong></div>
     </div>
 
     <div class="panel">
@@ -102,7 +102,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <h3>Phase model</h3>
       <div id="batchPhaseList" class="phase-list"></div>
       <div id="batchMovementList" class="phase-list" style="margin-top:10px"></div>
-      <div class="muted small" style="margin-top:10px">Movement-specific groups are inferred separately and do not change the main N/S/E/W stage. Realtime prefers a GOOD phase model reconstructed from pooled raw events across a recurring regime family; otherwise it falls back to a usable local segment.</div>
+      <div class="muted small" style="margin-top:10px">Only evidence-backed intervals are authoritative. Uncovered intervals remain impossible to determine. Movement, gap and boundary analyses below are diagnostic and do not fill missing phase intervals. Realtime uses the effective evidence-backed model and keeps its uncovered intervals UNKNOWN.</div>
     </div>
   </div>
 </section>
@@ -139,8 +139,8 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="stat"><span>Adaptive mode</span><strong id="realtimeAdaptive">NORMAL</strong></div>
       <div class="stat"><span>Phase offset</span><strong id="realtimeOffset">—</strong></div>
       <div class="stat"><span>Template compatibility</span><strong id="realtimeCompatibility">CHECKING</strong></div>
-      <div class="stat"><span>UNKNOWN post-sync</span><strong id="realtimeUnknownPostSync">—</strong></div>
-      <div class="stat"><span>UNKNOWN last 60s</span><strong id="realtimeUnknownRolling">—</strong></div>
+      <div class="stat"><span>Unable post-sync</span><strong id="realtimeUnknownPostSync">—</strong></div>
+      <div class="stat"><span>Unable last 60s</span><strong id="realtimeUnknownRolling">—</strong></div>
       <div class="stat"><span>Deviation / reason</span><strong id="realtimeDeviation">—</strong></div>
     </div>
 
@@ -258,7 +258,7 @@ function openBatchSession(i){
   $('batchCycleConfidence').textContent=cycle?cycle.confidence.toFixed(2):'—';
   $('batchCounts').textContent=batchSession.trajectory_count+' / '+batchSession.event_count;
   const unknown=batchSession.unknown_metrics||{};
-  $('batchUnknown').textContent=unknown.overall_rate==null?'—':(unknown.overall_rate*100).toFixed(2)+'% '+(unknown.meets_target?'✓ <1%':'');
+  $('batchUnknown').textContent=unknown.unable_to_determine_rate==null?'—':(Number(unknown.unable_to_determine_rate)*100).toFixed(2)+'%';
   const byApproach=unknown.per_approach_rate||{};
   $('batchUnknownByApproach').textContent=['N','S','E','W'].map(a=>a+' '+(byApproach[a]==null?'—':(byApproach[a]*100).toFixed(1)+'%')).join(' · ');
   const model=batchSession.phase_model||{};
@@ -267,9 +267,9 @@ function openBatchSession(i){
   const qualityReasons=batchSession.quality_reasons||[];
   $('batchQuality').textContent=quality+(qualityReasons.length?(' · '+qualityReasons.join(', ')):'');
   $('batchQuality').className=quality==='GOOD'?'ok':(quality==='INSUFFICIENT'?'error':'warmup');
-  const recovered=Number(model.boundary_recovered_fraction||0);
+  const suggested=Number(model.boundary_suggested_fraction||0);
   const recoveryItems=model.boundary_recoveries||[];
-  $('batchRecovery').textContent=(recovered*100).toFixed(1)+'%'+(recoveryItems.length?(' · '+recoveryItems.map(item=>item.axis+' '+Number(item.phase_start).toFixed(1)+'–'+Number(item.phase_end).toFixed(1)+'s').join(', ')):'');
+  $('batchRecovery').textContent=(suggested*100).toFixed(1)+'% suggested · not applied'+(recoveryItems.length?(' · '+recoveryItems.map(item=>item.axis+' '+Number(item.phase_start).toFixed(1)+'–'+Number(item.phase_end).toFixed(1)+'s').join(', ')):'');
   const reasonRate=unknown.reason_rate||{};
   const gaps=batchSession.uncovered_cycle_intervals||[];
   const reasons=Object.entries(reasonRate).map(([reason,rate])=>reason+' '+(Number(rate)*100).toFixed(1)+'%');
@@ -277,8 +277,10 @@ function openBatchSession(i){
   $('batchUnknownCause').textContent=(reasons.length?reasons.join(' · '):'none')+gapText;
   const gapMetrics=batchSession.gap_metrics||{};
   $('batchGapSemantics').textContent='clearance '+(Number(gapMetrics.clearance_candidate_rate||0)*100).toFixed(1)+'% · transition ambiguous '+(Number(gapMetrics.transition_ambiguous_rate||0)*100).toFixed(1)+'% · unresolved stage '+(Number(gapMetrics.unresolved_stage_rate||0)*100).toFixed(1)+'% · unobserved '+(Number(gapMetrics.unobserved_rate||0)*100).toFixed(1)+'%';
-  const unresolved=gapMetrics.unresolved_unknown_rate;
-  $('batchUnresolved').textContent=unresolved==null?'—':(Number(unresolved)*100).toFixed(2)+'% '+(gapMetrics.meets_unresolved_target?'✓ <1%':'');
+  const determination=batchSession.determination||{};
+  const determined=determination.determined_fraction;
+  const unable=determination.unable_to_determine_fraction;
+  $('batchUnresolved').textContent=(determination.status||'UNABLE_TO_DETERMINE')+' · determined '+(determined==null?'—':(Number(determined)*100).toFixed(1)+'%')+' · unable '+(unable==null?'—':(Number(unable)*100).toFixed(1)+'%')+' · '+(determination.source||'—');
   const family=currentRegimeFamily();
   $('batchRegimeFamily').textContent=family?(family.family_id+' · '+family.member_count+' member(s) · '+family.model_quality+' · vote '+(Number(family.consensus_coverage||0)*100).toFixed(1)+'%'):'—';
   $('batchPooled').textContent=family?(family.pooling_status+' · '+(family.pooled_event_count||0)+' events · '+(family.pooled_cycle_count||0)+' cycles · coverage '+(family.pooled_coverage==null?'—':(Number(family.pooled_coverage)*100).toFixed(1)+'%')+' · quality '+(family.pooled_model_quality||'—')+' · movement candidates '+(family.pooled_movement_candidate_count||0)+' / stages '+(family.pooled_movement_stage_count||0)):'—';
@@ -405,17 +407,10 @@ function currentRegimeFamily(){
 }
 function effectiveTemplate(){
   if(!batchSession||batchSession.status!=='ok')return null;
-  const family=currentRegimeFamily();
-  if(family&&family.member_count>=2&&family.pooled_model_quality==='GOOD'&&family.pooled_phase_model&&family.pooled_phase_model.phases&&family.pooled_phase_model.phases.length){
-    return {model:family.pooled_phase_model,source:'pooled raw-event regime family '+family.family_id};
-  }
-  if(batchSession.model_quality==='GOOD'&&batchSession.phase_model&&batchSession.phase_model.phases&&batchSession.phase_model.phases.length){
-    return {model:batchSession.phase_model,source:'local GOOD segment'};
-  }
-  if(batchSession.model_quality==='PARTIAL'&&batchSession.phase_model&&batchSession.phase_model.phases&&batchSession.phase_model.phases.length){
-    return {model:batchSession.phase_model,source:'local PARTIAL segment'};
-  }
-  return null;
+  const determination=batchSession.determination||{};
+  const model=batchSession.effective_phase_model;
+  if(!determination.usable||!model||!model.phases||!model.phases.length)return null;
+  return {model,source:determination.source||'evidence-backed model',status:determination.status||'PARTIAL'};
 }
 function usableTemplate(){
   return Boolean(effectiveTemplate());
@@ -423,10 +418,10 @@ function usableTemplate(){
 function updateTemplateStatus(){
   const template=effectiveTemplate();
   if(template){
-    $('templateStatus').textContent=template.source+' · cycle '+Number(template.model.cycle_seconds).toFixed(1)+' s';
-    $('templateStatus').className=template.source.includes('GOOD')||template.source.includes('consensus')?'ok':'warmup';
+    $('templateStatus').textContent=template.status+' · '+template.source+' · determined '+(Number(batchSession.determination.determined_fraction||0)*100).toFixed(1)+'% · cycle '+Number(template.model.cycle_seconds).toFixed(1)+' s';
+    $('templateStatus').className=template.status==='AVAILABLE'?'ok':'warmup';
   }else{
-    $('templateStatus').textContent=batchSession&&batchSession.model_quality==='INSUFFICIENT'?'Selected segment is INSUFFICIENT and has no GOOD cross-session regime consensus.':'Run Batch on a usable reference segment first.';
+    $('templateStatus').textContent=batchSession?'Impossible to determine a usable recurring phase model from the available traffic evidence.':'Run Batch on a reference archive first.';
     $('templateStatus').className='muted';
   }
   updateRealtimeStart();
@@ -510,7 +505,7 @@ function renderRealtimeSnapshot(snapshot){
     ?'Live override: template '+expectedAxis+', traffic evidence '+effectiveAxis+'.'
     :(adaptiveMode==='RECOVERY'
       ?'Realtime backend is resynchronizing after a temporary template deviation.'
-      :'Realtime backend snapshot. WARMUP is shown as UNKNOWN.');
+      :'Realtime backend snapshot. UNKNOWN means the phase cannot be determined from the available evidence. Signal colors are modeled from the inferred phase, not observed lamps.');
   const date=new Date(snapshot.simulated_timestamp_ms);
   $('realtimeTime').textContent=date.toLocaleString();
   $('realtimePhase').textContent=snapshot.phase_id==null?'UNKNOWN':'Phase '+snapshot.phase_id;
@@ -526,7 +521,7 @@ function renderRealtimeSnapshot(snapshot){
   $('realtimeCompatibility').textContent=compatibility+' · match '+(Number(snapshot.synchronization_match_ratio||0)*100).toFixed(0)+'%';
   $('realtimeCompatibility').className=compatibility==='COMPATIBLE'?'ok':(compatibility==='INCOMPATIBLE'?'error':'warmup');
   const unknown=snapshot.unknown_metrics||{};
-  $('realtimeUnknownPostSync').textContent=unknown.post_sync_rate==null?'—':(unknown.post_sync_rate*100).toFixed(2)+'% '+(unknown.meets_post_sync_target?'✓ <1%':'');
+  $('realtimeUnknownPostSync').textContent=unknown.post_sync_rate==null?'—':(unknown.post_sync_rate*100).toFixed(2)+'%';
   $('realtimeUnknownRolling').textContent=unknown.rolling_60s_rate==null?'—':(unknown.rolling_60s_rate*100).toFixed(2)+'%';
   const reasonValues=Object.values(snapshot.unknown_reasons||{});
   const reason=reasonValues.length?[...new Set(reasonValues)].join(', '):(snapshot.warmup_reason||'—');

@@ -83,6 +83,45 @@ class ArchiveAnalysis:
                         ),
                     }
                 )
+                local_determination = dict(
+                    session_payloads[index]["determination"]
+                )
+                pooled_determination = _determination_payload(
+                    family_payload.get("pooled_phase_model"),
+                    model_quality=family.pooled_model_quality,
+                    confidence=family.pooled_confidence,
+                    source=f"pooled_regime_family:{family.family_id}",
+                    reasons=(
+                        ()
+                        if family.pooling_status == "ok"
+                        else (family.pooling_status,)
+                    ),
+                )
+                local_coverage = float(
+                    local_determination.get(
+                        "determined_fraction",
+                        0.0,
+                    )
+                )
+                pooled_coverage = float(
+                    pooled_determination.get(
+                        "determined_fraction",
+                        0.0,
+                    )
+                )
+                if (
+                    pooled_determination["usable"]
+                    and (
+                        not local_determination["usable"]
+                        or pooled_coverage > local_coverage
+                    )
+                ):
+                    session_payloads[index]["determination"] = (
+                        pooled_determination
+                    )
+                    session_payloads[index]["effective_phase_model"] = (
+                        family_payload.get("pooled_phase_model")
+                    )
         single_ok = (
             len(session_payloads) == 1
             and session_payloads[0]["status"] == "ok"
@@ -206,6 +245,12 @@ def _compact_phase_model(session: SessionReconstruction) -> dict[str, object] | 
         ],
         "boundary_recovered_fraction": (
             model.boundary_recovered_fraction
+        ),
+        "boundary_suggested_fraction": (
+            model.boundary_suggested_fraction
+        ),
+        "boundary_recovery_applied": (
+            model.boundary_recovery_applied
         ),
     }
 
@@ -484,9 +529,8 @@ def _gap_semantics(
             "transition_ambiguous_rate": 0.0,
             "unresolved_stage_rate": 0.0,
             "unobserved_rate": 0.0,
-            "unresolved_unknown_rate": 0.0,
-            "target_rate": 0.01,
-            "meets_unresolved_target": None,
+            "unresolved_unknown_rate": 1.0,
+            "unable_to_determine_rate": 1.0,
         }
 
     cycle = float(model.cycle_seconds)
@@ -586,11 +630,10 @@ def _gap_semantics(
         kind: duration / cycle
         for kind, duration in duration_by_kind.items()
     }
-    unresolved = (
-        rates["TRANSITION_AMBIGUOUS"]
-        + rates["UNRESOLVED_STAGE"]
-        + rates["UNOBSERVED"]
-    )
+    # Every uncovered interval is outside the supported phase model.
+    # Diagnostic labels may explain the gap, but they must not turn absence of
+    # direct evidence into a determined phase.
+    unresolved = sum(rates.values())
     return {
         "gaps": classified,
         "clearance_candidate_rate": round(
@@ -613,8 +656,10 @@ def _gap_semantics(
             unresolved,
             4,
         ),
-        "target_rate": 0.01,
-        "meets_unresolved_target": unresolved < 0.01,
+        "unable_to_determine_rate": round(
+            unresolved,
+            4,
+        ),
     }
 
 
@@ -671,20 +716,27 @@ def _axis_state(
 def _timeline_unknown_metrics(
     timeline: list[dict[str, object]],
 ) -> dict[str, object]:
+    """Report observability, not a target to eliminate UNKNOWN.
+
+    UNKNOWN is the expected answer whenever the phase cannot be supported by
+    the available indirect traffic evidence. No arbitrary '<1%' target is
+    applied.
+    """
     approaches = ("N", "S", "E", "W")
-    target_rate = 0.01
     if not timeline:
         return {
-            "target_rate": target_rate,
             "sample_count": 0,
             "overall_rate": None,
+            "unable_to_determine_rate": None,
+            "determined_rate": None,
             "per_approach_rate": {
                 approach: None for approach in approaches
             },
             "longest_unknown_s": {
                 approach: None for approach in approaches
             },
-            "meets_target": None,
+            "reason_rate": {},
+            "reason_seconds": {},
         }
 
     if len(timeline) == 1:
@@ -746,15 +798,23 @@ def _timeline_unknown_metrics(
     }
     overall_unknown = sum(unknown_weight.values())
     overall_denominator = total_weight * len(approaches)
-    overall_rate = (
+    unable_rate = (
         round(overall_unknown / overall_denominator, 4)
         if overall_denominator > 0
         else None
     )
+    determined_rate = (
+        round(1.0 - unable_rate, 4)
+        if unable_rate is not None
+        else None
+    )
     return {
-        "target_rate": target_rate,
+        # overall_rate is retained for API compatibility; semantically it is
+        # identical to unable_to_determine_rate.
+        "overall_rate": unable_rate,
+        "unable_to_determine_rate": unable_rate,
+        "determined_rate": determined_rate,
         "sample_count": len(timeline),
-        "overall_rate": overall_rate,
         "per_approach_rate": per_approach,
         "longest_unknown_s": {
             approach: round(value, 3)
@@ -768,11 +828,6 @@ def _timeline_unknown_metrics(
             reason: round(weight, 3)
             for reason, weight in reason_weight.items()
         },
-        "meets_target": (
-            overall_rate < target_rate
-            if overall_rate is not None
-            else None
-        ),
     }
 
 
@@ -868,6 +923,54 @@ def build_session_timeline(
     return timeline
 
 
+def _determination_payload(
+    phase_model: dict[str, object] | None,
+    *,
+    model_quality: str | None,
+    confidence: float | None,
+    source: str,
+    reasons: Sequence[str] = (),
+) -> dict[str, object]:
+    coverage = (
+        float(phase_model.get("cycle_coverage", 0.0))
+        if phase_model is not None
+        else 0.0
+    )
+    coverage = max(0.0, min(1.0, coverage))
+    quality = str(model_quality or "INSUFFICIENT")
+    usable = (
+        phase_model is not None
+        and quality in {"GOOD", "PARTIAL"}
+        and bool(phase_model.get("phases"))
+    )
+    if not usable:
+        status = "UNABLE_TO_DETERMINE"
+    elif quality == "GOOD":
+        status = "AVAILABLE"
+    else:
+        status = "PARTIAL"
+    return {
+        "status": status,
+        "usable": usable,
+        "source": source,
+        "model_quality": quality,
+        "confidence": (
+            round(float(confidence), 4)
+            if confidence is not None
+            else None
+        ),
+        "determined_fraction": round(
+            coverage if usable else 0.0,
+            4,
+        ),
+        "unable_to_determine_fraction": round(
+            1.0 - coverage if usable else 1.0,
+            4,
+        ),
+        "reasons": list(reasons),
+    }
+
+
 def _session_payload(
     index: int,
     session: SessionReconstruction,
@@ -879,6 +982,14 @@ def _session_payload(
         max_points=timeline_points,
     )
     gap_semantics = _gap_semantics(session)
+    phase_model = _compact_phase_model(session)
+    determination = _determination_payload(
+        phase_model,
+        model_quality=session.model_quality,
+        confidence=session.confidence,
+        source="local_segment",
+        reasons=session.quality_reasons,
+    )
     return {
         "session_id": index,
         "physical_session_index": session.session_index,
@@ -897,7 +1008,11 @@ def _session_payload(
         "confidence": session.confidence,
         "error_reason": session.error_reason,
         "cycle": _compact_cycle(session),
-        "phase_model": _compact_phase_model(session),
+        "phase_model": phase_model,
+        "effective_phase_model": (
+            phase_model if determination["usable"] else None
+        ),
+        "determination": determination,
         "timeline": timeline,
         "unknown_metrics": _timeline_unknown_metrics(timeline),
         "uncovered_cycle_intervals": _phase_coverage_gaps(

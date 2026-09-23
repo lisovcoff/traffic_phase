@@ -288,8 +288,10 @@ def test_discovers_staggered_overlapping_approach_stages():
     assert ("N",) in active_sets
     assert ("N", "S") in active_sets
     assert ("E", "W") in active_sets
-    assert result.cycle_coverage == 1.0
-    assert result.boundary_recovered_fraction > 0.0
+    assert 0.90 <= result.cycle_coverage < 1.0
+    assert result.boundary_recovered_fraction == 0.0
+    assert result.boundary_suggested_fraction > 0.0
+    assert result.boundary_recovery_applied is False
     assert result.boundary_recoveries
 
     n_only = next(
@@ -310,9 +312,8 @@ def test_discovers_staggered_overlapping_approach_stages():
 
     assert 14.0 <= _phase_duration(n_only, 100.0) <= 26.0
     assert 20.0 <= _phase_duration(ns, 100.0) <= 36.0
-    # Family-boundary recovery may place the signal boundary before the
-    # first observed EW vehicle; the original direct-evidence window was
-    # intentionally narrower.
+    # Boundary suggestions are diagnostic only; the authoritative phase
+    # interval remains limited by direct recurring evidence.
     assert 34.0 <= _phase_duration(ew, 100.0) <= 56.0
 
 

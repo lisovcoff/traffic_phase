@@ -174,8 +174,9 @@ def test_short_conflicting_gap_is_clearance_candidate():
     assert gap["previous_axis"] == "NS"
     assert gap["following_axis"] == "EW"
     assert semantics["clearance_candidate_rate"] == 0.04
-    assert semantics["unresolved_unknown_rate"] == 0.0
-    assert semantics["meets_unresolved_target"] is True
+    assert semantics["unresolved_unknown_rate"] == 0.04
+    assert semantics["unable_to_determine_rate"] == 0.04
+    assert "meets_unresolved_target" not in semantics
 
 
 def test_large_gap_with_strong_model_is_unresolved_stage():
@@ -343,7 +344,8 @@ def test_short_gap_with_movement_evidence_is_transition_ambiguous():
     assert semantics["transition_ambiguous_rate"] == 0.04
     assert semantics["clearance_candidate_rate"] == 0.0
     assert semantics["unresolved_unknown_rate"] == 0.04
-    assert semantics["meets_unresolved_target"] is False
+    assert semantics["unable_to_determine_rate"] == 0.04
+    assert "meets_unresolved_target" not in semantics
 
 
 def test_aligned_pool_combines_raw_events_from_multiple_days():

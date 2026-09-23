@@ -123,6 +123,12 @@ def test_json_api_returns_session_based_result():
     assert response["phase_model"] is not None
     assert "cycle_coverage" in session["phase_model"]
     assert "unknown_metrics" in session
+    assert "target_rate" not in session["unknown_metrics"]
+    assert "meets_target" not in session["unknown_metrics"]
+    assert "unable_to_determine_rate" in session["unknown_metrics"]
+    assert "determined_rate" in session["unknown_metrics"]
+    assert "determination" in session
+    assert "effective_phase_model" in session
     assert "uncovered_cycle_intervals" in session
     assert session["model_quality"] in {
         "GOOD",
@@ -132,10 +138,16 @@ def test_json_api_returns_session_based_result():
     assert "quality_reasons" in session
     assert "boundary_recoveries" in session["phase_model"]
     assert "boundary_recovered_fraction" in session["phase_model"]
+    assert session["phase_model"]["boundary_recovered_fraction"] == 0.0
+    assert "boundary_suggested_fraction" in session["phase_model"]
+    assert session["phase_model"]["boundary_recovery_applied"] is False
     assert "movement_stage_decisions" in session["phase_model"]
     assert "gap_semantics" in session
     assert "gap_metrics" in session
     assert "transition_ambiguous_rate" in session["gap_metrics"]
+    assert "target_rate" not in session["gap_metrics"]
+    assert "meets_unresolved_target" not in session["gap_metrics"]
+    assert "unable_to_determine_rate" in session["gap_metrics"]
     assert "regime_families" in response
     assert response["source"]["regime_family_count"] >= 1
     assert session["regime_family_id"] is not None
