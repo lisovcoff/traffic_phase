@@ -165,6 +165,20 @@ realtime timestamp plus the estimated offset. Moving simulated time forward
 without a new event advances the inferred phase clock but does not add
 synchronization evidence.
 
+While realtime inference is active, a throttled causal scout keeps a bounded
+window of arrived RELEASE/CROSSING evidence and periodically reconstructs a
+candidate regime. Reusable candidates are compared with a bounded in-memory
+regime catalogue using cycle length plus rotation-invariant phase structure.
+A different regime is not activated on one observation: it must be confirmed
+by repeated usable reconstructions. Returning to a previously remembered
+regime follows the same confirmation rule. The active engine is then rebuilt
+from the freshly reconstructed current-window model, so an old historical
+phase origin is never reused blindly.
+
+This regime memory is intentionally process-local and bounded. It improves a
+long-running stream without introducing a database or an unbounded archive;
+persistence across service restarts is outside the current module.
+
 ## Realtime archive simulator
 
 API:
@@ -342,11 +356,10 @@ accuracy.
   used only when named detection-zone information is absent.
 - Batch ZIP processing assumes members are chronological by trajectory time;
   malformed members are reported separately when possible.
-- Realtime synchronization assumes the active recurring phase template remains
-  applicable until live evidence shows a persistent deviation. A stream that
-  starts without a template can learn its first reusable template online, but
-  persistent multi-regime memory and automatic time-of-day regime switching
-  are separate higher-level concerns.
+- Realtime can learn and remember several recurring regimes within one
+  long-running process and switch only after repeated usable evidence.
+  Persistence of that learned regime catalogue across service restarts and
+  explicit calendar/time-of-day scheduling are not implemented.
 - Large source archives stay outside the repository and are validated locally.
 
 ## Project layout
@@ -369,6 +382,8 @@ app/
     signal_state_estimator.py
     realtime_phase_sync.py
     realtime_inference.py
+    online_phase_learning.py
+    online_regime_memory.py
     realtime_simulation.py
     validation.py
 scripts/

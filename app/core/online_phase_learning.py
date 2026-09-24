@@ -13,6 +13,7 @@ from app.core.intersection_topology import (
     IntersectionTopology,
 )
 from app.core.models import EventType, TrajectoryEvent
+from app.core.online_regime_memory import OnlineRegimeMemory
 from app.core.realtime_inference import (
     DuplicateEventError,
     RealtimeSignalInferenceEngine,
@@ -71,6 +72,7 @@ class OnlinePhaseBootstrap:
         retry_seconds: float = 30.0,
         max_history_seconds: float = 6.0 * 60.0 * 60.0,
         max_events: int = 50_000,
+        continuous: bool = False,
     ) -> None:
         if sampling_seconds <= 0 or bin_seconds <= 0:
             raise ValueError("bootstrap sampling/bin seconds must be positive")
@@ -92,6 +94,7 @@ class OnlinePhaseBootstrap:
         self.retry_seconds = float(retry_seconds)
         self.max_history_seconds = float(max_history_seconds)
         self.max_events = int(max_events)
+        self.continuous = bool(continuous)
 
         self._events: dict[str, TrajectoryEvent] = {}
         self._current_timestamp_ms: int | None = None
@@ -100,6 +103,7 @@ class OnlinePhaseBootstrap:
         self._attempt_count = 0
         self._last_result = None
         self._accepted_model: EventPhaseDiscoveryResult | None = None
+        self._accepted_revision = 0
         self._status = OnlineLearningStatus(
             mode="LEARNING",
             ready=False,
@@ -117,6 +121,10 @@ class OnlinePhaseBootstrap:
     @property
     def accepted_model(self) -> EventPhaseDiscoveryResult | None:
         return self._accepted_model
+
+    @property
+    def accepted_revision(self) -> int:
+        return self._accepted_revision
 
     @property
     def events(self) -> tuple[TrajectoryEvent, ...]:
@@ -167,7 +175,10 @@ class OnlinePhaseBootstrap:
         return max(0.0, (max(timestamps) - min(timestamps)) / 1000.0)
 
     def _maybe_reconstruct(self) -> None:
-        if self._accepted_model is not None:
+        if (
+            self._accepted_model is not None
+            and not self.continuous
+        ):
             self._status = self._status_from_result(
                 mode="READY",
                 ready=True,
@@ -190,17 +201,27 @@ class OnlinePhaseBootstrap:
 
         current_ms = self._current_timestamp_ms
         assert current_ms is not None
-        enough_new_events = (
+        new_event_count = (
             usable_count - self._last_attempt_event_count
-            >= self.retry_event_stride
         )
+        enough_new_events = new_event_count >= self.retry_event_stride
         enough_time = (
             self._last_attempt_timestamp_ms is None
             or current_ms - self._last_attempt_timestamp_ms
             >= int(self.retry_seconds * 1000.0)
         )
-        if not enough_new_events and not enough_time:
+        should_attempt = (
+            new_event_count > 0
+            and (enough_new_events or enough_time)
+        )
+        if not should_attempt:
             self._status = self._status_from_result(
+                mode=(
+                    "READY"
+                    if self._accepted_model is not None
+                    else "LEARNING"
+                ),
+                ready=self._accepted_model is not None,
                 reason="waiting_for_next_learning_attempt",
             )
             return
@@ -253,6 +274,7 @@ class OnlinePhaseBootstrap:
             return
 
         self._accepted_model = result.phase_model
+        self._accepted_revision += 1
         self._status = self._status_from_result(
             mode="READY",
             ready=True,
@@ -393,6 +415,18 @@ class RealtimeOnlineSession:
         )
         self.baseline_profile = baseline
         self._bootstrap = OnlinePhaseBootstrap()
+        self._regime_scout = OnlinePhaseBootstrap(
+            min_observation_seconds=600.0,
+            min_observed_cycles=8.0,
+            min_usable_events=32,
+            retry_event_stride=48,
+            retry_seconds=120.0,
+            max_history_seconds=45.0 * 60.0,
+            max_events=20_000,
+            continuous=True,
+        )
+        self._regime_memory = OnlineRegimeMemory()
+        self._last_regime_scout_revision = 0
         self._engine: RealtimeSignalInferenceEngine | None = None
         self._seeded = phase_model is not None
         self._online_learned = False
@@ -400,18 +434,32 @@ class RealtimeOnlineSession:
         self._current_timestamp_ms: int | None = None
         self._stream_start_timestamp_ms: int | None = None
         self._lock = RLock()
+        self._configured_phase_template_dict: (
+            dict[str, object] | None
+        ) = None
 
         if phase_model is not None:
             self._engine = self._make_engine(
                 phase_model,
                 event_origin_ms=event_origin_ms,
             )
+            self._configured_phase_template_dict = (
+                self._engine.phase_template.to_dict()
+            )
+            self._regime_memory.seed(
+                self._engine.phase_model,
+                timestamp_ms=(
+                    int(event_origin_ms)
+                    if event_origin_ms is not None
+                    else 0
+                ),
+                model_quality="SEEDED",
+                confidence=1.0,
+            )
 
     @property
     def phase_template_dict(self) -> dict[str, object] | None:
-        if self._engine is None:
-            return None
-        return self._engine.phase_template.to_dict()
+        return self._configured_phase_template_dict
 
     @property
     def has_phase_template(self) -> bool:
@@ -457,7 +505,15 @@ class RealtimeOnlineSession:
                     event,
                     event_id=key,
                 ).to_dict()
+                self._regime_scout.ingest_event(event)
+                snapshot = self._maybe_switch_regime(
+                    snapshot,
+                    current_event=event,
+                )
                 snapshot["learning"] = self._learning_payload()
+                snapshot["regime_memory"] = (
+                    self._regime_memory.to_dict()
+                )
                 return snapshot
 
             status = self._bootstrap.ingest_event(event)
@@ -468,11 +524,26 @@ class RealtimeOnlineSession:
                     event_origin_ms=learned_model.origin_timestamp_ms,
                 )
                 self._online_learned = True
+                self._regime_memory.seed(
+                    self._engine.phase_model,
+                    timestamp_ms=int(event.timestamp_ms),
+                    model_quality=(
+                        status.last_model_quality or "PARTIAL"
+                    ),
+                    confidence=(
+                        status.last_confidence
+                        if status.last_confidence is not None
+                        else 0.0
+                    ),
+                )
                 snapshot = self._engine.ingest_event(
                     event,
                     event_id=key,
                 ).to_dict()
                 snapshot["learning"] = self._learning_payload()
+                snapshot["regime_memory"] = (
+                    self._regime_memory.to_dict()
+                )
                 return snapshot
 
             return self._learning_snapshot(duplicate=False)
@@ -522,6 +593,68 @@ class RealtimeOnlineSession:
             for event in events
         ]
         return self.ingest_events(events, event_ids=event_ids)
+
+    def _maybe_switch_regime(
+        self,
+        snapshot: dict[str, object],
+        *,
+        current_event: TrajectoryEvent,
+    ) -> dict[str, object]:
+        revision = self._regime_scout.accepted_revision
+        if revision <= self._last_regime_scout_revision:
+            return snapshot
+
+        self._last_regime_scout_revision = revision
+        candidate = self._regime_scout.accepted_model
+        status = self._regime_scout.status
+        if candidate is None:
+            return snapshot
+
+        observation = self._regime_memory.observe_candidate(
+            candidate,
+            timestamp_ms=int(current_event.timestamp_ms),
+            model_quality=(
+                status.last_model_quality or "PARTIAL"
+            ),
+            confidence=(
+                status.last_confidence
+                if status.last_confidence is not None
+                else 0.0
+            ),
+        )
+        snapshot["regime_observation"] = observation.to_dict()
+        if not observation.switch:
+            return snapshot
+
+        self._engine = self._make_engine(
+            candidate,
+            event_origin_ms=candidate.origin_timestamp_ms,
+        )
+        cutoff_ms = int(current_event.timestamp_ms) - int(
+            self.recent_window_s * 1000.0
+        )
+        recent_events = [
+            event
+            for event in self._regime_scout.events
+            if event.timestamp_ms >= cutoff_ms
+        ]
+        if recent_events:
+            switched = self._engine.ingest_events(
+                recent_events,
+                event_ids=[
+                    OnlinePhaseBootstrap._fingerprint(event)
+                    for event in recent_events
+                ],
+            ).to_dict()
+        else:
+            switched = self._engine.ingest_event(
+                current_event,
+                event_id=OnlinePhaseBootstrap._fingerprint(
+                    current_event
+                ),
+            ).to_dict()
+        switched["regime_observation"] = observation.to_dict()
+        return switched
 
     def _make_engine(
         self,
@@ -624,6 +757,7 @@ class RealtimeOnlineSession:
             "template_signal_states": dict(states),
             "duplicate": duplicate,
             "learning": self._learning_payload(),
+            "regime_memory": self._regime_memory.to_dict(),
         }
 
     def _duplicate_snapshot(self) -> dict[str, object]:
@@ -631,6 +765,9 @@ class RealtimeOnlineSession:
             snapshot = self._engine.snapshot().to_dict()
             snapshot["duplicate"] = True
             snapshot["learning"] = self._learning_payload()
+            snapshot["regime_memory"] = (
+                self._regime_memory.to_dict()
+            )
             return snapshot
         return self._learning_snapshot(duplicate=True)
 
