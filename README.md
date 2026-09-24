@@ -87,6 +87,7 @@ Authoritative production modules are:
 - `app/core/signal_state_estimator.py`
 - `app/core/realtime_phase_sync.py`
 - `app/core/realtime_inference.py`
+- `app/core/online_phase_learning.py`
 - `app/core/realtime_simulation.py`
 
 `app/core/analyzer.py` and `app/core/phase_discovery.py` are **legacy
@@ -130,11 +131,24 @@ models are estimated independently per session.
 The batch phase model stores an absolute origin because it describes that
 historical session. That origin is **not** reused as the realtime clock.
 
-## Realtime synchronization
+## Realtime synchronization and online bootstrap
 
-A `RealtimePhaseTemplate` contains cycle length and recurring phase
-intervals, but no historical absolute timestamp. On a new stream the engine
-starts in:
+A realtime stream can start in either of two ways:
+
+1. with an existing Batch `RealtimePhaseTemplate`; or
+2. without a phase model, in `LEARNING` mode.
+
+In `LEARNING`, only RELEASE/CROSSING events that have already arrived are
+buffered. The bootstrap waits for a minimum observation span and several
+observed cycles, throttles reconstruction attempts, and accepts a learned
+template only when the existing Batch quality contract marks it PARTIAL or
+GOOD. Until then every signal state remains UNKNOWN. A learned template is
+anchored to the same live stream, so it can immediately enter normal realtime
+inference without consulting future data.
+
+When a template is supplied from another historical session, it contains cycle
+length and recurring phase intervals but no historical absolute timestamp. The
+engine starts in:
 
 ```text
 WARMUP
@@ -248,6 +262,13 @@ Open `http://127.0.0.1:8000/visualization`.
 
 The JavaScript does not infer phase. It displays backend snapshots.
 
+The direct `POST /api/v1/realtime/infer` and
+`POST /api/v1/realtime/trajectory` APIs may omit `phase_model`. Such a
+stream starts in `LEARNING` with UNKNOWN states and bootstraps its first
+reusable phase template from causal live evidence. The browser archive
+simulation intentionally keeps the explicit Batch-template workflow so the two
+behaviours can be demonstrated separately.
+
 ## Tests and fast acceptance smoke
 
 ```powershell
@@ -321,9 +342,11 @@ accuracy.
   used only when named detection-zone information is absent.
 - Batch ZIP processing assumes members are chronological by trajectory time;
   malformed members are reported separately when possible.
-- Realtime synchronization assumes the recurring phase template remains
-  applicable to the simulated stream; offset is learned from arrived traffic
-  evidence.
+- Realtime synchronization assumes the active recurring phase template remains
+  applicable until live evidence shows a persistent deviation. A stream that
+  starts without a template can learn its first reusable template online, but
+  persistent multi-regime memory and automatic time-of-day regime switching
+  are separate higher-level concerns.
 - Large source archives stay outside the repository and are validated locally.
 
 ## Project layout

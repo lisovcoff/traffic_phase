@@ -13,10 +13,8 @@ from app.core.event_phase_discovery import (
 from app.core.anomaly_profile import TrafficBaselineProfile
 from app.core.intersection_topology import IntersectionTopology
 from app.core.models import EventType, TrajectoryEvent
-from app.core.realtime_inference import (
-    DuplicateEventError,
-    RealtimeSignalInferenceEngine,
-)
+from app.core.online_phase_learning import RealtimeOnlineSession
+from app.core.realtime_inference import DuplicateEventError
 from app.core.realtime_phase_sync import RealtimePhaseTemplate
 from app.core.signal_state_estimator import (
     DEFAULT_RED_YELLOW_DURATION_SECONDS,
@@ -144,7 +142,7 @@ def _build_topology(
 
 class RealtimeEngineRegistry:
     def __init__(self) -> None:
-        self._engines: dict[str, RealtimeSignalInferenceEngine] = {}
+        self._engines: dict[str, RealtimeOnlineSession] = {}
         self._lock = RLock()
 
     def get_or_create(
@@ -158,20 +156,23 @@ class RealtimeEngineRegistry:
         red_yellow_duration_seconds: float,
         baseline: TrafficBaselineProfile | None,
         topology: IntersectionTopology | None,
-    ) -> RealtimeSignalInferenceEngine:
+    ) -> RealtimeOnlineSession:
         with self._lock:
             engine = self._engines.get(stream_id)
             if engine is not None:
-                if (
-                    phase_model is not None
-                    and RealtimePhaseTemplate.from_phase_model(
+                if phase_model is not None:
+                    requested_template = RealtimePhaseTemplate.from_phase_model(
                         phase_model
                     ).to_dict()
-                    != engine.phase_template.to_dict()
-                ):
-                    raise ValueError(
-                        "stream already exists with a different phase model"
-                    )
+                    existing_template = engine.phase_template_dict
+                    if existing_template is None:
+                        raise ValueError(
+                            "stream already exists in online learning mode"
+                        )
+                    if requested_template != existing_template:
+                        raise ValueError(
+                            "stream already exists with a different phase model"
+                        )
                 if (
                     baseline is not None
                     and engine.baseline_profile is not None
@@ -186,7 +187,8 @@ class RealtimeEngineRegistry:
                     )
                 if (
                     event_origin_ms is not None
-                    and int(event_origin_ms) != engine.event_origin_ms
+                    and int(event_origin_ms)
+                    != engine.requested_event_origin_ms
                 ):
                     raise ValueError(
                         "stream already exists with a different event origin"
@@ -214,12 +216,7 @@ class RealtimeEngineRegistry:
                     )
                 return engine
 
-            if phase_model is None:
-                raise ValueError(
-                    "phase_model is required when creating a realtime stream"
-                )
-
-            engine = RealtimeSignalInferenceEngine(
+            engine = RealtimeOnlineSession(
                 phase_model,
                 recent_window_s=recent_window_s,
                 event_origin_ms=event_origin_ms,
@@ -271,7 +268,7 @@ async def infer_realtime(
         return engine.ingest_event(
             event,
             event_id=payload.event_id,
-        ).to_dict()
+        )
     except DuplicateEventError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except (ValueError, KeyError, TypeError) as exc:
@@ -305,7 +302,7 @@ async def infer_realtime_trajectory(
         return engine.ingest_trajectory(
             payload.trajectory,
             trajectory_id=payload.trajectory_id,
-        ).to_dict()
+        )
     except DuplicateEventError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except (ValueError, KeyError, TypeError) as exc:
