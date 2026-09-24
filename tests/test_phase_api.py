@@ -12,6 +12,8 @@ from starlette.datastructures import UploadFile
 from app.api.routes import phase_analyze
 from app.core.archive_analysis import (
     DEFAULT_TIMELINE_POINTS,
+    _determination_payload,
+    _template_usability_payload,
     analyze_trajectory_stream,
 )
 
@@ -129,6 +131,11 @@ def test_json_api_returns_session_based_result():
     assert "determined_rate" in session["unknown_metrics"]
     assert "determination" in session
     assert "effective_phase_model" in session
+    assert "effective_timeline" in session
+    assert "effective_unknown_metrics" in session
+    assert "effective_uncovered_cycle_intervals" in session
+    assert "realtime_template_usability" in session
+    assert "realtime_phase_model" in session
     assert "uncovered_cycle_intervals" in session
     assert session["model_quality"] in {
         "GOOD",
@@ -321,3 +328,82 @@ def test_repeated_physical_sessions_expose_cross_session_regime_family():
         for item in family["members"]
     }
     assert len(member_ids) >= 2
+
+
+
+def _phase_model_stub(coverage: float) -> dict[str, object]:
+    return {
+        "cycle_seconds": 100.0,
+        "cycle_coverage": coverage,
+        "phases": [
+            {
+                "phase_id": 1,
+                "phase_start": 0.0,
+                "phase_end": coverage * 100.0,
+                "active_approaches": ["N", "S"],
+                "confidence": 0.9,
+            }
+        ],
+    }
+
+
+def test_partial_determination_is_independent_from_template_usability():
+    model = _phase_model_stub(0.56)
+
+    determination = _determination_payload(
+        model,
+        model_quality="INSUFFICIENT",
+        confidence=0.65,
+        source="local_segment",
+        reasons=("phase_coverage=0.5600<0.95",),
+    )
+    template = _template_usability_payload(
+        model,
+        model_quality="INSUFFICIENT",
+        source="local_segment",
+        reasons=("phase_coverage=0.5600<0.95",),
+    )
+
+    assert determination["status"] == "PARTIAL"
+    assert determination["evidence_sufficient"] is True
+    assert determination["determined_fraction"] == 0.56
+    assert determination["unable_to_determine_fraction"] == 0.44
+    assert template["status"] == "NOT_USABLE"
+    assert template["usable"] is False
+
+
+def test_low_coverage_model_remains_unable_to_determine():
+    model = _phase_model_stub(0.24)
+
+    determination = _determination_payload(
+        model,
+        model_quality="INSUFFICIENT",
+        confidence=0.59,
+        source="local_segment",
+    )
+
+    assert determination["status"] == "UNABLE_TO_DETERMINE"
+    assert determination["evidence_sufficient"] is False
+    assert determination["determined_fraction"] == 0.0
+    assert determination["unable_to_determine_fraction"] == 1.0
+
+
+def test_partial_model_can_be_a_realtime_template_without_claiming_full_coverage():
+    model = _phase_model_stub(0.78)
+
+    determination = _determination_payload(
+        model,
+        model_quality="PARTIAL",
+        confidence=0.67,
+        source="pooled_regime_family:F5",
+    )
+    template = _template_usability_payload(
+        model,
+        model_quality="PARTIAL",
+        source="pooled_regime_family:F5",
+    )
+
+    assert determination["status"] == "PARTIAL"
+    assert determination["determined_fraction"] == 0.78
+    assert template["status"] == "USABLE"
+    assert template["usable"] is True

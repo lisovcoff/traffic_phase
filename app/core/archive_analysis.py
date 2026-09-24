@@ -10,6 +10,11 @@ from app.core.models import Trajectory, TrajectoryEvent
 from app.core.preprocessing import load_trajectory_payload
 from app.core.reconstruction import (
     DEFAULT_SESSION_GAP_SECONDS,
+    GOOD_MODEL_MIN_COVERAGE,
+    GOOD_MODEL_MIN_CYCLE_CONFIDENCE,
+    GOOD_MODEL_MIN_PHASE_CONFIDENCE,
+    PARTIAL_MODEL_MIN_CYCLE_CONFIDENCE,
+    PARTIAL_MODEL_MIN_PHASE_CONFIDENCE,
     SessionReconstruction,
     extract_events_from_trajectories,
     reconstruct_event_regimes,
@@ -24,6 +29,15 @@ DEFAULT_TIMELINE_POINTS = 240
 CLEARANCE_CANDIDATE_MAX_SECONDS = 4.0
 RESOLVED_MODEL_MIN_CYCLE_CONFIDENCE = 0.75
 RESOLVED_MODEL_MIN_PHASE_CONFIDENCE = 0.75
+DETERMINATION_MIN_COVERAGE = 0.50
+DETERMINATION_MIN_CONFIDENCE = min(
+    PARTIAL_MODEL_MIN_CYCLE_CONFIDENCE,
+    PARTIAL_MODEL_MIN_PHASE_CONFIDENCE,
+)
+DETERMINATION_AVAILABLE_MIN_CONFIDENCE = min(
+    GOOD_MODEL_MIN_CYCLE_CONFIDENCE,
+    GOOD_MODEL_MIN_PHASE_CONFIDENCE,
+)
 
 
 @dataclass(frozen=True)
@@ -86,8 +100,11 @@ class ArchiveAnalysis:
                 local_determination = dict(
                     session_payloads[index]["determination"]
                 )
+                pooled_phase_model = family_payload.get(
+                    "pooled_phase_model"
+                )
                 pooled_determination = _determination_payload(
-                    family_payload.get("pooled_phase_model"),
+                    pooled_phase_model,
                     model_quality=family.pooled_model_quality,
                     confidence=family.pooled_confidence,
                     source=f"pooled_regime_family:{family.family_id}",
@@ -110,9 +127,14 @@ class ArchiveAnalysis:
                     )
                 )
                 if (
-                    pooled_determination["usable"]
+                    family.pooling_status == "ok"
+                    and pooled_determination[
+                        "evidence_sufficient"
+                    ]
                     and (
-                        not local_determination["usable"]
+                        not local_determination[
+                            "evidence_sufficient"
+                        ]
                         or pooled_coverage > local_coverage
                     )
                 ):
@@ -120,8 +142,61 @@ class ArchiveAnalysis:
                         pooled_determination
                     )
                     session_payloads[index]["effective_phase_model"] = (
-                        family_payload.get("pooled_phase_model")
+                        pooled_phase_model
                     )
+
+                effective_model = session_payloads[index].get(
+                    "effective_phase_model"
+                )
+                effective_timeline = _phase_model_cycle_timeline(
+                    effective_model
+                )
+                session_payloads[index]["effective_timeline"] = (
+                    effective_timeline
+                )
+                session_payloads[index][
+                    "effective_unknown_metrics"
+                ] = _timeline_unknown_metrics(effective_timeline)
+                session_payloads[index][
+                    "effective_uncovered_cycle_intervals"
+                ] = _phase_model_dict_gaps(effective_model)
+
+                local_template = dict(
+                    session_payloads[index][
+                        "realtime_template_usability"
+                    ]
+                )
+                pooled_template = _template_usability_payload(
+                    pooled_phase_model,
+                    model_quality=family.pooled_model_quality,
+                    source=f"pooled_regime_family:{family.family_id}",
+                    reasons=(
+                        ()
+                        if family.pooling_status == "ok"
+                        else (family.pooling_status,)
+                    ),
+                )
+                local_template_coverage = float(
+                    local_template.get("coverage", 0.0)
+                )
+                pooled_template_coverage = float(
+                    pooled_template.get("coverage", 0.0)
+                )
+                if (
+                    pooled_template["usable"]
+                    and (
+                        not local_template["usable"]
+                        or pooled_template_coverage
+                        > local_template_coverage
+                    )
+                ):
+                    session_payloads[index][
+                        "realtime_template_usability"
+                    ] = pooled_template
+                    session_payloads[index][
+                        "realtime_phase_model"
+                    ] = pooled_phase_model
+
         single_ok = (
             len(session_payloads) == 1
             and session_payloads[0]["status"] == "ok"
@@ -931,44 +1006,275 @@ def _determination_payload(
     source: str,
     reasons: Sequence[str] = (),
 ) -> dict[str, object]:
+    """Describe what can be determined, independently of realtime usability."""
     coverage = (
         float(phase_model.get("cycle_coverage", 0.0))
         if phase_model is not None
         else 0.0
     )
     coverage = max(0.0, min(1.0, coverage))
-    quality = str(model_quality or "INSUFFICIENT")
-    usable = (
-        phase_model is not None
-        and quality in {"GOOD", "PARTIAL"}
-        and bool(phase_model.get("phases"))
+    confidence_value = (
+        max(0.0, min(1.0, float(confidence)))
+        if confidence is not None
+        else 0.0
     )
-    if not usable:
-        status = "UNABLE_TO_DETERMINE"
-    elif quality == "GOOD":
+    has_phases = bool(
+        phase_model is not None
+        and phase_model.get("phases")
+    )
+    evidence_sufficient = (
+        has_phases
+        and coverage >= DETERMINATION_MIN_COVERAGE
+        and confidence_value >= DETERMINATION_MIN_CONFIDENCE
+    )
+    available = (
+        evidence_sufficient
+        and coverage >= GOOD_MODEL_MIN_COVERAGE
+        and confidence_value
+        >= DETERMINATION_AVAILABLE_MIN_CONFIDENCE
+    )
+    if available:
         status = "AVAILABLE"
-    else:
+    elif evidence_sufficient:
         status = "PARTIAL"
+    else:
+        status = "UNABLE_TO_DETERMINE"
+
+    determination_reasons = list(reasons)
+    if has_phases and coverage < DETERMINATION_MIN_COVERAGE:
+        determination_reasons.append(
+            f"determination_coverage={coverage:.4f}<"
+            f"{DETERMINATION_MIN_COVERAGE:.2f}"
+        )
+    if (
+        has_phases
+        and confidence_value < DETERMINATION_MIN_CONFIDENCE
+    ):
+        determination_reasons.append(
+            f"determination_confidence={confidence_value:.4f}<"
+            f"{DETERMINATION_MIN_CONFIDENCE:.2f}"
+        )
+    if not has_phases:
+        determination_reasons.append("no_supported_phases")
+
     return {
         "status": status,
-        "usable": usable,
+        "evidence_sufficient": evidence_sufficient,
+        # Compatibility alias: this means usable as a determination result,
+        # not usable as a realtime warm-start template.
+        "usable": evidence_sufficient,
         "source": source,
-        "model_quality": quality,
-        "confidence": (
-            round(float(confidence), 4)
-            if confidence is not None
-            else None
-        ),
+        "model_quality": str(model_quality or "INSUFFICIENT"),
+        "confidence": round(confidence_value, 4),
         "determined_fraction": round(
-            coverage if usable else 0.0,
+            coverage if evidence_sufficient else 0.0,
             4,
         ),
         "unable_to_determine_fraction": round(
-            1.0 - coverage if usable else 1.0,
+            1.0 - coverage if evidence_sufficient else 1.0,
             4,
+        ),
+        "reasons": list(dict.fromkeys(determination_reasons)),
+    }
+
+
+def _template_usability_payload(
+    phase_model: dict[str, object] | None,
+    *,
+    model_quality: str | None,
+    source: str,
+    reasons: Sequence[str] = (),
+) -> dict[str, object]:
+    quality = str(model_quality or "INSUFFICIENT")
+    has_phases = bool(
+        phase_model is not None
+        and phase_model.get("phases")
+    )
+    usable = has_phases and quality in {"GOOD", "PARTIAL"}
+    return {
+        "status": "USABLE" if usable else "NOT_USABLE",
+        "usable": usable,
+        "source": source,
+        "model_quality": quality,
+        "coverage": (
+            round(
+                float(phase_model.get("cycle_coverage", 0.0)),
+                4,
+            )
+            if phase_model is not None
+            else 0.0
         ),
         "reasons": list(reasons),
     }
+
+
+def _dict_interval_contains(
+    start: float,
+    end: float,
+    value: float,
+    cycle_seconds: float,
+) -> bool:
+    start %= cycle_seconds
+    end %= cycle_seconds
+    value %= cycle_seconds
+    if abs(start - end) <= 1e-9:
+        return True
+    if start < end:
+        return start <= value < end
+    return value >= start or value < end
+
+
+def _phase_model_dict_gaps(
+    phase_model: dict[str, object] | None,
+) -> list[dict[str, float]]:
+    if not phase_model:
+        return []
+    cycle = float(phase_model.get("cycle_seconds", 0.0))
+    if cycle <= 0:
+        return []
+    segments: list[tuple[float, float]] = []
+    for phase in list(phase_model.get("phases", []) or []):
+        start = float(phase.get("phase_start", 0.0)) % cycle
+        end = float(phase.get("phase_end", 0.0)) % cycle
+        if abs(start - end) <= 1e-9:
+            return []
+        if start < end:
+            segments.append((start, end))
+        else:
+            segments.extend(((start, cycle), (0.0, end)))
+    if not segments:
+        return [{
+            "start_s": 0.0,
+            "end_s": round(cycle, 3),
+            "duration_s": round(cycle, 3),
+        }]
+    segments.sort()
+    merged: list[list[float]] = []
+    for start, end in segments:
+        if not merged or start > merged[-1][1] + 1e-9:
+            merged.append([start, end])
+        else:
+            merged[-1][1] = max(merged[-1][1], end)
+    gaps: list[dict[str, float]] = []
+    cursor = 0.0
+    for start, end in merged:
+        if start > cursor + 1e-9:
+            gaps.append({
+                "start_s": round(cursor, 3),
+                "end_s": round(start, 3),
+                "duration_s": round(start - cursor, 3),
+            })
+        cursor = max(cursor, end)
+    if cursor < cycle - 1e-9:
+        gaps.append({
+            "start_s": round(cursor, 3),
+            "end_s": round(cycle, 3),
+            "duration_s": round(cycle - cursor, 3),
+        })
+    return gaps
+
+
+def _phase_model_cycle_timeline(
+    phase_model: dict[str, object] | None,
+    *,
+    max_points: int = 120,
+) -> list[dict[str, object]]:
+    """Backend-computed one-cycle preview of the effective phase model."""
+    if not phase_model or max_points <= 0:
+        return []
+    cycle = float(phase_model.get("cycle_seconds", 0.0))
+    if cycle <= 0:
+        return []
+    bin_seconds = max(
+        0.5,
+        float(phase_model.get("bin_seconds", 2.0) or 2.0),
+    )
+    point_count = max(
+        1,
+        min(max_points, int(round(cycle / bin_seconds))),
+    )
+    phases = list(phase_model.get("phases", []) or [])
+    movement_stages = list(
+        phase_model.get("movement_stages", []) or []
+    )
+    approaches = ("N", "S", "E", "W")
+    timeline: list[dict[str, object]] = []
+
+    for index in range(point_count):
+        position = cycle * index / point_count
+        phase = next(
+            (
+                item
+                for item in phases
+                if _dict_interval_contains(
+                    float(item.get("phase_start", 0.0)),
+                    float(item.get("phase_end", 0.0)),
+                    position,
+                    cycle,
+                )
+            ),
+            None,
+        )
+        states = {approach: "UNKNOWN" for approach in approaches}
+        active_approaches: list[str] = []
+        phase_id = None
+        confidence = 0.0
+        if phase is not None:
+            active_approaches = [
+                str(value)
+                for value in phase.get("active_approaches", [])
+                if str(value) in approaches
+            ]
+            phase_id = phase.get("phase_id")
+            confidence = float(phase.get("confidence", 0.0))
+            for approach in active_approaches:
+                states[approach] = "GREEN"
+            active_set = set(active_approaches)
+            if active_set and active_set <= {"N", "S"}:
+                states["E"] = "RED"
+                states["W"] = "RED"
+            elif active_set and active_set <= {"E", "W"}:
+                states["N"] = "RED"
+                states["S"] = "RED"
+
+        active_movements = [
+            item
+            for item in movement_stages
+            if _dict_interval_contains(
+                float(item.get("phase_start", 0.0)),
+                float(item.get("phase_end", 0.0)),
+                position,
+                cycle,
+            )
+        ]
+        has_unknown = any(
+            state == "UNKNOWN" for state in states.values()
+        )
+        timeline.append({
+            "timestamp_ms": int(round(position * 1000.0)),
+            "offset_s": round(position, 3),
+            "cycle_position_s": round(position, 3),
+            "phase_id": phase_id,
+            "transition": False,
+            "active_approaches": active_approaches,
+            "active_movements": active_movements,
+            "confidence": round(confidence, 4),
+            "states": states,
+            "unknown_reason": (
+                "uncovered_phase"
+                if phase is None
+                else (
+                    "unobserved_approach"
+                    if has_unknown
+                    else None
+                )
+            ),
+            "axis_states": {
+                "NS": _axis_state(states, ("N", "S")),
+                "EW": _axis_state(states, ("E", "W")),
+            },
+        })
+    return timeline
 
 
 def _session_payload(
@@ -990,6 +1296,18 @@ def _session_payload(
         source="local_segment",
         reasons=session.quality_reasons,
     )
+    template_usability = _template_usability_payload(
+        phase_model,
+        model_quality=session.model_quality,
+        source="local_segment",
+        reasons=session.quality_reasons,
+    )
+    effective_phase_model = (
+        phase_model if determination["evidence_sufficient"] else None
+    )
+    effective_timeline = _phase_model_cycle_timeline(
+        effective_phase_model
+    )
     return {
         "session_id": index,
         "physical_session_index": session.session_index,
@@ -1009,10 +1327,19 @@ def _session_payload(
         "error_reason": session.error_reason,
         "cycle": _compact_cycle(session),
         "phase_model": phase_model,
-        "effective_phase_model": (
-            phase_model if determination["usable"] else None
+        "effective_phase_model": effective_phase_model,
+        "effective_timeline": effective_timeline,
+        "effective_unknown_metrics": _timeline_unknown_metrics(
+            effective_timeline
+        ),
+        "effective_uncovered_cycle_intervals": (
+            _phase_model_dict_gaps(effective_phase_model)
         ),
         "determination": determination,
+        "realtime_template_usability": template_usability,
+        "realtime_phase_model": (
+            phase_model if template_usability["usable"] else None
+        ),
         "timeline": timeline,
         "unknown_metrics": _timeline_unknown_metrics(timeline),
         "uncovered_cycle_intervals": _phase_coverage_gaps(

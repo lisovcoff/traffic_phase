@@ -15,6 +15,15 @@ too sparse or ambiguous, the correct result is UNKNOWN / unable to determine.
 UNKNOWN is not an error target and the production path does not attempt to
 force cycle coverage toward 100%.
 
+Determination coverage and realtime-template usability are deliberately
+separate. A reconstructed cycle may contain evidence-backed intervals while
+still being too incomplete for safe realtime warm-starting. Such a segment is
+reported as PARTIAL for Batch determination, with its remaining cycle UNKNOWN,
+while its realtime template status can remain NOT_USABLE. The main Batch view
+uses the best evidence-backed local or pooled model; local reconstruction,
+pooling details, boundary suggestions, and movement hypotheses remain under
+Diagnostics.
+
 Cross-day pooling is allowed because it combines additional real
 RELEASE/CROSSING observations from a recurring timing regime. In contrast,
 boundary interpolation, gap labels, and residual movement-stage analysis are

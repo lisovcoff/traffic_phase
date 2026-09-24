@@ -104,7 +104,7 @@ def test_visualization_surfaces_batch_quality_and_boundary_recovery():
     assert "boundary_suggested_fraction" in html
     assert "suggested · not applied" in html
     assert "effective_phase_model" in html
-    assert "determination.usable" in html
+    assert "realtime_template_usability" in html
 
 
 
@@ -138,8 +138,23 @@ def test_visualization_does_not_treat_unknown_as_a_failure_target():
     html = visualization_page()
 
     assert "Unable to determine" in html
-    assert "Effective determination" in html
+    assert "Determination" in html
+    assert "Realtime template" in html
     assert "Only evidence-backed intervals are authoritative" in html
     assert "✓ <1%" not in html
     assert "meets_target" not in html
     assert "meets_unresolved_target" not in html
+
+
+
+def test_visualization_separates_determination_from_realtime_template():
+    html = visualization_page()
+
+    assert 'id="batchTemplateUsability"' in html
+    assert "realtime_template_usability" in html
+    assert "realtime_phase_model" in html
+    assert "batchSession.effective_phase_model" in html
+    assert "batchSession.effective_timeline" in html
+    assert ">Diagnostics<" in html
+    assert "Effective phase model" in html
+    assert "Local model quality" in html

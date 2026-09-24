@@ -71,22 +71,31 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
   <div id="batchViewer" class="hidden">
     <div class="panel stats">
       <div class="stat"><span>Cycle length</span><strong id="batchCycle">—</strong></div>
-      <div class="stat"><span>Cycle confidence</span><strong id="batchCycleConfidence">—</strong></div>
+      <div class="stat"><span>Determination confidence</span><strong id="batchCycleConfidence">—</strong></div>
       <div class="stat"><span>Current phase</span><strong id="batchPhase">UNKNOWN</strong></div>
       <div class="stat"><span>Active movement groups</span><strong id="batchActiveMovements">—</strong></div>
       <div class="stat"><span>Phase confidence</span><strong id="batchPhaseConfidence">—</strong></div>
       <div class="stat"><span>Vehicles / events</span><strong id="batchCounts">—</strong></div>
+      <div class="stat"><span>Determination</span><strong id="batchQuality">—</strong></div>
+      <div class="stat"><span>Determined coverage</span><strong id="batchCoverage">—</strong></div>
       <div class="stat"><span>Unable to determine</span><strong id="batchUnknown">—</strong></div>
       <div class="stat"><span>Unable N/S/E/W</span><strong id="batchUnknownByApproach">—</strong></div>
-      <div class="stat"><span>Local determined coverage</span><strong id="batchCoverage">—</strong></div>
-      <div class="stat"><span>Model quality</span><strong id="batchQuality">—</strong></div>
-      <div class="stat"><span>Boundary suggestion (diagnostic)</span><strong id="batchRecovery">—</strong></div>
-      <div class="stat"><span>Gap diagnostics</span><strong id="batchGapSemantics">—</strong></div>
-      <div class="stat"><span>Effective determination</span><strong id="batchUnresolved">—</strong></div>
-      <div class="stat"><span>Regime family</span><strong id="batchRegimeFamily">—</strong></div>
-      <div class="stat"><span>Pooled raw reconstruction</span><strong id="batchPooled">—</strong></div>
-      <div class="stat"><span>Unable-to-determine cause</span><strong id="batchUnknownCause">—</strong></div>
+      <div class="stat"><span>Model source</span><strong id="batchUnresolved">—</strong></div>
+      <div class="stat"><span>Realtime template</span><strong id="batchTemplateUsability">—</strong></div>
     </div>
+
+    <details class="panel">
+      <summary><strong>Diagnostics</strong> · local reconstruction, pooling and research-only hypotheses</summary>
+      <div class="stats" style="margin-top:12px">
+        <div class="stat"><span>Local model quality</span><strong id="batchLocalQuality">—</strong></div>
+        <div class="stat"><span>Local coverage</span><strong id="batchLocalCoverage">—</strong></div>
+        <div class="stat"><span>Regime family</span><strong id="batchRegimeFamily">—</strong></div>
+        <div class="stat"><span>Pooled raw reconstruction</span><strong id="batchPooled">—</strong></div>
+        <div class="stat"><span>Boundary suggestion</span><strong id="batchRecovery">—</strong></div>
+        <div class="stat"><span>Gap diagnostics</span><strong id="batchGapSemantics">—</strong></div>
+        <div class="stat"><span>Local unable cause</span><strong id="batchUnknownCause">—</strong></div>
+      </div>
+    </details>
 
     <div class="panel">
       <div class="controls">
@@ -99,10 +108,14 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
     </div>
 
     <div class="panel">
-      <h3>Phase model</h3>
+      <h3>Effective phase model</h3>
       <div id="batchPhaseList" class="phase-list"></div>
-      <div id="batchMovementList" class="phase-list" style="margin-top:10px"></div>
-      <div class="muted small" style="margin-top:10px">Only evidence-backed intervals are authoritative. Uncovered intervals remain impossible to determine. Movement, gap and boundary analyses below are diagnostic and do not fill missing phase intervals. Realtime uses the effective evidence-backed model and keeps its uncovered intervals UNKNOWN.</div>
+      <div class="muted small" style="margin-top:10px">Only evidence-backed intervals are authoritative. This is the best supported model for the selected regime; uncovered intervals remain impossible to determine.</div>
+      <details style="margin-top:12px">
+        <summary>Movement / gap research diagnostics</summary>
+        <div id="batchMovementList" class="phase-list" style="margin-top:10px"></div>
+        <div class="muted small" style="margin-top:10px">These diagnostics explain rejected or ambiguous hypotheses and never fill the authoritative main-phase gaps.</div>
+      </details>
     </div>
   </div>
 </section>
@@ -236,7 +249,9 @@ async function analyzeBatch(){
     sessions.forEach((item,i)=>{
       const option=document.createElement('option');
       option.value=String(i);
-      option.textContent='Segment '+item.session_id+' · physical '+item.physical_session_index+' · regime '+item.regime_index+'/'+item.regime_count+' · '+item.status+' · '+(item.model_quality||'UNKNOWN')+' · '+item.duration_s.toFixed(1)+' s';
+      const determination=item.determination||{};
+      const template=item.realtime_template_usability||{};
+      option.textContent='Segment '+item.session_id+' · physical '+item.physical_session_index+' · regime '+item.regime_index+'/'+item.regime_count+' · '+(determination.status||'UNABLE_TO_DETERMINE')+' · RT '+(template.status||'NOT_USABLE')+' · '+item.duration_s.toFixed(1)+' s';
       select.appendChild(option);
     });
     $('batchSessionRow').classList.toggle('hidden',sessions.length===1);
@@ -253,38 +268,62 @@ function openBatchSession(i){
   stopBatch();batchIndex=0;batchSession=batchAnalysis.sessions[i];
   $('batchViewer').classList.remove('hidden');
   $('batchSessionSelect').value=String(i);
-  const cycle=batchSession.cycle;
-  $('batchCycle').textContent=cycle?cycle.estimated_cycle.toFixed(1)+' s':'—';
-  $('batchCycleConfidence').textContent=cycle?cycle.confidence.toFixed(2):'—';
+
+  const determination=batchSession.determination||{};
+  const effectiveModel=batchSession.effective_phase_model||{};
+  const localModel=batchSession.phase_model||{};
+  const localCycle=batchSession.cycle;
+  const template=batchSession.realtime_template_usability||{};
+
+  const cycleSeconds=effectiveModel.cycle_seconds==null
+    ?(localCycle?localCycle.estimated_cycle:null)
+    :Number(effectiveModel.cycle_seconds);
+  $('batchCycle').textContent=cycleSeconds==null?'—':Number(cycleSeconds).toFixed(1)+' s';
+  $('batchCycleConfidence').textContent=determination.confidence==null?'—':Number(determination.confidence).toFixed(2);
   $('batchCounts').textContent=batchSession.trajectory_count+' / '+batchSession.event_count;
-  const unknown=batchSession.unknown_metrics||{};
-  $('batchUnknown').textContent=unknown.unable_to_determine_rate==null?'—':(Number(unknown.unable_to_determine_rate)*100).toFixed(2)+'%';
-  const byApproach=unknown.per_approach_rate||{};
-  $('batchUnknownByApproach').textContent=['N','S','E','W'].map(a=>a+' '+(byApproach[a]==null?'—':(byApproach[a]*100).toFixed(1)+'%')).join(' · ');
-  const model=batchSession.phase_model||{};
-  $('batchCoverage').textContent=model.cycle_coverage==null?'—':(Number(model.cycle_coverage)*100).toFixed(1)+'%';
-  const quality=batchSession.model_quality||'UNKNOWN';
-  const qualityReasons=batchSession.quality_reasons||[];
-  $('batchQuality').textContent=quality+(qualityReasons.length?(' · '+qualityReasons.join(', ')):'');
-  $('batchQuality').className=quality==='GOOD'?'ok':(quality==='INSUFFICIENT'?'error':'warmup');
-  const suggested=Number(model.boundary_suggested_fraction||0);
-  const recoveryItems=model.boundary_recoveries||[];
+
+  const unable=determination.unable_to_determine_fraction;
+  const determined=determination.determined_fraction;
+  $('batchUnknown').textContent=unable==null?'—':(Number(unable)*100).toFixed(2)+'%';
+  $('batchCoverage').textContent=determined==null?'—':(Number(determined)*100).toFixed(1)+'%';
+
+  const effectiveUnknown=batchSession.effective_unknown_metrics||{};
+  const byApproach=effectiveUnknown.per_approach_rate||{};
+  $('batchUnknownByApproach').textContent=['N','S','E','W'].map(a=>a+' '+(byApproach[a]==null?'—':(Number(byApproach[a])*100).toFixed(1)+'%')).join(' · ');
+
+  const status=determination.status||'UNABLE_TO_DETERMINE';
+  $('batchQuality').textContent=status;
+  $('batchQuality').className=status==='AVAILABLE'?'ok':(status==='UNABLE_TO_DETERMINE'?'error':'warmup');
+  $('batchUnresolved').textContent=determination.source||'—';
+
+  $('batchTemplateUsability').textContent=(template.status||'NOT_USABLE')+' · '+(template.source||'—')+(template.usable?'':' · batch-only');
+  $('batchTemplateUsability').className=template.usable?'ok':'warmup';
+
+  const localQuality=batchSession.model_quality||'UNKNOWN';
+  const localReasons=batchSession.quality_reasons||[];
+  $('batchLocalQuality').textContent=localQuality+(localReasons.length?(' · '+localReasons.join(', ')):'');
+  $('batchLocalQuality').className=localQuality==='GOOD'?'ok':(localQuality==='INSUFFICIENT'?'error':'warmup');
+  $('batchLocalCoverage').textContent=localModel.cycle_coverage==null?'—':(Number(localModel.cycle_coverage)*100).toFixed(1)+'%';
+
+  const suggested=Number(localModel.boundary_suggested_fraction||0);
+  const recoveryItems=localModel.boundary_recoveries||[];
   $('batchRecovery').textContent=(suggested*100).toFixed(1)+'% suggested · not applied'+(recoveryItems.length?(' · '+recoveryItems.map(item=>item.axis+' '+Number(item.phase_start).toFixed(1)+'–'+Number(item.phase_end).toFixed(1)+'s').join(', ')):'');
-  const reasonRate=unknown.reason_rate||{};
-  const gaps=batchSession.uncovered_cycle_intervals||[];
+
+  const localUnknown=batchSession.unknown_metrics||{};
+  const reasonRate=localUnknown.reason_rate||{};
+  const localGaps=batchSession.uncovered_cycle_intervals||[];
   const reasons=Object.entries(reasonRate).map(([reason,rate])=>reason+' '+(Number(rate)*100).toFixed(1)+'%');
-  const gapText=gaps.length?(' · gaps '+gaps.map(g=>Number(g.start_s).toFixed(1)+'–'+Number(g.end_s).toFixed(1)+'s').join(', ')):'';
+  const gapText=localGaps.length?(' · gaps '+localGaps.map(g=>Number(g.start_s).toFixed(1)+'–'+Number(g.end_s).toFixed(1)+'s').join(', ')):'';
   $('batchUnknownCause').textContent=(reasons.length?reasons.join(' · '):'none')+gapText;
+
   const gapMetrics=batchSession.gap_metrics||{};
   $('batchGapSemantics').textContent='clearance '+(Number(gapMetrics.clearance_candidate_rate||0)*100).toFixed(1)+'% · transition ambiguous '+(Number(gapMetrics.transition_ambiguous_rate||0)*100).toFixed(1)+'% · unresolved stage '+(Number(gapMetrics.unresolved_stage_rate||0)*100).toFixed(1)+'% · unobserved '+(Number(gapMetrics.unobserved_rate||0)*100).toFixed(1)+'%';
-  const determination=batchSession.determination||{};
-  const determined=determination.determined_fraction;
-  const unable=determination.unable_to_determine_fraction;
-  $('batchUnresolved').textContent=(determination.status||'UNABLE_TO_DETERMINE')+' · determined '+(determined==null?'—':(Number(determined)*100).toFixed(1)+'%')+' · unable '+(unable==null?'—':(Number(unable)*100).toFixed(1)+'%')+' · '+(determination.source||'—');
+
   const family=currentRegimeFamily();
   $('batchRegimeFamily').textContent=family?(family.family_id+' · '+family.member_count+' member(s) · '+family.model_quality+' · vote '+(Number(family.consensus_coverage||0)*100).toFixed(1)+'%'):'—';
   $('batchPooled').textContent=family?(family.pooling_status+' · '+(family.pooled_event_count||0)+' events · '+(family.pooled_cycle_count||0)+' cycles · coverage '+(family.pooled_coverage==null?'—':(Number(family.pooled_coverage)*100).toFixed(1)+'%')+' · quality '+(family.pooled_model_quality||'—')+' · movement candidates '+(family.pooled_movement_candidate_count||0)+' / stages '+(family.pooled_movement_stage_count||0)):'—';
-  const timeline=batchSession.timeline||[];
+
+  const timeline=batchSession.effective_timeline||[];
   $('batchSlider').max=String(Math.max(0,timeline.length-1));
   $('batchSlider').value='0';
   $('batchSlider').disabled=timeline.length===0;
@@ -295,13 +334,13 @@ function openBatchSession(i){
   updateTemplateStatus();
   renderBatchPoint();
 }
-
 function buildBatchPhaseModel(){
   const holder=$('batchPhaseList');holder.innerHTML='';
   const movementHolder=$('batchMovementList');movementHolder.innerHTML='';
-  const model=batchSession.phase_model||{};
+  const model=batchSession.effective_phase_model||{};
+  const localModel=batchSession.phase_model||{};
   const phases=model.phases||[];
-  if(!phases.length){holder.textContent='No phase model';return}
+  if(!phases.length){holder.textContent='Unable to determine a supported phase model';movementHolder.textContent='No diagnostics available.';return}
   phases.forEach(p=>{
     const chip=document.createElement('span');chip.className='phase-chip';
     chip.textContent='Phase '+p.phase_id+': '+p.active_approaches.join('/')+' · '+p.phase_start+'–'+p.phase_end+'s · conf '+p.confidence.toFixed(2);
@@ -313,7 +352,7 @@ function buildBatchPhaseModel(){
     chip.textContent='Movement '+stage.movement+' · '+stage.phase_start+'–'+stage.phase_end+'s · conf '+stage.confidence.toFixed(2);
     movementHolder.appendChild(chip);
   });
-  const movementDecisions=model.movement_stage_decisions||[];
+  const movementDecisions=localModel.movement_stage_decisions||[];
   movementDecisions.forEach(item=>{
     const chip=document.createElement('span');chip.className='phase-chip';
     const residual=item.residual_start==null?'no residual':('residual '+Number(item.residual_start).toFixed(1)+'–'+Number(item.residual_end).toFixed(1)+'s · rep '+Number(item.residual_repeatability||0).toFixed(2)+' · stab '+Number(item.residual_stability||0).toFixed(2)+' · conflict '+(Number(item.conflicting_event_ratio||0)*100).toFixed(0)+'%');
@@ -352,7 +391,7 @@ function buildBatchPhaseModel(){
 
 function buildBatchTimeline(){
   const bar=$('phaseTimeline');bar.innerHTML='';
-  const timeline=batchSession.timeline||[];
+  const timeline=batchSession.effective_timeline||[];
   if(!timeline.length){bar.innerHTML='<div class="segment unknown" style="width:100%"></div>';return}
   timeline.forEach(point=>{
     const seg=document.createElement('div');
@@ -370,9 +409,9 @@ function buildBatchTimeline(){
 
 function renderBatchPoint(){
   if(mode!=='batch'||!batchSession)return;
-  const timeline=batchSession.timeline||[];
+  const timeline=batchSession.effective_timeline||[];
   $('sharedState').classList.remove('hidden');
-  $('sharedHint').textContent='Batch state at the selected session time.';
+  $('sharedHint').textContent='Backend preview of the effective evidence-backed cycle.';
   if(!timeline.length){
     $('batchPhase').textContent='UNKNOWN';$('batchActiveMovements').textContent='—';$('batchPhaseConfidence').textContent='0.00';
     $('batchTimeLabel').textContent='No timeline: insufficient inference data';
@@ -385,13 +424,14 @@ function renderBatchPoint(){
   const batchMovements=point.active_movements||[];
   $('batchActiveMovements').textContent=batchMovements.length?batchMovements.map(item=>item.movement).join(', '):'—';
   $('batchPhaseConfidence').textContent=Number(point.confidence||0).toFixed(2);
-  $('batchTimeLabel').textContent=point.offset_s.toFixed(1)+' s / '+batchSession.duration_s.toFixed(1)+' s';
+  const cycleSeconds=Number((batchSession.effective_phase_model||{}).cycle_seconds||0);
+  $('batchTimeLabel').textContent=point.offset_s.toFixed(1)+' s / '+cycleSeconds.toFixed(1)+' s cycle';
   renderStates(point.states||{});
 }
 
 function playBatch(){
   stopBatch();
-  const timeline=(batchSession&&batchSession.timeline)||[];
+  const timeline=(batchSession&&batchSession.effective_timeline)||[];
   if(timeline.length<2)return;
   if(batchIndex>=timeline.length-1)batchIndex=0;
   batchTimer=setInterval(()=>{
@@ -407,10 +447,10 @@ function currentRegimeFamily(){
 }
 function effectiveTemplate(){
   if(!batchSession||batchSession.status!=='ok')return null;
-  const determination=batchSession.determination||{};
-  const model=batchSession.effective_phase_model;
-  if(!determination.usable||!model||!model.phases||!model.phases.length)return null;
-  return {model,source:determination.source||'evidence-backed model',status:determination.status||'PARTIAL'};
+  const template=batchSession.realtime_template_usability||{};
+  const model=batchSession.realtime_phase_model;
+  if(!template.usable||!model||!model.phases||!model.phases.length)return null;
+  return {model,source:template.source||'realtime template',status:template.status||'USABLE'};
 }
 function usableTemplate(){
   return Boolean(effectiveTemplate());
@@ -418,8 +458,8 @@ function usableTemplate(){
 function updateTemplateStatus(){
   const template=effectiveTemplate();
   if(template){
-    $('templateStatus').textContent=template.status+' · '+template.source+' · determined '+(Number(batchSession.determination.determined_fraction||0)*100).toFixed(1)+'% · cycle '+Number(template.model.cycle_seconds).toFixed(1)+' s';
-    $('templateStatus').className=template.status==='AVAILABLE'?'ok':'warmup';
+    $('templateStatus').textContent=template.status+' · '+template.source+' · coverage '+(Number(template.model.cycle_coverage||0)*100).toFixed(1)+'% · cycle '+Number(template.model.cycle_seconds).toFixed(1)+' s';
+    $('templateStatus').className=template.status==='USABLE'?'ok':'warmup';
   }else{
     $('templateStatus').textContent=batchSession?'Impossible to determine a usable recurring phase model from the available traffic evidence.':'Run Batch on a reference archive first.';
     $('templateStatus').className='muted';
