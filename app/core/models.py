@@ -37,6 +37,12 @@ class EventType(str, Enum):
     CROSSING = "CROSSING"
 
 
+class MovementEvidenceQuality(str, Enum):
+    VALID = "valid"
+    WEAK = "weak"
+    UNKNOWN = "unknown"
+
+
 @dataclass(frozen=True)
 class TrajectoryEvent:
     event_type: EventType
@@ -45,6 +51,8 @@ class TrajectoryEvent:
     movement: str
     confidence: float
     quality: str
+    movement_quality: MovementEvidenceQuality = MovementEvidenceQuality.UNKNOWN
+    movement_reason: str | None = None
 
 
 @dataclass(frozen=True)

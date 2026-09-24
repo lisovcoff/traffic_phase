@@ -3,7 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, Sequence
 
-from app.core.models import Detection, EventType, Trajectory, TrajectoryEvent
+from app.core.models import (
+    Detection,
+    EventType,
+    MovementEvidenceQuality,
+    Trajectory,
+    TrajectoryEvent,
+)
 from app.core.trajectory_geometry import TrajectoryGeometry, haversine_distance_m
 
 
@@ -158,6 +164,90 @@ def _zone_crossing_timestamp(
     return None, has_named_zone
 
 
+UNKNOWN_DESTINATION = "UNKNOWN"
+
+
+def resolve_movement(
+    approach: str,
+    zone_out: str | None,
+    movement: str | None,
+) -> tuple[str, MovementEvidenceQuality, str | None]:
+    """Canonicalize and validate a trajectory movement."""
+    normalized_approach = str(approach).strip()
+    if not normalized_approach:
+        raise ValueError("movement approach must not be empty")
+
+    normalized_zone_out = (
+        str(zone_out).strip()
+        if zone_out is not None
+        else UNKNOWN_DESTINATION
+    )
+    destination_known = bool(
+        normalized_zone_out
+        and normalized_zone_out != UNKNOWN_DESTINATION
+    )
+
+    raw_movement = (
+        str(movement).strip()
+        if movement is not None
+        else ""
+    )
+
+    if not raw_movement:
+        if destination_known:
+            return (
+                f"{normalized_approach}->{normalized_zone_out}",
+                MovementEvidenceQuality.VALID,
+                None,
+            )
+        return (
+            f"{normalized_approach}->{UNKNOWN_DESTINATION}",
+            MovementEvidenceQuality.UNKNOWN,
+            "destination_not_observed",
+        )
+
+    parts = raw_movement.split("->")
+    if len(parts) != 2:
+        raise ValueError(
+            "movement must use '<approach>-><destination>' format"
+        )
+
+    movement_approach = parts[0].strip()
+    movement_destination = parts[1].strip()
+    if not movement_approach or not movement_destination:
+        raise ValueError("movement approach and destination must not be empty")
+
+    if movement_approach != normalized_approach:
+        raise ValueError(
+            "movement approach does not match zone_in: "
+            f"{movement_approach!r} != {normalized_approach!r}"
+        )
+
+    if destination_known:
+        if movement_destination != normalized_zone_out:
+            raise ValueError(
+                "movement destination does not match zone_out: "
+                f"{movement_destination!r} != {normalized_zone_out!r}"
+            )
+        return (
+            f"{normalized_approach}->{movement_destination}",
+            MovementEvidenceQuality.VALID,
+            None,
+        )
+
+    if movement_destination == UNKNOWN_DESTINATION:
+        return (
+            f"{normalized_approach}->{UNKNOWN_DESTINATION}",
+            MovementEvidenceQuality.UNKNOWN,
+            "destination_not_observed",
+        )
+
+    return (
+        f"{normalized_approach}->{movement_destination}",
+        MovementEvidenceQuality.WEAK,
+        "destination_inferred_from_movement",
+    )
+
 class CausalTrajectoryEventExtractor:
     """Incrementally confirm trajectory events without reading future detections.
 
@@ -170,13 +260,28 @@ class CausalTrajectoryEventExtractor:
         self,
         *,
         approach: str,
-        movement: str,
-        zone_out: str,
+        movement: str | None,
+        zone_out: str | None,
         config: EventExtractionConfig = EventExtractionConfig(),
     ) -> None:
-        self.approach = approach
-        self.movement = movement
-        self.zone_out = zone_out
+        (
+            canonical_movement,
+            movement_quality,
+            movement_reason,
+        ) = resolve_movement(
+            approach,
+            zone_out,
+            movement,
+        )
+        self.approach = str(approach).strip()
+        self.movement = canonical_movement
+        self.movement_quality = movement_quality
+        self.movement_reason = movement_reason
+        self.zone_out = (
+            str(zone_out).strip()
+            if zone_out is not None
+            else UNKNOWN_DESTINATION
+        )
         self.config = config
         self._detections: list[Detection] = []
         self._seen_detections: set[tuple[int, float, float, str | None]] = set()
@@ -391,6 +496,8 @@ class CausalTrajectoryEventExtractor:
             movement=self.movement,
             confidence=_event_confidence(confidence, strength),
             quality=quality,
+            movement_quality=self.movement_quality,
+            movement_reason=self.movement_reason,
         )
 
 
@@ -407,7 +514,11 @@ def extract_trajectory_events(
 
     base_confidence, quality = _trajectory_quality(geometry, config)
     approach = trajectory.zone_in
-    movement = trajectory.movement
+    movement, movement_quality, movement_reason = resolve_movement(
+        trajectory.zone_in,
+        trajectory.zone_out,
+        trajectory.movement,
+    )
 
     events = [
         TrajectoryEvent(
@@ -417,6 +528,8 @@ def extract_trajectory_events(
             movement=movement,
             confidence=_event_confidence(base_confidence, 1.0),
             quality=quality,
+            movement_quality=movement_quality,
+            movement_reason=movement_reason,
         )
     ]
 
@@ -440,6 +553,8 @@ def extract_trajectory_events(
                 movement=movement,
                 confidence=_event_confidence(base_confidence, 0.9),
                 quality=quality,
+                movement_quality=movement_quality,
+                movement_reason=movement_reason,
             )
         )
 
@@ -463,6 +578,8 @@ def extract_trajectory_events(
                     movement=movement,
                     confidence=_event_confidence(base_confidence, 0.9),
                     quality=quality,
+                    movement_quality=movement_quality,
+                    movement_reason=movement_reason,
                 )
             )
 
@@ -504,6 +621,8 @@ def extract_trajectory_events(
                     crossing_strength,
                 ),
                 quality=quality,
+                movement_quality=movement_quality,
+                movement_reason=movement_reason,
             )
         )
 

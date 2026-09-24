@@ -17,7 +17,7 @@ DEFAULT_WINDOW_S = 10.0
 def _trajectory_from_dict(item: dict) -> Trajectory | None:
     if item.get("category_name") != "car":
         return None
-    if not item.get("zone_in") or not item.get("zone_out"):
+    if not item.get("zone_in"):
         return None
     if item.get("millis") is None:
         return None

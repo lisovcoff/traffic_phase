@@ -95,17 +95,33 @@ def build_trajectory_model(trajectory: Mapping[str, Any]):
     if trajectory.get("millis") is None:
         raise ValueError("Trajectory millis is required")
 
+    from app.core.trajectory_events import (
+        UNKNOWN_DESTINATION,
+        resolve_movement,
+    )
+
     zone_in = trajectory.get("zone_in")
-    zone_out = trajectory.get("zone_out")
-    if not zone_in or not zone_out:
-        raise ValueError("Trajectory zones are required")
+    if not zone_in:
+        raise ValueError("Trajectory zone_in is required")
+
+    raw_zone_out = trajectory.get("zone_out")
+    zone_out = (
+        str(raw_zone_out).strip()
+        if raw_zone_out
+        else UNKNOWN_DESTINATION
+    )
+    movement, _movement_quality, _movement_reason = resolve_movement(
+        str(zone_in),
+        zone_out,
+        trajectory.get("movement"),
+    )
 
     return Trajectory(
         vehicle_id=trajectory.get("id"),
         timestamp_ms=int(trajectory["millis"]),
         zone_in=str(zone_in),
-        zone_out=str(zone_out),
-        movement=f"{zone_in}->{zone_out}",
+        zone_out=zone_out,
+        movement=movement,
         speed=float(trajectory["speed"]) if trajectory.get("speed") is not None else None,
         wait_s=max(
             0.0,

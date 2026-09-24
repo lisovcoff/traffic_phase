@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from app.core.models import EventType, Trajectory
+import pytest
+
+from app.core.models import EventType, MovementEvidenceQuality, Trajectory
 from app.core.trajectory_events import IntersectionGeometry, extract_trajectory_events
 from app.core.trajectory_geometry import build_trajectory_geometry
 
@@ -54,6 +56,11 @@ def test_extracts_approach_stop_release_and_crossing():
     assert 3500 <= events[1].timestamp_ms <= 4500
     assert 8500 <= events[2].timestamp_ms <= 10000
     assert events[-1].timestamp_ms == 13000
+    assert all(event.movement == "N->_S" for event in events)
+    assert all(
+        event.movement_quality is MovementEvidenceQuality.VALID
+        for event in events
+    )
 
 
 def test_trajectory_without_stop_has_no_release():
@@ -269,3 +276,104 @@ def test_causal_extractor_does_not_use_future_crossing_detection():
 
     later = extractor.ingest_snapshot(geometry.detections)
     assert EventType.CROSSING in _event_types(later)
+
+
+def test_common_movements_are_canonical_and_valid():
+    from app.core.trajectory_events import resolve_movement
+
+    cases = [
+        ("N", "_S"),
+        ("N", "_E"),
+        ("N", "_W"),
+        ("S", "_N"),
+        ("S", "_E"),
+        ("E", "_W"),
+        ("E", "_N"),
+        ("W", "_E"),
+        ("W", "_S"),
+    ]
+    for approach, destination in cases:
+        movement, quality, reason = resolve_movement(
+            approach,
+            destination,
+            f"{approach}->{destination}",
+        )
+        assert movement == f"{approach}->{destination}"
+        assert quality is MovementEvidenceQuality.VALID
+        assert reason is None
+
+
+def test_unknown_destination_is_explicit_and_does_not_fake_a_route():
+    from app.core.trajectory_events import resolve_movement
+
+    movement, quality, reason = resolve_movement(
+        "N",
+        None,
+        None,
+    )
+    assert movement == "N->UNKNOWN"
+    assert quality is MovementEvidenceQuality.UNKNOWN
+    assert reason == "destination_not_observed"
+
+
+def test_known_movement_without_zone_out_is_weak_not_valid():
+    from app.core.trajectory_events import resolve_movement
+
+    movement, quality, reason = resolve_movement(
+        "N",
+        None,
+        "N->_E",
+    )
+    assert movement == "N->_E"
+    assert quality is MovementEvidenceQuality.WEAK
+    assert reason == "destination_inferred_from_movement"
+
+
+def test_malformed_movement_is_rejected():
+    from app.core.trajectory_events import resolve_movement
+
+    with pytest.raises(ValueError, match="does not match zone_in"):
+        resolve_movement("N", "_S", "E->_S")
+
+    with pytest.raises(ValueError, match="does not match zone_out"):
+        resolve_movement("N", "_S", "N->_E")
+
+
+def test_causal_extractor_marks_unknown_destination_without_inventing_one():
+    from app.core.trajectory_events import (
+        CausalTrajectoryEventExtractor,
+        UNKNOWN_DESTINATION,
+    )
+
+    extractor = CausalTrajectoryEventExtractor(
+        approach="N",
+        movement=None,
+        zone_out=UNKNOWN_DESTINATION,
+    )
+    geometry = build_trajectory_geometry(
+        {
+            "detections": [
+                _point(0, 55.0, zone="N"),
+                _point(1000, 55.00003, zone="N"),
+                _point(2000, 55.00006, zone=None),
+            ]
+        }
+    )
+    events = extractor.ingest_snapshot(geometry.detections)
+    crossing = next(
+        event for event in events
+        if event.event_type == EventType.CROSSING
+    )
+    assert crossing.movement == "N->UNKNOWN"
+    assert crossing.movement_quality is MovementEvidenceQuality.UNKNOWN
+
+
+def test_causal_extractor_rejects_inconsistent_movement():
+    from app.core.trajectory_events import CausalTrajectoryEventExtractor
+
+    with pytest.raises(ValueError, match="does not match zone_out"):
+        CausalTrajectoryEventExtractor(
+            approach="N",
+            movement="N->_E",
+            zone_out="_S",
+        )
