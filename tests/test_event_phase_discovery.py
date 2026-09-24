@@ -3,6 +3,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from app.core.intersection_topology import (
+    IntersectionTopology,
+    SignalFamily,
+)
 from app.core.event_phase_discovery import (
     EventPhase,
     EventPhaseDiscovery,
@@ -1322,3 +1326,127 @@ def test_discovery_exposes_movement_stage_decisions():
         item.reason
         for item in result.movement_stage_decisions
     )
+
+
+def _movement_case_events(
+    *,
+    cycle=100.0,
+    repeats=12,
+    through_window=(50.0, 70.0),
+    secondary_window=None,
+    secondary_movement=None,
+    secondary_repeats=None,
+):
+    events = []
+    for repeat in range(repeats):
+        base = repeat * cycle
+        for offset in np.arange(through_window[0], through_window[1], 4.0):
+            events.extend((
+                _event(EventType.RELEASE, base + float(offset), "N", movement="N->_S"),
+                _event(EventType.RELEASE, base + float(offset), "S", movement="S->_N"),
+            ))
+        if secondary_window and secondary_movement:
+            sec_repeats = repeats if secondary_repeats is None else secondary_repeats
+            if repeat >= sec_repeats:
+                continue
+            approach = secondary_movement.split("->", 1)[0]
+            for offset in np.arange(secondary_window[0], secondary_window[1], 4.0):
+                events.append(
+                    _event(EventType.RELEASE, base + float(offset), approach, movement=secondary_movement)
+                )
+    return events
+
+
+def test_movement_primary_through_only_preserves_default_ns_output():
+    result = EventPhaseDiscovery().discover(_movement_case_events(), cycle_seconds=100.0)
+    assert {phase.active_approaches for phase in result.phases} == {("N", "S")}
+    assert result.movement_stages == ()
+
+
+def test_protected_turn_becomes_a_secondary_movement_stage():
+    result = EventPhaseDiscovery().discover(
+        _movement_case_events(secondary_window=(28.0, 44.0), secondary_movement="N->_E"),
+        cycle_seconds=100.0,
+    )
+    assert any(stage.movement == "N->_E" for stage in result.movement_stages)
+
+
+def test_permissive_turn_can_activate_with_through_without_widening_phase():
+    result = EventPhaseDiscovery().discover(
+        _movement_case_events(secondary_window=(52.0, 68.0), secondary_movement="N->_E"),
+        cycle_seconds=100.0,
+    )
+    n_s_stages = [phase for phase in result.phases if phase.active_approaches == ("N", "S")]
+    assert n_s_stages
+    assert max(_phase_duration(item, 100.0) for item in n_s_stages) <= 24.0
+    assert result.movement_stages == ()
+
+
+def test_multiple_compatible_movements_activate_in_same_primary_phase():
+    events = _movement_case_events(secondary_window=(52.0, 68.0), secondary_movement="N->_E")
+    events.extend(_movement_case_events(secondary_window=(52.0, 68.0), secondary_movement="N->_W"))
+    discovery = EventPhaseDiscovery()
+    selected, _candidates = discovery._select_main_movement_events(
+        discovery._selected_events(events),
+        cycle_seconds=100.0,
+        origin_timestamp_ms=min(event.timestamp_ms for event in events),
+    )
+    assert {"N->_S", "N->_E", "N->_W"} <= {
+        event.movement for event in selected if event.approach == "N"
+    }
+
+
+def test_sparse_movement_remains_unknown_and_does_not_create_stage():
+    result = EventPhaseDiscovery().discover(
+        _movement_case_events(
+            secondary_window=(28.0, 44.0),
+            secondary_movement="N->_E",
+            secondary_repeats=3,
+        ),
+        cycle_seconds=100.0,
+    )
+    assert all(stage.movement != "N->_E" for stage in result.movement_stages)
+    assert all(candidate.movement != "N->_E" for candidate in result.distinct_movement_candidates)
+
+
+def test_conflicting_movements_do_not_overlap_as_allowed_stages():
+    topology = IntersectionTopology(
+        families=(
+            SignalFamily("NS", ("N", "S")),
+            SignalFamily("EW", ("E", "W")),
+        ),
+        family_conflicts=(("NS", "EW"),),
+        movement_conflicts=(("N->_E", "E->_N"),),
+    )
+    phases = (
+        EventPhase(1, 0.0, 30.0, ("N",), 0.95, 100, 1, ("N",)),
+        EventPhase(2, 70.0, 100.0, ("E",), 0.95, 100, 1, ("E",)),
+    )
+    candidates = (
+        MovementActivationCandidate("N", "N->_E", 40.0, 60.0, 0.95, 0.95, 80, 12, 0.9),
+        MovementActivationCandidate("E", "E->_N", 40.0, 60.0, 0.94, 0.94, 80, 12, 0.89),
+    )
+    promoted = EventPhaseDiscovery(topology=topology)._promote_movement_candidates(
+        candidates,
+        phases,
+        cycle_seconds=100.0,
+    )
+    assert len(promoted) == 1
+
+
+def test_missing_movement_cannot_become_primary_phase_evidence():
+    events = _movement_case_events()
+    for repeat in range(12):
+        events.append(
+            TrajectoryEvent(
+                event_type=EventType.RELEASE,
+                timestamp_ms=int((repeat * 100.0 + 30.0) * 1000),
+                approach="N",
+                movement="",
+                confidence=1.0,
+                quality="HIGH",
+            )
+        )
+    result = EventPhaseDiscovery().discover(events, cycle_seconds=100.0)
+    assert {phase.active_approaches for phase in result.phases} == {("N", "S")}
+    assert all(candidate.movement != "N->UNKNOWN" for candidate in result.distinct_movement_candidates)

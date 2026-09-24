@@ -5,6 +5,10 @@ from typing import Iterable, Sequence
 
 import numpy as np
 
+from app.core.intersection_topology import (
+    DEFAULT_INTERSECTION_TOPOLOGY,
+    IntersectionTopology,
+)
 from app.core.models import EventType, TrajectoryEvent
 
 
@@ -26,6 +30,11 @@ DEFAULT_PHASE_GROUPS = (
 
 VERTICAL_APPROACHES = frozenset({"N", "S"})
 HORIZONTAL_APPROACHES = frozenset({"E", "W"})
+
+
+def _known_movement(movement: str | None) -> bool:
+    value = str(movement or "").strip()
+    return bool(value) and "->" in value and not value.endswith("->UNKNOWN")
 
 
 @dataclass(frozen=True)
@@ -255,6 +264,7 @@ class EventPhaseDiscovery:
         min_phase_seconds: float = 8.0,
         groups: Sequence[PhaseGroup] = DEFAULT_PHASE_GROUPS,
         min_event_confidence: float = 0.0,
+        topology: IntersectionTopology = DEFAULT_INTERSECTION_TOPOLOGY,
     ) -> None:
         if bin_seconds <= 0 or min_phase_seconds < bin_seconds:
             raise ValueError("invalid phase-discovery timing parameters")
@@ -283,6 +293,9 @@ class EventPhaseDiscovery:
         )
         self.groups = tuple(groups)
         self.min_event_confidence = float(min_event_confidence)
+        self.topology = topology
+        self._last_proven_evidence: np.ndarray | None = None
+        self._last_proven_counts: np.ndarray | None = None
         self._group_by_approach = {
             approach: group.name
             for group in self.groups
@@ -318,9 +331,15 @@ class EventPhaseDiscovery:
             evidence,
             counts,
             distinct_movement_candidates,
+            proven_events,
         ) = self._build_phase_inputs(
             events,
             cycle_seconds=cycle_seconds,
+        )
+        proven_evidence, proven_counts = self._phase_matrices(
+            proven_events,
+            cycle_seconds=cycle_seconds,
+            origin_timestamp_ms=origin_timestamp_ms,
         )
         (
             active_masks,
@@ -363,6 +382,7 @@ class EventPhaseDiscovery:
             stages,
             stage_counts,
             cycle_seconds,
+            contradiction_counts=raw_counts,
         )
         if not phases:
             raise ValueError(
@@ -439,7 +459,7 @@ class EventPhaseDiscovery:
         np.ndarray,
         np.ndarray,
     ]:
-        profiles, evidence, counts, _ = self._build_phase_inputs(
+        profiles, evidence, counts, _, _ = self._build_phase_inputs(
             events,
             cycle_seconds=cycle_seconds,
         )
@@ -455,6 +475,7 @@ class EventPhaseDiscovery:
         np.ndarray,
         np.ndarray,
         list[MovementActivationCandidate],
+        list[TrajectoryEvent],
     ]:
         if cycle_seconds < 2 * self.bin_seconds:
             raise ValueError(
@@ -483,28 +504,42 @@ class EventPhaseDiscovery:
             origin_timestamp_ms=origin_ms,
         )
 
-        observed_cycle_mask = self._observed_cycle_mask(counts)
+        profile_events = [
+            event
+            for event in selected
+            if _known_movement(event.movement)
+        ]
+        profile_evidence, profile_counts = self._phase_matrices(
+            profile_events,
+            cycle_seconds=cycle_seconds,
+            origin_timestamp_ms=origin_ms,
+        )
+        profile_observed_cycle_mask = self._observed_cycle_mask(profile_counts)
         profiles = self._profiles_for_groups(
-            evidence,
-            counts,
-            observed_cycle_mask,
+            profile_evidence,
+            profile_counts,
+            profile_observed_cycle_mask,
         )
         profiles.extend(
             self._axis_compatibility_profiles(
-                evidence,
-                counts,
-                observed_cycle_mask,
-                existing_names={
-                    profile.group
-                    for profile in profiles
-                },
+                profile_evidence,
+                profile_counts,
+                profile_observed_cycle_mask,
+                existing_names={profile.group for profile in profiles},
             )
+        )
+        proven_events = list(main_events)
+        self._last_proven_evidence, self._last_proven_counts = self._phase_matrices(
+            proven_events,
+            cycle_seconds=cycle_seconds,
+            origin_timestamp_ms=origin_ms,
         )
         return (
             profiles,
             evidence,
             counts,
             distinct_candidates,
+            proven_events,
         )
 
     def _phase_matrices(
@@ -574,27 +609,15 @@ class EventPhaseDiscovery:
         list[TrajectoryEvent],
         list[MovementActivationCandidate],
     ]:
-        """Keep the dominant compatible movement cluster for each approach.
-
-        A secondary movement may be perfectly recurring yet obey a different
-        signal window (for example a protected turn). Such a movement is
-        retained as a distinct candidate for the later movement-specific
-        stage, but it must not widen the main approach green interval.
-        """
-        n_bins = max(
-            1,
-            int(round(cycle_seconds / self.bin_seconds)),
-        )
+        """Select independently recurring movements without replacing the main event flow."""
+        n_bins = max(1, int(round(cycle_seconds / self.bin_seconds)))
         cycle_ids = np.floor(
             (
                 np.asarray(
                     [event.timestamp_ms for event in selected],
                     dtype=float,
-                )
-                - origin_timestamp_ms
-            )
-            / 1000.0
-            / cycle_seconds
+                ) - origin_timestamp_ms
+            ) / 1000.0 / cycle_seconds
         ).astype(int)
         cycle_count = int(cycle_ids.max()) + 1
 
@@ -603,25 +626,18 @@ class EventPhaseDiscovery:
             dict[str, list[tuple[TrajectoryEvent, int, int]]],
         ] = {}
         for event, cycle_id in zip(selected, cycle_ids):
-            relative_s = (
-                (event.timestamp_ms - origin_timestamp_ms)
-                / 1000.0
-            ) % cycle_seconds
-            bin_id = min(
-                int(relative_s / self.bin_seconds),
-                n_bins - 1,
-            )
             movement = event.movement or f"{event.approach}->UNKNOWN"
-            by_approach.setdefault(
-                event.approach,
-                {},
-            ).setdefault(
+            relative_s = (
+                (event.timestamp_ms - origin_timestamp_ms) / 1000.0
+            ) % cycle_seconds
+            bin_id = min(int(relative_s / self.bin_seconds), n_bins - 1)
+            by_approach.setdefault(event.approach, {}).setdefault(
                 movement,
                 [],
             ).append((event, int(cycle_id), bin_id))
 
         selected_movements: dict[str, set[str]] = {}
-        distinct: list[MovementActivationCandidate] = []
+        candidates: list[MovementActivationCandidate] = []
 
         for approach, movement_items in by_approach.items():
             approach_cycles = {
@@ -633,41 +649,48 @@ class EventPhaseDiscovery:
             records: list[dict[str, object]] = []
 
             for movement, items in movement_items.items():
-                matrix = np.zeros(
-                    (cycle_count, n_bins),
-                    dtype=int,
-                )
+                matrix = np.zeros((cycle_count, n_bins), dtype=int)
                 for _event, cycle_id, bin_id in items:
                     matrix[cycle_id, bin_id] += 1
 
                 movement_cycle_mask = matrix.sum(axis=1) > 0
-                movement_cycles = int(
-                    np.count_nonzero(movement_cycle_mask)
-                )
+                movement_cycles = int(np.count_nonzero(movement_cycle_mask))
                 usable_events = int(matrix.sum())
-                if movement_cycles:
-                    presence = np.mean(
+                presence = (
+                    np.mean(
                         matrix[movement_cycle_mask] > 0,
                         axis=0,
                     )
-                else:
-                    presence = np.zeros(n_bins, dtype=float)
-
-                mask = self._direct_presence_mask(presence)
+                    if movement_cycles
+                    else np.zeros(n_bins, dtype=float)
+                )
+                mask = self._recurring_presence_mask(presence)
                 mask_bins = int(np.count_nonzero(mask))
-                inside_events = int(matrix[:, mask].sum()) if mask_bins else 0
-                repeatability = movement_cycles / total_approach_cycles
+                inside_events = (
+                    int(matrix[:, mask].sum())
+                    if mask_bins
+                    else 0
+                )
+                repeatability = (
+                    movement_cycles / total_approach_cycles
+                )
                 stability = (
                     inside_events / usable_events
                     if usable_events
                     else 0.0
                 )
-                strong = (
+                support_rich = (
+                    usable_events >= self.MIN_MOVEMENT_EVENTS
+                )
+                recurring = (
                     movement_cycles >= 3
-                    and usable_events >= self.MIN_MOVEMENT_EVENTS
+                    and repeatability >= self.MIN_MOVEMENT_REPEATABILITY
+                )
+                strong = (
+                    _known_movement(movement)
+                    and (support_rich or recurring)
                     and repeatability >= self.MIN_MOVEMENT_REPEATABILITY
                     and stability >= self.MIN_MOVEMENT_STABILITY
-                    and mask_bins >= self.min_phase_bins
                 )
                 records.append(
                     {
@@ -688,9 +711,7 @@ class EventPhaseDiscovery:
                 if bool(record["strong"])
             ]
             if not strong_records:
-                # Preserve the old conservative reliability path when no
-                # movement is strong enough to define a main signal window.
-                selected_movements[approach] = set(movement_items)
+                selected_movements[approach] = set()
                 continue
 
             strong_total_events = max(
@@ -716,17 +737,12 @@ class EventPhaseDiscovery:
                     int(record["mask_bins"])
                     / strong_total_mask_bins
                 )
-                # A main approach movement should explain a substantial share
-                # of both traffic volume and the recurring activation window.
-                # This prevents a narrow, exceptionally stable turn from
-                # displacing the broader through movement on long archives.
-                score = (
+                record["score"] = float(
                     0.35 * float(record["repeatability"])
                     + 0.20 * float(record["stability"])
                     + 0.30 * volume_share
                     + 0.15 * coverage_share
                 )
-                record["score"] = float(score)
 
             primary = max(
                 strong_records,
@@ -740,31 +756,42 @@ class EventPhaseDiscovery:
                 primary["mask"],
                 dtype=bool,
             )
+            selected_set: set[str] = {
+                str(primary["movement"])
+            }
 
-            compatible: set[str] = set()
             for record in strong_records:
+                if record is primary:
+                    continue
                 mask = np.asarray(record["mask"], dtype=bool)
-                union = int(np.count_nonzero(primary_mask | mask))
+                union = int(
+                    np.count_nonzero(
+                        primary_mask | mask
+                    )
+                )
                 intersection = int(
-                    np.count_nonzero(primary_mask & mask)
+                    np.count_nonzero(
+                        primary_mask & mask
+                    )
                 )
                 jaccard = (
                     intersection / union
                     if union
                     else 0.0
                 )
+                movement = str(record["movement"])
                 if (
-                    record is primary
-                    or jaccard >= self.MOVEMENT_COMPATIBILITY_JACCARD
+                    jaccard
+                    >= self.MOVEMENT_COMPATIBILITY_JACCARD
                 ):
-                    compatible.add(str(record["movement"]))
+                    selected_set.add(movement)
                     continue
 
                 start_s, end_s = self._mask_interval_seconds(mask)
-                distinct.append(
+                candidates.append(
                     MovementActivationCandidate(
                         approach=approach,
-                        movement=str(record["movement"]),
+                        movement=movement,
                         phase_start=start_s,
                         phase_end=end_s,
                         repeatability=round(
@@ -788,30 +815,31 @@ class EventPhaseDiscovery:
                     )
                 )
 
-            selected_movements[approach] = compatible
+            selected_movements[approach] = selected_set
 
+        # Preserve the existing authoritative phase construction: once a
+        # movement is proven/selected, all of its observed RELEASE/CROSSING
+        # events still feed the established phase safety guards. Movement
+        # masks are used for recurrence/candidate separation, not to invent
+        # timestamps or discard production evidence.
         main_events = [
             event
             for event in selected
-            if (
-                (event.movement or f"{event.approach}->UNKNOWN")
-                in selected_movements.get(
-                    event.approach,
-                    {
-                        event.movement
-                        or f"{event.approach}->UNKNOWN"
-                    },
-                )
+            if event.movement
+            in selected_movements.get(
+                event.approach,
+                set(),
             )
         ]
-        distinct.sort(
+        candidates.sort(
             key=lambda item: (
-                item.approach,
                 -item.score,
+                item.approach,
                 item.movement,
             )
         )
-        return main_events, distinct
+        return main_events, candidates
+
 
     def _promote_movement_candidates(
         self,
@@ -861,6 +889,16 @@ class EventPhaseDiscovery:
         )
         promoted: list[MovementSignalStage] = []
         decisions: list[MovementStageDecision] = []
+        ordered_candidates = sorted(
+            candidates,
+            key=lambda item: (
+                -item.score,
+                -item.repeatability,
+                -item.stability,
+                item.approach,
+                item.movement,
+            ),
+        )
         raw_events = tuple(events or ())
         if raw_events and origin_timestamp_ms is None:
             origin_timestamp_ms = min(
@@ -868,7 +906,7 @@ class EventPhaseDiscovery:
                 for event in raw_events
             )
 
-        for candidate in candidates:
+        for candidate in ordered_candidates:
             candidate_mask = self._interval_mask(
                 candidate.phase_start,
                 candidate.phase_end,
@@ -894,6 +932,32 @@ class EventPhaseDiscovery:
                 if candidate_bins
                 else 0.0
             )
+
+            if self._movement_conflicts_with_promoted(
+                candidate,
+                candidate_mask,
+                promoted,
+            ):
+                decisions.append(
+                    self._movement_stage_decision(
+                        candidate,
+                        main_overlap_fraction=main_overlap_fraction,
+                        residual_start=None,
+                        residual_end=None,
+                        residual_duration=0.0,
+                        residual_repeatability=0.0,
+                        residual_stability=0.0,
+                        residual_event_count=0,
+                        residual_cycle_count=0,
+                        conflicting_event_count=0,
+                        conflicting_cycle_count=0,
+                        conflicting_event_ratio=0.0,
+                        promoted=False,
+                        promotion_mode=None,
+                        reason="conflicting_movement",
+                    )
+                )
+                continue
 
             residual_start: float | None = None
             residual_end: float | None = None
@@ -1169,6 +1233,28 @@ class EventPhaseDiscovery:
             )
 
         return promoted, decisions
+
+    def _movement_conflicts_with_promoted(
+        self,
+        candidate: MovementActivationCandidate,
+        candidate_mask: np.ndarray,
+        promoted: Sequence[MovementSignalStage],
+    ) -> bool:
+        conflicts = set(self.topology.movement_conflicts)
+        if not conflicts:
+            return False
+        for stage in promoted:
+            stage_mask = self._interval_mask(
+                stage.phase_start,
+                stage.phase_end,
+                len(candidate_mask),
+            )
+            if not np.any(candidate_mask & stage_mask):
+                continue
+            pair = tuple(sorted((candidate.movement, stage.movement)))
+            if pair in conflicts:
+                return True
+        return False
 
     def _legacy_candidate_rejection_reason(
         self,
@@ -2477,6 +2563,43 @@ class EventPhaseDiscovery:
             "EW": states == 1,
         }
 
+    def _recurring_presence_mask(
+        self,
+        presence: np.ndarray,
+    ) -> np.ndarray:
+        """Return all temporally stable recurring activation components."""
+        values = np.asarray(presence, dtype=float)
+        if (
+            values.size == 0
+            or float(np.max(values)) <= 0.0
+        ):
+            return np.zeros_like(values, dtype=bool)
+
+        dilated = values.copy()
+        for shift in range(
+            1,
+            self.PRESENCE_DILATION_BINS + 1,
+        ):
+            dilated = np.maximum(
+                dilated,
+                np.roll(values, shift),
+            )
+            dilated = np.maximum(
+                dilated,
+                np.roll(values, -shift),
+            )
+
+        threshold = max(
+            self.PRESENCE_ABSOLUTE_FLOOR,
+            float(np.max(dilated))
+            * self.PRESENCE_THRESHOLD_FRACTION,
+        )
+        mask = dilated >= threshold
+        return self._fill_short_false_runs(
+            mask,
+            self.MAX_INTERNAL_GAP_BINS,
+        )
+
     def _direct_presence_mask(
         self,
         presence: np.ndarray,
@@ -2962,6 +3085,8 @@ class EventPhaseDiscovery:
         stages: Sequence[tuple[str, ...]],
         counts: np.ndarray,
         cycle_seconds: float,
+        *,
+        contradiction_counts: np.ndarray | None = None,
     ) -> list[EventPhase]:
         observed_cycle_mask = (
             self._observed_cycle_mask(
@@ -3036,8 +3161,13 @@ class EventPhaseDiscovery:
                     indices,
                 ].sum()
             )
+            contradiction_source = (
+                counts
+                if contradiction_counts is None
+                else contradiction_counts
+            )
             contradictory = int(
-                counts[
+                contradiction_source[
                     :,
                     inactive_group_indices,
                     :,
