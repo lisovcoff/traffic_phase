@@ -14,6 +14,7 @@ from app.core.adaptive_realtime import (
 )
 from app.core.anomaly_profile import TrafficBaselineProfile
 from app.core.anomaly_inference import AnomalyAwareSignalInference
+from app.core.intersection_config import DEFAULT_INTERSECTION_CONFIG, IntersectionConfig
 from app.core.intersection_topology import (
     DEFAULT_INTERSECTION_TOPOLOGY,
     IntersectionTopology,
@@ -82,6 +83,8 @@ class RealtimeInferenceSnapshot:
     effective_movement_states: dict[str, dict[str, object]] | None = None
     template_signal_states: dict[str, str] | None = None
     duplicate: bool = False
+    intersection_config: dict[str, object] | None = None
+    signal_head_states: dict[str, str] | None = None
     determination_status: DeterminationStatus = DeterminationStatus.INSUFFICIENT_DATA
     diagnostic_reason: DiagnosticReason | None = None
     observability: ObservabilitySnapshot | None = None
@@ -118,6 +121,7 @@ class RealtimeSignalInferenceEngine:
         baseline: TrafficBaselineProfile | None = None,
         synchronization_min_events: int = 6,
         topology: IntersectionTopology | None = None,
+        intersection_config: IntersectionConfig | None = None,
         min_extension_weight: float = 2.0,
         min_extension_releases: int = 2,
         extension_max_seconds: float | None = None,
@@ -131,10 +135,26 @@ class RealtimeSignalInferenceEngine:
         if max_idempotency_entries < 1:
             raise ValueError("max_idempotency_entries must be positive")
 
-        self.topology = topology or DEFAULT_INTERSECTION_TOPOLOGY
+        if (
+            intersection_config is not None
+            and topology is not None
+            and intersection_config.to_topology().to_dict() != topology.to_dict()
+        ):
+            raise ValueError(
+                "pass either matching intersection_config/topology, not conflicting values"
+            )
+        if intersection_config is None and topology is None:
+            intersection_config = DEFAULT_INTERSECTION_CONFIG
+        self.intersection_config = intersection_config
+        self.topology = (
+            intersection_config.to_topology()
+            if intersection_config is not None
+            else topology or DEFAULT_INTERSECTION_TOPOLOGY
+        )
         self.phase_template = RealtimePhaseTemplate.from_phase_model(
             phase_model,
             topology=self.topology,
+            intersection_config=intersection_config,
         )
         self.phase_model = self.phase_template.to_phase_model()
         self.recent_window_s = float(recent_window_s)
@@ -558,6 +578,7 @@ class RealtimeSignalInferenceEngine:
             conflict_persistence_seconds=self._conflict_persistence_seconds,
             event_origin_ms=realtime_origin_ms,
             topology=self.topology,
+            intersection_config=self.intersection_config,
         )
         base_result = estimator.estimate(
             cycle_position_s,
@@ -798,6 +819,16 @@ class RealtimeSignalInferenceEngine:
             observed_live_approaches=adaptive.observed_approaches,
             effective_movement_states=effective_movement_states,
             template_signal_states=template_signal_states,
+            intersection_config=(
+                self.intersection_config.to_dict()
+                if self.intersection_config is not None
+                else None
+            ),
+            signal_head_states={
+                state.signal_head_id: state.state.value
+                for state in result.approaches
+                if state.signal_head_id is not None
+            },
             duplicate=duplicate,
             determination_status=realtime_observability.determination_status,
             diagnostic_reason=realtime_observability.diagnostic_reason,
@@ -991,6 +1022,12 @@ class RealtimeSignalInferenceEngine:
             ),
             effective_movement_states={},
             template_signal_states=dict(states),
+            intersection_config=(
+                self.intersection_config.to_dict()
+                if self.intersection_config is not None
+                else None
+            ),
+            signal_head_states=None,
             duplicate=duplicate,
             determination_status=warm_observability.determination_status,
             diagnostic_reason=warm_observability.diagnostic_reason,

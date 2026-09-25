@@ -8,6 +8,10 @@ from threading import RLock
 from typing import BinaryIO
 import zipfile
 
+from app.core.intersection_config import (
+    DEFAULT_INTERSECTION_CONFIG,
+    IntersectionConfig,
+)
 from app.core.intersection_topology import IntersectionTopology
 from app.core.models import Trajectory, TrajectoryEvent
 from app.core.preprocessing import load_trajectory_payload
@@ -196,6 +200,7 @@ class RealtimeArchiveSimulation:
         yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS,
         red_yellow_duration_seconds: float = DEFAULT_RED_YELLOW_DURATION_SECONDS,
         topology: IntersectionTopology | None = None,
+        intersection_config: IntersectionConfig | None = None,
     ) -> None:
         self.source = source
         self.speed = self._validated_speed(speed)
@@ -207,7 +212,22 @@ class RealtimeArchiveSimulation:
         self._red_yellow_duration_seconds = float(
             red_yellow_duration_seconds
         )
-        self._topology = topology
+        if (
+            intersection_config is not None
+            and topology is not None
+            and intersection_config.to_topology().to_dict() != topology.to_dict()
+        ):
+            raise ValueError(
+                "pass either matching intersection_config/topology, not conflicting values"
+            )
+        if intersection_config is None and topology is None:
+            intersection_config = DEFAULT_INTERSECTION_CONFIG
+        self._intersection_config = intersection_config
+        self._topology = (
+            intersection_config.to_topology()
+            if intersection_config is not None
+            else topology
+        )
         self._lock = RLock()
         self._engine = self._new_engine()
         self._validate_source_topology()
@@ -275,6 +295,7 @@ class RealtimeArchiveSimulation:
             yellow_duration_seconds=self._yellow_duration_seconds,
             red_yellow_duration_seconds=self._red_yellow_duration_seconds,
             topology=self._topology,
+            intersection_config=self._intersection_config,
         )
 
     @property
@@ -616,7 +637,7 @@ class RealtimeArchiveSimulation:
                 phase = None
                 signal_states = {
                     approach: "UNKNOWN"
-                    for approach in ("N", "S", "E", "W")
+                    for approach in self._engine.topology.approaches
                 }
                 active_movements: list[dict[str, object]] = []
                 confidence = 0.0

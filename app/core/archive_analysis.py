@@ -11,6 +11,10 @@ import zipfile
 
 from app.core.models import Trajectory, TrajectoryEvent
 from app.core.preprocessing import iter_trajectory_payload_stream, load_trajectory_payload
+from app.core.intersection_config import (
+    DEFAULT_INTERSECTION_CONFIG,
+    IntersectionConfig,
+)
 from app.core.reconstruction import (
     DEFAULT_SESSION_GAP_SECONDS,
     GOOD_MODEL_MIN_COVERAGE,
@@ -327,12 +331,24 @@ class ArchiveAnalysis:
     segment_events: Sequence[tuple[TrajectoryEvent, ...]] = ()
     member_errors: tuple[dict[str, str], ...] = ()
     progress: ArchiveProgress | None = None
+    intersection_config: IntersectionConfig | None = None
 
     def to_dict(self, *, timeline_points: int = DEFAULT_TIMELINE_POINTS) -> dict[str, object]:
         session_payloads = [
             _session_payload(index, session, timeline_points=timeline_points)
             for index, session in enumerate(self.sessions, start=1)
         ]
+        if self.intersection_config is not None:
+            config_payload = self.intersection_config.to_dict()
+            for payload in session_payloads:
+                for key in (
+                    "phase_model",
+                    "effective_phase_model",
+                    "realtime_phase_model",
+                ):
+                    model = payload.get(key)
+                    if isinstance(model, dict):
+                        model["intersection_config"] = config_payload
         regime_families = build_regime_families(
             self.sessions,
             segment_events=self.segment_events,
@@ -509,6 +525,11 @@ class ArchiveAnalysis:
             ),
             "ground_truth": "UNAVAILABLE",
             "source": source,
+            "intersection_config": (
+                self.intersection_config.to_dict()
+                if self.intersection_config is not None
+                else None
+            ),
             "sessions": session_payloads,
             "regime_families": family_payloads,
             # Backward compatibility for the original single-JSON endpoint.
@@ -1682,6 +1703,7 @@ def _reconstruct_streamed_sessions(
     *,
     session_gap_seconds: float,
     progress: _ArchiveProgressReporter,
+    intersection_config: IntersectionConfig | None = None,
 ) -> tuple[SessionReconstruction, ...]:
     ordered = sorted(
         blocks,
@@ -1719,6 +1741,7 @@ def _reconstruct_streamed_sessions(
             session_index=physical_session_index,
             sampling_seconds=2.0,
             bin_seconds=2.0,
+            intersection_config=intersection_config,
         )
         completed.extend(regimes)
         for regime_events in _partition_segment_events(
@@ -1773,6 +1796,7 @@ def _stream_members_into_store(
     isolate_member_errors: bool,
     filename: str,
     source_format: str,
+    intersection_config: IntersectionConfig | None,
 ) -> ArchiveAnalysis:
     if session_gap_seconds <= 0:
         store.close()
@@ -1846,6 +1870,7 @@ def _stream_members_into_store(
         blocks,
         session_gap_seconds=session_gap_seconds,
         progress=progress,
+        intersection_config=intersection_config,
     )
     final_progress = progress.emit(done=True)
     return ArchiveAnalysis(
@@ -1856,6 +1881,7 @@ def _stream_members_into_store(
         event_count=event_count,
         sessions=sessions,
         segment_events=store,
+        intersection_config=intersection_config,
         member_errors=tuple(member_errors),
         progress=final_progress,
     )
@@ -1867,6 +1893,7 @@ def analyze_json_stream(
     filename: str,
     session_gap_seconds: float = DEFAULT_SESSION_GAP_SECONDS,
     progress_callback: ProgressCallback | None = None,
+    intersection_config: IntersectionConfig | None = DEFAULT_INTERSECTION_CONFIG,
 ) -> ArchiveAnalysis:
     return _stream_members_into_store(
         SegmentEventStore(),
@@ -1877,6 +1904,7 @@ def analyze_json_stream(
         isolate_member_errors=False,
         filename=filename,
         source_format="json",
+        intersection_config=intersection_config,
     )
 
 
@@ -1886,6 +1914,7 @@ def analyze_zip_stream(
     filename: str,
     session_gap_seconds: float = DEFAULT_SESSION_GAP_SECONDS,
     progress_callback: ProgressCallback | None = None,
+    intersection_config: IntersectionConfig | None = DEFAULT_INTERSECTION_CONFIG,
 ) -> ArchiveAnalysis:
     if session_gap_seconds <= 0:
         raise ValueError("session_gap_seconds must be positive")
@@ -1914,6 +1943,7 @@ def analyze_zip_stream(
             isolate_member_errors=True,
             filename=filename,
             source_format="zip",
+            intersection_config=intersection_config,
         )
     finally:
         archive.close()
@@ -1925,6 +1955,7 @@ def analyze_trajectory_stream(
     filename: str,
     session_gap_seconds: float = DEFAULT_SESSION_GAP_SECONDS,
     progress_callback: ProgressCallback | None = None,
+    intersection_config: IntersectionConfig | None = DEFAULT_INTERSECTION_CONFIG,
 ) -> ArchiveAnalysis:
     lowered = filename.lower()
     if lowered.endswith(".json"):
@@ -1933,6 +1964,7 @@ def analyze_trajectory_stream(
             filename=filename,
             session_gap_seconds=session_gap_seconds,
             progress_callback=progress_callback,
+            intersection_config=intersection_config,
         )
     if lowered.endswith(".zip"):
         return analyze_zip_stream(
@@ -1940,5 +1972,6 @@ def analyze_trajectory_stream(
             filename=filename,
             session_gap_seconds=session_gap_seconds,
             progress_callback=progress_callback,
+            intersection_config=intersection_config,
         )
     raise ValueError("Only JSON and ZIP trajectory files are supported")

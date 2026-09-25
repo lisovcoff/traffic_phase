@@ -369,6 +369,28 @@ class IntersectionConfig:
                 return family.name
         return None
 
+    def signal_heads_for_approach(
+        self,
+        approach: str,
+    ) -> tuple[SignalHead, ...]:
+        key = str(approach).strip()
+        return tuple(
+            head
+            for head in self.signal_heads
+            if head.approach == key
+        )
+
+    def movements_for_approach(
+        self,
+        approach: str,
+    ) -> tuple[Movement, ...]:
+        key = str(approach).strip()
+        return tuple(
+            movement
+            for movement in self.movements
+            if movement.approach == key
+        )
+
     def to_topology(self) -> IntersectionTopology:
         """Build the legacy topology consumed by existing production code."""
         return IntersectionTopology(
@@ -474,6 +496,16 @@ class IntersectionConfig:
                             "colors",
                             ("RED", "YELLOW", "GREEN"),
                         )
+                    ),
+                    yellow_duration_seconds=(
+                        float(item["yellow_duration_seconds"])
+                        if item.get("yellow_duration_seconds") is not None
+                        else None
+                    ),
+                    red_yellow_duration_seconds=(
+                        float(item["red_yellow_duration_seconds"])
+                        if item.get("red_yellow_duration_seconds") is not None
+                        else None
                     ),
                 )
             )

@@ -9,6 +9,7 @@ from app.core.event_phase_discovery import (
     EventPhaseDiscoveryResult,
     MovementSignalStage,
 )
+from app.core.intersection_config import IntersectionConfig
 from app.core.intersection_topology import (
     DEFAULT_INTERSECTION_TOPOLOGY,
     IntersectionTopology,
@@ -29,6 +30,7 @@ class RealtimePhaseTemplate:
     contradictory_event_count: int = 0
     movement_stages: tuple[MovementSignalStage, ...] = ()
     topology: IntersectionTopology = DEFAULT_INTERSECTION_TOPOLOGY
+    intersection_config: IntersectionConfig | None = None
 
     @classmethod
     def from_phase_model(
@@ -36,6 +38,7 @@ class RealtimePhaseTemplate:
         phase_model: object,
         *,
         topology: IntersectionTopology | None = None,
+        intersection_config: IntersectionConfig | None = None,
     ) -> "RealtimePhaseTemplate":
         cycle_seconds = float(getattr(phase_model, "cycle_seconds", 0.0))
         bin_seconds = float(getattr(phase_model, "bin_seconds", 0.0))
@@ -46,6 +49,16 @@ class RealtimePhaseTemplate:
             raise ValueError("phase template bin_seconds must be positive")
         if not phases:
             raise ValueError("phase template requires at least one phase")
+        if intersection_config is not None and topology is not None:
+            if intersection_config.to_topology().to_dict() != topology.to_dict():
+                raise ValueError(
+                    "pass either matching intersection_config/topology, not conflicting values"
+                )
+        resolved_topology = (
+            intersection_config.to_topology()
+            if intersection_config is not None
+            else topology or DEFAULT_INTERSECTION_TOPOLOGY
+        )
         return cls(
             cycle_seconds=cycle_seconds,
             bin_seconds=bin_seconds,
@@ -61,7 +74,8 @@ class RealtimePhaseTemplate:
             movement_stages=tuple(
                 getattr(phase_model, "movement_stages", ())
             ),
-            topology=topology or DEFAULT_INTERSECTION_TOPOLOGY,
+            topology=resolved_topology,
+            intersection_config=intersection_config,
         )
 
     def to_phase_model(self) -> EventPhaseDiscoveryResult:
@@ -80,7 +94,7 @@ class RealtimePhaseTemplate:
         )
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        data: dict[str, object] = {
             "cycle_seconds": self.cycle_seconds,
             "bin_seconds": self.bin_seconds,
             "phases": [phase.to_dict() for phase in self.phases],
@@ -93,6 +107,9 @@ class RealtimePhaseTemplate:
                 for stage in self.movement_stages
             ],
         }
+        if self.intersection_config is not None:
+            data["intersection_config"] = self.intersection_config.to_dict()
+        return data
 
     def phase_at(self, position_s: float) -> EventPhase | None:
         value = position_s % self.cycle_seconds
@@ -134,7 +151,11 @@ class RealtimePhaseTemplate:
             for phase in self.phases
         ):
             return None
-        family = self.topology.family_for_approach(approach)
+        family = (
+            self.intersection_config.family_for_approach(approach)
+            if self.intersection_config is not None
+            else self.topology.family_for_approach(approach)
+        )
         return (family,) if family is not None else (approach,)
 
 

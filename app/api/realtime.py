@@ -11,6 +11,10 @@ from app.core.event_phase_discovery import (
     MovementSignalStage,
 )
 from app.core.anomaly_profile import TrafficBaselineProfile
+from app.core.intersection_config import (
+    DEFAULT_INTERSECTION_CONFIG,
+    IntersectionConfig,
+)
 from app.core.intersection_topology import IntersectionTopology
 from app.core.models import EventType, TrajectoryEvent
 from app.core.online_phase_learning import RealtimeOnlineSession
@@ -33,6 +37,7 @@ class PhasePayload(BaseModel):
     contradictory_event_count: int = Field(default=0, ge=0)
     movement_stages: list[dict[str, object]] = Field(default_factory=list)
     topology: dict[str, object] | None = None
+    intersection_config: dict[str, object] | None = None
 
 
 class BaselineProfilePayload(BaseModel):
@@ -134,9 +139,28 @@ def _build_phase_model(payload: PhasePayload) -> EventPhaseDiscoveryResult:
     )
 
 
+def _build_intersection_config(
+    payload: PhasePayload | None,
+) -> IntersectionConfig | None:
+    if payload is None:
+        return None
+    if payload.intersection_config is None:
+        if payload.topology is None:
+            return DEFAULT_INTERSECTION_CONFIG
+        return None
+    return IntersectionConfig.from_dict(payload.intersection_config)
+
+
 def _build_topology(
     payload: PhasePayload | None,
 ) -> IntersectionTopology | None:
+    config = _build_intersection_config(payload)
+    if config is not None:
+        if payload is not None and payload.topology is not None:
+            topology = IntersectionTopology.from_dict(payload.topology)
+            if topology.to_dict() != config.to_topology().to_dict():
+                raise ValueError("intersection_config and topology disagree")
+        return config.to_topology()
     if payload is None or payload.topology is None:
         return None
     return IntersectionTopology.from_dict(payload.topology)
@@ -158,13 +182,16 @@ class RealtimeEngineRegistry:
         red_yellow_duration_seconds: float,
         baseline: TrafficBaselineProfile | None,
         topology: IntersectionTopology | None,
+        intersection_config: IntersectionConfig | None = None,
     ) -> RealtimeOnlineSession:
         with self._lock:
             engine = self._engines.get(stream_id)
             if engine is not None:
                 if phase_model is not None:
                     requested_template = RealtimePhaseTemplate.from_phase_model(
-                        phase_model
+                        phase_model,
+                        topology=topology,
+                        intersection_config=intersection_config,
                     ).to_dict()
                     existing_template = engine.phase_template_dict
                     if existing_template is None:
@@ -210,6 +237,17 @@ class RealtimeEngineRegistry:
                         "stream already exists with a different red-yellow duration"
                     )
                 if (
+                    intersection_config is not None
+                    and (
+                        engine.intersection_config is None
+                        or intersection_config.to_dict()
+                        != engine.intersection_config.to_dict()
+                    )
+                ):
+                    raise ValueError(
+                        "stream already exists with a different intersection config"
+                    )
+                if (
                     topology is not None
                     and topology.to_dict() != engine.topology.to_dict()
                 ):
@@ -226,6 +264,7 @@ class RealtimeEngineRegistry:
                 red_yellow_duration_seconds=red_yellow_duration_seconds,
                 baseline=baseline,
                 topology=topology,
+                intersection_config=intersection_config,
             )
             self._engines[stream_id] = engine
             return engine
@@ -257,6 +296,7 @@ async def infer_realtime(
             yellow_duration_seconds=payload.yellow_duration_seconds,
             red_yellow_duration_seconds=payload.red_yellow_duration_seconds,
             topology=_build_topology(payload.phase_model),
+            intersection_config=_build_intersection_config(payload.phase_model),
             baseline=TrafficBaselineProfile.from_dict(payload.baseline_profile.payload) if payload.baseline_profile else None,
         )
         event = TrajectoryEvent(
@@ -297,6 +337,7 @@ async def infer_realtime_trajectory(
             yellow_duration_seconds=payload.yellow_duration_seconds,
             red_yellow_duration_seconds=payload.red_yellow_duration_seconds,
             topology=_build_topology(payload.phase_model),
+            intersection_config=_build_intersection_config(payload.phase_model),
             baseline=(
                 TrafficBaselineProfile.from_dict(payload.baseline_profile.payload)
                 if payload.baseline_profile
