@@ -793,7 +793,7 @@ def test_template_compatibility_rejects_persistent_two_family_mismatch():
         )
 
     assert snapshot is not None
-    assert snapshot.synchronization_status == "WARMUP"
+    assert snapshot.synchronization_status == "INCOMPATIBLE"
     assert snapshot.synchronization_match_ratio <= 0.55
     assert snapshot.template_compatibility == "INCOMPATIBLE"
     assert snapshot.instant_unknown_rate == 1.0
@@ -1078,3 +1078,122 @@ def test_synthetic_realtime_ingestion_latency_stays_linear_and_bounded():
     assert elapsed < 5.0
     assert engine.buffer_event_count <= 125
     assert engine.idempotency_entry_count <= 8192
+
+
+def _wrong_phase_template():
+    return EventPhaseDiscoveryResult(
+        cycle_seconds=100.0,
+        bin_seconds=2.0,
+        phases=(
+            EventPhase(1, 0.0, 10.0, ("N", "S"), 0.9, 20, 2, ("N", "S")),
+            EventPhase(2, 50.0, 60.0, ("E", "W"), 0.9, 20, 2, ("E", "W")),
+        ),
+        profiles=(),
+        cycle_coverage=0.20,
+        overlap=0.0,
+        supporting_event_count=40,
+        contradictory_event_count=4,
+    )
+
+
+def test_synchronizer_wrong_historical_template_becomes_incompatible():
+    sync = RealtimePhaseSynchronizer(
+        RealtimePhaseTemplate.from_phase_model(_wrong_phase_template()),
+        min_evidence_events=6,
+    )
+    state = sync.ingest_many(_events_for_known_offset(26.0))
+    assert state.status == "INCOMPATIBLE"
+    assert state.offset_seconds is None
+
+
+def test_synchronizer_sparse_traffic_stays_warmup():
+    sync = RealtimePhaseSynchronizer(
+        RealtimePhaseTemplate.from_phase_model(phase_model()),
+        min_evidence_events=6,
+    )
+    state = sync.ingest_many([
+        _stream_event(10.0, "N"),
+        _stream_event(55.0, "E"),
+    ])
+    assert state.status == "WARMUP"
+    assert state.offset_seconds is None
+
+
+def test_synchronizer_one_family_burst_never_synchronizes():
+    sync = RealtimePhaseSynchronizer(
+        RealtimePhaseTemplate.from_phase_model(phase_model()),
+        min_evidence_events=6,
+    )
+    state = sync.ingest_many([
+        _stream_event(20.0 + index * 0.1, "N")
+        for index in range(12)
+    ])
+    assert state.status == "WARMUP"
+    assert state.offset_seconds is None
+
+
+def test_synchronizer_burst_with_tiny_opposing_family_stays_warmup():
+    sync = RealtimePhaseSynchronizer(
+        RealtimePhaseTemplate.from_phase_model(phase_model()),
+        min_evidence_events=6,
+    )
+    state = sync.ingest_many([
+        *[_stream_event(20.0 + index * 0.1, "N") for index in range(20)],
+        _stream_event(60.0, "E"),
+        _stream_event(60.5, "E"),
+    ])
+    assert state.status == "WARMUP"
+    assert state.offset_seconds is None
+
+
+def test_synchronizer_delayed_events_are_order_independent():
+    source = _events_for_known_offset(26.0)
+    ordered = RealtimePhaseSynchronizer(
+        RealtimePhaseTemplate.from_phase_model(phase_model()),
+        min_evidence_events=6,
+    ).ingest_many(source)
+    delayed = RealtimePhaseSynchronizer(
+        RealtimePhaseTemplate.from_phase_model(phase_model()),
+        min_evidence_events=6,
+    ).ingest_many(reversed(source))
+    assert delayed.status == ordered.status == "SYNCHRONIZED"
+    assert delayed.offset_seconds == ordered.offset_seconds
+    assert delayed.match_ratio == ordered.match_ratio
+
+
+def test_synchronizer_requires_observation_span_for_bursty_evidence():
+    sync = RealtimePhaseSynchronizer(
+        RealtimePhaseTemplate.from_phase_model(phase_model()),
+        min_evidence_events=6,
+        min_observation_span_seconds=10.0,
+    )
+    state = sync.ingest_many([
+        *[_stream_event(20.0 + index * 0.2, "N") for index in range(5)],
+        _stream_event(22.0, "E"),
+    ])
+    assert state.status == "WARMUP"
+
+
+def test_synchronizer_enters_recovery_and_requires_fresh_evidence():
+    sync = RealtimePhaseSynchronizer(
+        RealtimePhaseTemplate.from_phase_model(phase_model()),
+        min_evidence_events=6,
+    )
+    assert sync.ingest_many(_events_for_known_offset(26.0)).status == "SYNCHRONIZED"
+    sync.enter_recovery()
+    assert sync.snapshot().status == "RECOVERY"
+    assert sync.snapshot().offset_seconds is None
+    resumed = sync.ingest(_stream_event(1000.0, "N"))
+    assert resumed.status == "WARMUP"
+    assert resumed.offset_seconds is None
+
+
+def test_fixed_origin_remains_synchronized_without_evidence():
+    sync = RealtimePhaseSynchronizer(
+        RealtimePhaseTemplate.from_phase_model(phase_model()),
+        fixed_origin_ms=0,
+        min_evidence_events=6,
+    )
+    assert sync.snapshot().status == "SYNCHRONIZED"
+    sync.enter_recovery()
+    assert sync.snapshot().status == "SYNCHRONIZED"
