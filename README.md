@@ -119,11 +119,14 @@ are not direct evidence that a physical lamp is RED.
 `POST /api/v1/phase/analyze` accepts either one trajectory `.json` or a
 `.zip` containing trajectory JSON members.
 
-ZIP members are decoded sequentially and are not extracted into a working
-directory. Large raw detections are not accumulated as one giant in-memory
-archive. The response contains `sessions[]`; each session has cycle/phase
-results, confidence, counts, status/error information, and a bounded timeline
-for the browser.
+ZIP members are decoded sequentially and are never extracted into a working
+directory. Large JSON arrays are decoded object-by-object. Completed
+member-local sessions are written to a bounded temporary spill store, then
+merged in trajectory-time order so the archive does not need to remain in RAM.
+The response contains `sessions[]`; each session has cycle/phase results,
+confidence, counts, status/error information, and a bounded timeline for the
+browser. Batch progress exposes processed members, trajectories, events,
+current session, and elapsed time.
 
 A gap greater than 30 minutes starts a new session by default. Cycle and phase
 models are estimated independently per session.
@@ -354,8 +357,10 @@ accuracy.
   observed lamp timings and not controller telemetry.
 - A CROSSING fallback based on the final detection is weak evidence and is
   used only when named detection-zone information is absent.
-- Batch ZIP processing assumes members are chronological by trajectory time;
-  malformed members are reported separately when possible.
+- Batch processing keeps ZIP member reads sequential; session ordering is
+  reconstructed by trajectory time from a temporary bounded spill store.
+  Trajectories within one JSON member must be ordered by start time. Malformed
+  ZIP members are reported separately when possible.
 - Realtime can learn and remember several recurring regimes within one
   long-running process and switch only after repeated usable evidence.
   Persistence of that learned regime catalogue across service restarts and

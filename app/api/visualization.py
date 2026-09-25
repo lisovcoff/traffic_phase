@@ -63,6 +63,14 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
     <span id="batchStatus" class="muted">Choose JSON or ZIP.</span>
   </div>
 
+    <div class="panel stats">
+      <div class="stat"><span>Processed members</span><strong id="batchProcessedMembers">0 / 0</strong></div>
+      <div class="stat"><span>Trajectories</span><strong id="batchProcessedTrajectories">0</strong></div>
+      <div class="stat"><span>Events</span><strong id="batchProcessedEvents">0</strong></div>
+      <div class="stat"><span>Current session</span><strong id="batchCurrentSession">—</strong></div>
+      <div class="stat"><span>Elapsed</span><strong id="batchElapsed">0.0 s</strong></div>
+    </div>
+
   <div id="batchSessionRow" class="panel hidden">
     <label for="batchSessionSelect">Analysis segment:</label>
     <select id="batchSessionSelect"></select>
@@ -233,6 +241,15 @@ $('realtimeStep').addEventListener('click',()=>stepRealtime(1));
 $('realtimeReset').addEventListener('click',resetRealtime);
 $('realtimeSpeed').addEventListener('change',()=>{if(realtimeSnapshot)renderRealtimeSnapshot(realtimeSnapshot)});
 
+function renderBatchProgress(){
+  const progress=(batchAnalysis&&batchAnalysis.progress)||{};
+  $('batchProcessedMembers').textContent=(progress.processed_members||0)+' / '+(progress.total_members||0);
+  $('batchProcessedTrajectories').textContent=String(progress.trajectories||0);
+  $('batchProcessedEvents').textContent=String(progress.events||0);
+  $('batchCurrentSession').textContent=progress.current_session==null?'—':String(progress.current_session);
+  $('batchElapsed').textContent=Number(progress.elapsed_seconds||0).toFixed(1)+' s';
+}
+
 async function analyzeBatch(){
   stopBatch();
   const file=$('batchFile').files[0];
@@ -243,6 +260,7 @@ async function analyzeBatch(){
     const response=await fetch('/api/v1/phase/analyze',{method:'POST',body:form});
     if(!response.ok)throw new Error(await response.text());
     batchAnalysis=await response.json();
+    renderBatchProgress();
     const sessions=batchAnalysis.sessions||[];
     if(!sessions.length)throw new Error('No sessions returned by backend');
     const select=$('batchSessionSelect');select.innerHTML='';
