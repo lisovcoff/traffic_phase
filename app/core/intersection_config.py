@@ -87,6 +87,8 @@ class SignalHead:
     additional: bool = False
     arrows: tuple[str, ...] = ()
     colors: tuple[str, ...] = ("RED", "YELLOW", "GREEN")
+    yellow_duration_seconds: float | None = None
+    red_yellow_duration_seconds: float | None = None
 
     def __post_init__(self) -> None:
         head_id = str(self.id).strip()
@@ -116,6 +118,12 @@ class SignalHead:
             )
         if not colors:
             raise ValueError("signal head must support at least one color")
+        for name, duration in ((
+            ("yellow_duration_seconds", self.yellow_duration_seconds),
+            ("red_yellow_duration_seconds", self.red_yellow_duration_seconds),
+        )):
+            if duration is not None and float(duration) < 0:
+                raise ValueError(f"{name} must be non-negative")
         if any(value not in SIGNAL_COLORS for value in colors):
             raise ValueError(
                 "signal head colors must be a subset of RED/YELLOW/GREEN"
@@ -127,6 +135,10 @@ class SignalHead:
         object.__setattr__(self, "additional", bool(self.additional))
         object.__setattr__(self, "arrows", arrows)
         object.__setattr__(self, "colors", colors)
+        if self.yellow_duration_seconds is not None:
+            object.__setattr__(self, "yellow_duration_seconds", float(self.yellow_duration_seconds))
+        if self.red_yellow_duration_seconds is not None:
+            object.__setattr__(self, "red_yellow_duration_seconds", float(self.red_yellow_duration_seconds))
 
     @property
     def is_primary(self) -> bool:
@@ -143,6 +155,8 @@ class SignalHead:
             "additional": self.additional,
             "arrows": list(self.arrows),
             "colors": list(self.colors),
+            "yellow_duration_seconds": self.yellow_duration_seconds,
+            "red_yellow_duration_seconds": self.red_yellow_duration_seconds,
         }
 
 

@@ -38,6 +38,28 @@ class SignalState(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
+class TransitionSemantics(str, Enum):
+    MODELLED_TRANSITION = "MODELLED_TRANSITION"
+
+
+@dataclass(frozen=True)
+class TransitionModel:
+    state: SignalState
+    semantics: TransitionSemantics
+    from_state: SignalState
+    to_state: SignalState
+    duration_seconds: float
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "state": self.state.value,
+            "semantics": self.semantics.value,
+            "from_state": self.from_state.value,
+            "to_state": self.to_state.value,
+            "duration_seconds": self.duration_seconds,
+        }
+
+
 @dataclass(frozen=True)
 class ApproachState:
     approach: str
@@ -45,6 +67,7 @@ class ApproachState:
     signal_head_id: str | None = None
     determination_status: DeterminationStatus = DeterminationStatus.KNOWN
     diagnostic_reason: DiagnosticReason | None = None
+    transition: TransitionModel | None = None
     probability: float = 0.0
     confidence: float = 0.0
     phase_id: int | None = None
@@ -57,6 +80,8 @@ class ApproachState:
     def to_dict(self) -> dict[str, object]:
         data = asdict(self)
         data["state"] = self.state.value
+        if self.transition is not None:
+            data["transition"] = self.transition.to_dict()
         return data
 
 
@@ -228,10 +253,15 @@ class SignalStateEstimator:
                 supporting,
                 contradictory,
             )
-            transition_kind = self._transition_kind_for_approach(
+            transition_model = self._transition_model_for_head(
                 position,
                 phase,
-                approach,
+                head,
+            )
+            transition_kind = (
+                transition_model.state
+                if transition_model is not None
+                else None
             )
             enough_movement_evidence = (
                 len(self._evidence_clusters(evidence_events))
@@ -323,6 +353,7 @@ class SignalStateEstimator:
                     signal_head_id=head.id,
                     determination_status=status,
                     diagnostic_reason=reason if state == SignalState.UNKNOWN else None,
+                    transition=transition_model if status is DeterminationStatus.KNOWN else None,
                     probability=round(float(probability), 4),
                     confidence=round(float(probability), 4),
                     phase_id=getattr(phase, "phase_id", None),
@@ -400,61 +431,40 @@ class SignalStateEstimator:
     def _in_interval(value: float, start: float, end: float) -> bool:
         return start <= value < end if start <= end else value >= start or value < end
 
-    def _transition_kind_for_approach(
-        self,
-        position: float,
-        phase,
-        approach: str,
-    ) -> SignalState | None:
-        """Apply transitions to an approach, not to the whole stage.
-
-        When {N} becomes {N,S}, N remains GREEN while only S enters its
-        RED_YELLOW/start transition. Likewise an approach that remains active
-        in the next stage is not turned YELLOW at the internal stage boundary.
-        """
-        if (
-            phase is None
-            or (
-                self.yellow_duration_seconds == 0
-                and self.red_yellow_duration_seconds == 0
-            )
-            or approach not in getattr(phase, "active_approaches", ())
-        ):
+    def _transition_model_for_head(
+        self, position: float, phase, head: SignalHead
+    ) -> TransitionModel | None:
+        """Infer a transition for one signal section; never observed lamp state."""
+        approach = head.approach
+        if phase is None or approach not in getattr(phase, "active_approaches", ()):
             return None
-
+        yellow_duration = self.yellow_duration_seconds if head.yellow_duration_seconds is None else head.yellow_duration_seconds
+        red_yellow_duration = self.red_yellow_duration_seconds if head.red_yellow_duration_seconds is None else head.red_yellow_duration_seconds
+        if yellow_duration == 0 and red_yellow_duration == 0:
+            return None
         cycle = self.phase_model.cycle_seconds
         start = float(phase.phase_start) % cycle
         end = float(phase.phase_end) % cycle
         epsilon = min(0.001, max(1e-6, cycle / 1_000_000.0))
-
         previous_phase = self._phase_at((start - epsilon) % cycle)
         next_phase = self._phase_at((end + epsilon) % cycle)
-        previous_active = (
-            approach in getattr(previous_phase, "active_approaches", ())
-            if previous_phase is not None
-            else False
-        )
-        next_active = (
-            approach in getattr(next_phase, "active_approaches", ())
-            if next_phase is not None
-            else False
-        )
-
+        previous_active = approach in getattr(previous_phase, "active_approaches", ()) if previous_phase is not None else False
+        next_active = approach in getattr(next_phase, "active_approaches", ()) if next_phase is not None else False
         distance_to_end = (end - position) % cycle
-        if (
-            not next_active
-            and 0 < distance_to_end <= self.yellow_duration_seconds
-        ):
-            return SignalState.YELLOW
-
+        if not next_active and 0 < distance_to_end <= yellow_duration:
+            return TransitionModel(SignalState.YELLOW, TransitionSemantics.MODELLED_TRANSITION, SignalState.GREEN, SignalState.RED, float(yellow_duration))
         distance_from_start = (position - start) % cycle
-        if (
-            not previous_active
-            and self.red_yellow_duration_seconds > 0
-            and 0 <= distance_from_start < self.red_yellow_duration_seconds
-        ):
-            return SignalState.RED_YELLOW
+        if not previous_active and red_yellow_duration > 0 and 0 <= distance_from_start < red_yellow_duration:
+            return TransitionModel(SignalState.RED_YELLOW, TransitionSemantics.MODELLED_TRANSITION, SignalState.RED, SignalState.GREEN, float(red_yellow_duration))
         return None
+
+    def _transition_kind_for_approach(self, position: float, phase, approach: str) -> SignalState | None:
+        """Compatibility wrapper returning only the transition state."""
+        head = next((item for item in self.signal_heads if item.approach == approach), None)
+        if head is None:
+            return None
+        model = self._transition_model_for_head(position, phase, head)
+        return model.state if model is not None else None
 
     def _origin_ms(self, events: Sequence[TrajectoryEvent]) -> int:
         """Resolve the raw timestamp origin used by the phase model."""
@@ -865,6 +875,8 @@ __all__ = [
     "ApproachState",
     "SignalState",
     "SignalStateEstimator",
+    "TransitionModel",
+    "TransitionSemantics",
     "SignalStateResult",
     "result_to_json",
 ]
