@@ -18,6 +18,12 @@ from app.core.intersection_topology import (
     IntersectionTopology,
 )
 from app.core.models import TrajectoryEvent
+from app.core.observability import (
+    DiagnosticReason,
+    DeterminationStatus,
+    ObservabilitySnapshot,
+    build_realtime_observability,
+)
 from app.core.realtime_phase_sync import (
     PhaseSynchronization,
     RealtimePhaseSynchronizer,
@@ -68,6 +74,9 @@ class RealtimeInferenceSnapshot:
     observed_live_approaches: tuple[str, ...] = ()
     template_signal_states: dict[str, str] | None = None
     duplicate: bool = False
+    determination_status: DeterminationStatus = DeterminationStatus.INSUFFICIENT_DATA
+    diagnostic_reason: DiagnosticReason | None = None
+    observability: ObservabilitySnapshot | None = None
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -428,6 +437,40 @@ class RealtimeSignalInferenceEngine:
             active_movements = []
 
         compatibility = self._template_compatibility(synchronization)
+        realtime_observability = build_realtime_observability(
+            buffered_events,
+            cycle_confidence=(
+                1.0
+                if synchronization.synchronized
+                else synchronization.confidence
+            ),
+            synchronization_confidence=(
+                1.0
+                if synchronization.synchronized
+                else synchronization.confidence
+            ),
+            phase_confidence=(
+                float(template_phase.confidence)
+                if template_phase is not None
+                else result.phase_confidence
+            ),
+            traffic_evidence_confidence=result.traffic_evidence_confidence,
+            synchronization_ready=True,
+            observed_family_count=synchronization.observed_group_count,
+            template_compatibility=compatibility,
+            recovery=adaptive.mode == AdaptiveRealtimeMode.RECOVERY,
+            conflicting_evidence=(
+                adaptive.mode == AdaptiveRealtimeMode.SUSPECT
+            ),
+            topology=self.topology,
+        )
+        if realtime_observability.determination_status != DeterminationStatus.KNOWN:
+            # A model/template never supplies RED by itself.
+            signal_states = {
+                approach: "UNKNOWN"
+                for approach in signal_states
+            }
+            active_movements = []
         unknown_reason = (
             "live_override_partial"
             if adaptive.mode == AdaptiveRealtimeMode.LIVE_OVERRIDE
@@ -500,6 +543,20 @@ class RealtimeSignalInferenceEngine:
             if adaptive.mode == AdaptiveRealtimeMode.SUSPECT:
                 confidence = round(confidence * 0.75, 4)
 
+        warm_observability = build_realtime_observability(
+            tuple(self._events.values()),
+            cycle_confidence=0.0,
+            synchronization_confidence=synchronization.confidence,
+            phase_confidence=0.0,
+            synchronization_ready=False,
+            observed_family_count=synchronization.observed_group_count,
+            template_compatibility=compatibility,
+            recovery=(
+                adaptive is not None
+                and adaptive.mode == AdaptiveRealtimeMode.RECOVERY
+            ),
+            topology=self.topology,
+        )
         return RealtimeInferenceSnapshot(
             timestamp_ms=self._current_timestamp_ms,
             timestamp_s=round(elapsed_s, 3),
@@ -534,6 +591,9 @@ class RealtimeSignalInferenceEngine:
             observed_live_approaches=adaptive.observed_approaches,
             template_signal_states=template_signal_states,
             duplicate=duplicate,
+            determination_status=realtime_observability.determination_status,
+            diagnostic_reason=realtime_observability.diagnostic_reason,
+            observability=realtime_observability,
         )
 
     def _template_compatibility(

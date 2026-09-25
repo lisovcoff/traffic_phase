@@ -9,6 +9,12 @@ from typing import Iterable, Sequence
 from app.core.event_cycle_estimator import EventCycleEstimate, estimate_event_cycle
 from app.core.event_phase_discovery import EventPhaseDiscovery, EventPhaseDiscoveryResult
 from app.core.models import EventType, Trajectory, TrajectoryEvent
+from app.core.observability import (
+    DiagnosticReason,
+    DeterminationStatus,
+    ObservabilitySnapshot,
+    build_batch_observability,
+)
 from app.core.preprocessing import load_trajectory_file
 from app.core.trajectory_events import extract_trajectory_events
 from app.core.trajectory_geometry import build_trajectory_geometry
@@ -41,6 +47,7 @@ class BatchReconstruction:
     cycle: EventCycleEstimate
     phase_model: EventPhaseDiscoveryResult
     origin_timestamp_ms: int
+    observability: ObservabilitySnapshot | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -49,6 +56,11 @@ class BatchReconstruction:
             "phase_model": self.phase_model.to_dict(),
             "trajectory_count": len(self.trajectories),
             "event_count": len(self.events),
+            "observability": (
+                self.observability.to_dict()
+                if self.observability is not None
+                else None
+            ),
         }
 
 
@@ -91,6 +103,9 @@ class SessionReconstruction:
     rolling_window_count: int = 0
     model_quality: str = "UNKNOWN"
     quality_reasons: tuple[str, ...] = ()
+    determination_status: DeterminationStatus = DeterminationStatus.INSUFFICIENT_DATA
+    diagnostic_reason: DiagnosticReason | None = None
+    observability: ObservabilitySnapshot | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -109,6 +124,17 @@ class SessionReconstruction:
             "rolling_window_count": self.rolling_window_count,
             "model_quality": self.model_quality,
             "quality_reasons": list(self.quality_reasons),
+            "determination_status": self.determination_status.value,
+            "diagnostic_reason": (
+                self.diagnostic_reason.value
+                if self.diagnostic_reason is not None
+                else None
+            ),
+            "observability": (
+                self.observability.to_dict()
+                if self.observability is not None
+                else None
+            ),
             "cycle": self.cycle.to_dict() if self.cycle is not None else None,
             "phase_model": (
                 self.phase_model.to_dict()
@@ -222,12 +248,20 @@ def reconstruct_trajectories(
     if ambiguity is not None:
         raise ValueError(ambiguity)
     origin = int(phase_model.origin_timestamp_ms)
+    observability = build_batch_observability(
+        events,
+        cycle_confidence=cycle.estimate.confidence,
+        phase_confidence=_phase_confidence(phase_model),
+        phase_coverage=phase_model.cycle_coverage,
+        phase_model=phase_model,
+    )
     return BatchReconstruction(
         trajectories=normalized,
         events=events,
         cycle=cycle,
         phase_model=phase_model,
         origin_timestamp_ms=origin,
+        observability=observability,
     )
 
 
@@ -931,6 +965,30 @@ def reconstruct_event_session(
             bin_seconds=bin_seconds,
         )
     except ValueError as exc:
+        reason = (
+            DiagnosticReason.NO_EVIDENCE
+            if "no usable RELEASE/CROSSING events" in str(exc)
+            else DiagnosticReason.INSUFFICIENT_EVENTS
+            if "usable events are required" in str(exc)
+            else DiagnosticReason.UNOBSERVED_MOVEMENT
+            if "no usable main-movement phase evidence" in str(exc)
+            else DiagnosticReason.LOW_PHASE_CONFIDENCE
+        )
+        status = (
+            DeterminationStatus.INSUFFICIENT_DATA
+            if reason in {
+                DiagnosticReason.NO_EVIDENCE,
+                DiagnosticReason.INSUFFICIENT_EVENTS,
+            }
+            else DeterminationStatus.UNKNOWN
+        )
+        observability = build_batch_observability(
+            ordered_events,
+            cycle_confidence=0.0,
+            phase_confidence=0.0,
+            phase_coverage=0.0,
+            diagnostic_reason=reason,
+        )
         return SessionReconstruction(
             start_timestamp_ms=start_timestamp_ms,
             end_timestamp_ms=end_timestamp_ms,
@@ -949,8 +1007,18 @@ def reconstruct_event_session(
             rolling_window_count=rolling_window_count,
             model_quality="INSUFFICIENT",
             quality_reasons=("model_not_reconstructed",),
+            determination_status=status,
+            diagnostic_reason=reason,
+            observability=observability,
         )
     except Exception as exc:
+        observability = build_batch_observability(
+            ordered_events,
+            cycle_confidence=0.0,
+            phase_confidence=0.0,
+            phase_coverage=0.0,
+            diagnostic_reason=DiagnosticReason.CONFLICTING_EVIDENCE,
+        )
         return SessionReconstruction(
             start_timestamp_ms=start_timestamp_ms,
             end_timestamp_ms=end_timestamp_ms,
@@ -969,10 +1037,21 @@ def reconstruct_event_session(
             rolling_window_count=rolling_window_count,
             model_quality="INSUFFICIENT",
             quality_reasons=("model_error",),
+            determination_status=DeterminationStatus.UNKNOWN,
+            diagnostic_reason=DiagnosticReason.CONFLICTING_EVIDENCE,
+            observability=observability,
         )
 
     ambiguity = phase_model_ambiguity_reason(phase_model)
     if ambiguity is not None:
+        observability = build_batch_observability(
+            ordered_events,
+            cycle_confidence=cycle.estimate.confidence,
+            phase_confidence=_phase_confidence(phase_model),
+            phase_coverage=phase_model.cycle_coverage,
+            phase_model=phase_model,
+            diagnostic_reason=DiagnosticReason.LOW_PHASE_CONFIDENCE,
+        )
         return SessionReconstruction(
             start_timestamp_ms=start_timestamp_ms,
             end_timestamp_ms=end_timestamp_ms,
@@ -991,11 +1070,30 @@ def reconstruct_event_session(
             rolling_window_count=rolling_window_count,
             model_quality="INSUFFICIENT",
             quality_reasons=("ambiguous_phase_model",),
+            determination_status=observability.determination_status,
+            diagnostic_reason=observability.diagnostic_reason,
+            observability=observability,
         )
 
     model_quality, quality_reasons = batch_model_quality(
         cycle,
         phase_model,
+    )
+    observability = build_batch_observability(
+        ordered_events,
+        cycle_confidence=cycle.estimate.confidence,
+        phase_confidence=_phase_confidence(phase_model),
+        phase_coverage=phase_model.cycle_coverage,
+        phase_model=phase_model,
+        diagnostic_reason=(
+            DiagnosticReason.CONFLICTING_EVIDENCE
+            if any(
+                phase.contradictory_event_count
+                > phase.supporting_event_count
+                for phase in phase_model.phases
+            )
+            else None
+        ),
     )
     return SessionReconstruction(
         start_timestamp_ms=start_timestamp_ms,
@@ -1018,6 +1116,9 @@ def reconstruct_event_session(
         rolling_window_count=rolling_window_count,
         model_quality=model_quality,
         quality_reasons=quality_reasons,
+        determination_status=observability.determination_status,
+        diagnostic_reason=observability.diagnostic_reason,
+        observability=observability,
     )
 
 

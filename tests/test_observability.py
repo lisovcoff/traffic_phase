@@ -1,151 +1,194 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
+import pytest
 
-from app.core.archive_analysis import (
-    _axis_state,
-    _phase_coverage_gaps,
-    _timeline_unknown_metrics,
+from app.core.models import EventType, MovementEvidenceQuality, TrajectoryEvent
+from app.core.observability import (
+    DiagnosticReason,
+    DeterminationStatus,
+    ObservabilitySnapshot,
+    build_batch_observability,
+    build_realtime_observability,
 )
 
 
-def test_mixed_axis_is_not_reported_as_unknown():
-    assert _axis_state(
-        {"N": "GREEN", "S": "RED"},
-        ("N", "S"),
-    ) == "MIXED"
-
-
-def test_batch_unknown_metrics_are_per_approach_and_time_weighted():
-    timeline = [
-        {
-            "timestamp_ms": 0,
-            "states": {
-                "N": "UNKNOWN",
-                "S": "RED",
-                "E": "GREEN",
-                "W": "GREEN",
-            },
-        },
-        {
-            "timestamp_ms": 5_000,
-            "states": {
-                "N": "GREEN",
-                "S": "RED",
-                "E": "GREEN",
-                "W": "GREEN",
-            },
-        },
-        {
-            "timestamp_ms": 10_000,
-            "states": {
-                "N": "GREEN",
-                "S": "RED",
-                "E": "GREEN",
-                "W": "GREEN",
-            },
-        },
-    ]
-
-    metrics = _timeline_unknown_metrics(timeline)
-
-    assert metrics["overall_rate"] == 0.125
-    assert metrics["per_approach_rate"]["N"] == 0.5
-    assert metrics["per_approach_rate"]["S"] == 0.0
-    assert metrics["longest_unknown_s"]["N"] == 5.0
-    assert metrics["unable_to_determine_rate"] == 0.125
-    assert metrics["determined_rate"] == 0.875
-    assert "target_rate" not in metrics
-    assert "meets_target" not in metrics
-
-
-def test_batch_unknown_has_no_arbitrary_failure_target():
-    timeline = [
-        {
-            "timestamp_ms": 0,
-            "states": {
-                "N": "GREEN",
-                "S": "RED",
-                "E": "GREEN",
-                "W": "RED",
-            },
-        },
-        {
-            "timestamp_ms": 10_000,
-            "states": {
-                "N": "GREEN",
-                "S": "RED",
-                "E": "GREEN",
-                "W": "RED",
-            },
-        },
-    ]
-
-    metrics = _timeline_unknown_metrics(timeline)
-
-    assert metrics["overall_rate"] == 0.0
-    assert metrics["unable_to_determine_rate"] == 0.0
-    assert metrics["determined_rate"] == 1.0
-    assert "target_rate" not in metrics
-    assert "meets_target" not in metrics
-
-
-
-def test_phase_coverage_gaps_reports_uncovered_cycle_interval():
-    model = SimpleNamespace(
-        cycle_seconds=100.0,
-        phases=(
-            SimpleNamespace(phase_start=30.0, phase_end=50.0),
-            SimpleNamespace(phase_start=50.0, phase_end=84.0),
-            SimpleNamespace(phase_start=84.0, phase_end=22.0),
-        ),
+def _event(approach: str, timestamp_ms: int, *, movement: str | None = None,
+           quality: MovementEvidenceQuality = MovementEvidenceQuality.VALID,
+           confidence: float = 1.0) -> TrajectoryEvent:
+    return TrajectoryEvent(
+        event_type=EventType.RELEASE,
+        timestamp_ms=timestamp_ms,
+        approach=approach,
+        movement=movement or f"{approach}->x",
+        confidence=confidence,
+        quality="HIGH",
+        movement_quality=quality,
     )
 
-    assert _phase_coverage_gaps(model) == [
-        {
-            "start_s": 22.0,
-            "end_s": 30.0,
-            "duration_s": 8.0,
-        }
+
+def _events(count: int = 12):
+    return [
+        _event(("N", "S", "E", "W")[index % 4], index * 1000)
+        for index in range(count)
     ]
 
 
-def test_unknown_reason_breakdown_tracks_uncovered_phase_time():
-    timeline = [
-        {
-            "timestamp_ms": 0,
-            "states": {
-                "N": "UNKNOWN",
-                "S": "UNKNOWN",
-                "E": "UNKNOWN",
-                "W": "UNKNOWN",
-            },
-            "unknown_reason": "uncovered_phase",
-        },
-        {
-            "timestamp_ms": 8_000,
-            "states": {
-                "N": "GREEN",
-                "S": "RED",
-                "E": "RED",
-                "W": "RED",
-            },
-            "unknown_reason": None,
-        },
-        {
-            "timestamp_ms": 100_000,
-            "states": {
-                "N": "GREEN",
-                "S": "RED",
-                "E": "RED",
-                "W": "RED",
-            },
-            "unknown_reason": None,
-        },
-    ]
+def test_known_status_exposes_six_independent_confidences():
+    result = build_batch_observability(
+        _events(),
+        cycle_confidence=0.9,
+        phase_confidence=0.9,
+        phase_coverage=0.9,
+    )
+    assert result.determination_status is DeterminationStatus.KNOWN
+    assert result.diagnostic_reason is None
+    assert result.cycle_confidence == 0.9
+    assert result.synchronization_confidence == 0.9
+    assert result.phase_confidence == 0.9
+    assert result.movement_confidence == 1.0
+    assert result.traffic_evidence_confidence == 1.0
+    assert result.observability_confidence == 0.9
 
-    metrics = _timeline_unknown_metrics(timeline)
 
-    assert metrics["overall_rate"] == 0.08
-    assert metrics["reason_rate"]["uncovered_phase"] == 0.08
-    assert metrics["reason_seconds"]["uncovered_phase"] == 8.0
+@pytest.mark.parametrize(
+    ("reason", "events"),
+    [
+        (DiagnosticReason.NO_EVIDENCE, []),
+        (DiagnosticReason.INSUFFICIENT_EVENTS, _events(4)),
+        (DiagnosticReason.ONLY_ONE_FAMILY, [_event("N", i * 1000) for i in range(12)]),
+        (
+            DiagnosticReason.UNOBSERVED_MOVEMENT,
+            [
+                _event(
+                    ("N", "S", "E", "W")[i % 4],
+                    i * 1000,
+                    movement=f"{('N','S','E','W')[i%4]}->UNKNOWN",
+                    quality=MovementEvidenceQuality.UNKNOWN,
+                )
+                for i in range(12)
+            ],
+        ),
+        (DiagnosticReason.LOW_PHASE_CONFIDENCE, _events()),
+        (
+            DiagnosticReason.OUTSIDE_TOPOLOGY,
+            [_event(("N", "S", "E", "X")[i % 4], i * 1000) for i in range(12)],
+        ),
+    ],
+)
+def test_batch_diagnostic_reasons(reason, events):
+    kwargs = dict(
+        cycle_confidence=0.9,
+        phase_confidence=0.9,
+        phase_coverage=0.9,
+    )
+    if reason is DiagnosticReason.LOW_PHASE_CONFIDENCE:
+        kwargs["phase_confidence"] = 0.1
+    result = build_batch_observability(events, **kwargs)
+    assert result.diagnostic_reason is reason
+
+
+def test_batch_conflicting_evidence_is_unknown():
+    phase = type(
+        "PhaseModel",
+        (),
+        {
+            "phases": (
+                type(
+                    "Phase",
+                    (),
+                    {
+                        "supporting_event_count": 2,
+                        "contradictory_event_count": 4,
+                    },
+                )(),
+            )
+        },
+    )()
+    result = build_batch_observability(
+        _events(),
+        cycle_confidence=0.9,
+        phase_confidence=0.9,
+        phase_coverage=0.9,
+        phase_model=phase,
+    )
+    assert result.determination_status is DeterminationStatus.UNKNOWN
+    assert result.diagnostic_reason is DiagnosticReason.CONFLICTING_EVIDENCE
+
+
+@pytest.mark.parametrize(
+    ("reason", "template", "recovery", "families", "ready"),
+    [
+        (DiagnosticReason.RECOVERY, "COMPATIBLE", True, 2, False),
+        (DiagnosticReason.INCOMPATIBLE_TEMPLATE, "INCOMPATIBLE", False, 2, False),
+        (DiagnosticReason.ONLY_ONE_FAMILY, "CHECKING", False, 1, False),
+        (DiagnosticReason.INSUFFICIENT_EVENTS, "CHECKING", False, 2, False),
+    ],
+)
+def test_realtime_diagnostic_reasons(reason, template, recovery, families, ready):
+    result = build_realtime_observability(
+        _events(12 if reason is not DiagnosticReason.INSUFFICIENT_EVENTS else 4),
+        cycle_confidence=0.9,
+        synchronization_confidence=0.9,
+        phase_confidence=0.9,
+        synchronization_ready=ready,
+        observed_family_count=families,
+        template_compatibility=template,
+        recovery=recovery,
+    )
+    assert result.diagnostic_reason is reason
+
+
+def test_realtime_known_status():
+    result = build_realtime_observability(
+        _events(),
+        cycle_confidence=0.9,
+        synchronization_confidence=0.9,
+        phase_confidence=0.9,
+        synchronization_ready=True,
+        observed_family_count=2,
+        template_compatibility="COMPATIBLE",
+    )
+    assert result.determination_status is DeterminationStatus.KNOWN
+
+
+def test_no_evidence_is_insufficient_data_and_never_red():
+    result = build_realtime_observability(
+        [],
+        cycle_confidence=0.0,
+        synchronization_confidence=0.0,
+        phase_confidence=0.0,
+        synchronization_ready=False,
+        observed_family_count=0,
+        template_compatibility="CHECKING",
+    )
+    assert result.determination_status is DeterminationStatus.INSUFFICIENT_DATA
+    assert result.diagnostic_reason is DiagnosticReason.NO_EVIDENCE
+
+
+def test_serialization_uses_explicit_status_and_reason():
+    result = ObservabilitySnapshot(
+        determination_status=DeterminationStatus.UNKNOWN,
+        diagnostic_reason=DiagnosticReason.RECOVERY,
+        cycle_confidence=0.2,
+        synchronization_confidence=0.3,
+        phase_confidence=0.4,
+        movement_confidence=0.5,
+        traffic_evidence_confidence=0.6,
+        observability_confidence=0.2,
+    )
+    payload = result.to_dict()
+    assert payload["determination_status"] == "UNKNOWN"
+    assert payload["diagnostic_reason"] == "RECOVERY"
+
+
+def test_batch_reconstruction_snapshot_contains_observability():
+    from app.core.reconstruction import reconstruct_event_sessions
+
+    result = reconstruct_event_sessions(_events(12))
+    assert result
+    snapshot = result[0].observability
+    assert snapshot is not None
+    assert snapshot.determination_status in {
+        DeterminationStatus.KNOWN,
+        DeterminationStatus.UNKNOWN,
+    }

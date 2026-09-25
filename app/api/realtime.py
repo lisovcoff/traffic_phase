@@ -46,6 +46,8 @@ class RealtimeEventPayload(BaseModel):
     movement: str
     confidence: float = Field(default=1.0, ge=0, le=1)
     quality: str = "HIGH"
+    movement_quality: str = "unknown"
+    movement_reason: str | None = None
 
 
 class RealtimeInferenceRequest(BaseModel):
@@ -264,6 +266,8 @@ async def infer_realtime(
             movement=payload.event.movement,
             confidence=payload.event.confidence,
             quality=payload.event.quality,
+            movement_quality=payload.event.movement_quality,
+            movement_reason=payload.event.movement_reason,
         )
         return engine.ingest_event(
             event,
