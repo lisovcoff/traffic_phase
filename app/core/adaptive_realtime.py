@@ -39,6 +39,7 @@ class AdaptiveRealtimeDecision:
     extension_duration_seconds: float = 0.0
     extension_event_count: int = 0
     extension_peak_duration_seconds: float = 0.0
+    override_movements: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         data = asdict(self)
@@ -124,6 +125,7 @@ class AdaptiveRealtimeOverride:
         self._suspect_axis: str | None = None
         self._suspect_since_ms: int | None = None
         self._override_axis: str | None = None
+        self._override_movements: tuple[str, ...] = ()
         self._recovery_since_ms: int | None = None
         self._last_override_evidence_ms: int | None = None
         self._extension_axis: str | None = None
@@ -140,6 +142,7 @@ class AdaptiveRealtimeOverride:
         self._suspect_axis = None
         self._suspect_since_ms = None
         self._override_axis = None
+        self._override_movements = ()
         self._recovery_since_ms = None
         self._last_override_evidence_ms = None
         self._extension_axis = None
@@ -159,9 +162,25 @@ class AdaptiveRealtimeOverride:
         events: Iterable[TrajectoryEvent],
         cycle_seconds: float,
         phases: Iterable[object] | None = None,
+        expected_movements: Iterable[str] | None = None,
     ) -> AdaptiveRealtimeDecision:
         expected_axis = self._phase_axis(phase)
+        expected_movement_ids = tuple(
+            dict.fromkeys(
+                str(value).strip()
+                for value in (expected_movements or ())
+                if str(value).strip()
+            )
+        )
         evidence = self._axis_evidence(events, timestamp_ms)
+        movement_evidence = self._movement_evidence(
+            events,
+            timestamp_ms,
+        )
+        movement_candidate = self._dominant_movement_deviation(
+            expected_movements=expected_movement_ids,
+            movement_evidence=movement_evidence,
+        )
         expected_weight = (
             float(evidence[expected_axis]["weight"])
             if expected_axis is not None
@@ -243,6 +262,35 @@ class AdaptiveRealtimeOverride:
             and (not near_boundary or same_pending)
         )
 
+        movement_candidate_weight = (
+            float(movement_evidence[movement_candidate]["weight"])
+            if movement_candidate is not None
+            else 0.0
+        )
+        movement_candidate_releases = (
+            int(movement_evidence[movement_candidate]["releases"])
+            if movement_candidate is not None
+            else 0
+        )
+        expected_movement_weight = max(
+            (
+                float(movement_evidence.get(item, {}).get("weight", 0.0))
+                for item in expected_movement_ids
+            ),
+            default=0.0,
+        )
+        strong_movement_deviation = (
+            movement_candidate is not None
+            and movement_candidate_weight >= self.min_conflicting_weight
+            and movement_candidate_releases >= self.min_conflicting_releases
+            and self._movement_conflicts_with_expected(
+                movement_candidate,
+                expected_movement_ids,
+            )
+            and movement_candidate_weight
+            >= expected_movement_weight + self.dominance_margin
+        )
+
         if self._mode == AdaptiveRealtimeMode.NORMAL:
             if strong_extension:
                 self._mode = AdaptiveRealtimeMode.SUSPECT
@@ -254,15 +302,45 @@ class AdaptiveRealtimeOverride:
                     - int(round(extension_elapsed_s * 1000.0))
                 )
                 self._extension_event_count = extension_releases
+                self._override_movements = (
+                    self._select_override_movements(
+                        self._dominant_movement_for_axis(
+                            extension_axis,
+                            movement_evidence,
+                        ),
+                        movement_evidence,
+                    )
+                )
+            elif strong_movement_deviation:
+                self._mode = AdaptiveRealtimeMode.SUSPECT
+                self._suspect_axis = self._axis_for_movement(
+                    movement_candidate
+                )
+                self._suspect_since_ms = timestamp_ms
+                self._override_movements = (movement_candidate,)
             elif strong_conflict:
                 self._mode = AdaptiveRealtimeMode.SUSPECT
                 self._suspect_axis = conflicting_axis
                 self._suspect_since_ms = timestamp_ms
+                self._override_movements = (
+                    self._select_override_movements(
+                        self._dominant_movement_for_axis(
+                            conflicting_axis,
+                            movement_evidence,
+                        ),
+                        movement_evidence,
+                    )
+                )
 
         elif self._mode == AdaptiveRealtimeMode.SUSPECT:
             extension_pending = (
                 self._extension_axis is not None
                 and extension_axis == self._extension_axis
+            )
+            movement_pending = (
+                bool(self._override_movements)
+                and movement_candidate is not None
+                and movement_candidate in self._override_movements
             )
             if extension_pending and strong_extension:
                 if (
@@ -284,6 +362,30 @@ class AdaptiveRealtimeOverride:
                         extension_elapsed_s,
                     )
                     self._recovery_since_ms = None
+            elif movement_pending and strong_movement_deviation:
+                if (
+                    movement_candidate_releases
+                    >= self.min_conflicting_releases + 1
+                    or (
+                        self._suspect_since_ms is not None
+                        and timestamp_ms - self._suspect_since_ms
+                        >= int(
+                            self.suspect_persistence_seconds * 1000.0
+                        )
+                    )
+                ):
+                    self._mode = AdaptiveRealtimeMode.LIVE_OVERRIDE
+                    self._override_axis = self._axis_for_movement(
+                        movement_candidate
+                    )
+                    self._override_movements = (
+                        self._select_override_movements(
+                            movement_candidate,
+                            movement_evidence,
+                        )
+                    )
+                    self._last_override_evidence_ms = timestamp_ms
+                    self._recovery_since_ms = None
             elif self._suspect_axis == conflicting_axis and strong_conflict:
                 if (
                     self._suspect_since_ms is not None
@@ -292,6 +394,16 @@ class AdaptiveRealtimeOverride:
                 ):
                     self._mode = AdaptiveRealtimeMode.LIVE_OVERRIDE
                     self._override_axis = conflicting_axis
+                    if not self._override_movements:
+                        self._override_movements = (
+                            self._select_override_movements(
+                                self._dominant_movement_for_axis(
+                                    conflicting_axis,
+                                    movement_evidence,
+                                ),
+                                movement_evidence,
+                            )
+                        )
                     self._last_override_evidence_ms = timestamp_ms
                     self._recovery_since_ms = None
             else:
@@ -301,6 +413,7 @@ class AdaptiveRealtimeOverride:
                 self._extension_axis = None
                 self._extension_started_ms = None
                 self._extension_event_count = 0
+                self._override_movements = ()
 
         elif self._mode == AdaptiveRealtimeMode.PHASE_EXTENSION:
             current_extension_weight = (
@@ -375,20 +488,102 @@ class AdaptiveRealtimeOverride:
                 if override_axis is not None
                 else 0
             )
-            if override_weight >= 1.0 and override_releases >= 1:
+            movement_override_weight = max(
+                (
+                    float(
+                        movement_evidence.get(item, {}).get(
+                            "weight",
+                            0.0,
+                        )
+                    )
+                    for item in self._override_movements
+                ),
+                default=0.0,
+            )
+            movement_override_releases = max(
+                (
+                    int(
+                        movement_evidence.get(item, {}).get(
+                            "releases",
+                            0,
+                        )
+                    )
+                    for item in self._override_movements
+                ),
+                default=0,
+            )
+            if (
+                max(override_weight, movement_override_weight) >= 1.0
+                and max(
+                    override_releases,
+                    movement_override_releases,
+                ) >= 1
+            ):
                 self._last_override_evidence_ms = timestamp_ms
 
-            aligned = (
-                expected_axis is not None
-                and expected_weight >= self.min_recovery_weight
-                and expected_releases >= self.min_recovery_releases
-                and expected_weight
+            expected_movement_evidence_weight = max(
+                (
+                    float(
+                        movement_evidence.get(item, {}).get(
+                            "weight",
+                            0.0,
+                        )
+                    )
+                    for item in expected_movement_ids
+                ),
+                default=0.0,
+            )
+            expected_movement_releases = max(
+                (
+                    int(
+                        movement_evidence.get(item, {}).get(
+                            "releases",
+                            0,
+                        )
+                    )
+                    for item in expected_movement_ids
+                ),
+                default=0,
+            )
+            aligned_by_movement = (
+                bool(self._override_movements)
+                and bool(expected_movement_ids)
+                and expected_movement_evidence_weight
+                >= self.min_recovery_weight
+                and expected_movement_releases
+                >= self.min_recovery_releases
+                and expected_movement_evidence_weight
                 >= (
-                    self._max_conflicting_weight(
-                        expected_axis,
-                        evidence,
+                    max(
+                        (
+                            float(
+                                movement_evidence.get(item, {}).get(
+                                    "weight",
+                                    0.0,
+                                )
+                            )
+                            for item in self._override_movements
+                        ),
+                        default=0.0,
                     )
                     + self.dominance_margin
+                )
+            )
+            aligned = (
+                aligned_by_movement
+                if self._override_movements and expected_movement_ids
+                else (
+                    expected_axis is not None
+                    and expected_weight >= self.min_recovery_weight
+                    and expected_releases >= self.min_recovery_releases
+                    and expected_weight
+                    >= (
+                        self._max_conflicting_weight(
+                            expected_axis,
+                            evidence,
+                        )
+                        + self.dominance_margin
+                    )
                 )
             )
             if aligned:
@@ -494,6 +689,7 @@ class AdaptiveRealtimeOverride:
             expected_axis=expected_axis,
             effective_axis=effective_axis,
             observed_approaches=observed_approaches,
+            override_movements=tuple(self._override_movements),
             confidence=round(float(confidence), 4),
             template_disagreement=self._mode
             in {
@@ -521,6 +717,135 @@ class AdaptiveRealtimeOverride:
                 3,
             ),
         )
+
+    def _movement_evidence(
+        self,
+        events: Iterable[TrajectoryEvent],
+        timestamp_ms: int,
+    ) -> dict[str, dict[str, object]]:
+        lower_ms = timestamp_ms - int(
+            self.evidence_window_seconds * 1000.0
+        )
+        result: dict[str, dict[str, object]] = {}
+        for event in events:
+            if not lower_ms <= event.timestamp_ms <= timestamp_ms:
+                continue
+            if event.event_type not in {
+                EventType.RELEASE,
+                EventType.CROSSING,
+            }:
+                continue
+            movement = str(event.movement or "").strip()
+            if not movement or movement.endswith("->UNKNOWN"):
+                continue
+            weight = (
+                self.RELEASE_WEIGHT
+                if event.event_type == EventType.RELEASE
+                else self.CROSSING_WEIGHT
+            ) * max(0.0, min(1.0, float(event.confidence)))
+            item = result.setdefault(
+                movement,
+                {"weight": 0.0, "releases": 0, "crossings": 0},
+            )
+            item["weight"] = float(item["weight"]) + weight
+            if event.event_type == EventType.RELEASE:
+                item["releases"] = int(item["releases"]) + 1
+            else:
+                item["crossings"] = int(item["crossings"]) + 1
+        return result
+
+    def _movement_conflicts_with_expected(
+        self,
+        movement: str,
+        expected_movements: tuple[str, ...],
+    ) -> bool:
+        return any(
+            self.topology.movements_conflict(
+                movement,
+                expected,
+            )
+            for expected in expected_movements
+            if movement != expected
+        )
+
+    def _dominant_movement_deviation(
+        self,
+        *,
+        expected_movements: tuple[str, ...],
+        movement_evidence: dict[str, dict[str, object]],
+    ) -> str | None:
+        if not expected_movements:
+            return None
+        candidates = [
+            movement
+            for movement in movement_evidence
+            if movement not in expected_movements
+            and self._movement_conflicts_with_expected(
+                movement,
+                expected_movements,
+            )
+        ]
+        if not candidates:
+            return None
+        return max(
+            candidates,
+            key=lambda movement: (
+                float(movement_evidence[movement]["weight"]),
+                int(movement_evidence[movement]["releases"]),
+                movement,
+            ),
+        )
+
+    def _dominant_movement_for_axis(
+        self,
+        axis: str | None,
+        movement_evidence: dict[str, dict[str, object]],
+    ) -> str | None:
+        if axis is None:
+            return None
+        candidates = [
+            movement
+            for movement in movement_evidence
+            if self._axis_for_movement(movement) == axis
+        ]
+        if not candidates:
+            return None
+        return max(
+            candidates,
+            key=lambda movement: (
+                float(movement_evidence[movement]["weight"]),
+                int(movement_evidence[movement]["releases"]),
+                movement,
+            ),
+        )
+
+    def _axis_for_movement(self, movement: str | None) -> str | None:
+        return self._axis_for_approach(
+            self.topology.movement_approach(movement)
+            if movement is not None
+            else ""
+        )
+
+    def _select_override_movements(
+        self,
+        primary: str | None,
+        movement_evidence: dict[str, dict[str, object]],
+    ) -> tuple[str, ...]:
+        if primary is None:
+            return ()
+        selected = [primary]
+        for movement, item in movement_evidence.items():
+            if movement == primary:
+                continue
+            if (
+                float(item["weight"]) < self.min_conflicting_weight
+                or int(item["releases"]) < self.min_conflicting_releases
+            ):
+                continue
+            if self.topology.movements_conflict(primary, movement):
+                continue
+            selected.append(movement)
+        return tuple(sorted(dict.fromkeys(selected)))
 
     def _has_pre_boundary_evidence(
         self,

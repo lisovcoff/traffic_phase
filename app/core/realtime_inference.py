@@ -18,7 +18,7 @@ from app.core.intersection_topology import (
     DEFAULT_INTERSECTION_TOPOLOGY,
     IntersectionTopology,
 )
-from app.core.models import TrajectoryEvent
+from app.core.models import EventType, TrajectoryEvent
 from app.core.observability import (
     DiagnosticReason,
     DeterminationStatus,
@@ -77,6 +77,7 @@ class RealtimeInferenceSnapshot:
     phase_extension_event_count: int = 0
     phase_extension_peak_duration_seconds: float = 0.0
     observed_live_approaches: tuple[str, ...] = ()
+    effective_movement_states: dict[str, dict[str, object]] | None = None
     template_signal_states: dict[str, str] | None = None
     duplicate: bool = False
     determination_status: DeterminationStatus = DeterminationStatus.INSUFFICIENT_DATA
@@ -495,6 +496,12 @@ class RealtimeSignalInferenceEngine:
             events=buffered_events,
             cycle_seconds=self.phase_template.cycle_seconds,
             phases=self.phase_model.phases,
+            expected_movements=tuple(
+                stage.movement
+                for stage in self.phase_template.active_movements_at(
+                    cycle_position_s
+                )
+            ),
         )
 
         if (
@@ -516,6 +523,12 @@ class RealtimeSignalInferenceEngine:
                     events=buffered_events,
                     cycle_seconds=self.phase_template.cycle_seconds,
                     phases=self.phase_model.phases,
+                    expected_movements=tuple(
+                        stage.movement
+                        for stage in self.phase_template.active_movements_at(
+                            cycle_position_s
+                        )
+                    ),
                 )
             else:
                 return self._warmup_snapshot(
@@ -571,12 +584,20 @@ class RealtimeSignalInferenceEngine:
                 cycle_position_s
             )
         ]
+        effective_movement_states = self._effective_movement_states(
+            adaptive=adaptive,
+            cycle_position_s=cycle_position_s,
+            events=buffered_events,
+        )
 
         if adaptive.mode in {
             AdaptiveRealtimeMode.PHASE_EXTENSION,
             AdaptiveRealtimeMode.LIVE_OVERRIDE,
         }:
-            signal_states = self._override_signal_states(adaptive)
+            signal_states = self._override_signal_states(
+                adaptive,
+                effective_movement_states,
+            )
             active_movements = (
                 self._extension_active_movements(adaptive, cycle_position_s)
                 if adaptive.mode == AdaptiveRealtimeMode.PHASE_EXTENSION
@@ -618,6 +639,15 @@ class RealtimeSignalInferenceEngine:
                 for approach in signal_states
             }
             active_movements = []
+            effective_movement_states = {
+                movement: {
+                    **details,
+                    "effective_state": "UNKNOWN",
+                    "confidence": 0.0,
+                    "reason": "insufficient_observability",
+                }
+                for movement, details in effective_movement_states.items()
+            }
         unknown_reason = (
             "live_override_partial"
             if adaptive.mode == AdaptiveRealtimeMode.LIVE_OVERRIDE
@@ -750,6 +780,7 @@ class RealtimeSignalInferenceEngine:
                 adaptive.extension_peak_duration_seconds
             ),
             observed_live_approaches=adaptive.observed_approaches,
+            effective_movement_states=effective_movement_states,
             template_signal_states=template_signal_states,
             duplicate=duplicate,
             determination_status=realtime_observability.determination_status,
@@ -918,6 +949,7 @@ class RealtimeSignalInferenceEngine:
                 if adaptive is not None
                 else ()
             ),
+            effective_movement_states={},
             template_signal_states=dict(states),
             duplicate=duplicate,
         )
@@ -957,11 +989,34 @@ class RealtimeSignalInferenceEngine:
     def _override_signal_states(
         self,
         adaptive: AdaptiveRealtimeDecision,
+        movement_states: dict[str, dict[str, object]] | None = None,
     ) -> dict[str, str]:
         states = {
             approach: "UNKNOWN"
             for approach in self.topology.approaches
         }
+        if (
+            movement_states
+            and adaptive.override_movements
+            and self._movement_granularity_enabled()
+        ):
+            for approach in self.topology.approaches:
+                owned = [
+                    details
+                    for movement, details in movement_states.items()
+                    if self.topology.movement_approach(movement) == approach
+                ]
+                if not owned:
+                    continue
+                if all(
+                    details["effective_state"] == "GREEN"
+                    for details in owned
+                ):
+                    states[approach] = "GREEN"
+                else:
+                    states[approach] = "UNKNOWN"
+            return states
+
         family = adaptive.effective_axis
         if family is None:
             return states
@@ -982,6 +1037,245 @@ class RealtimeSignalInferenceEngine:
             ):
                 states[approach] = "RED"
         return states
+
+
+    def _effective_movement_states(
+        self,
+        *,
+        adaptive: AdaptiveRealtimeDecision,
+        cycle_position_s: float,
+        events: Sequence[TrajectoryEvent],
+    ) -> dict[str, dict[str, object]]:
+        stages_by_movement: dict[str, list[object]] = {}
+        for stage in self.phase_template.movement_stages:
+            stages_by_movement.setdefault(
+                stage.movement,
+                [],
+            ).append(stage)
+
+        evidence: dict[str, dict[str, object]] = {}
+        now_ms = self._current_timestamp_ms
+        if now_ms is not None:
+            lower_ms = now_ms - int(
+                self.recent_window_s * 1000.0
+            )
+            for item in events:
+                if not lower_ms <= item.timestamp_ms <= now_ms:
+                    continue
+                if item.event_type not in {
+                    EventType.RELEASE,
+                    EventType.CROSSING,
+                }:
+                    continue
+                movement = str(item.movement or "").strip()
+                if not movement or movement.endswith("->UNKNOWN"):
+                    continue
+                weight = (
+                    1.0
+                    if item.event_type == EventType.RELEASE
+                    else 0.5
+                ) * max(0.0, min(1.0, float(item.confidence)))
+                row = evidence.setdefault(
+                    movement,
+                    {
+                        "evidence_weight": 0.0,
+                        "supporting_event_count": 0,
+                    },
+                )
+                row["evidence_weight"] = (
+                    float(row["evidence_weight"]) + weight
+                )
+                row["supporting_event_count"] = (
+                    int(row["supporting_event_count"]) + 1
+                )
+
+        movement_ids = set(stages_by_movement) | set(evidence)
+        movement_ids.update(adaptive.override_movements)
+        if not movement_ids:
+            return {}
+
+        result: dict[str, dict[str, object]] = {}
+        for movement in sorted(movement_ids):
+            stages = stages_by_movement.get(movement, [])
+            active_stage = next(
+                (
+                    stage
+                    for stage in stages
+                    if self._in_cycle_interval(
+                        cycle_position_s,
+                        float(stage.phase_start),
+                        float(stage.phase_end),
+                    )
+                ),
+                None,
+            )
+            stage_confidence = (
+                float(getattr(active_stage, "confidence", 0.0))
+                if active_stage is not None
+                else max(
+                    (
+                        float(getattr(stage, "confidence", 0.0))
+                        for stage in stages
+                    ),
+                    default=0.0,
+                )
+            )
+            evidence_row = evidence.get(
+                movement,
+                {
+                    "evidence_weight": 0.0,
+                    "supporting_event_count": 0,
+                },
+            )
+            expected_state = (
+                "GREEN"
+                if active_stage is not None
+                else ("RED" if stages else "UNKNOWN")
+            )
+            result[movement] = {
+                "movement": movement,
+                "expected_state": expected_state,
+                "effective_state": expected_state,
+                "evidence_weight": round(
+                    float(evidence_row["evidence_weight"]),
+                    4,
+                ),
+                "supporting_event_count": int(
+                    evidence_row["supporting_event_count"]
+                ),
+                "confidence": round(
+                    max(0.0, min(1.0, stage_confidence)),
+                    4,
+                ),
+                "reason": (
+                    "template_expected_active"
+                    if active_stage is not None
+                    else (
+                        "template_expected_inactive"
+                        if stages
+                        else "no_template_movement_stage"
+                    )
+                ),
+            }
+
+        if adaptive.mode in {
+            AdaptiveRealtimeMode.LIVE_OVERRIDE,
+            AdaptiveRealtimeMode.PHASE_EXTENSION,
+        } and adaptive.override_movements:
+            selected = set(adaptive.override_movements)
+            for movement, details in result.items():
+                if movement in selected:
+                    details["effective_state"] = "GREEN"
+                    details["confidence"] = round(
+                        max(
+                            float(details["confidence"]),
+                            min(
+                                1.0,
+                                0.45
+                                + 0.10 * min(
+                                    6,
+                                    int(details["supporting_event_count"]),
+                                )
+                                + 0.06 * float(details["evidence_weight"]),
+                            ),
+                        ),
+                        4,
+                    )
+                    details["reason"] = "live_override_movement"
+                    continue
+
+                if any(
+                    self.topology.movements_conflict(
+                        movement,
+                        primary,
+                    )
+                    for primary in selected
+                ):
+                    details["effective_state"] = "RED"
+                    details["confidence"] = max(
+                        0.75,
+                        float(details["confidence"]),
+                    )
+                    details["reason"] = "conflicts_with_live_override"
+                    continue
+
+                if details["expected_state"] == "GREEN":
+                    details["effective_state"] = "GREEN"
+                    details["reason"] = "compatible_live_overlap"
+                elif (
+                    details["expected_state"] == "RED"
+                    and float(details["evidence_weight"]) > 0.0
+                ):
+                    details["effective_state"] = "RED"
+                    details["reason"] = "positive_conflicting_evidence"
+                else:
+                    details["effective_state"] = "UNKNOWN"
+                    details["confidence"] = min(
+                        float(details["confidence"]),
+                        0.5,
+                    )
+                    details["reason"] = "no_positive_live_evidence"
+
+            self._enforce_movement_exclusivity(result)
+
+        return result
+
+    def _in_cycle_interval(
+        self,
+        position_s: float,
+        start_s: float,
+        end_s: float,
+    ) -> bool:
+        cycle = self.phase_template.cycle_seconds
+        position = position_s % cycle
+        start = start_s % cycle
+        end = end_s % cycle
+        return (
+            start <= position < end
+            if start <= end
+            else position >= start or position < end
+        )
+
+    def _enforce_movement_exclusivity(
+        self,
+        states: dict[str, dict[str, object]],
+    ) -> None:
+        green = [
+            movement
+            for movement, details in states.items()
+            if details["effective_state"] == "GREEN"
+        ]
+        accepted: list[str] = []
+        for movement in sorted(
+            green,
+            key=lambda item: (
+                -float(states[item]["evidence_weight"]),
+                -float(states[item]["confidence"]),
+                item,
+            ),
+        ):
+            if any(
+                self.topology.movements_conflict(
+                    movement,
+                    other,
+                )
+                for other in accepted
+            ):
+                states[movement]["effective_state"] = "RED"
+                states[movement]["confidence"] = min(
+                    float(states[movement]["confidence"]),
+                    0.5,
+                )
+                states[movement]["reason"] = "suppressed_conflicting_green"
+            else:
+                accepted.append(movement)
+
+    def _movement_granularity_enabled(self) -> bool:
+        return bool(
+            self.phase_template.movement_stages
+            or self.topology.movement_conflicts
+            or self.topology.movement_compatibilities
+        )
 
     def _trim(self, cutoff_ms: int) -> None:
         stale_keys = [

@@ -53,6 +53,23 @@ def event(event_type, timestamp_s, approach, confidence=1.0):
     )
 
 
+def movement_event(
+    event_type,
+    timestamp_s,
+    approach,
+    movement,
+    confidence=1.0,
+):
+    return TrajectoryEvent(
+        event_type=event_type,
+        timestamp_ms=int(timestamp_s * 1000),
+        approach=approach,
+        movement=movement,
+        confidence=confidence,
+        quality="HIGH",
+    )
+
+
 def phase_model():
     return EventPhaseDiscoveryResult(
         cycle_seconds=100.0,
@@ -835,6 +852,13 @@ def test_emergency_green_extension_is_observed_then_recovers():
     assert snapshot.template_compatibility == "COMPATIBLE"
     assert snapshot.signal_states["N"] == "GREEN"
     assert snapshot.signal_states["E"] == "RED"
+    assert snapshot.effective_movement_states is not None
+    assert snapshot.effective_movement_states["N->x"]["effective_state"] == "GREEN"
+    assert snapshot.effective_movement_states["N->x"]["evidence_weight"] >= 2.0
+    assert (
+        snapshot.effective_movement_states["N->x"]["reason"]
+        == "live_override_movement"
+    )
     assert snapshot.template_deviation_seconds == 10.0
 
     recovered = None
@@ -1374,3 +1398,167 @@ def test_phase_extension_does_not_mutate_historical_template():
         for phase in model.phases
     )
     assert before == after
+
+
+
+def _protected_turn_phase_model():
+    return EventPhaseDiscoveryResult(
+        cycle_seconds=100.0,
+        bin_seconds=2.0,
+        phases=(
+            EventPhase(1, 0.0, 40.0, ("N", "S"), 0.9, 20, 2, ("N", "S")),
+            EventPhase(2, 40.0, 100.0, ("E", "W"), 0.9, 20, 2, ("E", "W")),
+        ),
+        profiles=(),
+        cycle_coverage=1.0,
+        overlap=0.0,
+        supporting_event_count=40,
+        contradictory_event_count=4,
+        movement_stages=(
+            MovementSignalStage(
+                1, "N", "N->E", 0.0, 40.0, 0.95, 0.9, 0.9, 20, 4
+            ),
+            MovementSignalStage(
+                2, "S", "S->W", 0.0, 40.0, 0.90, 0.8, 0.8, 20, 4
+            ),
+            MovementSignalStage(
+                3, "E", "E->W", 40.0, 100.0, 0.95, 0.9, 0.9, 20, 4
+            ),
+            MovementSignalStage(
+                4, "W", "W->E", 40.0, 100.0, 0.90, 0.8, 0.8, 20, 4
+            ),
+        ),
+    )
+
+
+def _overlap_phase_model():
+    model = _protected_turn_phase_model()
+    return EventPhaseDiscoveryResult(
+        cycle_seconds=model.cycle_seconds,
+        bin_seconds=model.bin_seconds,
+        phases=model.phases,
+        profiles=model.profiles,
+        cycle_coverage=model.cycle_coverage,
+        overlap=model.overlap,
+        supporting_event_count=model.supporting_event_count,
+        contradictory_event_count=model.contradictory_event_count,
+        movement_stages=(
+            *model.movement_stages,
+            MovementSignalStage(
+                5, "N", "N->S", 0.0, 40.0, 0.92, 0.9, 0.9, 20, 4
+            ),
+        ),
+    )
+
+
+def test_movement_specific_override_identifies_protected_turn():
+    topology = IntersectionTopology(
+        families=(
+            SignalFamily("NS", ("N", "S")),
+            SignalFamily("EW", ("E", "W")),
+        ),
+        family_conflicts=(("NS", "EW"),),
+        movement_conflicts=(("N->S", "N->E"),),
+    )
+    engine = RealtimeSignalInferenceEngine(
+        _protected_turn_phase_model(),
+        event_origin_ms=0,
+        topology=topology,
+    )
+
+    snapshot = None
+    for timestamp in (10.0, 12.0, 14.0, 16.0):
+        snapshot = engine.ingest_event(
+            movement_event(EventType.RELEASE, timestamp, "N", "N->S")
+        )
+
+    assert snapshot is not None
+    assert snapshot.adaptive_mode == "LIVE_OVERRIDE"
+    assert snapshot.effective_axis == "NS"
+    assert snapshot.signal_states["N"] == "UNKNOWN"
+    states = snapshot.effective_movement_states
+    assert states is not None
+    assert states["N->S"]["effective_state"] == "GREEN"
+    assert states["N->E"]["expected_state"] == "GREEN"
+    assert states["N->E"]["effective_state"] == "RED"
+    assert states["N->E"]["reason"] == "conflicts_with_live_override"
+    assert states["N->S"]["supporting_event_count"] >= 4
+
+
+def test_compatible_movements_can_overlap_without_live_override():
+    topology = IntersectionTopology(
+        families=(
+            SignalFamily("NS", ("N", "S")),
+            SignalFamily("EW", ("E", "W")),
+        ),
+        family_conflicts=(("NS", "EW"),),
+        movement_compatibilities=(("N->S", "N->E"),),
+    )
+    engine = RealtimeSignalInferenceEngine(
+        _overlap_phase_model(),
+        event_origin_ms=0,
+        topology=topology,
+    )
+
+    snapshot = None
+    for timestamp in (10.0, 12.0, 14.0, 16.0):
+        snapshot = engine.ingest_event(
+            movement_event(EventType.RELEASE, timestamp, "N", "N->S")
+        )
+        snapshot = engine.ingest_event(
+            movement_event(EventType.RELEASE, timestamp, "N", "N->E")
+        )
+
+    assert snapshot is not None
+    assert snapshot.adaptive_mode == "NORMAL"
+    states = snapshot.effective_movement_states
+    assert states is not None
+    assert states["N->E"]["effective_state"] == "GREEN"
+    assert states["N->S"]["effective_state"] == "GREEN"
+    greens = [
+        movement
+        for movement, details in states.items()
+        if details["effective_state"] == "GREEN"
+    ]
+    assert not any(
+        topology.movements_conflict(left, right)
+        for left in greens
+        for right in greens
+        if left < right
+    )
+
+
+def test_movement_override_does_not_create_conflicting_green_pair():
+    topology = IntersectionTopology(
+        families=(
+            SignalFamily("NS", ("N", "S")),
+            SignalFamily("EW", ("E", "W")),
+        ),
+        family_conflicts=(("NS", "EW"),),
+        movement_conflicts=(("N->S", "E->W"),),
+    )
+    engine = RealtimeSignalInferenceEngine(
+        _protected_turn_phase_model(),
+        event_origin_ms=0,
+        topology=topology,
+    )
+    snapshot = None
+    for timestamp in (44.0, 46.0, 48.0, 50.0):
+        snapshot = engine.ingest_event(
+            movement_event(EventType.RELEASE, timestamp, "N", "N->S")
+        )
+
+    assert snapshot is not None
+    assert snapshot.adaptive_mode == "LIVE_OVERRIDE"
+    states = snapshot.effective_movement_states or {}
+    greens = [
+        movement
+        for movement, details in states.items()
+        if details["effective_state"] == "GREEN"
+    ]
+    assert not any(
+        topology.movements_conflict(left, right)
+        for left in greens
+        for right in greens
+        if left < right
+    )
