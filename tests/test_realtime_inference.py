@@ -165,6 +165,9 @@ def test_explicit_realtime_origin_can_skip_warmup_for_compatibility():
     assert snapshot.synchronization_status == "SYNCHRONIZED"
     assert snapshot.phase_id == 1
     assert snapshot.signal_states["N"] == SignalState.GREEN.value
+    assert snapshot.determination_status.value == "KNOWN"
+    assert snapshot.traffic_observability is not None
+    assert snapshot.traffic_observability.level.value == "SPARSE"
     assert snapshot.phase_offset_s == 0.0
 
 

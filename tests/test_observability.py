@@ -7,6 +7,8 @@ from app.core.observability import (
     DiagnosticReason,
     DeterminationStatus,
     ObservabilitySnapshot,
+    TrafficObservabilityLevel,
+    TrafficObservabilityModel,
     build_batch_observability,
     build_realtime_observability,
 )
@@ -192,3 +194,121 @@ def test_batch_reconstruction_snapshot_contains_observability():
         DeterminationStatus.KNOWN,
         DeterminationStatus.UNKNOWN,
     }
+
+
+
+def test_traffic_observability_classifies_synthetic_density_levels():
+    assert (
+        TrafficObservabilityModel().observe(
+            timestamp_ms=12_000,
+            events=_events(6),
+            determination_status=DeterminationStatus.KNOWN,
+        ).level
+        is TrafficObservabilityLevel.HIGH
+    )
+    assert (
+        TrafficObservabilityModel().observe(
+            timestamp_ms=12_000,
+            events=_events(2),
+            determination_status=DeterminationStatus.KNOWN,
+        ).level
+        is TrafficObservabilityLevel.DEGRADED
+    )
+    assert (
+        TrafficObservabilityModel().observe(
+            timestamp_ms=12_000,
+            events=_events(1),
+            determination_status=DeterminationStatus.KNOWN,
+        ).level
+        is TrafficObservabilityLevel.SPARSE
+    )
+    assert (
+        TrafficObservabilityModel().observe(
+            timestamp_ms=12_000,
+            events=[],
+            determination_status=DeterminationStatus.INSUFFICIENT_DATA,
+        ).level
+        is TrafficObservabilityLevel.INSUFFICIENT_DATA
+    )
+
+
+def test_sparse_traffic_caps_known_determination_without_using_clock_time():
+    model = TrafficObservabilityModel()
+    snapshot = model.observe(
+        timestamp_ms=23 * 60 * 60 * 1000,
+        events=[_event("N", 23 * 60 * 60 * 1000)],
+        determination_status=DeterminationStatus.KNOWN,
+    )
+    assert snapshot.level is TrafficObservabilityLevel.SPARSE
+    assert snapshot.determination_status is DeterminationStatus.KNOWN
+    assert snapshot.diagnostic_reason is None
+    assert snapshot.unknown_rate == 0.0
+    assert snapshot.determined_rate == 1.0
+
+
+def test_day_and_night_are_classified_by_evidence_density_not_hour():
+    day = TrafficObservabilityModel().observe(
+        timestamp_ms=8 * 60 * 60 * 1000,
+        events=_events(6),
+        determination_status=DeterminationStatus.KNOWN,
+    )
+    night = TrafficObservabilityModel().observe(
+        timestamp_ms=23 * 60 * 60 * 1000,
+        events=_events(1),
+        determination_status=DeterminationStatus.KNOWN,
+    )
+    assert day.level is TrafficObservabilityLevel.HIGH
+    assert night.level is TrafficObservabilityLevel.SPARSE
+    assert day.determination_status is DeterminationStatus.KNOWN
+    assert night.determination_status is DeterminationStatus.KNOWN
+
+
+def test_traffic_observability_rolls_determination_metrics():
+    model = TrafficObservabilityModel()
+    model.observe(
+        timestamp_ms=0,
+        events=_events(6),
+        determination_status=DeterminationStatus.KNOWN,
+    )
+    model.observe(
+        timestamp_ms=4_000,
+        events=_events(1),
+        determination_status=DeterminationStatus.UNKNOWN,
+    )
+    model.observe(
+        timestamp_ms=8_000,
+        events=_events(1),
+        determination_status=DeterminationStatus.UNKNOWN,
+    )
+    snapshot = model.observe(
+        timestamp_ms=12_000,
+        events=_events(6),
+        determination_status=DeterminationStatus.KNOWN,
+    )
+    assert snapshot.determined_rate == 0.5
+    assert snapshot.unknown_rate == 0.5
+    assert snapshot.longest_unknown_interval_seconds == 8.0
+    assert snapshot.evidence_density == 0.5
+    assert snapshot.sample_count == 4
+
+
+def test_serialization_contains_nested_traffic_observability():
+    traffic = TrafficObservabilityModel().observe(
+        timestamp_ms=12_000,
+        events=_events(1),
+        determination_status=DeterminationStatus.KNOWN,
+    )
+    result = ObservabilitySnapshot(
+        determination_status=DeterminationStatus.UNKNOWN,
+        diagnostic_reason=None,
+        cycle_confidence=0.2,
+        synchronization_confidence=0.3,
+        phase_confidence=0.4,
+        movement_confidence=0.5,
+        traffic_evidence_confidence=0.6,
+        observability_confidence=0.2,
+        traffic_observability=traffic,
+    )
+    payload = result.to_dict()
+    assert payload["traffic_observability"]["level"] == "SPARSE"
+    assert payload["traffic_observability"]["determined_rate"] == 1.0
