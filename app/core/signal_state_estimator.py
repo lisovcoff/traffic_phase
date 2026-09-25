@@ -7,11 +7,13 @@ import math
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
+from app.core.intersection_config import IntersectionConfig, SignalHead
 from app.core.intersection_topology import (
     DEFAULT_INTERSECTION_TOPOLOGY,
     IntersectionTopology,
 )
 from app.core.models import EventType, TrajectoryEvent
+from app.core.observability import DiagnosticReason, DeterminationStatus
 from app.core.preprocessing import load_trajectory_file
 
 
@@ -24,6 +26,7 @@ DEFAULT_RECENT_WINDOW_SECONDS = 12.0
 DEFAULT_MIN_PHASE_CONFIDENCE = 0.20
 DEFAULT_MIN_TRAFFIC_CONFIDENCE = 0.12
 DEFAULT_CONFLICT_PERSISTENCE_SECONDS = 3.0
+DEFAULT_MIN_MOVEMENT_EVIDENCE_EVENTS = 1
 APPROACHES = DEFAULT_INTERSECTION_TOPOLOGY.approaches
 
 
@@ -39,6 +42,9 @@ class SignalState(str, Enum):
 class ApproachState:
     approach: str
     state: SignalState
+    signal_head_id: str | None = None
+    determination_status: DeterminationStatus = DeterminationStatus.KNOWN
+    diagnostic_reason: DiagnosticReason | None = None
     probability: float = 0.0
     confidence: float = 0.0
     phase_id: int | None = None
@@ -104,8 +110,10 @@ class SignalStateEstimator:
         yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS,
         red_yellow_duration_seconds: float = DEFAULT_RED_YELLOW_DURATION_SECONDS,
         conflict_persistence_seconds: float = DEFAULT_CONFLICT_PERSISTENCE_SECONDS,
+        min_movement_evidence_events: int = DEFAULT_MIN_MOVEMENT_EVIDENCE_EVENTS,
         event_origin_ms: int | None = None,
         topology: IntersectionTopology | None = None,
+        intersection_config: IntersectionConfig | None = None,
     ) -> None:
         cycle = float(getattr(phase_model, "cycle_seconds", 0.0))
         if cycle <= 0:
@@ -125,9 +133,31 @@ class SignalStateEstimator:
             raise ValueError("invalid red_yellow_duration_seconds")
         if conflict_persistence_seconds < 0:
             raise ValueError("conflict_persistence_seconds must be non-negative")
+        if min_movement_evidence_events < 1:
+            raise ValueError("min_movement_evidence_events must be positive")
+        if intersection_config is not None and topology is not None:
+            raise ValueError("pass either intersection_config or topology, not both")
 
         self.phase_model = phase_model
-        self.topology = topology or DEFAULT_INTERSECTION_TOPOLOGY
+        self.intersection_config = intersection_config
+        self.topology = (
+            intersection_config.to_topology()
+            if intersection_config is not None
+            else topology or DEFAULT_INTERSECTION_TOPOLOGY
+        )
+        self.signal_heads = (
+            tuple(intersection_config.signal_heads)
+            if intersection_config is not None
+            else tuple(
+                SignalHead(
+                    id=f"{approach}_MAIN",
+                    approach=approach,
+                    movement_ids=(f"{approach}->",),
+                )
+                for approach in self.topology.approaches
+            )
+        )
+        self.min_movement_evidence_events = int(min_movement_evidence_events)
         self.recent_window_s = float(recent_window_s)
         self.min_phase_confidence = float(min_phase_confidence)
         self.min_traffic_confidence = float(min_traffic_confidence)
@@ -169,19 +199,82 @@ class SignalStateEstimator:
         }
 
         states: list[ApproachState] = []
-        for approach in self.topology.approaches:
-            support, supporting, contradictory = evidence[approach]
+        for head in self.signal_heads:
+            approach = head.approach
+            if approach not in self.topology.approaches:
+                continue
+
+            own_movement_events = self._movement_events_for_head(
+                recent,
+                head,
+            )
+            phase_active = approach in active
+            evidence_events = (
+                own_movement_events
+                if phase_active
+                else self._active_conflicting_events(
+                    recent,
+                    approach,
+                    active,
+                )
+            )
+            support, supporting, contradictory = self._section_evidence(
+                recent,
+                head,
+                active,
+            )
             traffic_conf = self._approach_traffic_confidence(
                 support,
                 supporting,
                 contradictory,
             )
-            phase_active = approach in active
-            transition_kind = transition_kinds[approach]
+            transition_kind = self._transition_kind_for_approach(
+                position,
+                phase,
+                approach,
+            )
+            enough_movement_evidence = (
+                len(self._evidence_clusters(evidence_events))
+                >= self.min_movement_evidence_events
+            )
+            has_release_evidence = any(
+                event.event_type == EventType.RELEASE
+                for event in evidence_events
+            )
+            phase_ok = (
+                phase is not None
+                and phase_confidence >= self.min_phase_confidence
+            )
 
-            if phase is None or phase_confidence < self.min_phase_confidence:
-                state = SignalState.UNKNOWN
-                probability = max(0.0, min(1.0, traffic_conf))
+            state = SignalState.UNKNOWN
+            probability = 0.0
+            status = DeterminationStatus.INSUFFICIENT_DATA
+            reason: DiagnosticReason | None = DiagnosticReason.NO_EVIDENCE
+
+            if not phase_ok:
+                status = DeterminationStatus.UNKNOWN
+                reason = (
+                    DiagnosticReason.LOW_PHASE_CONFIDENCE
+                    if phase is not None
+                    else DiagnosticReason.INSUFFICIENT_EVENTS
+                )
+            elif contradictory > 0 and not self._conflict_is_stale(
+                recent,
+                head,
+                active,
+                current_time_s,
+                origin_ms,
+            ) and contradictory >= 2:
+                status = DeterminationStatus.UNKNOWN
+                reason = DiagnosticReason.CONFLICTING_EVIDENCE
+            elif not evidence_events:
+                status = DeterminationStatus.UNKNOWN
+                reason = DiagnosticReason.NO_EVIDENCE
+            elif not enough_movement_evidence or (
+                phase_active and not has_release_evidence
+            ):
+                status = DeterminationStatus.INSUFFICIENT_DATA
+                reason = DiagnosticReason.INSUFFICIENT_EVENTS
             else:
                 state, probability = self._state_from_evidence(
                     phase_active=phase_active,
@@ -189,8 +282,13 @@ class SignalStateEstimator:
                     support=support,
                     phase_confidence=phase_confidence,
                     traffic_confidence=traffic_conf,
+                    movement_evidence=True,
                 )
+                status = DeterminationStatus.KNOWN
+                reason = None
 
+                # Hysteresis: an isolated contradiction does not flip a
+                # structurally supported section.
                 if (
                     contradictory > 0
                     and self.conflict_persistence_seconds > 0
@@ -203,18 +301,28 @@ class SignalStateEstimator:
                     )
                     and transition_kind is None
                 ):
-                    # Keep the structural stage state; only confidence falls.
                     probability = min(probability, 0.55)
-                    state = (
-                        SignalState.GREEN
-                        if phase_active
-                        else SignalState.RED
-                    )
+
+            if (
+                status is DeterminationStatus.KNOWN
+                and not phase_active
+                and len(self._evidence_clusters(evidence_events)) < 2
+            ):
+                status = DeterminationStatus.INSUFFICIENT_DATA
+                state = SignalState.UNKNOWN
+                reason = DiagnosticReason.INSUFFICIENT_EVENTS
+                probability = 0.0
+
+            if status is not DeterminationStatus.KNOWN:
+                state = SignalState.UNKNOWN
 
             states.append(
                 ApproachState(
                     approach=approach,
                     state=state,
+                    signal_head_id=head.id,
+                    determination_status=status,
+                    diagnostic_reason=reason if state == SignalState.UNKNOWN else None,
                     probability=round(float(probability), 4),
                     confidence=round(float(probability), 4),
                     phase_id=getattr(phase, "phase_id", None),
@@ -364,12 +472,21 @@ class SignalStateEstimator:
             return []
         now_ms = origin_ms + int(current_time_s * 1000)
         lower_ms = now_ms - int(self.recent_window_s * 1000)
-        return [
+        recent = [
             event
             for event in events
             if lower_ms <= event.timestamp_ms <= now_ms
             and event.event_type in {EventType.RELEASE, EventType.CROSSING}
         ]
+        return sorted(
+            recent,
+            key=lambda event: (
+                event.timestamp_ms,
+                event.approach,
+                event.movement,
+                event.event_type.value,
+            ),
+        )
 
     def _approaches_conflict(self, left: str, right: str) -> bool:
         return self.topology.approaches_conflict(left, right)
@@ -532,6 +649,153 @@ class SignalStateEstimator:
         )
         return max(0.0, min(1.0, weight / 4.0))
 
+    def _movement_events_for_head(
+        self,
+        events: Sequence[TrajectoryEvent],
+        head: SignalHead,
+    ) -> list[TrajectoryEvent]:
+        return [
+            event
+            for event in events
+            if event.approach == head.approach
+            and any(
+                event.movement == movement
+                or (
+                    movement.endswith("->")
+                    and event.movement.startswith(movement)
+                )
+                for movement in head.movement_ids
+            )
+            and event.movement
+            and not event.movement.endswith("->UNKNOWN")
+        ]
+
+    def _active_conflicting_events(
+        self,
+        events: Sequence[TrajectoryEvent],
+        approach: str,
+        active: set[str],
+    ) -> list[TrajectoryEvent]:
+        return [
+            event
+            for event in events
+            if event.approach in active
+            and event.approach != approach
+            and self._approaches_conflict(approach, event.approach)
+        ]
+
+    @staticmethod
+    def _evidence_clusters(
+        events: Sequence[TrajectoryEvent],
+        *,
+        cluster_window_s: float = 2.0,
+    ) -> list[tuple[str, float]]:
+        clusters: list[tuple[str, float]] = []
+        for event in sorted(
+            events,
+            key=lambda item: (item.timestamp_ms, item.event_type.value),
+        ):
+            movement = event.movement
+            timestamp_s = event.timestamp_ms / 1000.0
+            if (
+                clusters
+                and clusters[-1][0] == movement
+                and timestamp_s - clusters[-1][1] <= cluster_window_s
+            ):
+                continue
+            clusters.append((movement, timestamp_s))
+        return clusters
+
+    def _section_conflict_events(
+        self,
+        events: Sequence[TrajectoryEvent],
+        head: SignalHead,
+        active: set[str],
+    ) -> list[TrajectoryEvent]:
+        movement_events = self._movement_events_for_head(events, head)
+        if head.approach in active:
+            return [
+                event
+                for event in events
+                if (
+                    event.approach != head.approach
+                    and self._approaches_conflict(
+                        head.approach,
+                        event.approach,
+                    )
+                    and event.event_type
+                    in {EventType.RELEASE, EventType.CROSSING}
+                    and any(
+                        self._events_conflict(own, event)
+                        for own in movement_events
+                    )
+                )
+            ]
+        return [
+            event
+            for event in movement_events
+            if self._event_conflicts_with_active_flow(
+                event,
+                events,
+                active,
+            )
+        ]
+
+    def _conflict_is_stale(
+        self,
+        events: Sequence[TrajectoryEvent],
+        head: SignalHead,
+        active: set[str],
+        current_time_s: float,
+        origin_ms: int,
+    ) -> bool:
+        if self.conflict_persistence_seconds <= 0:
+            return False
+        conflicts = self._section_conflict_events(events, head, active)
+        if not conflicts:
+            return False
+        latest_conflict = max(
+            (event.timestamp_ms - origin_ms) / 1000.0
+            for event in conflicts
+        )
+        support = self._movement_events_for_head(events, head)
+        if not support:
+            return False
+        latest_support = max(
+            (event.timestamp_ms - origin_ms) / 1000.0
+            for event in support
+        )
+        return (
+            latest_support - latest_conflict
+            >= self.conflict_persistence_seconds
+        )
+
+    def _section_evidence(
+        self,
+        events: Sequence[TrajectoryEvent],
+        head: SignalHead,
+        active: set[str],
+    ) -> tuple[float, int, int]:
+        movement_events = self._movement_events_for_head(events, head)
+        if head.approach in active:
+            support_events = movement_events
+        else:
+            support_events = self._active_conflicting_events(
+                events,
+                head.approach,
+                active,
+            )
+        contradiction_events = self._section_conflict_events(
+            events,
+            head,
+            active,
+        )
+        return (
+            sum(self._event_weight(event) for event in support_events),
+            len(support_events),
+            len(contradiction_events),
+        )
+
     def _state_from_evidence(
         self,
         *,
@@ -540,20 +804,23 @@ class SignalStateEstimator:
         support: float,
         phase_confidence: float,
         traffic_confidence: float,
+        movement_evidence: bool,
     ) -> tuple[SignalState, float]:
         if transition_kind == SignalState.YELLOW:
-            state = SignalState.YELLOW if phase_active else SignalState.RED
+            state = SignalState.YELLOW
         elif transition_kind == SignalState.RED_YELLOW:
-            state = SignalState.RED_YELLOW if phase_active else SignalState.RED
+            state = SignalState.RED_YELLOW
+        elif phase_active:
+            state = SignalState.GREEN
         else:
-            state = SignalState.GREEN if phase_active else SignalState.RED
+            state = SignalState.RED
 
         support_term = min(1.0, support / 2.0)
-        probability = 0.70 * phase_confidence + 0.30 * (
-            support_term if phase_active else 1.0 - support_term
-        )
-        if traffic_confidence < self.min_traffic_confidence and support == 0:
-            probability *= 0.50
+        probability = 0.70 * phase_confidence + 0.30 * support_term
+        if not movement_evidence:
+            probability *= 0.5
+        elif traffic_confidence < self.min_traffic_confidence:
+            probability *= 0.75
         return state, max(0.0, min(1.0, probability))
 
     def _conflict_is_short(
@@ -592,6 +859,7 @@ def result_to_json(result: SignalStateResult) -> str:
 
 
 __all__ = [
+    "DEFAULT_MIN_MOVEMENT_EVIDENCE_EVENTS",
     "DEFAULT_RED_YELLOW_DURATION_SECONDS",
     "DEFAULT_YELLOW_DURATION_SECONDS",
     "ApproachState",
