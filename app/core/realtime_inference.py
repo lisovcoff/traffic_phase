@@ -73,6 +73,9 @@ class RealtimeInferenceSnapshot:
     template_disagreement: bool = False
     adaptive_confidence: float = 0.0
     adaptive_reason: str | None = None
+    phase_extension_duration_seconds: float = 0.0
+    phase_extension_event_count: int = 0
+    phase_extension_peak_duration_seconds: float = 0.0
     observed_live_approaches: tuple[str, ...] = ()
     template_signal_states: dict[str, str] | None = None
     duplicate: bool = False
@@ -111,6 +114,9 @@ class RealtimeSignalInferenceEngine:
         baseline: TrafficBaselineProfile | None = None,
         synchronization_min_events: int = 6,
         topology: IntersectionTopology | None = None,
+        min_extension_weight: float = 2.0,
+        min_extension_releases: int = 2,
+        extension_max_seconds: float | None = None,
         max_active_trajectories: int = 1024,
         max_idempotency_entries: int = 8192,
     ) -> None:
@@ -159,6 +165,9 @@ class RealtimeSignalInferenceEngine:
         )
         self._adaptive_override = AdaptiveRealtimeOverride(
             evidence_window_seconds=min(8.0, self.recent_window_s),
+            min_extension_weight=min_extension_weight,
+            min_extension_releases=min_extension_releases,
+            extension_max_seconds=extension_max_seconds,
             topology=self.topology,
         )
         self._synchronizer = RealtimePhaseSynchronizer(
@@ -485,10 +494,15 @@ class RealtimeSignalInferenceEngine:
             phase=template_phase,
             events=buffered_events,
             cycle_seconds=self.phase_template.cycle_seconds,
+            phases=self.phase_model.phases,
         )
 
         if (
-            previous_mode == AdaptiveRealtimeMode.LIVE_OVERRIDE
+            previous_mode
+            in {
+                AdaptiveRealtimeMode.PHASE_EXTENSION,
+                AdaptiveRealtimeMode.LIVE_OVERRIDE,
+            }
             and adaptive.mode == AdaptiveRealtimeMode.RECOVERY
         ):
             self._synchronizer.enter_recovery()
@@ -501,6 +515,7 @@ class RealtimeSignalInferenceEngine:
                     phase=template_phase,
                     events=buffered_events,
                     cycle_seconds=self.phase_template.cycle_seconds,
+                    phases=self.phase_model.phases,
                 )
             else:
                 return self._warmup_snapshot(
@@ -557,9 +572,16 @@ class RealtimeSignalInferenceEngine:
             )
         ]
 
-        if adaptive.mode == AdaptiveRealtimeMode.LIVE_OVERRIDE:
+        if adaptive.mode in {
+            AdaptiveRealtimeMode.PHASE_EXTENSION,
+            AdaptiveRealtimeMode.LIVE_OVERRIDE,
+        }:
             signal_states = self._override_signal_states(adaptive)
-            active_movements = []
+            active_movements = (
+                self._extension_active_movements(adaptive, cycle_position_s)
+                if adaptive.mode == AdaptiveRealtimeMode.PHASE_EXTENSION
+                else []
+            )
 
         compatibility = self._template_compatibility(synchronization)
         realtime_observability = build_realtime_observability(
@@ -608,7 +630,11 @@ class RealtimeSignalInferenceEngine:
         }
         template_deviation_seconds = None
         if (
-            adaptive.mode == AdaptiveRealtimeMode.LIVE_OVERRIDE
+            adaptive.mode
+            in {
+                AdaptiveRealtimeMode.PHASE_EXTENSION,
+                AdaptiveRealtimeMode.LIVE_OVERRIDE,
+            }
             and template_phase is not None
         ):
             template_start = (
@@ -637,7 +663,10 @@ class RealtimeSignalInferenceEngine:
             for item in result.approaches
         }
 
-        if adaptive.mode == AdaptiveRealtimeMode.LIVE_OVERRIDE:
+        if adaptive.mode in {
+            AdaptiveRealtimeMode.PHASE_EXTENSION,
+            AdaptiveRealtimeMode.LIVE_OVERRIDE,
+        }:
             confidence = round(
                 max(
                     0.0,
@@ -713,6 +742,13 @@ class RealtimeSignalInferenceEngine:
             template_disagreement=adaptive.template_disagreement,
             adaptive_confidence=adaptive.confidence,
             adaptive_reason=adaptive.reason,
+            phase_extension_duration_seconds=(
+                adaptive.extension_duration_seconds
+            ),
+            phase_extension_event_count=adaptive.extension_event_count,
+            phase_extension_peak_duration_seconds=(
+                adaptive.extension_peak_duration_seconds
+            ),
             observed_live_approaches=adaptive.observed_approaches,
             template_signal_states=template_signal_states,
             duplicate=duplicate,
@@ -853,10 +889,29 @@ class RealtimeSignalInferenceEngine:
                 adaptive.reason
                 if adaptive is not None
                 else (
-                    "resynchronizing_after_live_override"
+                    (
+                        "resynchronizing_after_phase_extension"
+                        if self._adaptive_override._extension_axis is not None
+                        else "resynchronizing_after_live_override"
+                    )
                     if mode == AdaptiveRealtimeMode.RECOVERY.value
                     else None
                 )
+            ),
+            phase_extension_duration_seconds=(
+                adaptive.extension_duration_seconds
+                if adaptive is not None
+                else 0.0
+            ),
+            phase_extension_event_count=(
+                adaptive.extension_event_count
+                if adaptive is not None
+                else 0
+            ),
+            phase_extension_peak_duration_seconds=(
+                adaptive.extension_peak_duration_seconds
+                if adaptive is not None
+                else 0.0
             ),
             observed_live_approaches=(
                 adaptive.observed_approaches
@@ -866,6 +921,38 @@ class RealtimeSignalInferenceEngine:
             template_signal_states=dict(states),
             duplicate=duplicate,
         )
+
+    def _extension_active_movements(
+        self,
+        adaptive: AdaptiveRealtimeDecision,
+        cycle_position_s: float,
+    ) -> list[dict[str, object]]:
+        family = adaptive.effective_axis
+        if family is None:
+            return []
+
+        stages = [
+            stage
+            for stage in self.phase_template.movement_stages
+            if self.topology.family_for_approach(stage.approach) == family
+        ]
+        if not stages:
+            return []
+
+        cycle = self.phase_template.cycle_seconds
+        ranked = [
+            (
+                (cycle_position_s - float(stage.phase_end)) % cycle,
+                stage,
+            )
+            for stage in stages
+        ]
+        nearest = min(distance for distance, _stage in ranked)
+        return [
+            stage.to_dict()
+            for distance, stage in ranked
+            if abs(distance - nearest) < 1e-9
+        ]
 
     def _override_signal_states(
         self,
@@ -883,6 +970,9 @@ class RealtimeSignalInferenceEngine:
         for approach in self.topology.approaches_for_family(family):
             if approach in observed:
                 states[approach] = "GREEN"
+
+        if adaptive.mode == AdaptiveRealtimeMode.PHASE_EXTENSION:
+            return states
 
         for conflicting_family in self.topology.conflicting_families_for(
             family
