@@ -736,10 +736,10 @@ def test_realtime_unknown_metrics_track_post_sync_and_rolling_rates():
     metrics = synchronized["unknown_metrics"]
     assert metrics["sample_count"] == 1
     assert metrics["post_sync_sample_count"] == 1
-    assert metrics["post_sync_rate"] == 0.0
-    assert metrics["rolling_60s_rate"] == 0.0
-    assert metrics["post_sync_determined_rate"] == 1.0
-    assert metrics["rolling_60s_determined_rate"] == 1.0
+    assert metrics["post_sync_rate"] == 0.75
+    assert metrics["rolling_60s_rate"] == 0.75
+    assert metrics["post_sync_determined_rate"] == 0.25
+    assert metrics["rolling_60s_determined_rate"] == 0.25
     assert "target_rate" not in metrics
     assert "meets_post_sync_target" not in metrics
 

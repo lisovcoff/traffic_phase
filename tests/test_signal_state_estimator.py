@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-from app.core.event_phase_discovery import (
-    EventPhase,
-    EventPhaseDiscoveryResult,
-)
-from app.core.intersection_topology import (
-    IntersectionTopology,
-    SignalFamily,
-)
-from app.core.models import EventType, TrajectoryEvent
+from app.core.event_phase_discovery import EventPhase, EventPhaseDiscoveryResult
+from app.core.intersection_config import IntersectionConfig, Movement, SignalHead
+from app.core.intersection_topology import SignalFamily
+from app.core.models import EventType, MovementEvidenceQuality, TrajectoryEvent
+from app.core.observability import DiagnosticReason, DeterminationStatus
 from app.core.signal_state_estimator import (
     DEFAULT_RED_YELLOW_DURATION_SECONDS,
     DEFAULT_YELLOW_DURATION_SECONDS,
@@ -17,31 +13,29 @@ from app.core.signal_state_estimator import (
 )
 
 
-def event(kind, t, approach, confidence=1.0):
+def event(kind, t, approach, movement=None, confidence=1.0, movement_quality=MovementEvidenceQuality.VALID):
     return TrajectoryEvent(
         event_type=kind,
         timestamp_ms=int(t * 1000),
         approach=approach,
-        movement=f"{approach}->x",
+        movement=movement or f"{approach}->x",
         confidence=confidence,
         quality="HIGH",
+        movement_quality=movement_quality,
     )
 
 
 def model(gapped=False):
     phases = (
-        EventPhase(1, 0.0, 40.0, ("N", "S"), 0.9, 10, 1, ("N", "S")),
-        EventPhase(
-            2,
-            50.0 if gapped else 40.0,
-            90.0 if gapped else 100.0,
-            ("E", "W"),
-            0.9,
-            10,
-            1,
-            ("E", "W"),
-        ),
+        EventPhase(1, 0.0, 40.0, ("N", "S"), 0.9, 20, 1, ("N", "S")),
+        EventPhase(2, 50.0, 90.0, ("E", "W"), 0.9, 20, 1, ("E", "W")),
     )
+    # The gapped fixture above is intentionally replaced below for clarity.
+    if not gapped:
+        phases = (
+            EventPhase(1, 0.0, 40.0, ("N", "S"), 0.9, 20, 1, ("N", "S")),
+            EventPhase(2, 40.0, 100.0, ("E", "W"), 0.9, 20, 1, ("E", "W")),
+        )
     return EventPhaseDiscoveryResult(
         cycle_seconds=100.0,
         bin_seconds=2.0,
@@ -49,297 +43,237 @@ def model(gapped=False):
         profiles=(),
         cycle_coverage=0.8 if gapped else 1.0,
         overlap=0.0,
-        supporting_event_count=20,
-        contradictory_event_count=2,
+        supporting_event_count=40,
+        contradictory_event_count=1,
     )
 
 
 def states(result):
-    return {item.approach: item for item in result.approaches}
+    return {
+        (item.signal_head_id or item.approach): item
+        for item in result.approaches
+    }
 
 
-def test_green_uses_phase_and_real_release_evidence():
-    result = SignalStateEstimator(model()).estimate(
-        20.0,
-        [event(EventType.RELEASE, 10, "N"), event(EventType.CROSSING, 11, "N")],
-    )
-    assert states(result)["N"].state == SignalState.GREEN
-    assert states(result)["N"].traffic_evidence_confidence > 0
-    assert states(result)["N"].phase_confidence > 0
-
-
-def test_green_does_not_require_stop_or_wait_evidence():
-    result = SignalStateEstimator(model()).estimate(20.0, [])
-    assert states(result)["N"].state == SignalState.GREEN
-
-
-def test_green_yellow_red_sequence_for_ns_uses_exact_three_second_yellow():
-    estimator = SignalStateEstimator(model())
-    before = estimator.estimate(36.999, [])
-    yellow_start = estimator.estimate(
-        37.0,
-        [event(EventType.CROSSING, 37.0, "N")],
-    )
-    yellow_end = estimator.estimate(
-        39.999,
-        [event(EventType.CROSSING, 39.9, "N")],
-    )
-    red = estimator.estimate(
-        40.0,
-        [event(EventType.CROSSING, 39.9, "N")],
-    )
-
-    assert DEFAULT_YELLOW_DURATION_SECONDS == 3.0
-    assert states(before)["N"].state == SignalState.GREEN
-    assert states(yellow_start)["N"].state == SignalState.YELLOW
-    assert states(yellow_end)["N"].state == SignalState.YELLOW
-    assert states(red)["N"].state == SignalState.RED
-    assert states(yellow_end)["N"].supporting_event_count > 0
-
-
-def test_red_yellow_is_separate_two_second_pre_green_state():
-    estimator = SignalStateEstimator(model())
-    start = estimator.estimate(40.0, [])
-    end = estimator.estimate(41.999, [])
-    green = estimator.estimate(
-        42.0,
-        [event(EventType.RELEASE, 42.0, "E")],
-    )
-
-    assert DEFAULT_RED_YELLOW_DURATION_SECONDS == 2.0
-    assert states(start)["E"].state == SignalState.RED_YELLOW
-    assert states(end)["E"].state == SignalState.RED_YELLOW
-    assert states(start)["N"].state == SignalState.RED
-    assert states(green)["E"].state == SignalState.GREEN
-
-
-def test_missing_phase_is_unknown():
-    result = SignalStateEstimator(model(gapped=True)).estimate(45.0, [])
-    assert all(item.state == SignalState.UNKNOWN for item in result.approaches)
-
-
-def test_confidence_dimensions_are_separate():
-    result = SignalStateEstimator(model()).estimate(
-        20.0,
-        [event(EventType.RELEASE, 10, "N", 0.2)],
-    )
-    n = states(result)["N"]
-    assert n.phase_confidence != n.traffic_evidence_confidence
-    assert n.confidence == n.probability
-
-
-def test_short_conflicting_event_does_not_flip_green():
-    result = SignalStateEstimator(
-        model(),
-        conflict_persistence_seconds=3.0,
-    ).estimate(
-        20.0,
-        [
-            event(EventType.RELEASE, 10, "N"),
-            event(EventType.CROSSING, 19.0, "E"),
-        ],
-    )
-    assert states(result)["N"].state == SignalState.GREEN
-    assert states(result)["N"].contradictory_event_count > 0
-    assert states(result)["N"].probability <= 0.55
-
-
-def test_event_confidence_changes_probability_not_state():
-    high = SignalStateEstimator(model()).estimate(
-        20.0, [event(EventType.RELEASE, 10, "N", 1.0)]
-    )
-    low = SignalStateEstimator(model()).estimate(
-        20.0, [event(EventType.RELEASE, 10, "N", 0.1)]
-    )
-    assert states(high)["N"].state == SignalState.GREEN
-    assert states(low)["N"].state == SignalState.GREEN
-    assert states(high)["N"].probability > states(low)["N"].probability
-
-
-def test_red_is_opposite_phase_not_waiting_evidence():
-    result = SignalStateEstimator(model()).estimate(45.0, [])
-    assert states(result)["N"].state == SignalState.RED
-    assert states(result)["E"].state == SignalState.GREEN
-
-
-def test_estimator_accepts_event_sequence():
+def test_green_requires_phase_and_movement_evidence():
     result = SignalStateEstimator(model()).estimate(
         20.0,
         [event(EventType.RELEASE, 10, "N")],
     )
-    assert result.approaches
-
-
-def test_recent_events_use_normalized_timeline():
-    result = SignalStateEstimator(model(), recent_window_s=12.0).estimate(
-        20.0,
-        [event(EventType.RELEASE, 10, "N")],
-    )
-    n = states(result)["N"]
-    assert n.supporting_event_count == 1
-    assert n.evidence_weight > 0
+    n = states(result)["N_MAIN"]
+    assert n.state is SignalState.GREEN
+    assert n.determination_status is DeterminationStatus.KNOWN
+    assert n.phase_confidence > 0
     assert n.traffic_evidence_confidence > 0
 
 
-def test_absolute_event_timestamps_can_be_rebased_explicitly():
-    estimator = SignalStateEstimator(
-        model(),
-        recent_window_s=12.0,
-        event_origin_ms=1_000_000,
-    )
-    result = estimator.estimate(
-        20.0,
-        [TrajectoryEvent(
-            event_type=EventType.RELEASE,
-            timestamp_ms=1_010_000,
-            approach="N",
-            movement="N->x",
-            confidence=1.0,
-            quality="HIGH",
-        )],
-    )
-    assert states(result)["N"].supporting_event_count == 1
-
-
-
-def staggered_model():
-    phases = (
-        EventPhase(1, 0.0, 20.0, ("N",), 0.9, 20, 1, ("N",)),
-        EventPhase(2, 20.0, 50.0, ("N", "S"), 0.9, 30, 1, ("N", "S")),
-        EventPhase(3, 55.0, 100.0, ("E", "W"), 0.9, 40, 1, ("E", "W")),
-    )
-    return EventPhaseDiscoveryResult(
-        cycle_seconds=100.0,
-        bin_seconds=2.0,
-        phases=phases,
-        profiles=(),
-        cycle_coverage=0.95,
-        overlap=0.0,
-        supporting_event_count=90,
-        contradictory_event_count=3,
-    )
-
-
-def test_staggered_stage_states_and_clearance_are_explicit():
-    estimator = SignalStateEstimator(staggered_model())
-
-    n_only = states(estimator.estimate(10.0, []))
-    assert n_only["N"].state == SignalState.GREEN
-    assert n_only["S"].state == SignalState.RED
-    assert n_only["E"].state == SignalState.RED
-
-    overlap = states(estimator.estimate(30.0, []))
-    assert overlap["N"].state == SignalState.GREEN
-    assert overlap["S"].state == SignalState.GREEN
-    assert overlap["E"].state == SignalState.RED
-
-    clearance = states(estimator.estimate(52.0, []))
-    assert {item.state for item in clearance.values()} == {
-        SignalState.UNKNOWN
-    }
-
-    cross = states(estimator.estimate(70.0, []))
-    assert cross["N"].state == SignalState.RED
-    assert cross["S"].state == SignalState.RED
-    assert cross["E"].state == SignalState.GREEN
-    assert cross["W"].state == SignalState.GREEN
-
-
-def test_internal_stage_boundary_does_not_turn_continuing_n_yellow():
-    estimator = SignalStateEstimator(staggered_model())
-    result = states(estimator.estimate(20.5, []))
-
-    assert result["N"].state == SignalState.GREEN
-    assert result["S"].state == SignalState.RED_YELLOW
-
-
-
-def test_yellow_and_red_yellow_durations_are_independent():
-    estimator = SignalStateEstimator(
-        model(),
-        yellow_duration_seconds=3.0,
-        red_yellow_duration_seconds=0.0,
-    )
-    assert states(estimator.estimate(37.0, []))["N"].state == SignalState.YELLOW
-    assert states(estimator.estimate(40.0, []))["E"].state == SignalState.GREEN
-
-
-def test_signal_result_exposes_backend_transition_timing():
+def test_no_cars_is_unknown_not_red_or_green():
     result = SignalStateEstimator(model()).estimate(20.0, [])
-    payload = result.to_dict()
-    assert result.yellow_duration_seconds == 3.0
-    assert result.red_yellow_duration_seconds == 2.0
-    assert payload["yellow_duration_seconds"] == 3.0
-    assert payload["red_yellow_duration_seconds"] == 2.0
+    assert all(item.state is SignalState.UNKNOWN for item in result.approaches)
+    assert all(
+        item.diagnostic_reason is DiagnosticReason.NO_EVIDENCE
+        for item in result.approaches
+    )
 
 
-def test_continuing_approach_stays_green_across_internal_stage_boundary():
-    estimator = SignalStateEstimator(staggered_model())
-    before = states(estimator.estimate(19.0, []))
-    just_after = states(estimator.estimate(20.5, []))
-    after_red_yellow = states(estimator.estimate(22.0, []))
-
-    assert before["N"].state == SignalState.GREEN
-    assert just_after["N"].state == SignalState.GREEN
-    assert just_after["S"].state == SignalState.RED_YELLOW
-    assert after_red_yellow["N"].state == SignalState.GREEN
-    assert after_red_yellow["S"].state == SignalState.GREEN
+def test_stop_approach_and_silence_never_create_red():
+    events = [
+        TrajectoryEvent(EventType.STOP, 10_000, "N", "N->x", 1.0, "HIGH"),
+        TrajectoryEvent(EventType.APPROACH, 11_000, "N", "N->x", 1.0, "HIGH"),
+    ]
+    result = SignalStateEstimator(model()).estimate(20.0, events)
+    assert all(item.state is SignalState.UNKNOWN for item in result.approaches)
 
 
-
-def test_default_topology_keeps_orthogonal_release_as_contradiction():
+def test_false_crossing_without_release_does_not_establish_green():
     result = SignalStateEstimator(model()).estimate(
         20.0,
         [
-            event(EventType.RELEASE, 19.0, "N"),
-            event(EventType.RELEASE, 19.5, "E"),
+            event(EventType.CROSSING, 10, "N"),
+            event(EventType.CROSSING, 11, "N"),
         ],
     )
-    current = states(result)
-    assert current["N"].contradictory_event_count == 1
-    assert current["E"].contradictory_event_count == 1
+    n = states(result)["N_MAIN"]
+    assert n.state is SignalState.UNKNOWN
+    assert n.diagnostic_reason is DiagnosticReason.INSUFFICIENT_EVENTS
 
 
-def test_explicit_movement_compatibility_suppresses_false_conflict_evidence():
-    topology = IntersectionTopology(
-        families=(
-            SignalFamily("MAIN", ("N", "S")),
-            SignalFamily("CROSS", ("E", "W")),
-        ),
-        family_conflicts=(("MAIN", "CROSS"),),
-        movement_compatibilities=(("N->x", "E->x"),),
-    )
-    result = SignalStateEstimator(
-        model(),
-        topology=topology,
-    ).estimate(
+def test_two_conflicting_machines_can_become_unknown_after_persistence():
+    result = SignalStateEstimator(model()).estimate(
         20.0,
         [
-            event(EventType.RELEASE, 19.0, "N"),
-            event(EventType.RELEASE, 19.5, "E"),
+            event(EventType.RELEASE, 10, "N"),
+            event(EventType.RELEASE, 15, "E"),
+            event(EventType.RELEASE, 19, "E"),
         ],
     )
-    current = states(result)
-
-    assert current["N"].contradictory_event_count == 0
-    assert current["E"].contradictory_event_count == 0
-    assert current["E"].state == SignalState.RED
+    n = states(result)["N_MAIN"]
+    assert n.state is SignalState.UNKNOWN
+    assert n.diagnostic_reason is DiagnosticReason.CONFLICTING_EVIDENCE
 
 
-def test_no_traffic_is_not_positive_green_evidence_for_inactive_family():
-    topology = IntersectionTopology(
+def test_temporary_single_conflict_is_hysteretic():
+    result = SignalStateEstimator(model()).estimate(
+        20.0,
+        [
+            event(EventType.RELEASE, 5, "N"),
+            event(EventType.RELEASE, 15, "N"),
+            event(EventType.RELEASE, 19, "E"),
+        ],
+    )
+    n = states(result)["N_MAIN"]
+    assert n.state is SignalState.GREEN
+    assert n.contradictory_event_count == 1
+    assert n.probability <= 0.55
+
+
+def test_delayed_and_out_of_order_events_are_deterministic():
+    events = [
+        event(EventType.RELEASE, 15, "N"),
+        event(EventType.RELEASE, 5, "N"),
+        event(EventType.RELEASE, 10, "N"),
+        event(EventType.RELEASE, 25, "N"),
+    ]
+    estimator = SignalStateEstimator(model())
+    forward = estimator.estimate(20.0, events)
+    reversed_result = estimator.estimate(20.0, list(reversed(events)))
+    assert forward.to_dict() == reversed_result.to_dict()
+    assert states(forward)["N_MAIN"].state is SignalState.GREEN
+
+
+def test_delayed_future_event_is_ignored():
+    result = SignalStateEstimator(model()).estimate(
+        20.0,
+        [event(EventType.RELEASE, 30, "N")],
+    )
+    n = states(result)["N_MAIN"]
+    assert n.state is SignalState.UNKNOWN
+    assert n.diagnostic_reason is DiagnosticReason.NO_EVIDENCE
+
+
+def test_sparse_night_traffic_stays_unknown_without_current_evidence():
+    result = SignalStateEstimator(model()).estimate(20.0, [])
+    n = states(result)["N_MAIN"]
+    assert n.diagnostic_reason is DiagnosticReason.NO_EVIDENCE
+
+
+def test_low_phase_confidence_is_unknown():
+    low = EventPhaseDiscoveryResult(
+        cycle_seconds=100.0,
+        bin_seconds=2.0,
+        phases=(EventPhase(1, 0, 40, ("N",), 0.1, 20, 0, ("N",)),),
+        profiles=(),
+        cycle_coverage=1.0,
+        overlap=0.0,
+        supporting_event_count=20,
+        contradictory_event_count=0,
+    )
+    n = states(
+        SignalStateEstimator(low).estimate(
+            20.0, [event(EventType.RELEASE, 10, "N")]
+        )
+    )["N_MAIN"]
+    assert n.state is SignalState.UNKNOWN
+    assert n.diagnostic_reason is DiagnosticReason.LOW_PHASE_CONFIDENCE
+
+
+def test_yellow_and_red_yellow_require_movement_evidence():
+    estimator = SignalStateEstimator(model())
+    yellow = states(
+        estimator.estimate(
+            37.0,
+            [event(EventType.RELEASE, 30, "N"), event(EventType.RELEASE, 35, "N")],
+        )
+    )
+    red_yellow = states(
+        estimator.estimate(
+            40.0,
+            [event(EventType.RELEASE, 34, "E"), event(EventType.RELEASE, 39, "E")],
+        )
+    )
+    assert DEFAULT_YELLOW_DURATION_SECONDS == 3.0
+    assert DEFAULT_RED_YELLOW_DURATION_SECONDS == 2.0
+    assert yellow["N_MAIN"].state is SignalState.YELLOW
+    assert red_yellow["E_MAIN"].state is SignalState.RED_YELLOW
+
+
+def test_inactive_section_red_requires_positive_conflicting_flow():
+    result = states(
+        SignalStateEstimator(model()).estimate(
+            45.0,
+            [event(EventType.RELEASE, 35, "E"), event(EventType.RELEASE, 42, "E")],
+        )
+    )
+    assert result["E_MAIN"].state is SignalState.GREEN
+    assert result["N_MAIN"].state is SignalState.RED
+
+
+def test_phase_gap_is_unknown():
+    result = SignalStateEstimator(model(gapped=True)).estimate(
+        45.0,
+        [event(EventType.RELEASE, 35, "N")],
+    )
+    assert all(item.state is SignalState.UNKNOWN for item in result.approaches)
+
+
+def test_probability_changes_with_event_confidence():
+    high = SignalStateEstimator(model()).estimate(
+        20, [event(EventType.RELEASE, 10, "N", confidence=1.0)]
+    )
+    low = SignalStateEstimator(model()).estimate(
+        20, [event(EventType.RELEASE, 10, "N", confidence=0.1)]
+    )
+    assert states(high)["N_MAIN"].state is SignalState.GREEN
+    assert states(low)["N_MAIN"].state is SignalState.GREEN
+    assert states(high)["N_MAIN"].probability > states(low)["N_MAIN"].probability
+
+
+def test_explicit_origin_is_respected():
+    estimator = SignalStateEstimator(model(), event_origin_ms=1_000_000)
+    result = estimator.estimate(
+        20,
+        [event(EventType.RELEASE, 1_010, "N")],
+    )
+    assert states(result)["N_MAIN"].supporting_event_count == 1
+
+
+def test_complex_topology_determines_each_signal_section_independently():
+    config = IntersectionConfig(
+        intersection_id="complex",
         families=(
-            SignalFamily("MAIN", ("N", "S")),
-            SignalFamily("CROSS", ("E", "W")),
+            SignalFamily("NS", ("N", "S")),
+            SignalFamily("EW", ("E", "W")),
         ),
-        family_conflicts=(("MAIN", "CROSS"),),
+        movements=(
+            Movement("N->S", "N", "S", "through"),
+            Movement("N->E", "N", "E", "left"),
+            Movement("S->N", "S", "N", "through"),
+            Movement("S->W", "S", "W", "left"),
+            Movement("E->W", "E", "W", "through"),
+            Movement("W->E", "W", "E", "through"),
+        ),
+        signal_heads=(
+            SignalHead("N_MAIN", "N", ("N->S",)),
+            SignalHead("N_LEFT", "N", ("N->E",), additional=True, arrows=("left",)),
+            SignalHead("S_MAIN", "S", ("S->N",)),
+            SignalHead("S_LEFT", "S", ("S->W",), additional=True, arrows=("left",)),
+            SignalHead("E_MAIN", "E", ("E->W",)),
+            SignalHead("W_MAIN", "W", ("W->E",)),
+        ),
+        family_conflicts=(("NS", "EW"),),
     )
     result = SignalStateEstimator(
         model(),
-        topology=topology,
-    ).estimate(20.0, [])
+        intersection_config=config,
+    ).estimate(
+        20,
+        [
+            event(EventType.RELEASE, 5, "N", "N->S"),
+            event(EventType.RELEASE, 15, "N", "N->S"),
+        ],
+    )
     current = states(result)
-
-    assert current["E"].state == SignalState.RED
-    assert current["E"].supporting_event_count == 0
-    assert current["E"].traffic_evidence_confidence == 0.0
+    assert current["N_MAIN"].state is SignalState.GREEN
+    assert current["N_LEFT"].state is SignalState.UNKNOWN
+    assert current["N_LEFT"].diagnostic_reason is DiagnosticReason.NO_EVIDENCE
+    assert current["S_MAIN"].state is SignalState.UNKNOWN

@@ -637,7 +637,7 @@ def test_persistent_release_after_expected_transition_triggers_live_override():
     assert snapshot.signal_states["S"] == "UNKNOWN"
     assert snapshot.signal_states["E"] == "RED"
     assert snapshot.signal_states["W"] == "RED"
-    assert snapshot.template_signal_states["N"] == "RED"
+    assert snapshot.template_signal_states["N"] == "UNKNOWN"
     assert snapshot.active_movements == []
     # The event that first raised suspicion is scored, then synchronization
     # evidence is frozen while SUSPECT/LIVE_OVERRIDE is active.
@@ -677,7 +677,10 @@ def test_realtime_defaults_use_physical_transition_durations():
         event_origin_ms=0,
     )
     yellow = yellow_engine.ingest_event(
-        event(EventType.CROSSING, 37.0, "N")
+        event(EventType.RELEASE, 35.0, "N")
+    )
+    yellow = yellow_engine.ingest_event(
+        event(EventType.RELEASE, 37.0, "N")
     )
 
     red_yellow_engine = RealtimeSignalInferenceEngine(
