@@ -161,3 +161,8 @@ def test_realtime_api_roundtrip_uses_fixture_config(factory):
     assert set(snapshot["signal_head_states"]) == {
         head.id for head in fixture.config.signal_heads
     }
+    renderer = snapshot["signal_renderer"]
+    assert renderer["intersection_id"] == fixture.config.intersection_id
+    assert {head["id"] for head in renderer["heads"]} == {
+        head.id for head in fixture.config.signal_heads
+    }

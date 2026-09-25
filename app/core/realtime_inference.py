@@ -33,6 +33,7 @@ from app.core.realtime_phase_sync import (
     RealtimePhaseSynchronizer,
     RealtimePhaseTemplate,
 )
+from app.core.signal_renderer import build_signal_renderer_data
 from app.core.signal_state_estimator import (
     DEFAULT_RED_YELLOW_DURATION_SECONDS,
     DEFAULT_YELLOW_DURATION_SECONDS,
@@ -85,6 +86,7 @@ class RealtimeInferenceSnapshot:
     duplicate: bool = False
     intersection_config: dict[str, object] | None = None
     signal_head_states: dict[str, str] | None = None
+    signal_renderer: dict[str, object] | None = None
     determination_status: DeterminationStatus = DeterminationStatus.INSUFFICIENT_DATA
     diagnostic_reason: DiagnosticReason | None = None
     observability: ObservabilitySnapshot | None = None
@@ -829,6 +831,10 @@ class RealtimeSignalInferenceEngine:
                 for state in result.approaches
                 if state.signal_head_id is not None
             },
+            signal_renderer=build_signal_renderer_data(
+                self.intersection_config,
+                result.approaches,
+            ),
             duplicate=duplicate,
             determination_status=realtime_observability.determination_status,
             diagnostic_reason=realtime_observability.diagnostic_reason,

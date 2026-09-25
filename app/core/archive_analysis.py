@@ -15,6 +15,10 @@ from app.core.intersection_config import (
     DEFAULT_INTERSECTION_CONFIG,
     IntersectionConfig,
 )
+from app.core.signal_renderer import (
+    RendererSignalSource,
+    build_signal_renderer_data,
+)
 from app.core.reconstruction import (
     DEFAULT_SESSION_GAP_SECONDS,
     GOOD_MODEL_MIN_COVERAGE,
@@ -1479,6 +1483,7 @@ def _phase_model_cycle_timeline(
     phase_model: dict[str, object] | None,
     *,
     max_points: int = 120,
+    intersection_config: IntersectionConfig | None = None,
 ) -> list[dict[str, object]]:
     """Backend-computed one-cycle preview of the effective phase model."""
     if not phase_model or max_points <= 0:
@@ -1498,7 +1503,14 @@ def _phase_model_cycle_timeline(
     movement_stages = list(
         phase_model.get("movement_stages", []) or []
     )
-    approaches = ("N", "S", "E", "W")
+    if intersection_config is None:
+        raw_config = phase_model.get("intersection_config")
+        intersection_config = (
+            IntersectionConfig.from_dict(raw_config)
+            if isinstance(raw_config, dict)
+            else DEFAULT_INTERSECTION_CONFIG
+        )
+    approaches = tuple(intersection_config.approaches)
     timeline: list[dict[str, object]] = []
 
     for index in range(point_count):
@@ -1570,6 +1582,31 @@ def _phase_model_cycle_timeline(
                     else None
                 )
             ),
+            "signal_renderer": build_signal_renderer_data(
+                intersection_config,
+                state_by_head={
+                    head.id: (
+                        "GREEN"
+                        if any(
+                            str(item.get("movement", "")) in head.movement_ids
+                            for item in active_movements
+                        )
+                        else (
+                            "RED"
+                            if phase is not None
+                            and head.approach in active_approaches
+                            else "UNKNOWN"
+                        )
+                    )
+                    for head in intersection_config.signal_heads
+                },
+                confidence=confidence,
+                source=(
+                    RendererSignalSource.INFERRED_MODEL
+                    if phase is not None
+                    else RendererSignalSource.UNKNOWN
+                ),
+            ),
             "axis_states": {
                 "NS": _axis_state(states, ("N", "S")),
                 "EW": _axis_state(states, ("E", "W")),
@@ -1606,8 +1643,17 @@ def _session_payload(
     effective_phase_model = (
         phase_model if determination["evidence_sufficient"] else None
     )
+    intersection_config = (
+        IntersectionConfig.from_dict(
+            effective_phase_model["intersection_config"]
+        )
+        if effective_phase_model
+        and isinstance(effective_phase_model.get("intersection_config"), dict)
+        else DEFAULT_INTERSECTION_CONFIG
+    )
     effective_timeline = _phase_model_cycle_timeline(
-        effective_phase_model
+        effective_phase_model,
+        intersection_config=intersection_config,
     )
     return {
         "session_id": index,
