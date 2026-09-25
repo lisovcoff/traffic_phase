@@ -401,6 +401,13 @@ class RealtimeOnlineSession:
         red_yellow_duration_seconds: float = 2.0,
         baseline: TrafficBaselineProfile | None = None,
         topology: IntersectionTopology | None = None,
+        regime_match_threshold: float = 0.93,
+        regime_switch_confirmations: int = 2,
+        regime_max_regimes: int = 12,
+        regime_min_candidate_confidence: float = 0.55,
+        regime_min_candidate_coverage: float = 0.60,
+        regime_ambiguity_margin: float = 0.04,
+        regime_ttl_seconds: float = 24.0 * 60.0 * 60.0,
     ) -> None:
         self.topology = topology or DEFAULT_INTERSECTION_TOPOLOGY
         self.recent_window_s = float(recent_window_s)
@@ -425,7 +432,15 @@ class RealtimeOnlineSession:
             max_events=20_000,
             continuous=True,
         )
-        self._regime_memory = OnlineRegimeMemory()
+        self._regime_memory = OnlineRegimeMemory(
+            match_threshold=regime_match_threshold,
+            switch_confirmations=regime_switch_confirmations,
+            max_regimes=regime_max_regimes,
+            min_candidate_confidence=regime_min_candidate_confidence,
+            min_candidate_coverage=regime_min_candidate_coverage,
+            ambiguity_margin=regime_ambiguity_margin,
+            max_age_seconds=regime_ttl_seconds,
+        )
         self._last_regime_scout_revision = 0
         self._engine: RealtimeSignalInferenceEngine | None = None
         self._seeded = phase_model is not None
@@ -521,7 +536,7 @@ class RealtimeOnlineSession:
             if status.ready and learned_model is not None:
                 self._engine = self._make_engine(
                     learned_model,
-                    event_origin_ms=learned_model.origin_timestamp_ms,
+                    event_origin_ms=None,
                 )
                 self._online_learned = True
                 self._regime_memory.seed(
@@ -610,6 +625,7 @@ class RealtimeOnlineSession:
         if candidate is None:
             return snapshot
 
+        previous_regime_id = self._regime_memory.current_regime_id
         observation = self._regime_memory.observe_candidate(
             candidate,
             timestamp_ms=int(current_event.timestamp_ms),
@@ -626,34 +642,20 @@ class RealtimeOnlineSession:
         if not observation.switch:
             return snapshot
 
-        self._engine = self._make_engine(
-            candidate,
-            event_origin_ms=candidate.origin_timestamp_ms,
-        )
-        cutoff_ms = int(current_event.timestamp_ms) - int(
-            self.recent_window_s * 1000.0
-        )
-        recent_events = [
-            event
-            for event in self._regime_scout.events
-            if event.timestamp_ms >= cutoff_ms
-        ]
-        if recent_events:
-            switched = self._engine.ingest_events(
-                recent_events,
-                event_ids=[
-                    OnlinePhaseBootstrap._fingerprint(event)
-                    for event in recent_events
-                ],
-            ).to_dict()
-        else:
-            switched = self._engine.ingest_event(
-                current_event,
-                event_id=OnlinePhaseBootstrap._fingerprint(
-                    current_event
-                ),
-            ).to_dict()
+        # Historical phase coordinates are not realtime truth. Rebuild the
+        # engine without a historical origin and establish fresh sync safely.
+        self._engine = self._make_engine(candidate, event_origin_ms=None)
+        switched = self._engine.ingest_event(
+            current_event,
+            event_id=OnlinePhaseBootstrap._fingerprint(current_event),
+        ).to_dict()
         switched["regime_observation"] = observation.to_dict()
+        switched["regime_transition"] = {
+            "state": "SAFE_WARMUP",
+            "from_regime_id": previous_regime_id,
+            "to_regime_id": observation.candidate_regime_id,
+            "reason": "regime_switch_requires_fresh_synchronization",
+        }
         return switched
 
     def _make_engine(
