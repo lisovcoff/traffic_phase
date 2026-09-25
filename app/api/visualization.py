@@ -31,12 +31,25 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
 #batchSlider{width:100%}.timelinebar{display:flex;height:34px;border-radius:8px;overflow:hidden;background:#11151b;margin:10px 0}
 .segment{min-width:2px;border-right:1px solid #11151b}.segment.ns{background:#314b40}.segment.ew{background:#4b3e31}.segment.unknown{background:#343943}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.intersection{position:relative;aspect-ratio:1/1;max-width:430px;margin:auto;background:#1d222a;border-radius:16px;overflow:hidden;border:1px solid #343b46}
-.road-v,.road-h{position:absolute;background:#343b44}.road-v{left:35%;width:30%;height:100%}.road-h{top:35%;height:30%;width:100%}
-.center{position:absolute;left:35%;top:35%;width:30%;height:30%;border:1px solid #59616d}
-.signal{position:absolute;width:100px;text-align:center;padding:9px;border-radius:10px;background:#0d1015;border:1px solid #454d59;font-weight:700}
-.signal.n{top:18px;left:50%;transform:translateX(-50%)}.signal.s{bottom:18px;left:50%;transform:translateX(-50%)}
-.signal.w{left:18px;top:50%;transform:translateY(-50%)}.signal.e{right:18px;top:50%;transform:translateY(-50%)}
+.signal-renderer{--signal-gap:12px;display:grid;gap:var(--signal-gap);grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.signal-approach{background:#10141a;border:1px solid #343b46;border-radius:14px;padding:12px}
+.signal-approach-title{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:10px}
+.signal-head{background:#171b22;border:1px solid #3a424e;border-radius:11px;padding:10px;margin-top:8px}
+.signal-head.additional{border-style:dashed}
+.signal-head-title{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:13px;font-weight:700}
+.signal-section{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-top:8px;padding:9px;border-radius:9px;border:1px solid #303743}
+.signal-section.source-modelled{border-style:dashed;background:#1b1a17}
+.signal-section.source-observed{border-style:solid}
+.signal-lamps{display:flex;gap:4px;align-items:center}
+.signal-lamp{width:16px;height:16px;border-radius:50%;border:1px solid #697586;background:#252a31;opacity:.18}
+.signal-lamp.on{opacity:1;box-shadow:0 0 10px currentColor}
+.signal-lamp.red.on{color:#ef6576;background:#ef6576}.signal-lamp.yellow.on{color:#f2cc5c;background:#f2cc5c}.signal-lamp.green.on{color:#49d17d;background:#49d17d}
+.signal-lamp.arrow{width:24px;height:24px;border-radius:5px;font-size:15px;display:grid;place-items:center;background:transparent;opacity:.9}
+.signal-meta{min-width:0}.signal-state{font-weight:800;font-size:14px}.signal-state.unknown{padding:2px 6px;border:1px solid #ef6576;border-radius:5px;letter-spacing:.06em}
+.signal-movement{font-size:12px;color:#98a2b3;overflow-wrap:anywhere}.signal-source{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#aeb7c5;margin-top:4px}
+.signal-confidence{font-size:10px;color:#7f8a99;margin-top:2px}
+.signal-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#98a2b3}
+.signal-legend .observed::before{content:'●';margin-right:4px}.signal-legend .modelled::before{content:'◌';margin-right:4px}
 .state-GREEN{color:#49d17d}.state-YELLOW{color:#f2cc5c}.state-RED{color:#ef6576}.state-RED_YELLOW{color:#f29d5c}.state-UNKNOWN{color:#a7afba}.state-MIXED{color:#8fb7ff}
 .axis{display:grid;grid-template-columns:1fr 1fr;gap:10px}.axis-card{background:#10141a;border-radius:10px;padding:12px;text-align:center}
 .phase-list{display:flex;gap:8px;flex-wrap:wrap}.phase-chip{background:#242a33;border-radius:999px;padding:7px 10px;font-size:12px}
@@ -183,26 +196,14 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
   </div>
 </section>
 
-<div id="sharedState" class="grid hidden">
-  <div class="panel">
-    <h3>NS / EW state</h3>
-    <div class="axis">
-      <div class="axis-card"><div class="muted">NS</div><strong id="nsState" class="state-UNKNOWN">UNKNOWN</strong></div>
-      <div class="axis-card"><div class="muted">EW</div><strong id="ewState" class="state-UNKNOWN">UNKNOWN</strong></div>
-    </div>
-    <p id="sharedHint" class="muted small">Backend signal state.</p>
-    <div id="configuredSignalHolder" class="small"></div>
-  </div>
-
-  <div class="panel">
-    <h3>Simple intersection view</h3>
-    <div class="intersection">
-      <div class="road-v"></div><div class="road-h"></div><div class="center"></div>
-      <div id="sigN" class="signal n state-UNKNOWN">N · UNKNOWN</div>
-      <div id="sigS" class="signal s state-UNKNOWN">S · UNKNOWN</div>
-      <div id="sigW" class="signal w state-UNKNOWN">W · UNKNOWN</div>
-      <div id="sigE" class="signal e state-UNKNOWN">E · UNKNOWN</div>
-    </div>
+<div id="sharedState" class="panel hidden">
+  <h3>Configured signal heads</h3>
+  <p id="sharedHint" class="muted small">Signal state renderer.</p>
+  <div id="signalRenderer" class="signal-renderer"></div>
+  <div class="signal-legend">
+    <span class="observed">Observed evidence</span>
+    <span class="modelled">Modelled transition / model state</span>
+    <span>Dashed sections are modelled, not direct lamp observations.</span>
   </div>
 </div>
 
@@ -434,7 +435,7 @@ function renderBatchPoint(){
   if(!timeline.length){
     $('batchPhase').textContent='UNKNOWN';$('batchActiveMovements').textContent='—';$('batchPhaseConfidence').textContent='0.00';
     $('batchTimeLabel').textContent='No timeline: insufficient inference data';
-    renderStates({N:'UNKNOWN',S:'UNKNOWN',E:'UNKNOWN',W:'UNKNOWN'}, (batchSession.effective_phase_model||{}).intersection_config||null, null);
+    renderSignalRenderer(batchSession.signal_renderer||null);
     return;
   }
   const point=timeline[Math.min(batchIndex,timeline.length-1)];
@@ -445,11 +446,7 @@ function renderBatchPoint(){
   $('batchPhaseConfidence').textContent=Number(point.confidence||0).toFixed(2);
   const cycleSeconds=Number((batchSession.effective_phase_model||{}).cycle_seconds||0);
   $('batchTimeLabel').textContent=point.offset_s.toFixed(1)+' s / '+cycleSeconds.toFixed(1)+' s cycle';
-  renderStates(
-    point.states||{},
-    (batchSession.effective_phase_model||{}).intersection_config||null,
-    point.signal_head_states||null
-  );
+  renderSignalRenderer(point.signal_renderer||batchSession.signal_renderer||null);
 }
 
 function playBatch(){
@@ -600,48 +597,73 @@ function renderRealtimeSnapshot(snapshot){
   $('emittedTrajectories').textContent=String(evidence.emitted_trajectory_count||0);
   $('emittedEvents').textContent=String(evidence.emitted_event_count||0);
   $('remainingTrajectories').textContent=String(evidence.remaining_trajectory_count||0);
-  renderStates(
-    snapshot.signal_states||{},
-    snapshot.intersection_config||null,
-    snapshot.signal_head_states||null
-  );
+  renderSignalRenderer(snapshot.signal_renderer||null);
 }
 
-function renderStates(states,config,headStates){
-  const normalized=states||{};
-  const cfg=config||{};
-  const families=cfg.families||[];
-  const heads=cfg.signal_heads||[];
-  const holder=$('configuredSignalHolder');
+function renderSignalRenderer(data){
+  const holder=$('signalRenderer');
   holder.innerHTML='';
-  if(families.length||heads.length){
-    const title=document.createElement('div');
-    title.className='muted';
-    title.textContent='Configured structure · '+(cfg.intersection_id||'intersection');
-    holder.appendChild(title);
-    families.forEach(family=>{
-      const values=(family.approaches||[]).map(a=>normalized[a]||'UNKNOWN');
-      const state=values.length&&values.every(v=>v===values[0])?values[0]:'MIXED';
-      const row=document.createElement('div');
-      row.textContent=(family.name||'family')+' · '+state+' · '+(family.approaches||[]).join('/');
-      holder.appendChild(row);
-    });
-    heads.forEach(head=>{
-      const row=document.createElement('div');
-      const state=(headStates&&headStates[head.id])||normalized[head.approach]||'UNKNOWN';
-      const arrows=(head.arrows||[]).length?' · '+head.arrows.join('/'): '';
-      row.textContent=head.id+' · '+state+arrows;
-      holder.appendChild(row);
-    });
+  if(!data||!Array.isArray(data.heads)){
+    const empty=document.createElement('div');
+    empty.className='muted small';
+    empty.textContent='No configured signal renderer data.';
+    holder.appendChild(empty);
+    return;
   }
-  const normalizedLegacy={};
-  for(const approach of ['N','S','E','W'])normalizedLegacy[approach]=normalized[approach]||'UNKNOWN';
-  const ns=normalizedLegacy.N===normalizedLegacy.S?normalizedLegacy.N:'MIXED';
-  const ew=normalizedLegacy.E===normalizedLegacy.W?normalizedLegacy.E:'MIXED';
-  setState('nsState','',ns);setState('ewState','',ew);
-  for(const approach of ['N','S','E','W'])setState('sig'+approach,approach,normalizedLegacy[approach]);
+  holder.dataset.approachCount=String((data.approaches||[]).length);
+  (data.approaches||[]).forEach(approach=>{
+    const card=document.createElement('div');
+    card.className='signal-approach';
+    const title=document.createElement('div');
+    title.className='signal-approach-title';
+    const name=document.createElement('strong');
+    name.textContent=approach;
+    const heads=data.heads.filter(head=>head.approach===approach);
+    const count=document.createElement('span');
+    count.className='muted small';
+    count.textContent=heads.length+' head'+(heads.length===1?'':'s');
+    title.append(name,count);card.appendChild(title);
+    heads.forEach(head=>{
+      const headEl=document.createElement('div');
+      headEl.className='signal-head '+(head.kind==='additional'?'additional':'');
+      const headTitle=document.createElement('div');
+      headTitle.className='signal-head-title';
+      headTitle.textContent=head.id+(head.kind==='additional'?' · additional':' · main');
+      headEl.appendChild(headTitle);
+      (head.sections||[]).forEach(section=>{
+        const row=document.createElement('div');
+        row.className='signal-section '+(section.source==='MODELLED_TRANSITION'||section.source==='INFERRED_MODEL'?'source-modelled':'source-observed');
+        const lamps=document.createElement('div');
+        lamps.className='signal-lamps';
+        ['RED','YELLOW','GREEN'].forEach(color=>{
+          const lamp=document.createElement('span');
+          lamp.className='signal-lamp '+color.toLowerCase()+(section.state===color?' on':'');
+          lamps.appendChild(lamp);
+        });
+        (section.arrows||[]).forEach(arrow=>{
+          const arrowEl=document.createElement('span');
+          arrowEl.className='signal-lamp arrow';
+          arrowEl.textContent=arrow==='left'?'←':arrow==='right'?'→':arrow==='straight'?'↑':arrow==='uturn'?'↶':'•';
+          arrowEl.style.opacity=section.state==='UNKNOWN'?'0.35':'1';
+          lamps.appendChild(arrowEl);
+        });
+        const meta=document.createElement('div');meta.className='signal-meta';
+        const state=document.createElement('div');
+        state.className='signal-state '+(section.state==='UNKNOWN'?'unknown':'');
+        state.textContent=section.state;
+        const movement=document.createElement('div');movement.className='signal-movement';
+        movement.textContent=section.movement;
+        const source=document.createElement('div');source.className='signal-source';
+        source.textContent=section.source;
+        const conf=document.createElement('div');conf.className='signal-confidence';
+        conf.textContent='confidence '+Number(section.confidence||0).toFixed(2);
+        meta.append(state,movement,source,conf);row.append(lamps,meta);headEl.appendChild(row);
+      });
+      card.appendChild(headEl);
+    });
+    holder.appendChild(card);
+  });
 }
-
 function setState(id,label,state){
   const el=$(id);const value=state||'UNKNOWN';
   el.className=el.className.replace(/state-[A-Z_]+/g,'').trim()+' state-'+value;
