@@ -19,6 +19,7 @@ AXIS_APPROACHES = DEFAULT_FAMILY_APPROACHES
 class AdaptiveRealtimeMode(str, Enum):
     NORMAL = "NORMAL"
     SUSPECT = "SUSPECT"
+    PHASE_EXTENSION = "PHASE_EXTENSION"
     LIVE_OVERRIDE = "LIVE_OVERRIDE"
     RECOVERY = "RECOVERY"
 
@@ -35,6 +36,9 @@ class AdaptiveRealtimeDecision:
     expected_weight: float
     conflicting_weight: float
     conflicting_release_count: int
+    extension_duration_seconds: float = 0.0
+    extension_event_count: int = 0
+    extension_peak_duration_seconds: float = 0.0
 
     def to_dict(self) -> dict[str, object]:
         data = asdict(self)
@@ -67,6 +71,9 @@ class AdaptiveRealtimeOverride:
         min_recovery_releases: int = 2,
         dominance_margin: float = 0.75,
         stale_override_seconds: float = 6.0,
+        min_extension_weight: float = 2.0,
+        min_extension_releases: int = 2,
+        extension_max_seconds: float | None = None,
         topology: IntersectionTopology | None = None,
     ) -> None:
         if evidence_window_seconds <= 0:
@@ -83,6 +90,12 @@ class AdaptiveRealtimeOverride:
             raise ValueError("adaptive release thresholds must be positive")
         if stale_override_seconds <= 0:
             raise ValueError("stale_override_seconds must be positive")
+        if min_extension_weight <= 0:
+            raise ValueError("min_extension_weight must be positive")
+        if min_extension_releases < 1:
+            raise ValueError("min_extension_releases must be positive")
+        if extension_max_seconds is not None and extension_max_seconds <= 0:
+            raise ValueError("extension_max_seconds must be positive")
 
         self.topology = topology or DEFAULT_INTERSECTION_TOPOLOGY
         self.evidence_window_seconds = float(evidence_window_seconds)
@@ -99,6 +112,13 @@ class AdaptiveRealtimeOverride:
         self.min_recovery_releases = int(min_recovery_releases)
         self.dominance_margin = float(dominance_margin)
         self.stale_override_seconds = float(stale_override_seconds)
+        self.min_extension_weight = float(min_extension_weight)
+        self.min_extension_releases = int(min_extension_releases)
+        self.extension_max_seconds = (
+            float(extension_max_seconds)
+            if extension_max_seconds is not None
+            else None
+        )
 
         self._mode = AdaptiveRealtimeMode.NORMAL
         self._suspect_axis: str | None = None
@@ -106,6 +126,10 @@ class AdaptiveRealtimeOverride:
         self._override_axis: str | None = None
         self._recovery_since_ms: int | None = None
         self._last_override_evidence_ms: int | None = None
+        self._extension_axis: str | None = None
+        self._extension_started_ms: int | None = None
+        self._extension_event_count = 0
+        self._extension_peak_duration_seconds = 0.0
 
     @property
     def mode(self) -> AdaptiveRealtimeMode:
@@ -118,6 +142,10 @@ class AdaptiveRealtimeOverride:
         self._override_axis = None
         self._recovery_since_ms = None
         self._last_override_evidence_ms = None
+        self._extension_axis = None
+        self._extension_started_ms = None
+        self._extension_event_count = 0
+        self._extension_peak_duration_seconds = 0.0
 
     def mark_resynchronized(self) -> None:
         self.reset()
@@ -130,6 +158,7 @@ class AdaptiveRealtimeOverride:
         phase: object | None,
         events: Iterable[TrajectoryEvent],
         cycle_seconds: float,
+        phases: Iterable[object] | None = None,
     ) -> AdaptiveRealtimeDecision:
         expected_axis = self._phase_axis(phase)
         evidence = self._axis_evidence(events, timestamp_ms)
@@ -158,6 +187,44 @@ class AdaptiveRealtimeOverride:
             else 0
         )
 
+        extension_axis, extension_elapsed_s = self._extension_candidate(
+            phases,
+            cycle_position_s,
+            cycle_seconds,
+            expected_axis,
+        )
+        extension_evidence = (
+            evidence.get(extension_axis, {})
+            if extension_axis is not None
+            else {}
+        )
+        extension_weight = (
+            float(extension_evidence.get("weight", 0.0))
+            if extension_axis is not None
+            else 0.0
+        )
+        extension_releases = (
+            int(extension_evidence.get("releases", 0))
+            if extension_axis is not None
+            else 0
+        )
+        extension_seeded = self._has_pre_boundary_evidence(
+            events,
+            timestamp_ms,
+            extension_axis,
+            extension_elapsed_s,
+        )
+        strong_extension = (
+            extension_axis is not None
+            and extension_elapsed_s > 0.0
+            and extension_elapsed_s <= cycle_seconds
+            and extension_seeded
+            and extension_weight >= self.min_extension_weight
+            and extension_releases >= self.min_extension_releases
+            and extension_weight
+            >= expected_weight + self.dominance_margin
+        )
+
         near_boundary = self._near_phase_boundary(
             phase,
             cycle_position_s,
@@ -177,25 +244,124 @@ class AdaptiveRealtimeOverride:
         )
 
         if self._mode == AdaptiveRealtimeMode.NORMAL:
-            if strong_conflict:
+            if strong_extension:
+                self._mode = AdaptiveRealtimeMode.SUSPECT
+                self._suspect_axis = extension_axis
+                self._suspect_since_ms = timestamp_ms
+                self._extension_axis = extension_axis
+                self._extension_started_ms = (
+                    timestamp_ms
+                    - int(round(extension_elapsed_s * 1000.0))
+                )
+                self._extension_event_count = extension_releases
+            elif strong_conflict:
                 self._mode = AdaptiveRealtimeMode.SUSPECT
                 self._suspect_axis = conflicting_axis
                 self._suspect_since_ms = timestamp_ms
 
         elif self._mode == AdaptiveRealtimeMode.SUSPECT:
-            if not strong_conflict or conflicting_axis != self._suspect_axis:
+            extension_pending = (
+                self._extension_axis is not None
+                and extension_axis == self._extension_axis
+            )
+            if extension_pending and strong_extension:
+                if (
+                    extension_releases >= self.min_extension_releases + 1
+                    or (
+                        self._suspect_since_ms is not None
+                        and timestamp_ms - self._suspect_since_ms
+                        >= int(self.suspect_persistence_seconds * 1000.0)
+                    )
+                ):
+                    self._mode = AdaptiveRealtimeMode.PHASE_EXTENSION
+                    self._extension_started_ms = (
+                        timestamp_ms
+                        - int(round(extension_elapsed_s * 1000.0))
+                    )
+                    self._extension_event_count = extension_releases
+                    self._extension_peak_duration_seconds = max(
+                        self._extension_peak_duration_seconds,
+                        extension_elapsed_s,
+                    )
+                    self._recovery_since_ms = None
+            elif self._suspect_axis == conflicting_axis and strong_conflict:
+                if (
+                    self._suspect_since_ms is not None
+                    and timestamp_ms - self._suspect_since_ms
+                    >= int(self.suspect_persistence_seconds * 1000.0)
+                ):
+                    self._mode = AdaptiveRealtimeMode.LIVE_OVERRIDE
+                    self._override_axis = conflicting_axis
+                    self._last_override_evidence_ms = timestamp_ms
+                    self._recovery_since_ms = None
+            else:
                 self._mode = AdaptiveRealtimeMode.NORMAL
                 self._suspect_axis = None
                 self._suspect_since_ms = None
+                self._extension_axis = None
+                self._extension_started_ms = None
+                self._extension_event_count = 0
+
+        elif self._mode == AdaptiveRealtimeMode.PHASE_EXTENSION:
+            current_extension_weight = (
+                float(evidence[self._extension_axis]["weight"])
+                if self._extension_axis is not None
+                and self._extension_axis in evidence
+                else 0.0
+            )
+            current_extension_releases = (
+                int(evidence[self._extension_axis]["releases"])
+                if self._extension_axis is not None
+                and self._extension_axis in evidence
+                else 0
+            )
+            opposing_weight = (
+                float(evidence[expected_axis]["weight"])
+                if expected_axis is not None
+                and expected_axis in evidence
+                and expected_axis != self._extension_axis
+                else 0.0
+            )
+            opposing_releases = (
+                int(evidence[expected_axis]["releases"])
+                if expected_axis is not None
+                and expected_axis in evidence
+                and expected_axis != self._extension_axis
+                else 0
+            )
+            sustained_opposing = (
+                opposing_weight >= self.min_conflicting_weight
+                and opposing_releases >= self.min_conflicting_releases
+                and opposing_weight
+                >= current_extension_weight - self.dominance_margin
+            )
+            if sustained_opposing:
+                self._mode = AdaptiveRealtimeMode.RECOVERY
             elif (
-                self._suspect_since_ms is not None
-                and timestamp_ms - self._suspect_since_ms
-                >= int(self.suspect_persistence_seconds * 1000.0)
+                current_extension_weight < 1.0
+                or current_extension_releases < 1
+            ) and (
+                self._last_override_evidence_ms is None
+                or timestamp_ms - self._last_override_evidence_ms
+                >= int(self.stale_override_seconds * 1000.0)
             ):
-                self._mode = AdaptiveRealtimeMode.LIVE_OVERRIDE
-                self._override_axis = conflicting_axis
+                self._mode = AdaptiveRealtimeMode.RECOVERY
+            if (
+                self._mode == AdaptiveRealtimeMode.PHASE_EXTENSION
+                and self.extension_max_seconds is not None
+                and extension_elapsed_s > self.extension_max_seconds
+            ):
+                self._mode = AdaptiveRealtimeMode.RECOVERY
+            if self._mode == AdaptiveRealtimeMode.PHASE_EXTENSION:
+                self._extension_event_count = max(
+                    self._extension_event_count,
+                    current_extension_releases,
+                )
+                self._extension_peak_duration_seconds = max(
+                    self._extension_peak_duration_seconds,
+                    extension_elapsed_s,
+                )
                 self._last_override_evidence_ms = timestamp_ms
-                self._recovery_since_ms = None
 
         elif self._mode == AdaptiveRealtimeMode.LIVE_OVERRIDE:
             override_axis = self._override_axis
@@ -244,17 +410,46 @@ class AdaptiveRealtimeOverride:
                 ):
                     self._mode = AdaptiveRealtimeMode.RECOVERY
 
+        elif self._mode == AdaptiveRealtimeMode.RECOVERY:
+            pass
+
         effective_axis = (
-            self._override_axis
-            if self._mode == AdaptiveRealtimeMode.LIVE_OVERRIDE
-            else expected_axis
+            self._extension_axis
+            if self._mode == AdaptiveRealtimeMode.PHASE_EXTENSION
+            else (
+                self._override_axis
+                if self._mode == AdaptiveRealtimeMode.LIVE_OVERRIDE
+                else expected_axis
+            )
         )
         observed_approaches = self._observed_approaches(
             evidence,
             effective_axis,
         )
 
-        if self._mode == AdaptiveRealtimeMode.LIVE_OVERRIDE:
+        if self._mode == AdaptiveRealtimeMode.PHASE_EXTENSION:
+            effective_weight = (
+                float(evidence[effective_axis]["weight"])
+                if effective_axis is not None
+                else 0.0
+            )
+            effective_releases = (
+                int(evidence[effective_axis]["releases"])
+                if effective_axis is not None
+                else 0
+            )
+            confidence = min(
+                1.0,
+                max(
+                    0.0,
+                    0.45
+                    + 0.10 * effective_releases
+                    + 0.06 * effective_weight
+                    - 0.08 * conflicting_weight,
+                ),
+            )
+            reason = "confirmed_phase_extension"
+        elif self._mode == AdaptiveRealtimeMode.LIVE_OVERRIDE:
             effective_weight = (
                 float(evidence[effective_axis]["weight"])
                 if effective_axis is not None
@@ -275,9 +470,18 @@ class AdaptiveRealtimeOverride:
         elif self._mode == AdaptiveRealtimeMode.SUSPECT:
             confidence = min(
                 0.65,
-                0.25 + 0.10 * conflicting_releases,
+                0.25
+                + 0.10 * (
+                    extension_releases
+                    if self._extension_axis is not None
+                    else conflicting_releases
+                ),
             )
-            reason = "possible_template_deviation"
+            reason = (
+                "possible_phase_extension"
+                if self._extension_axis is not None
+                else "possible_template_deviation"
+            )
         elif self._mode == AdaptiveRealtimeMode.RECOVERY:
             confidence = 0.0
             reason = "resynchronizing_after_live_override"
@@ -294,13 +498,94 @@ class AdaptiveRealtimeOverride:
             template_disagreement=self._mode
             in {
                 AdaptiveRealtimeMode.SUSPECT,
+                AdaptiveRealtimeMode.PHASE_EXTENSION,
                 AdaptiveRealtimeMode.LIVE_OVERRIDE,
             },
             reason=reason,
             expected_weight=round(expected_weight, 4),
             conflicting_weight=round(conflicting_weight, 4),
             conflicting_release_count=conflicting_releases,
+            extension_duration_seconds=round(
+                self._extension_duration_seconds(timestamp_ms)
+                if self._mode == AdaptiveRealtimeMode.PHASE_EXTENSION
+                else 0.0,
+                3,
+            ),
+            extension_event_count=(
+                self._extension_event_count
+                if self._mode == AdaptiveRealtimeMode.PHASE_EXTENSION
+                else 0
+            ),
+            extension_peak_duration_seconds=round(
+                self._extension_peak_duration_seconds,
+                3,
+            ),
         )
+
+    def _has_pre_boundary_evidence(
+        self,
+        events: Iterable[TrajectoryEvent],
+        timestamp_ms: int,
+        extension_axis: str | None,
+        extension_elapsed_s: float,
+    ) -> bool:
+        if extension_axis is None or extension_elapsed_s <= 0.0:
+            return False
+        boundary_ms = (
+            int(timestamp_ms)
+            - int(round(extension_elapsed_s * 1000.0))
+        )
+        lower_ms = boundary_ms - int(
+            self.evidence_window_seconds * 1000.0
+        )
+        for event in events:
+            if not lower_ms <= event.timestamp_ms <= boundary_ms:
+                continue
+            if event.event_type not in {
+                EventType.RELEASE,
+                EventType.CROSSING,
+            }:
+                continue
+            if self._axis_for_approach(event.approach) == extension_axis:
+                return True
+        return False
+
+    def _extension_duration_seconds(self, timestamp_ms: int) -> float:
+        if self._extension_started_ms is None:
+            return 0.0
+        return max(
+            0.0,
+            (timestamp_ms - self._extension_started_ms) / 1000.0,
+        )
+
+    def _extension_candidate(
+        self,
+        phases: Iterable[object] | None,
+        cycle_position_s: float,
+        cycle_seconds: float,
+        expected_axis: str | None,
+    ) -> tuple[str | None, float]:
+        if phases is None or cycle_seconds <= 0:
+            return None, 0.0
+
+        candidates: list[tuple[float, str]] = []
+        for phase in phases:
+            axis = self._phase_axis(phase)
+            if axis is None:
+                continue
+            end = float(getattr(phase, "phase_end", 0.0)) % cycle_seconds
+            elapsed = (float(cycle_position_s) - end) % cycle_seconds
+            if elapsed <= 0.0:
+                continue
+            candidates.append((elapsed, axis))
+
+        if not candidates:
+            return None, 0.0
+
+        elapsed, axis = min(candidates, key=lambda item: item[0])
+        if expected_axis is not None and axis == expected_axis:
+            return None, 0.0
+        return axis, elapsed
 
     def _axis_evidence(
         self,

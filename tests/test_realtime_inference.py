@@ -21,6 +21,10 @@ from app.core.intersection_topology import (
     IntersectionTopology,
     SignalFamily,
 )
+from app.core.adaptive_realtime import (
+    AdaptiveRealtimeMode,
+    AdaptiveRealtimeOverride,
+)
 from app.core.models import EventType, TrajectoryEvent
 from app.core.realtime_inference import (
     DuplicateEventError,
@@ -1197,3 +1201,176 @@ def test_fixed_origin_remains_synchronized_without_evidence():
     assert sync.snapshot().status == "SYNCHRONIZED"
     sync.enter_recovery()
     assert sync.snapshot().status == "SYNCHRONIZED"
+
+
+def _extension_phase_model():
+    return EventPhaseDiscoveryResult(
+        cycle_seconds=100.0,
+        bin_seconds=2.0,
+        phases=(
+            EventPhase(1, 0.0, 30.0, ("N", "S"), 0.9, 20, 2, ("N", "S")),
+            EventPhase(2, 30.0, 100.0, ("E", "W"), 0.9, 20, 2, ("E", "W")),
+        ),
+        profiles=(),
+        cycle_coverage=1.0,
+        overlap=0.0,
+        supporting_event_count=40,
+        contradictory_event_count=4,
+    )
+
+
+def test_normal_cycle_does_not_enter_phase_extension():
+    engine = RealtimeSignalInferenceEngine(
+        _extension_phase_model(),
+        event_origin_ms=0,
+    )
+    snapshot = None
+    for timestamp in (10.0, 20.0, 25.0, 29.0):
+        snapshot = engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "N")
+        )
+
+    assert snapshot is not None
+    assert snapshot.adaptive_mode == "NORMAL"
+    assert snapshot.phase_extension_duration_seconds == 0.0
+
+
+def test_live_phase_extension_plus_five_seconds_preserves_ns_green():
+    engine = RealtimeSignalInferenceEngine(
+        _extension_phase_model(),
+        event_origin_ms=0,
+    )
+    for timestamp in (10.0, 20.0, 25.0, 30.0, 31.0, 33.0):
+        engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "N")
+        )
+    snapshot = engine.ingest_event(
+        event(EventType.RELEASE, 35.0, "N")
+    )
+
+    assert snapshot.adaptive_mode == "PHASE_EXTENSION"
+    assert snapshot.adaptive_reason == "confirmed_phase_extension"
+    assert snapshot.signal_states["N"] == "GREEN"
+    assert snapshot.signal_states["E"] == "UNKNOWN"
+    assert snapshot.signal_states["W"] == "UNKNOWN"
+    assert snapshot.phase_extension_duration_seconds >= 5.0
+    assert snapshot.phase_extension_event_count >= 2
+    assert snapshot.template_deviation_seconds >= 5.0
+
+
+def test_live_phase_extension_plus_thirty_seconds_is_supported():
+    engine = RealtimeSignalInferenceEngine(
+        _extension_phase_model(),
+        event_origin_ms=0,
+        extension_max_seconds=60.0,
+    )
+    for timestamp in (10.0, 20.0, 25.0, 30.0, 32.0, 35.0, 40.0):
+        engine.ingest_event(event(EventType.RELEASE, timestamp, "N"))
+    for timestamp in (45.0, 50.0, 55.0, 60.0):
+        snapshot = engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "N")
+        )
+
+    assert snapshot.adaptive_mode == "PHASE_EXTENSION"
+    assert snapshot.signal_states["N"] == "GREEN"
+    assert snapshot.phase_extension_duration_seconds >= 30.0
+    assert snapshot.phase_extension_peak_duration_seconds >= 30.0
+
+
+def test_one_post_deadline_false_event_does_not_confirm_extension():
+    engine = RealtimeSignalInferenceEngine(
+        _extension_phase_model(),
+        event_origin_ms=0,
+    )
+    for timestamp in (10.0, 20.0, 25.0, 30.0):
+        engine.ingest_event(event(EventType.RELEASE, timestamp, "N"))
+
+    snapshot = engine.ingest_event(
+        event(EventType.RELEASE, 31.0, "N")
+    )
+
+    assert snapshot.adaptive_mode == "SUSPECT"
+    assert snapshot.signal_states["N"] == "UNKNOWN"
+
+
+def test_sustained_opposing_flow_ends_phase_extension_without_stale_extension_state():
+    engine = RealtimeSignalInferenceEngine(
+        _extension_phase_model(),
+        event_origin_ms=0,
+    )
+    for timestamp in (10.0, 20.0, 25.0, 30.0, 31.0, 33.0):
+        engine.ingest_event(event(EventType.RELEASE, timestamp, "N"))
+    assert engine.adaptive_mode.value == "PHASE_EXTENSION"
+
+    for timestamp in (35.0, 37.0, 40.0):
+        snapshot = engine.ingest_event(
+            event(EventType.RELEASE, timestamp, "E")
+        )
+
+    assert snapshot.adaptive_mode != "PHASE_EXTENSION"
+
+
+def test_phase_extension_transitions_to_recovery_on_sustained_opposing_flow():
+    override = AdaptiveRealtimeOverride()
+    phases = _extension_phase_model().phases
+    events = []
+
+    for timestamp in (30.0, 31.0, 33.0):
+        current = event(EventType.RELEASE, timestamp, "N")
+        events.append(current)
+        decision = override.evaluate(
+            timestamp_ms=int(timestamp * 1000),
+            cycle_position_s=timestamp,
+            phase=phases[1],
+            events=events,
+            cycle_seconds=100.0,
+            phases=phases,
+        )
+
+    assert decision.mode == AdaptiveRealtimeMode.PHASE_EXTENSION
+
+    for timestamp in (35.0, 37.0, 40.0):
+        current = event(EventType.RELEASE, timestamp, "E")
+        events.append(current)
+        decision = override.evaluate(
+            timestamp_ms=int(timestamp * 1000),
+            cycle_position_s=timestamp,
+            phase=phases[1],
+            events=events,
+            cycle_seconds=100.0,
+            phases=phases,
+        )
+
+    assert decision.mode == AdaptiveRealtimeMode.RECOVERY
+
+
+def test_extension_confidence_reflects_conflicting_flow():
+    engine = RealtimeSignalInferenceEngine(
+        _extension_phase_model(),
+        event_origin_ms=0,
+    )
+    for timestamp in (10.0, 20.0, 25.0, 30.0, 31.0, 33.0, 35.0):
+        engine.ingest_event(event(EventType.RELEASE, timestamp, "N"))
+    strong = engine.ingest_event(event(EventType.RELEASE, 37.0, "N"))
+    before = strong.adaptive_confidence
+    mixed = engine.ingest_event(event(EventType.RELEASE, 38.0, "E"))
+
+    assert mixed.adaptive_mode == "PHASE_EXTENSION"
+    assert mixed.adaptive_confidence <= before
+
+
+def test_phase_extension_does_not_mutate_historical_template():
+    model = _extension_phase_model()
+    before = tuple(
+        (phase.phase_id, phase.phase_start, phase.phase_end)
+        for phase in model.phases
+    )
+    engine = RealtimeSignalInferenceEngine(model, event_origin_ms=0)
+    for timestamp in (10.0, 20.0, 25.0, 30.0, 31.0, 33.0, 35.0):
+        engine.ingest_event(event(EventType.RELEASE, timestamp, "N"))
+
+    after = tuple(
+        (phase.phase_id, phase.phase_start, phase.phase_end)
+        for phase in model.phases
+    )
+    assert before == after
