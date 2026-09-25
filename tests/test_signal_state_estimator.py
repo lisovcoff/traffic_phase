@@ -194,7 +194,16 @@ def test_yellow_and_red_yellow_require_movement_evidence():
     assert DEFAULT_YELLOW_DURATION_SECONDS == 3.0
     assert DEFAULT_RED_YELLOW_DURATION_SECONDS == 2.0
     assert yellow["N_MAIN"].state is SignalState.YELLOW
+    assert yellow["N_MAIN"].transition is not None
+    assert yellow["N_MAIN"].transition.semantics.value == "MODELLED_TRANSITION"
+    assert yellow["N_MAIN"].transition.from_state is SignalState.GREEN
+    assert yellow["N_MAIN"].transition.to_state is SignalState.RED
+    assert yellow["N_MAIN"].transition.duration_seconds == 3.0
     assert red_yellow["E_MAIN"].state is SignalState.RED_YELLOW
+    assert red_yellow["E_MAIN"].transition is not None
+    assert red_yellow["E_MAIN"].transition.semantics.value == "MODELLED_TRANSITION"
+    assert red_yellow["E_MAIN"].transition.from_state is SignalState.RED
+    assert red_yellow["E_MAIN"].transition.to_state is SignalState.GREEN
 
 
 def test_inactive_section_red_requires_positive_conflicting_flow():
@@ -277,3 +286,64 @@ def test_complex_topology_determines_each_signal_section_independently():
     assert current["N_LEFT"].state is SignalState.UNKNOWN
     assert current["N_LEFT"].diagnostic_reason is DiagnosticReason.NO_EVIDENCE
     assert current["S_MAIN"].state is SignalState.UNKNOWN
+
+
+def test_transition_does_not_fire_at_internal_overlapping_phase_boundary():
+    overlapping = EventPhaseDiscoveryResult(
+        cycle_seconds=100.0, bin_seconds=2.0,
+        phases=(
+            EventPhase(1, 0.0, 40.0, ("N",), 0.9, 20, 1, ("N",)),
+            EventPhase(2, 40.0, 100.0, ("N", "E"), 0.9, 20, 1, ("N", "E")),
+        ),
+        profiles=(), cycle_coverage=1.0, overlap=0.1,
+        supporting_event_count=40, contradictory_event_count=0,
+    )
+    result = states(SignalStateEstimator(overlapping).estimate(
+        37.0, [event(EventType.RELEASE, 30, "N"), event(EventType.RELEASE, 35, "N")]
+    ))
+    assert result["N_MAIN"].state is SignalState.GREEN
+    assert result["N_MAIN"].transition is None
+
+
+def test_transition_duration_can_be_configured_per_signal_section():
+    config = IntersectionConfig(
+        intersection_id="transition-config",
+        families=(SignalFamily("NS", ("N", "S")), SignalFamily("EW", ("E", "W"))),
+        movements=(
+            Movement("N->S", "N", "S"), Movement("S->N", "S", "N"),
+            Movement("E->W", "E", "W"), Movement("W->E", "W", "E"),
+        ),
+        signal_heads=(
+            SignalHead("N_MAIN", "N", ("N->S",), yellow_duration_seconds=5.0, red_yellow_duration_seconds=1.0),
+            SignalHead("S_MAIN", "S", ("S->N",)), SignalHead("E_MAIN", "E", ("E->W",)), SignalHead("W_MAIN", "W", ("W->E",)),
+        ),
+        family_conflicts=(("NS", "EW"),),
+    )
+    result = states(SignalStateEstimator(model(), intersection_config=config).estimate(
+        35.0, [event(EventType.RELEASE, 25, "N", "N->S"), event(EventType.RELEASE, 30, "N", "N->S")]
+    ))
+    assert result["N_MAIN"].transition is not None
+    assert result["N_MAIN"].transition.duration_seconds == 5.0
+
+
+def test_additional_protected_section_has_independent_transition_timing():
+    config = IntersectionConfig(
+        intersection_id="protected-turn",
+        families=(SignalFamily("NS", ("N", "S")), SignalFamily("EW", ("E", "W"))),
+        movements=(
+            Movement("N->S", "N", "S"), Movement("N->E", "N", "E", "left"),
+            Movement("S->N", "S", "N"), Movement("E->W", "E", "W"), Movement("W->E", "W", "E"),
+        ),
+        signal_heads=(
+            SignalHead("N_MAIN", "N", ("N->S",), yellow_duration_seconds=3.0),
+            SignalHead("N_LEFT", "N", ("N->E",), additional=True, arrows=("left",), yellow_duration_seconds=1.0),
+            SignalHead("S_MAIN", "S", ("S->N",)), SignalHead("E_MAIN", "E", ("E->W",)), SignalHead("W_MAIN", "W", ("W->E",)),
+        ),
+        family_conflicts=(("NS", "EW"),),
+    )
+    result = states(SignalStateEstimator(model(), intersection_config=config).estimate(
+        37.0, [event(EventType.RELEASE, 25, "N", "N->S"), event(EventType.RELEASE, 30, "N", "N->S")]
+    ))
+    assert result["N_MAIN"].transition is not None
+    assert result["N_MAIN"].transition.duration_seconds == 3.0
+    assert result["N_LEFT"].transition is None
