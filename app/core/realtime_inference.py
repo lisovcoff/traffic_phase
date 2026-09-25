@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import asdict, dataclass
 import hashlib
 import json
@@ -34,11 +35,12 @@ from app.core.signal_state_estimator import (
     DEFAULT_YELLOW_DURATION_SECONDS,
     SignalStateEstimator,
 )
-from app.core.trajectory_events import extract_trajectory_events
-from app.core.trajectory_geometry import (
-    build_trajectory_geometry,
-    build_trajectory_model,
+from app.core.trajectory_events import (
+    UNKNOWN_DESTINATION,
+    CausalTrajectoryEventExtractor,
+    resolve_movement,
 )
+from app.core.trajectory_geometry import build_trajectory_geometry
 
 
 @dataclass(frozen=True)
@@ -109,9 +111,15 @@ class RealtimeSignalInferenceEngine:
         baseline: TrafficBaselineProfile | None = None,
         synchronization_min_events: int = 6,
         topology: IntersectionTopology | None = None,
+        max_active_trajectories: int = 1024,
+        max_idempotency_entries: int = 8192,
     ) -> None:
         if recent_window_s <= 0:
             raise ValueError("recent_window_s must be positive")
+        if max_active_trajectories < 1:
+            raise ValueError("max_active_trajectories must be positive")
+        if max_idempotency_entries < 1:
+            raise ValueError("max_idempotency_entries must be positive")
 
         self.topology = topology or DEFAULT_INTERSECTION_TOPOLOGY
         self.phase_template = RealtimePhaseTemplate.from_phase_model(
@@ -159,7 +167,13 @@ class RealtimeSignalInferenceEngine:
             fixed_origin_ms=self.event_origin_ms,
         )
         self._events: dict[str, TrajectoryEvent] = {}
-        self._seen: dict[str, tuple[str, int]] = {}
+        self._seen: OrderedDict[str, tuple[str, int]] = OrderedDict()
+        self._trajectory_extractors: OrderedDict[
+            str,
+            CausalTrajectoryEventExtractor,
+        ] = OrderedDict()
+        self._max_active_trajectories = int(max_active_trajectories)
+        self._max_idempotency_entries = int(max_idempotency_entries)
         self._current_timestamp_ms: int | None = None
         self._stream_start_timestamp_ms: int | None = None
         self._ever_synchronized = False
@@ -180,6 +194,14 @@ class RealtimeSignalInferenceEngine:
     @property
     def buffer_event_count(self) -> int:
         return len(self._events)
+
+    @property
+    def active_trajectory_count(self) -> int:
+        return len(self._trajectory_extractors)
+
+    @property
+    def idempotency_entry_count(self) -> int:
+        return len(self._seen)
 
     @property
     def baseline_profile(self) -> TrafficBaselineProfile | None:
@@ -214,24 +236,24 @@ class RealtimeSignalInferenceEngine:
                     raise DuplicateEventError(
                         f"idempotency key {key!r} was already used for another event"
                     )
+                self._seen.move_to_end(key)
                 return self._snapshot(duplicate=True)
 
-            self._seen[key] = (fingerprint, event.timestamp_ms)
-            if self._current_timestamp_ms is None:
-                self._current_timestamp_ms = event.timestamp_ms
-                self._stream_start_timestamp_ms = event.timestamp_ms
-            else:
-                self._current_timestamp_ms = max(
-                    self._current_timestamp_ms,
-                    event.timestamp_ms,
-                )
+            self._advance_clock(event.timestamp_ms)
+            self._remember_idempotency(
+                key,
+                fingerprint,
+                event.timestamp_ms,
+            )
 
             cutoff_ms = self._current_timestamp_ms - int(
                 self.recent_window_s * 1000.0
             )
-            if event.timestamp_ms >= cutoff_ms:
-                self._events[key] = event
+            if event.timestamp_ms < cutoff_ms:
+                self._trim(cutoff_ms)
+                return self._snapshot(duplicate=False)
 
+            self._events[key] = event
             if self._adaptive_override.mode not in {
                 AdaptiveRealtimeMode.SUSPECT,
                 AdaptiveRealtimeMode.LIVE_OVERRIDE,
@@ -239,6 +261,130 @@ class RealtimeSignalInferenceEngine:
                 self._synchronizer.ingest(event)
             self._trim(cutoff_ms)
             return self._snapshot(duplicate=False)
+
+    def _advance_clock(self, timestamp_ms: int) -> None:
+        value = int(timestamp_ms)
+        if self._current_timestamp_ms is None:
+            self._current_timestamp_ms = value
+            self._stream_start_timestamp_ms = value
+            return
+        self._current_timestamp_ms = max(
+            self._current_timestamp_ms,
+            value,
+        )
+
+    def _remember_idempotency(
+        self,
+        key: str,
+        fingerprint: str,
+        timestamp_ms: int,
+    ) -> None:
+        self._seen[key] = (fingerprint, int(timestamp_ms))
+        self._seen.move_to_end(key)
+        while len(self._seen) > self._max_idempotency_entries:
+            self._seen.popitem(last=False)
+
+    def _validate_trajectory(
+        self,
+        trajectory: dict[str, object],
+        trajectory_id: str | None,
+    ) -> tuple[str, str, str, str]:
+        approach = str(trajectory.get("zone_in", "")).strip()
+        if approach not in self.topology.approaches:
+            raise ValueError(
+                "trajectory approach is not present in the configured "
+                f"intersection topology: {approach}"
+            )
+
+        zone_out_raw = trajectory.get("zone_out")
+        zone_out = (
+            str(zone_out_raw).strip()
+            if zone_out_raw
+            else UNKNOWN_DESTINATION
+        )
+        movement, _quality, _reason = resolve_movement(
+            approach,
+            zone_out,
+            trajectory.get("movement"),
+        )
+        trajectory_key = (
+            str(trajectory_id).strip()
+            if trajectory_id is not None
+            else str(trajectory.get("id", "")).strip()
+        )
+        if not trajectory_key:
+            raise ValueError(
+                "trajectory id is required for causal realtime ingestion"
+            )
+        return trajectory_key, approach, zone_out, movement
+
+    def _evict_trajectory_capacity(self) -> None:
+        while len(self._trajectory_extractors) >= self._max_active_trajectories:
+            self._trajectory_extractors.popitem(last=False)
+
+    def ingest_trajectory(
+        self,
+        trajectory: dict[str, object],
+        *,
+        trajectory_id: str | None = None,
+    ) -> RealtimeInferenceSnapshot:
+        geometry = build_trajectory_geometry(trajectory)
+        if not geometry.detections:
+            raise ValueError("trajectory requires at least one valid detection")
+
+        key, approach, zone_out, movement = self._validate_trajectory(
+            trajectory,
+            trajectory_id,
+        )
+
+        with self._lock:
+            extractor = self._trajectory_extractors.get(key)
+            if extractor is None:
+                self._evict_trajectory_capacity()
+                extractor = CausalTrajectoryEventExtractor(
+                    approach=approach,
+                    movement=movement,
+                    zone_out=zone_out,
+                )
+                self._trajectory_extractors[key] = extractor
+            else:
+                if (
+                    extractor.approach != approach
+                    or extractor.movement != movement
+                    or extractor.zone_out != zone_out
+                ):
+                    raise DuplicateEventError(
+                        f"trajectory id {key!r} was already used for another trajectory"
+                    )
+                self._trajectory_extractors.move_to_end(key)
+
+            before = extractor.observed_detection_count
+            events = extractor.ingest_snapshot(geometry.detections)
+            after = extractor.observed_detection_count
+
+            latest_detection_ms = max(
+                detection.millis
+                for detection in geometry.detections
+            )
+            self._advance_clock(latest_detection_ms)
+            cutoff_ms = self._current_timestamp_ms - int(
+                self.recent_window_s * 1000.0
+            )
+            self._trim(cutoff_ms)
+
+            if events:
+                event_ids = [
+                    f"{key}:{event.event_type.value}"
+                    for event in events
+                ]
+                return self.ingest_events(
+                    events,
+                    event_ids=event_ids,
+                )
+
+            return self._snapshot(
+                duplicate=(before == after),
+            )
 
     def ingest_events(
         self,
@@ -258,28 +404,6 @@ class RealtimeSignalInferenceEngine:
         if snapshot is None:
             raise ValueError("at least one event is required")
         return snapshot
-
-    def ingest_trajectory(
-        self,
-        trajectory: dict[str, object],
-        *,
-        trajectory_id: str | None = None,
-    ) -> RealtimeInferenceSnapshot:
-        model = build_trajectory_model(trajectory)
-        geometry = build_trajectory_geometry(trajectory)
-        events = extract_trajectory_events(model, geometry)
-        if not events:
-            raise ValueError("trajectory produced no usable events")
-
-        prefix = trajectory_id or str(model.vehicle_id)
-        event_ids = [
-            (
-                f"{prefix}:{event.event_type.value}:{event.timestamp_ms}:"
-                f"{event.approach}:{event.movement}"
-            )
-            for event in events
-        ]
-        return self.ingest_events(events, event_ids=event_ids)
 
     def snapshot(self) -> RealtimeInferenceSnapshot:
         with self._lock:
@@ -306,6 +430,7 @@ class RealtimeSignalInferenceEngine:
         with self._lock:
             self._events.clear()
             self._seen.clear()
+            self._trajectory_extractors.clear()
             self._current_timestamp_ms = None
             self._stream_start_timestamp_ms = None
             self._synchronizer.reset()
@@ -784,6 +909,17 @@ class RealtimeSignalInferenceEngine:
         ]
         for key in stale_seen:
             self._seen.pop(key, None)
+
+        stale_trajectories = [
+            key
+            for key, extractor in self._trajectory_extractors.items()
+            if (
+                extractor.latest_detection_ms is not None
+                and extractor.latest_detection_ms < cutoff_ms
+            )
+        ]
+        for key in stale_trajectories:
+            self._trajectory_extractors.pop(key, None)
 
     @staticmethod
     def _event_fingerprint(event: TrajectoryEvent) -> str:
