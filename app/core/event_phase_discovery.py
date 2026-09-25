@@ -5,6 +5,7 @@ from typing import Iterable, Sequence
 
 import numpy as np
 
+from app.core.intersection_config import IntersectionConfig
 from app.core.intersection_topology import (
     DEFAULT_INTERSECTION_TOPOLOGY,
     IntersectionTopology,
@@ -27,10 +28,6 @@ DEFAULT_PHASE_GROUPS = (
     PhaseGroup("E", ("E",)),
     PhaseGroup("W", ("W",)),
 )
-
-VERTICAL_APPROACHES = frozenset({"N", "S"})
-HORIZONTAL_APPROACHES = frozenset({"E", "W"})
-
 
 def _known_movement(movement: str | None) -> bool:
     value = str(movement or "").strip()
@@ -262,16 +259,41 @@ class EventPhaseDiscovery:
         *,
         bin_seconds: float = 2.0,
         min_phase_seconds: float = 8.0,
-        groups: Sequence[PhaseGroup] = DEFAULT_PHASE_GROUPS,
+        groups: Sequence[PhaseGroup] | None = None,
         min_event_confidence: float = 0.0,
-        topology: IntersectionTopology = DEFAULT_INTERSECTION_TOPOLOGY,
+        topology: IntersectionTopology | None = None,
+        intersection_config: IntersectionConfig | None = None,
     ) -> None:
         if bin_seconds <= 0 or min_phase_seconds < bin_seconds:
             raise ValueError("invalid phase-discovery timing parameters")
-        if len(groups) < 2:
-            raise ValueError("at least two phase groups are required")
         if min_event_confidence < 0 or min_event_confidence > 1:
             raise ValueError("min_event_confidence must be in [0, 1]")
+        if intersection_config is not None and topology is not None:
+            if intersection_config.to_topology().to_dict() != topology.to_dict():
+                raise ValueError(
+                    "pass either matching intersection_config/topology, not conflicting values"
+                )
+        if intersection_config is not None:
+            configured_approaches = tuple(
+                dict.fromkeys(
+                    head.approach
+                    for head in intersection_config.primary_signal_heads
+                )
+            )
+            configured_groups = tuple(
+                PhaseGroup(approach, (approach,))
+                for approach in configured_approaches
+            )
+            if not configured_groups:
+                raise ValueError(
+                    "intersection config requires primary signal heads for discovery"
+                )
+            if groups is None:
+                groups = configured_groups
+        if groups is None:
+            groups = DEFAULT_PHASE_GROUPS
+        if len(groups) < 2:
+            raise ValueError("at least two phase groups are required")
         names = [group.name for group in groups]
         if len(set(names)) != len(names):
             raise ValueError("phase group names must be unique")
@@ -293,7 +315,12 @@ class EventPhaseDiscovery:
         )
         self.groups = tuple(groups)
         self.min_event_confidence = float(min_event_confidence)
-        self.topology = topology
+        self.intersection_config = intersection_config
+        self.topology = (
+            intersection_config.to_topology()
+            if intersection_config is not None
+            else topology or DEFAULT_INTERSECTION_TOPOLOGY
+        )
         self._last_proven_evidence: np.ndarray | None = None
         self._last_proven_counts: np.ndarray | None = None
         self._group_by_approach = {
@@ -1369,10 +1396,8 @@ class EventPhaseDiscovery:
         residual_cycles: set[int] = set()
         conflicting_event_count = 0
         conflicting_cycles: set[int] = set()
-        conflicting_approaches = (
-            HORIZONTAL_APPROACHES
-            if candidate.approach in VERTICAL_APPROACHES
-            else VERTICAL_APPROACHES
+        conflicting_approaches = set(
+            self.topology.conflicting_approaches_for(candidate.approach)
         )
 
         for event in events:
@@ -1855,31 +1880,27 @@ class EventPhaseDiscovery:
             )
         return profiles
 
+    def _binary_conflict_families(self) -> tuple[str, str] | None:
+        pairs = self.topology.conflicting_family_pairs()
+        return pairs[0] if len(pairs) == 1 else None
+
     def _axis_group_indices(
         self,
     ) -> dict[str, list[int]]:
-        result = {
-            "NS": [],
-            "EW": [],
-        }
-        for index, group in enumerate(
-            self.groups
-        ):
-            approaches = set(
-                group.approaches
-            )
-            if (
-                approaches
-                and approaches
-                <= VERTICAL_APPROACHES
-            ):
-                result["NS"].append(index)
-            elif (
-                approaches
-                and approaches
-                <= HORIZONTAL_APPROACHES
-            ):
-                result["EW"].append(index)
+        pair = self._binary_conflict_families()
+        if pair is None:
+            return {}
+        result = {name: [] for name in pair}
+        for index, group in enumerate(self.groups):
+            approaches = set(group.approaches)
+            for family in pair:
+                if (
+                    approaches
+                    and approaches
+                    <= set(self.topology.approaches_for_family(family))
+                ):
+                    result[family].append(index)
+                    break
         return result
 
     def _axis_compatibility_profiles(
@@ -1899,10 +1920,11 @@ class EventPhaseDiscovery:
         total_observed = int(
             observed_cycle_mask.sum()
         )
-        for name in ("NS", "EW"):
-            indices = axis_indices[
-                name
-            ]
+        family_pair = self._binary_conflict_families()
+        if family_pair is None:
+            return result
+        for name in family_pair:
+            indices = axis_indices[name]
             if (
                 not indices
                 or name in existing_names
@@ -2022,7 +2044,7 @@ class EventPhaseDiscovery:
     ) -> tuple[np.ndarray, np.ndarray]:
         """Infer approach masks inside a raw, movement-agnostic axis prior.
 
-        The NS/EW schedule is estimated before movement isolation from every
+        Configured conflict-family schedules are estimated before movement isolation from every
         usable RELEASE/CROSSING event. Movement-specific evidence may refine
         N versus S (or E versus W), but it cannot move an approach into the
         orthogonal conflict-family window. If movement filtering places most
@@ -2147,7 +2169,10 @@ class EventPhaseDiscovery:
     ) -> dict[str, tuple[int, float]]:
         axis_indices = self._axis_group_indices()
         result: dict[str, tuple[int, float]] = {}
-        for axis in ("NS", "EW"):
+        family_pair = self._binary_conflict_families()
+        if family_pair is None:
+            return result
+        for axis in family_pair:
             indices = axis_indices[axis]
             if not indices:
                 continue
@@ -2168,15 +2193,17 @@ class EventPhaseDiscovery:
             )
         return result
 
-    @staticmethod
     def _stage_axis(
+        self,
         active: Sequence[str],
     ) -> str | None:
         values = set(active)
-        if values and values <= VERTICAL_APPROACHES:
-            return "NS"
-        if values and values <= HORIZONTAL_APPROACHES:
-            return "EW"
+        pair = self._binary_conflict_families()
+        if not pair or not values:
+            return None
+        for family in pair:
+            if values <= set(self.topology.approaches_for_family(family)):
+                return family
         return None
 
     def _recover_boundary_gaps(
@@ -2196,16 +2223,17 @@ class EventPhaseDiscovery:
         """Build a conservative cross-family boundary suggestion.
 
         This helper may interpolate a plausible boundary from repeated coarse
-        NS/EW evidence, but the production discovery path treats the result as
+        configured conflict-family evidence, but the production discovery path treats the result as
         diagnostic only. The authoritative phase model keeps the original
         uncovered bins UNKNOWN unless direct event evidence supports them.
         """
         result = list(stages)
         n_bins = len(result)
+        family_pair = self._binary_conflict_families()
         if (
             n_bins <= 0
-            or "NS" not in coarse_axes
-            or "EW" not in coarse_axes
+            or family_pair is None
+            or any(axis not in coarse_axes for axis in family_pair)
         ):
             return result, [], 0.0
 
@@ -2219,7 +2247,7 @@ class EventPhaseDiscovery:
             < self.BOUNDARY_RECOVERY_MIN_OBSERVED_CYCLES
             or stats[axis][1]
             < self.BOUNDARY_RECOVERY_MIN_AXIS_RELIABILITY
-            for axis in ("NS", "EW")
+            for axis in family_pair
         ):
             return result, [], 0.0
 
@@ -2249,8 +2277,8 @@ class EventPhaseDiscovery:
             )
 
         confidence = min(
-            stats["NS"][1],
-            stats["EW"][1],
+            stats[family_pair[0]][1],
+            stats[family_pair[1]][1],
         )
         recoveries: list[PhaseBoundaryRecovery] = []
         recovered_bins = 0
@@ -2457,23 +2485,17 @@ class EventPhaseDiscovery:
                 ] = raw_counts[:, group_id, :]
         return effective
 
-    @staticmethod
     def _axis_name(
+        self,
         approaches: Sequence[str],
     ) -> str | None:
         values = set(approaches)
-        if (
-            values
-            and values
-            <= VERTICAL_APPROACHES
-        ):
-            return "NS"
-        if (
-            values
-            and values
-            <= HORIZONTAL_APPROACHES
-        ):
-            return "EW"
+        pair = self._binary_conflict_families()
+        if not pair or not values:
+            return None
+        for family in pair:
+            if values <= set(self.topology.approaches_for_family(family)):
+                return family
         return None
 
     def _axis_envelopes(
@@ -2482,42 +2504,25 @@ class EventPhaseDiscovery:
         counts: np.ndarray,
         observed_mask: np.ndarray,
     ) -> dict[str, np.ndarray]:
-        axis_indices = (
-            self._axis_group_indices()
-        )
+        axis_indices = self._axis_group_indices()
+        family_pair = self._binary_conflict_families()
         if (
-            not axis_indices["NS"]
-            or not axis_indices["EW"]
+            family_pair is None
+            or any(not axis_indices[name] for name in family_pair)
         ):
             return {}
 
         axis_evidence = np.stack(
             [
-                evidence[
-                    :,
-                    axis_indices["NS"],
-                    :,
-                ].sum(axis=1),
-                evidence[
-                    :,
-                    axis_indices["EW"],
-                    :,
-                ].sum(axis=1),
+                evidence[:, axis_indices[name], :].sum(axis=1)
+                for name in family_pair
             ],
             axis=1,
         )
         axis_counts = np.stack(
             [
-                counts[
-                    :,
-                    axis_indices["NS"],
-                    :,
-                ].sum(axis=1),
-                counts[
-                    :,
-                    axis_indices["EW"],
-                    :,
-                ].sum(axis=1),
+                counts[:, axis_indices[name], :].sum(axis=1)
+                for name in family_pair
             ],
             axis=1,
         )
@@ -2559,8 +2564,8 @@ class EventPhaseDiscovery:
             )
         )
         return {
-            "NS": states == 0,
-            "EW": states == 1,
+            family_pair[0]: states == 0,
+            family_pair[1]: states == 1,
         }
 
     def _recurring_presence_mask(
@@ -3029,29 +3034,22 @@ class EventPhaseDiscovery:
                         group.approaches
                     )
 
-            # Orthogonal vehicle approaches are treated as conflicting.
-            # If noisy evidence activates both axes in the same bin, the
-            # conservative answer is UNKNOWN, not an invented green stage.
-            if (
-                active
-                & VERTICAL_APPROACHES
-                and active
-                & HORIZONTAL_APPROACHES
-            ):
+            # Configured approach conflicts are treated as ambiguous.
+            # Never invent a simultaneous green stage for conflicting flow.
+            active_values = tuple(active)
+            conflicting = any(
+                self.topology.approaches_conflict(left, right)
+                for index, left in enumerate(active_values)
+                for right in active_values[index + 1 :]
+            )
+            if conflicting:
                 stages.append(())
             else:
                 stages.append(
                     tuple(
                         approach
-                        for approach
-                        in (
-                            "N",
-                            "S",
-                            "E",
-                            "W",
-                        )
-                        if approach
-                        in active
+                        for approach in self.topology.approaches
+                        if approach in active
                     )
                 )
 

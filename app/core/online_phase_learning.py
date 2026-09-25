@@ -8,6 +8,10 @@ from typing import Iterable, Sequence
 
 from app.core.anomaly_profile import TrafficBaselineProfile
 from app.core.event_phase_discovery import EventPhaseDiscoveryResult
+from app.core.intersection_config import (
+    DEFAULT_INTERSECTION_CONFIG,
+    IntersectionConfig,
+)
 from app.core.intersection_topology import (
     DEFAULT_INTERSECTION_TOPOLOGY,
     IntersectionTopology,
@@ -401,6 +405,7 @@ class RealtimeOnlineSession:
         red_yellow_duration_seconds: float = 2.0,
         baseline: TrafficBaselineProfile | None = None,
         topology: IntersectionTopology | None = None,
+        intersection_config: IntersectionConfig | None = None,
         regime_match_threshold: float = 0.93,
         regime_switch_confirmations: int = 2,
         regime_max_regimes: int = 12,
@@ -409,7 +414,22 @@ class RealtimeOnlineSession:
         regime_ambiguity_margin: float = 0.04,
         regime_ttl_seconds: float = 24.0 * 60.0 * 60.0,
     ) -> None:
-        self.topology = topology or DEFAULT_INTERSECTION_TOPOLOGY
+        if (
+            intersection_config is not None
+            and topology is not None
+            and intersection_config.to_topology().to_dict() != topology.to_dict()
+        ):
+            raise ValueError(
+                "pass either matching intersection_config/topology, not conflicting values"
+            )
+        if intersection_config is None and topology is None:
+            intersection_config = DEFAULT_INTERSECTION_CONFIG
+        self.intersection_config = intersection_config
+        self.topology = (
+            intersection_config.to_topology()
+            if intersection_config is not None
+            else topology or DEFAULT_INTERSECTION_TOPOLOGY
+        )
         self.recent_window_s = float(recent_window_s)
         self.requested_event_origin_ms = (
             int(event_origin_ms)
@@ -672,6 +692,7 @@ class RealtimeOnlineSession:
             red_yellow_duration_seconds=self.red_yellow_duration_seconds,
             baseline=self.baseline_profile,
             topology=self.topology,
+            intersection_config=self.intersection_config,
         )
 
     def _learning_payload(self) -> dict[str, object]:

@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from app.api.realtime import (
     PhasePayload,
+    _build_intersection_config,
     _build_phase_model,
     _build_topology,
 )
@@ -66,6 +67,7 @@ async def start_realtime_simulation(
             model,
             speed=speed,
             topology=_build_topology(phase_payload),
+            intersection_config=_build_intersection_config(phase_payload),
         )
         identifier = simulation_id or uuid.uuid4().hex
         if not identifier.strip():

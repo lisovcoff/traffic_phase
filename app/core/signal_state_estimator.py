@@ -7,7 +7,11 @@ import math
 from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 
-from app.core.intersection_config import IntersectionConfig, SignalHead
+from app.core.intersection_config import (
+    DEFAULT_INTERSECTION_CONFIG,
+    IntersectionConfig,
+    SignalHead,
+)
 from app.core.intersection_topology import (
     DEFAULT_INTERSECTION_TOPOLOGY,
     IntersectionTopology,
@@ -160,8 +164,16 @@ class SignalStateEstimator:
             raise ValueError("conflict_persistence_seconds must be non-negative")
         if min_movement_evidence_events < 1:
             raise ValueError("min_movement_evidence_events must be positive")
-        if intersection_config is not None and topology is not None:
-            raise ValueError("pass either intersection_config or topology, not both")
+        if (
+            intersection_config is not None
+            and topology is not None
+            and intersection_config.to_topology().to_dict() != topology.to_dict()
+        ):
+            raise ValueError(
+                "pass either matching intersection_config/topology, not conflicting values"
+            )
+        if intersection_config is None and topology is None:
+            intersection_config = DEFAULT_INTERSECTION_CONFIG
 
         self.phase_model = phase_model
         self.intersection_config = intersection_config
@@ -233,7 +245,7 @@ class SignalStateEstimator:
                 recent,
                 head,
             )
-            phase_active = approach in active
+            phase_active = self._head_is_active(position, phase, head)
             evidence_events = (
                 own_movement_events
                 if phase_active
@@ -436,7 +448,7 @@ class SignalStateEstimator:
     ) -> TransitionModel | None:
         """Infer a transition for one signal section; never observed lamp state."""
         approach = head.approach
-        if phase is None or approach not in getattr(phase, "active_approaches", ()):
+        if phase is None or not self._head_is_active(position, phase, head):
             return None
         yellow_duration = self.yellow_duration_seconds if head.yellow_duration_seconds is None else head.yellow_duration_seconds
         red_yellow_duration = self.red_yellow_duration_seconds if head.red_yellow_duration_seconds is None else head.red_yellow_duration_seconds
@@ -448,8 +460,14 @@ class SignalStateEstimator:
         epsilon = min(0.001, max(1e-6, cycle / 1_000_000.0))
         previous_phase = self._phase_at((start - epsilon) % cycle)
         next_phase = self._phase_at((end + epsilon) % cycle)
-        previous_active = approach in getattr(previous_phase, "active_approaches", ()) if previous_phase is not None else False
-        next_active = approach in getattr(next_phase, "active_approaches", ()) if next_phase is not None else False
+        previous_active = (
+            self._head_is_active(start - epsilon, previous_phase, head)
+            if previous_phase is not None else False
+        )
+        next_active = (
+            self._head_is_active(end + epsilon, next_phase, head)
+            if next_phase is not None else False
+        )
         distance_to_end = (end - position) % cycle
         if not next_active and 0 < distance_to_end <= yellow_duration:
             return TransitionModel(SignalState.YELLOW, TransitionSemantics.MODELLED_TRANSITION, SignalState.GREEN, SignalState.RED, float(yellow_duration))
@@ -457,6 +475,26 @@ class SignalStateEstimator:
         if not previous_active and red_yellow_duration > 0 and 0 <= distance_from_start < red_yellow_duration:
             return TransitionModel(SignalState.RED_YELLOW, TransitionSemantics.MODELLED_TRANSITION, SignalState.RED, SignalState.GREEN, float(red_yellow_duration))
         return None
+
+    def _head_is_active(self, position: float, phase, head: SignalHead) -> bool:
+        if phase is None:
+            return False
+        if head.is_primary:
+            return head.approach in getattr(phase, "active_approaches", ())
+        stages = tuple(getattr(self.phase_model, "movement_stages", ()))
+        if stages:
+            cycle = self.phase_model.cycle_seconds
+            return any(
+                stage.approach == head.approach
+                and stage.movement in head.movement_ids
+                and self._in_interval(
+                    position % cycle,
+                    float(stage.phase_start) % cycle,
+                    float(stage.phase_end) % cycle,
+                )
+                for stage in stages
+            )
+        return head.approach in getattr(phase, "active_approaches", ())
 
     def _transition_kind_for_approach(self, position: float, phase, approach: str) -> SignalState | None:
         """Compatibility wrapper returning only the transition state."""
@@ -668,13 +706,19 @@ class SignalStateEstimator:
             event
             for event in events
             if event.approach == head.approach
-            and any(
-                event.movement == movement
-                or (
-                    movement.endswith("->")
-                    and event.movement.startswith(movement)
+            and (
+                (
+                    head.is_primary
+                    and event.movement.endswith("->x")
                 )
-                for movement in head.movement_ids
+                or any(
+                    event.movement == movement
+                    or (
+                        movement.endswith("->")
+                        and event.movement.startswith(movement)
+                    )
+                    for movement in head.movement_ids
+                )
             )
             and event.movement
             and not event.movement.endswith("->UNKNOWN")

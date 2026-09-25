@@ -8,6 +8,7 @@ from typing import Iterable, Sequence
 
 from app.core.event_cycle_estimator import EventCycleEstimate, estimate_event_cycle
 from app.core.event_phase_discovery import EventPhaseDiscovery, EventPhaseDiscoveryResult
+from app.core.intersection_config import IntersectionConfig
 from app.core.models import EventType, Trajectory, TrajectoryEvent
 from app.core.observability import (
     DiagnosticReason,
@@ -163,12 +164,16 @@ def _estimate_models(
     *,
     sampling_seconds: float,
     bin_seconds: float,
+    intersection_config: IntersectionConfig | None = None,
 ) -> tuple[EventCycleEstimate, EventPhaseDiscoveryResult]:
     cycle = estimate_event_cycle(
         events,
         sampling_seconds=sampling_seconds,
     )
-    phase_model = EventPhaseDiscovery(bin_seconds=bin_seconds).discover(
+    phase_model = EventPhaseDiscovery(
+        bin_seconds=bin_seconds,
+        intersection_config=intersection_config,
+    ).discover(
         events,
         cycle_seconds=cycle.estimate.cycle_seconds,
     )
@@ -232,6 +237,7 @@ def reconstruct_trajectories(
     *,
     sampling_seconds: float = 2.0,
     bin_seconds: float = 2.0,
+    intersection_config: IntersectionConfig | None = None,
 ) -> BatchReconstruction:
     """Single-regime helper kept for small files and benchmark compatibility."""
     normalized = tuple(trajectories)
@@ -243,6 +249,7 @@ def reconstruct_trajectories(
         events,
         sampling_seconds=sampling_seconds,
         bin_seconds=bin_seconds,
+        intersection_config=intersection_config,
     )
     ambiguity = phase_model_ambiguity_reason(phase_model)
     if ambiguity is not None:
@@ -948,6 +955,7 @@ def reconstruct_event_session(
     regime_count: int = 1,
     rolling_period_seconds: float | None = None,
     rolling_window_count: int = 0,
+    intersection_config: IntersectionConfig | None = None,
 ) -> SessionReconstruction:
     ordered_events = tuple(
         sorted(
@@ -970,6 +978,7 @@ def reconstruct_event_session(
             ordered_events,
             sampling_seconds=sampling_seconds,
             bin_seconds=bin_seconds,
+            intersection_config=intersection_config,
         )
     except ValueError as exc:
         reason = (
@@ -1183,6 +1192,7 @@ def reconstruct_event_regimes(
     regime_confirmation_windows: int = DEFAULT_REGIME_CONFIRMATION_WINDOWS,
     regime_period_tolerance_seconds: float = DEFAULT_REGIME_PERIOD_TOLERANCE_SECONDS,
     regime_min_cycle_confidence: float = DEFAULT_REGIME_MIN_CYCLE_CONFIDENCE,
+    intersection_config: IntersectionConfig | None = None,
 ) -> tuple[SessionReconstruction, ...]:
     regimes = split_event_session_into_regimes(
         events,
@@ -1215,6 +1225,7 @@ def reconstruct_event_regimes(
             regime_count=len(regimes),
             rolling_period_seconds=regime.rolling_period_seconds,
             rolling_window_count=regime.rolling_window_count,
+            intersection_config=intersection_config,
         )
         for index, regime in enumerate(regimes)
     ]
@@ -1232,6 +1243,7 @@ def reconstruct_trajectory_sessions(
     regime_confirmation_windows: int = DEFAULT_REGIME_CONFIRMATION_WINDOWS,
     regime_period_tolerance_seconds: float = DEFAULT_REGIME_PERIOD_TOLERANCE_SECONDS,
     regime_min_cycle_confidence: float = DEFAULT_REGIME_MIN_CYCLE_CONFIDENCE,
+    intersection_config: IntersectionConfig | None = None,
 ) -> tuple[SessionReconstruction, ...]:
     """Reconstruct stable regimes inside every continuous traffic session."""
     sessions = split_trajectories_into_sessions(
@@ -1265,6 +1277,7 @@ def reconstruct_trajectory_sessions(
                 regime_confirmation_windows=regime_confirmation_windows,
                 regime_period_tolerance_seconds=regime_period_tolerance_seconds,
                 regime_min_cycle_confidence=regime_min_cycle_confidence,
+                intersection_config=intersection_config,
             )
         )
 
@@ -1282,6 +1295,7 @@ def reconstruct_event_sessions(
     regime_confirmation_windows: int = DEFAULT_REGIME_CONFIRMATION_WINDOWS,
     regime_period_tolerance_seconds: float = DEFAULT_REGIME_PERIOD_TOLERANCE_SECONDS,
     regime_min_cycle_confidence: float = DEFAULT_REGIME_MIN_CYCLE_CONFIDENCE,
+    intersection_config: IntersectionConfig | None = None,
 ) -> tuple[SessionReconstruction, ...]:
     """Authoritative event path: physical sessions first, stable regimes next."""
     sessions = split_events_into_sessions(
@@ -1305,6 +1319,7 @@ def reconstruct_event_sessions(
                 regime_confirmation_windows=regime_confirmation_windows,
                 regime_period_tolerance_seconds=regime_period_tolerance_seconds,
                 regime_min_cycle_confidence=regime_min_cycle_confidence,
+                intersection_config=intersection_config,
             )
         )
 

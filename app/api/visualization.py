@@ -191,6 +191,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="axis-card"><div class="muted">EW</div><strong id="ewState" class="state-UNKNOWN">UNKNOWN</strong></div>
     </div>
     <p id="sharedHint" class="muted small">Backend signal state.</p>
+    <div id="configuredSignalHolder" class="small"></div>
   </div>
 
   <div class="panel">
@@ -433,7 +434,7 @@ function renderBatchPoint(){
   if(!timeline.length){
     $('batchPhase').textContent='UNKNOWN';$('batchActiveMovements').textContent='—';$('batchPhaseConfidence').textContent='0.00';
     $('batchTimeLabel').textContent='No timeline: insufficient inference data';
-    renderStates({N:'UNKNOWN',S:'UNKNOWN',E:'UNKNOWN',W:'UNKNOWN'});
+    renderStates({N:'UNKNOWN',S:'UNKNOWN',E:'UNKNOWN',W:'UNKNOWN'}, (batchSession.effective_phase_model||{}).intersection_config||null, null);
     return;
   }
   const point=timeline[Math.min(batchIndex,timeline.length-1)];
@@ -444,7 +445,11 @@ function renderBatchPoint(){
   $('batchPhaseConfidence').textContent=Number(point.confidence||0).toFixed(2);
   const cycleSeconds=Number((batchSession.effective_phase_model||{}).cycle_seconds||0);
   $('batchTimeLabel').textContent=point.offset_s.toFixed(1)+' s / '+cycleSeconds.toFixed(1)+' s cycle';
-  renderStates(point.states||{});
+  renderStates(
+    point.states||{},
+    (batchSession.effective_phase_model||{}).intersection_config||null,
+    point.signal_head_states||null
+  );
 }
 
 function playBatch(){
@@ -595,16 +600,46 @@ function renderRealtimeSnapshot(snapshot){
   $('emittedTrajectories').textContent=String(evidence.emitted_trajectory_count||0);
   $('emittedEvents').textContent=String(evidence.emitted_event_count||0);
   $('remainingTrajectories').textContent=String(evidence.remaining_trajectory_count||0);
-  renderStates(snapshot.signal_states||{});
+  renderStates(
+    snapshot.signal_states||{},
+    snapshot.intersection_config||null,
+    snapshot.signal_head_states||null
+  );
 }
 
-function renderStates(states){
-  const normalized={};
-  for(const approach of ['N','S','E','W'])normalized[approach]=states[approach]||'UNKNOWN';
-  const ns=normalized.N===normalized.S?normalized.N:'MIXED';
-  const ew=normalized.E===normalized.W?normalized.E:'MIXED';
+function renderStates(states,config,headStates){
+  const normalized=states||{};
+  const cfg=config||{};
+  const families=cfg.families||[];
+  const heads=cfg.signal_heads||[];
+  const holder=$('configuredSignalHolder');
+  holder.innerHTML='';
+  if(families.length||heads.length){
+    const title=document.createElement('div');
+    title.className='muted';
+    title.textContent='Configured structure · '+(cfg.intersection_id||'intersection');
+    holder.appendChild(title);
+    families.forEach(family=>{
+      const values=(family.approaches||[]).map(a=>normalized[a]||'UNKNOWN');
+      const state=values.length&&values.every(v=>v===values[0])?values[0]:'MIXED';
+      const row=document.createElement('div');
+      row.textContent=(family.name||'family')+' · '+state+' · '+(family.approaches||[]).join('/');
+      holder.appendChild(row);
+    });
+    heads.forEach(head=>{
+      const row=document.createElement('div');
+      const state=(headStates&&headStates[head.id])||normalized[head.approach]||'UNKNOWN';
+      const arrows=(head.arrows||[]).length?' · '+head.arrows.join('/'): '';
+      row.textContent=head.id+' · '+state+arrows;
+      holder.appendChild(row);
+    });
+  }
+  const normalizedLegacy={};
+  for(const approach of ['N','S','E','W'])normalizedLegacy[approach]=normalized[approach]||'UNKNOWN';
+  const ns=normalizedLegacy.N===normalizedLegacy.S?normalizedLegacy.N:'MIXED';
+  const ew=normalizedLegacy.E===normalizedLegacy.W?normalizedLegacy.E:'MIXED';
   setState('nsState','',ns);setState('ewState','',ew);
-  for(const approach of ['N','S','E','W'])setState('sig'+approach,approach,normalized[approach]);
+  for(const approach of ['N','S','E','W'])setState('sig'+approach,approach,normalizedLegacy[approach]);
 }
 
 function setState(id,label,state){

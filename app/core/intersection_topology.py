@@ -116,6 +116,39 @@ class IntersectionTopology:
                 return family.approaches
         return ()
 
+    def conflicting_family_pairs(self) -> tuple[tuple[str, str], ...]:
+        """Return configured conflicting families in declaration order."""
+        family_order = {
+            family.name: index
+            for index, family in enumerate(self.families)
+        }
+        pairs: list[tuple[str, str]] = []
+        for left, right in self.family_conflicts:
+            if left not in family_order or right not in family_order:
+                continue
+            ordered = (
+                (left, right)
+                if family_order[left] < family_order[right]
+                else (right, left)
+            )
+            if ordered not in pairs:
+                pairs.append(ordered)
+        return tuple(pairs)
+
+    def conflicting_approaches_for(self, approach: str) -> tuple[str, ...]:
+        """Return approaches from families that conflict with this approach."""
+        family = self.family_for_approach(approach)
+        if family is None:
+            return ()
+        result: list[str] = []
+        for conflicting_family in self.conflicting_families_for(family):
+            result.extend(self.approaches_for_family(conflicting_family))
+        return tuple(
+            candidate
+            for candidate in self.approaches
+            if candidate in result
+        )
+
     def family_for_active_approaches(
         self,
         active_approaches: Sequence[str],
