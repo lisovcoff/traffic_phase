@@ -491,7 +491,7 @@ class RealtimeSignalInferenceEngine:
             previous_mode == AdaptiveRealtimeMode.LIVE_OVERRIDE
             and adaptive.mode == AdaptiveRealtimeMode.RECOVERY
         ):
-            self._synchronizer.reset()
+            self._synchronizer.enter_recovery()
             synchronization = self._synchronizer.snapshot()
             if synchronization.synchronized:
                 self._adaptive_override.mark_resynchronized()
