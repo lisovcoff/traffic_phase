@@ -23,6 +23,8 @@ from app.core.observability import (
     DiagnosticReason,
     DeterminationStatus,
     ObservabilitySnapshot,
+    TrafficObservabilityModel,
+    TrafficObservabilitySnapshot,
     build_realtime_observability,
 )
 from app.core.realtime_phase_sync import (
@@ -83,6 +85,7 @@ class RealtimeInferenceSnapshot:
     determination_status: DeterminationStatus = DeterminationStatus.INSUFFICIENT_DATA
     diagnostic_reason: DiagnosticReason | None = None
     observability: ObservabilitySnapshot | None = None
+    traffic_observability: TrafficObservabilitySnapshot | None = None
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -187,6 +190,9 @@ class RealtimeSignalInferenceEngine:
         self._current_timestamp_ms: int | None = None
         self._stream_start_timestamp_ms: int | None = None
         self._ever_synchronized = False
+        self._traffic_observability = TrafficObservabilityModel(
+            window_seconds=self.recent_window_s,
+        )
         self._lock = RLock()
 
     @property
@@ -445,6 +451,7 @@ class RealtimeSignalInferenceEngine:
             self._stream_start_timestamp_ms = None
             self._synchronizer.reset()
             self._adaptive_override.reset()
+            self._traffic_observability.reset()
             self._ever_synchronized = False
 
     def _snapshot(self, *, duplicate: bool) -> RealtimeInferenceSnapshot:
@@ -632,6 +639,15 @@ class RealtimeSignalInferenceEngine:
             ),
             topology=self.topology,
         )
+        traffic_observability = self._traffic_observability.observe(
+            timestamp_ms=self._current_timestamp_ms,
+            events=buffered_events,
+            determination_status=realtime_observability.determination_status,
+            diagnostic_reason=realtime_observability.diagnostic_reason,
+        )
+        realtime_observability = realtime_observability.with_traffic_observability(
+            traffic_observability,
+        )
         if realtime_observability.determination_status != DeterminationStatus.KNOWN:
             # A model/template never supplies RED by itself.
             signal_states = {
@@ -786,6 +802,7 @@ class RealtimeSignalInferenceEngine:
             determination_status=realtime_observability.determination_status,
             diagnostic_reason=realtime_observability.diagnostic_reason,
             observability=realtime_observability,
+            traffic_observability=traffic_observability,
         )
 
     def _template_compatibility(
@@ -872,6 +889,29 @@ class RealtimeSignalInferenceEngine:
             approach: reason
             for approach in states
         }
+        warm_observability = build_realtime_observability(
+            tuple(self._events.values()),
+            cycle_confidence=0.0,
+            synchronization_confidence=synchronization.confidence,
+            phase_confidence=0.0,
+            synchronization_ready=False,
+            observed_family_count=synchronization.observed_group_count,
+            template_compatibility=compatibility,
+            recovery=(
+                adaptive is not None
+                and adaptive.mode == AdaptiveRealtimeMode.RECOVERY
+            ),
+            topology=self.topology,
+        )
+        traffic_observability = self._traffic_observability.observe(
+            timestamp_ms=self._current_timestamp_ms,
+            events=tuple(self._events.values()),
+            determination_status=warm_observability.determination_status,
+            diagnostic_reason=warm_observability.diagnostic_reason,
+        )
+        warm_observability = warm_observability.with_traffic_observability(
+            traffic_observability,
+        )
         return RealtimeInferenceSnapshot(
             timestamp_ms=self._current_timestamp_ms,
             timestamp_s=round(elapsed_s, 3),
@@ -952,6 +992,10 @@ class RealtimeSignalInferenceEngine:
             effective_movement_states={},
             template_signal_states=dict(states),
             duplicate=duplicate,
+            determination_status=warm_observability.determination_status,
+            diagnostic_reason=warm_observability.diagnostic_reason,
+            observability=warm_observability,
+            traffic_observability=traffic_observability,
         )
 
     def _extension_active_movements(

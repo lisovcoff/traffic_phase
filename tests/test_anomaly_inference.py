@@ -5,6 +5,11 @@ from app.core.anomaly_profile import TrafficBaselineProfile
 from app.core.event_phase_discovery import EventPhase, EventPhaseDiscoveryResult
 from app.core.models import EventType, TrajectoryEvent
 from app.core.signal_state_estimator import SignalState, SignalStateEstimator
+from app.core.observability import (
+    DeterminationStatus,
+    TrafficObservabilityLevel,
+    TrafficObservabilityModel,
+)
 
 
 def event(kind, t, approach):
@@ -114,3 +119,33 @@ def test_insufficient_data_produces_unknown():
     )
     assert aware.indicators.condition == TrafficCondition.INSUFFICIENT_DATA
     assert all(item.state == SignalState.UNKNOWN for item in aware.signal.approaches)
+
+
+
+def test_anomaly_insufficient_data_composes_with_sparse_observability():
+    phase = model()
+    events = [event(EventType.RELEASE, 20, "N")]
+    result = SignalStateEstimator(phase).estimate(20.0, events)
+    weak = baseline()
+    weak = TrafficBaselineProfile(
+        **{
+            **weak.to_dict(),
+            "total_flow_median": 100.0,
+            "baseline_windows": 100,
+        }
+    )
+    aware = AnomalyAwareSignalInference(phase, weak).estimate(
+        result, events, current_time_s=20.0, recent_window_s=12.0
+    )
+    traffic = TrafficObservabilityModel().observe(
+        timestamp_ms=20_000,
+        events=events,
+        determination_status=DeterminationStatus.UNKNOWN,
+    )
+    assert aware.indicators.condition == TrafficCondition.INSUFFICIENT_DATA
+    assert traffic.level is TrafficObservabilityLevel.SPARSE
+    assert traffic.determination_status is DeterminationStatus.UNKNOWN
+    assert all(
+        item.state is SignalState.UNKNOWN
+        for item in aware.signal.approaches
+    )
