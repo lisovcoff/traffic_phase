@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from bisect import bisect_right
 from dataclasses import dataclass
 from typing import Protocol, Sequence
 
@@ -297,6 +298,12 @@ class CausalTrajectoryEventExtractor:
     def observed_detection_count(self) -> int:
         return len(self._detections)
 
+    @property
+    def latest_detection_ms(self) -> int | None:
+        if not self._detections:
+            return None
+        return self._detections[-1].millis
+
     def ingest_snapshot(
         self,
         detections: Sequence[Detection],
@@ -322,22 +329,35 @@ class CausalTrajectoryEventExtractor:
         )
         if key in self._seen_detections:
             return []
-        if (
-            self._detections
-            and detection.millis <= self._detections[-1].millis
-        ):
-            return []
+
+        self._seen_detections.add(key)
+        insert_at = bisect_right(
+            [item.millis for item in self._detections],
+            detection.millis,
+        )
+        if insert_at < len(self._detections):
+            self._detections.insert(insert_at, detection)
+            return self._rebuild_after_late_arrival()
 
         previous = self._detections[-1] if self._detections else None
-        self._seen_detections.add(key)
         self._detections.append(detection)
+        return self._process_detection(
+            detection,
+            previous,
+        )
+
+    def _process_detection(
+        self,
+        detection: Detection,
+        previous: Detection | None,
+    ) -> list[TrajectoryEvent]:
         events: list[TrajectoryEvent] = []
 
         if EventType.APPROACH not in self._emitted:
             events.append(
                 self._emit(
                     EventType.APPROACH,
-                    detection.millis,
+                    self._detections[0].millis,
                     strength=1.0,
                 )
             )
@@ -370,6 +390,41 @@ class CausalTrajectoryEventExtractor:
 
         events.extend(self._update_crossing(detection))
         return events
+
+    def _rebuild_after_late_arrival(self) -> list[TrajectoryEvent]:
+        previously_emitted = set(self._emitted)
+        self._detections.sort(
+            key=lambda item: (
+                item.millis,
+                item.lat,
+                item.lng,
+                item.zone or "",
+            )
+        )
+        self._emitted.clear()
+        self._raw_speeds.clear()
+        self._stop_run_start_ms = None
+        self._release_run_start_ms = None
+        self._stop_timestamp_ms = None
+        self._seen_incoming = False
+        self._has_named_zone = False
+
+        rebuilt: list[TrajectoryEvent] = []
+        previous = None
+        for detection in self._detections:
+            rebuilt.extend(
+                self._process_detection(
+                    detection,
+                    previous,
+                )
+            )
+            previous = detection
+
+        return [
+            event
+            for event in rebuilt
+            if event.event_type not in previously_emitted
+        ]
 
     def finalize(self) -> list[TrajectoryEvent]:
         if (

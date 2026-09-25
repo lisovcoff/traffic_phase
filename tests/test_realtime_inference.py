@@ -844,3 +844,237 @@ def test_emergency_green_extension_is_observed_then_recovers():
     assert recovered.template_compatibility == "COMPATIBLE"
     assert recovered.template_deviation_seconds is None
     assert recovered.signal_states["E"] == "GREEN"
+
+
+def test_partial_trajectory_ingestion_never_uses_future_detections():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+    partial = {
+        "id": 501,
+        "zone_in": "N",
+        "zone_out": "_S",
+        "movement": "N->_S",
+        "detections": [
+            {"millis": 0, "lat": 55.0, "lng": 61.0, "zone": "N"},
+            {"millis": 1000, "lat": 55.0, "lng": 61.0, "zone": "N"},
+            {"millis": 2000, "lat": 55.00001, "lng": 61.0, "zone": "N"},
+        ],
+    }
+    early = engine.ingest_trajectory(partial)
+
+    assert early.timestamp_ms == 2000
+    assert all(
+        event.event_type is not EventType.CROSSING
+        for event in engine._events.values()
+    )
+
+    completed = dict(partial)
+    completed["detections"] = [
+        *partial["detections"],
+        {"millis": 3000, "lat": 55.00002, "lng": 61.0, "zone": None},
+    ]
+    late = engine.ingest_trajectory(completed)
+
+    assert late.timestamp_ms == 3000
+    assert any(
+        event.event_type is EventType.CROSSING
+        for event in engine._events.values()
+    )
+
+
+def test_causal_equivalence_of_incremental_trajectory_prefixes():
+    prefix = {
+        "id": 777,
+        "zone_in": "N",
+        "zone_out": "_S",
+        "movement": "N->_S",
+        "detections": [
+            {"millis": 0, "lat": 55.0, "lng": 61.0, "zone": "N"},
+            {"millis": 1000, "lat": 55.0, "lng": 61.0, "zone": "N"},
+            {"millis": 2000, "lat": 55.00001, "lng": 61.0, "zone": "N"},
+        ],
+    }
+    future = {
+        **prefix,
+        "detections": [
+            *prefix["detections"],
+            {"millis": 3000, "lat": 55.00002, "lng": 61.0, "zone": None},
+            {"millis": 4000, "lat": 55.00003, "lng": 61.0, "zone": "_S"},
+        ],
+    }
+
+    incremental = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+    reference = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+
+    incremental_snapshot = incremental.ingest_trajectory(prefix)
+    reference_snapshot = reference.ingest_trajectory(prefix)
+
+    assert incremental_snapshot.to_dict() == reference_snapshot.to_dict()
+    assert incremental_snapshot.timestamp_ms == 2000
+    assert incremental_snapshot.synchronization_evidence_count == (
+        reference_snapshot.synchronization_evidence_count
+    )
+
+    incremental.ingest_trajectory(future)
+    assert incremental.current_timestamp_ms == 4000
+    assert any(
+        event.event_type is EventType.CROSSING
+        for event in incremental._events.values()
+    )
+    assert reference.current_timestamp_ms == 2000
+
+
+def test_out_of_order_partial_detections_are_accepted_causally():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+        recent_window_s=10.0,
+    )
+    first = {
+        "id": 808,
+        "zone_in": "N",
+        "zone_out": "_S",
+        "movement": "N->_S",
+        "detections": [
+            {"millis": 0, "lat": 55.0, "lng": 61.0, "zone": "N"},
+            {"millis": 3000, "lat": 55.00001, "lng": 61.0, "zone": "N"},
+            {"millis": 4000, "lat": 55.00002, "lng": 61.0, "zone": None},
+        ],
+    }
+    engine.ingest_trajectory(first)
+
+    late = {
+        **first,
+        "detections": [
+            {"millis": 1000, "lat": 55.0, "lng": 61.0, "zone": "N"},
+            {"millis": 2000, "lat": 55.0, "lng": 61.0, "zone": "N"},
+        ],
+    }
+    snapshot = engine.ingest_trajectory(late)
+
+    assert snapshot.timestamp_ms == 4000
+    assert engine.active_trajectory_count == 1
+    assert engine.current_timestamp_ms == 4000
+
+
+def test_duplicate_trajectory_snapshot_is_idempotent():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+    payload = {
+        "id": 909,
+        "zone_in": "N",
+        "zone_out": "_S",
+        "movement": "N->_S",
+        "detections": [
+            {"millis": 0, "lat": 55.0, "lng": 61.0, "zone": "N"},
+            {"millis": 1000, "lat": 55.00001, "lng": 61.0, "zone": None},
+        ],
+    }
+
+    first = engine.ingest_trajectory(payload)
+    second = engine.ingest_trajectory(payload)
+
+    assert first.duplicate is False
+    assert second.duplicate is True
+    assert second.timestamp_ms == first.timestamp_ms
+    assert engine.buffer_event_count == 2
+
+
+def test_topology_rejects_unknown_trajectory_approach():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+    )
+    payload = {
+        "id": 1001,
+        "zone_in": "X",
+        "zone_out": "_S",
+        "movement": "X->_S",
+        "detections": [
+            {"millis": 1000, "lat": 55.0, "lng": 61.0, "zone": "X"},
+        ],
+    }
+
+    with pytest.raises(ValueError, match="configured intersection topology"):
+        engine.ingest_trajectory(payload)
+
+
+def test_stale_out_of_order_event_does_not_reenter_realtime_window():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+        recent_window_s=5.0,
+    )
+    engine.ingest_event(event(EventType.RELEASE, 20, "N"))
+    before = engine.synchronization.evidence_count
+
+    snapshot = engine.ingest_event(event(EventType.RELEASE, 1, "S"))
+
+    assert snapshot.timestamp_ms == 20_000
+    assert engine.current_timestamp_ms == 20_000
+    assert engine.synchronization.evidence_count == before
+    assert engine.buffer_event_count == 1
+
+
+def test_realtime_idempotency_and_trajectory_buffers_are_bounded():
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        event_origin_ms=0,
+        recent_window_s=30.0,
+        max_active_trajectories=2,
+        max_idempotency_entries=3,
+    )
+
+    for index in range(6):
+        engine.ingest_trajectory(
+            {
+                "id": index,
+                "zone_in": "N",
+                "zone_out": "_S",
+                "movement": "N->_S",
+                "detections": [
+                    {
+                        "millis": index * 1000,
+                        "lat": 55.0,
+                        "lng": 61.0,
+                        "zone": "N",
+                    },
+                ],
+            }
+        )
+
+    assert engine.active_trajectory_count <= 2
+    assert engine.idempotency_entry_count <= 3
+
+
+def test_synthetic_realtime_ingestion_latency_stays_linear_and_bounded():
+    import time
+
+    engine = RealtimeSignalInferenceEngine(
+        phase_model(),
+        recent_window_s=12.0,
+    )
+    start = time.perf_counter()
+    for index in range(1000):
+        engine.ingest_event(
+            event(
+                EventType.RELEASE,
+                index / 10.0,
+                "N" if index % 2 == 0 else "E",
+            )
+        )
+    elapsed = time.perf_counter() - start
+
+    assert elapsed < 5.0
+    assert engine.buffer_event_count <= 125
+    assert engine.idempotency_entry_count <= 8192
