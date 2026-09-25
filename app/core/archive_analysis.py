@@ -3,11 +3,14 @@ from __future__ import annotations
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 import json
-from typing import BinaryIO, Iterable, Sequence
+import pickle
+from tempfile import SpooledTemporaryFile
+import time
+from typing import BinaryIO, Callable, Iterable, Iterator, Sequence
 import zipfile
 
 from app.core.models import Trajectory, TrajectoryEvent
-from app.core.preprocessing import load_trajectory_payload
+from app.core.preprocessing import iter_trajectory_payload_stream, load_trajectory_payload
 from app.core.reconstruction import (
     DEFAULT_SESSION_GAP_SECONDS,
     GOOD_MODEL_MIN_COVERAGE,
@@ -40,6 +43,279 @@ DETERMINATION_AVAILABLE_MIN_CONFIDENCE = min(
 )
 
 
+DEFAULT_EVENT_STORE_MEMORY_BYTES = 4 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class ArchiveProgress:
+    processed_members: int
+    total_members: int
+    trajectories: int
+    events: int
+    current_session: int | None
+    elapsed_seconds: float
+    peak_session_trajectories: int
+    peak_session_events: int
+    member_errors: int = 0
+    done: bool = False
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "processed_members": self.processed_members,
+            "total_members": self.total_members,
+            "trajectories": self.trajectories,
+            "events": self.events,
+            "current_session": self.current_session,
+            "elapsed_seconds": round(self.elapsed_seconds, 3),
+            "peak_session_trajectories": self.peak_session_trajectories,
+            "peak_session_events": self.peak_session_events,
+            "member_errors": self.member_errors,
+            "done": self.done,
+        }
+
+
+ProgressCallback = Callable[[ArchiveProgress], None]
+
+
+class SegmentEventStore(Sequence[tuple[TrajectoryEvent, ...]]):
+    """Spool session raw events without retaining the full archive in RAM."""
+
+    def __init__(
+        self,
+        *,
+        max_memory_bytes: int = DEFAULT_EVENT_STORE_MEMORY_BYTES,
+    ) -> None:
+        if max_memory_bytes <= 0:
+            raise ValueError("max_memory_bytes must be positive")
+        self._stream = SpooledTemporaryFile(
+            max_size=max_memory_bytes,
+            mode="w+b",
+        )
+        self._offsets: list[int] = []
+        self._final_indices: list[int] = []
+
+    def checkpoint(self) -> tuple[int, int]:
+        return self._stream.tell(), len(self._offsets)
+
+    def rollback(self, checkpoint: tuple[int, int]) -> None:
+        position, offset_count = checkpoint
+        self._stream.seek(position)
+        self._stream.truncate(position)
+        del self._offsets[offset_count:]
+
+    def append_session(
+        self,
+        end_times: Sequence[int],
+        events: Sequence[TrajectoryEvent],
+    ) -> int:
+        index = len(self._offsets)
+        self._stream.seek(0, 2)
+        self._offsets.append(self._stream.tell())
+        pickle.dump(
+            (
+                tuple(int(value) for value in end_times),
+                tuple(events),
+            ),
+            self._stream,
+            protocol=5,
+        )
+        return index
+
+    def load_session(
+        self,
+        index: int,
+    ) -> tuple[tuple[int, ...], tuple[TrajectoryEvent, ...]]:
+        if not 0 <= index < len(self._offsets):
+            raise IndexError(index)
+        self._stream.seek(self._offsets[index])
+        value = pickle.load(self._stream)
+        if (
+            not isinstance(value, tuple)
+            or len(value) != 2
+            or not isinstance(value[0], tuple)
+            or not isinstance(value[1], tuple)
+        ):
+            raise TypeError("corrupted temporary batch event store")
+        return value[0], value[1]
+
+    def append_final(self, events: Sequence[TrajectoryEvent]) -> None:
+        self._final_indices.append(self.append_session((), events))
+
+    def __getitem__(self, index: int) -> tuple[TrajectoryEvent, ...]:
+        if index < 0:
+            index += len(self._final_indices)
+        if not 0 <= index < len(self._final_indices):
+            raise IndexError(index)
+        _end_times, events = self.load_session(self._final_indices[index])
+        return events
+
+    def __len__(self) -> int:
+        return len(self._final_indices)
+
+    def close(self) -> None:
+        self._stream.close()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+class _ArchiveProgressReporter:
+    def __init__(
+        self,
+        *,
+        total_members: int,
+        callback: ProgressCallback | None = None,
+    ) -> None:
+        self.total_members = int(total_members)
+        self.callback = callback
+        self.started_at = time.monotonic()
+        self.processed_members = 0
+        self.trajectories = 0
+        self.events = 0
+        self.current_session: int | None = None
+        self.peak_session_trajectories = 0
+        self.peak_session_events = 0
+        self.member_errors = 0
+
+    def note_session(
+        self,
+        *,
+        trajectories: int,
+        events: int,
+        session: int | None,
+    ) -> None:
+        self.current_session = session
+        self.peak_session_trajectories = max(
+            self.peak_session_trajectories,
+            int(trajectories),
+        )
+        self.peak_session_events = max(
+            self.peak_session_events,
+            int(events),
+        )
+
+    def emit(self, *, done: bool = False) -> ArchiveProgress:
+        progress = ArchiveProgress(
+            processed_members=self.processed_members,
+            total_members=self.total_members,
+            trajectories=self.trajectories,
+            events=self.events,
+            current_session=self.current_session,
+            elapsed_seconds=time.monotonic() - self.started_at,
+            peak_session_trajectories=self.peak_session_trajectories,
+            peak_session_events=self.peak_session_events,
+            member_errors=self.member_errors,
+            done=done,
+        )
+        if self.callback is not None:
+            try:
+                self.callback(progress)
+            except Exception:
+                pass
+        return progress
+
+
+@dataclass(frozen=True)
+class _SessionBlock:
+    start_ms: int
+    end_ms: int
+    trajectory_count: int
+    event_store_index: int
+    member_order: int
+    block_order: int
+
+
+class _MemberSessionWriter:
+    """Keep one member-local session in RAM and spill completed sessions."""
+
+    def __init__(
+        self,
+        *,
+        store: SegmentEventStore,
+        blocks: list[_SessionBlock],
+        member_order: int,
+        gap_ms: int,
+        progress: _ArchiveProgressReporter,
+    ) -> None:
+        self.store = store
+        self.blocks = blocks
+        self.member_order = int(member_order)
+        self.gap_ms = int(gap_ms)
+        self.progress = progress
+        self.current_events: list[TrajectoryEvent] = []
+        self.current_end_times: list[int] = []
+        self.current_start_ms: int | None = None
+        self.current_end_ms: int | None = None
+        self.current_trajectory_count = 0
+        self.last_start_ms: int | None = None
+        self.block_order = 0
+        self.trajectory_count = 0
+        self.event_count = 0
+
+    def add(self, trajectory: Trajectory) -> None:
+        start_ms, end_ms = _trajectory_interval_ms(trajectory)
+        if self.last_start_ms is not None and start_ms < self.last_start_ms:
+            raise ValueError(
+                "trajectory JSON must be ordered by trajectory start time"
+            )
+        if self.current_start_ms is None:
+            self.current_start_ms = int(start_ms)
+            self.current_end_ms = int(end_ms)
+        else:
+            assert self.current_end_ms is not None
+            if start_ms - self.current_end_ms > self.gap_ms:
+                self.flush()
+                self.current_start_ms = int(start_ms)
+                self.current_end_ms = int(end_ms)
+            else:
+                self.current_end_ms = max(
+                    self.current_end_ms,
+                    int(end_ms),
+                )
+
+        events = tuple(
+            extract_events_from_trajectories((trajectory,))
+        )
+        self.current_events.extend(events)
+        self.current_end_times.append(int(end_ms))
+        self.current_trajectory_count += 1
+        self.trajectory_count += 1
+        self.event_count += len(events)
+        self.last_start_ms = int(start_ms)
+        self.progress.note_session(
+            trajectories=self.current_trajectory_count,
+            events=len(self.current_events),
+            session=None,
+        )
+
+    def flush(self) -> None:
+        if self.current_start_ms is None or self.current_end_ms is None:
+            return
+        event_store_index = self.store.append_session(
+            self.current_end_times,
+            self.current_events,
+        )
+        self.blocks.append(
+            _SessionBlock(
+                start_ms=self.current_start_ms,
+                end_ms=self.current_end_ms,
+                trajectory_count=self.current_trajectory_count,
+                event_store_index=event_store_index,
+                member_order=self.member_order,
+                block_order=self.block_order,
+            )
+        )
+        self.block_order += 1
+        self.current_events.clear()
+        self.current_end_times.clear()
+        self.current_start_ms = None
+        self.current_end_ms = None
+        self.current_trajectory_count = 0
+
+
 @dataclass(frozen=True)
 class ArchiveAnalysis:
     filename: str
@@ -48,10 +324,9 @@ class ArchiveAnalysis:
     trajectory_count: int
     event_count: int
     sessions: tuple[SessionReconstruction, ...]
-    segment_events: tuple[
-        tuple[TrajectoryEvent, ...], ...
-    ] = ()
+    segment_events: Sequence[tuple[TrajectoryEvent, ...]] = ()
     member_errors: tuple[dict[str, str], ...] = ()
+    progress: ArchiveProgress | None = None
 
     def to_dict(self, *, timeline_points: int = DEFAULT_TIMELINE_POINTS) -> dict[str, object]:
         session_payloads = [
@@ -227,6 +502,11 @@ class ArchiveAnalysis:
 
         return {
             "mode": "session_based_event_inference",
+            "progress": (
+                self.progress.to_dict()
+                if self.progress is not None
+                else None
+            ),
             "ground_truth": "UNAVAILABLE",
             "source": source,
             "sessions": session_payloads,
@@ -241,7 +521,7 @@ class ArchiveAnalysis:
             "limitations": [
                 "Traffic-light state is inferred indirectly from vehicle trajectory events.",
                 "No controller or signal-state ground truth is present in the trajectory data.",
-                "ZIP members are compacted and ordered by trajectory time before session reconstruction.",
+                "ZIP members are processed sequentially; session reconstruction preserves trajectory-time ordering via a bounded external spill store.",
                 "Timeline points are sampled from the inferred recurring phase model and are not controller telemetry.",
             ],
         }
@@ -1396,33 +1676,207 @@ def _partition_segment_events(
     return tuple(result)
 
 
+def _reconstruct_streamed_sessions(
+    store: SegmentEventStore,
+    blocks: Sequence[_SessionBlock],
+    *,
+    session_gap_seconds: float,
+    progress: _ArchiveProgressReporter,
+) -> tuple[SessionReconstruction, ...]:
+    ordered = sorted(
+        blocks,
+        key=lambda block: (
+            block.start_ms,
+            block.end_ms,
+            block.member_order,
+            block.block_order,
+        ),
+    )
+    gap_ms = int(round(session_gap_seconds * 1000.0))
+    completed: list[SessionReconstruction] = []
+    current_events: list[TrajectoryEvent] = []
+    current_end_times: list[int] = []
+    current_start_ms: int | None = None
+    current_end_ms: int | None = None
+    current_trajectory_count = 0
+    physical_session_index = 0
+
+    def flush() -> None:
+        nonlocal current_events, current_end_times
+        nonlocal current_start_ms, current_end_ms
+        nonlocal current_trajectory_count, physical_session_index
+        if current_start_ms is None or current_end_ms is None:
+            return
+
+        physical_session_index += 1
+        progress.current_session = physical_session_index
+        regimes = reconstruct_event_regimes(
+            current_events,
+            start_timestamp_ms=current_start_ms,
+            end_timestamp_ms=current_end_ms,
+            trajectory_count=current_trajectory_count,
+            trajectory_end_timestamps_ms=current_end_times,
+            session_index=physical_session_index,
+            sampling_seconds=2.0,
+            bin_seconds=2.0,
+        )
+        completed.extend(regimes)
+        for regime_events in _partition_segment_events(
+            current_events,
+            regimes,
+        ):
+            store.append_final(regime_events)
+
+        progress.emit()
+        current_events.clear()
+        current_end_times.clear()
+        current_start_ms = None
+        current_end_ms = None
+        current_trajectory_count = 0
+
+    for block in ordered:
+        if current_start_ms is None:
+            current_start_ms = block.start_ms
+            current_end_ms = block.end_ms
+            current_trajectory_count = block.trajectory_count
+        else:
+            assert current_end_ms is not None
+            if block.start_ms - current_end_ms > gap_ms:
+                flush()
+                current_start_ms = block.start_ms
+                current_end_ms = block.end_ms
+                current_trajectory_count = block.trajectory_count
+            else:
+                current_end_ms = max(current_end_ms, block.end_ms)
+                current_trajectory_count += block.trajectory_count
+
+        end_times, events = store.load_session(block.event_store_index)
+        current_end_times.extend(end_times)
+        current_events.extend(events)
+        progress.note_session(
+            trajectories=current_trajectory_count,
+            events=len(current_events),
+            session=physical_session_index + 1,
+        )
+
+    flush()
+    return tuple(completed)
+
+
+def _stream_members_into_store(
+    store: SegmentEventStore,
+    members: Iterable[tuple[int, str, BinaryIO]],
+    *,
+    total_members: int,
+    session_gap_seconds: float,
+    progress_callback: ProgressCallback | None,
+    isolate_member_errors: bool,
+    filename: str,
+    source_format: str,
+) -> ArchiveAnalysis:
+    if session_gap_seconds <= 0:
+        store.close()
+        raise ValueError("session_gap_seconds must be positive")
+
+    progress = _ArchiveProgressReporter(
+        total_members=total_members,
+        callback=progress_callback,
+    )
+    blocks: list[_SessionBlock] = []
+    member_errors: list[dict[str, str]] = []
+    trajectory_count = 0
+    event_count = 0
+    gap_ms = int(round(session_gap_seconds * 1000.0))
+
+    for member_order, member_name, member_stream in members:
+        progress.processed_members += 1
+        checkpoint = store.checkpoint()
+        block_start = len(blocks)
+        writer = _MemberSessionWriter(
+            store=store,
+            blocks=blocks,
+            member_order=member_order,
+            gap_ms=gap_ms,
+            progress=progress,
+        )
+        try:
+            for trajectory in iter_trajectory_payload_stream(member_stream):
+                writer.add(trajectory)
+            writer.flush()
+            if writer.trajectory_count <= 0:
+                raise ValueError("no usable car trajectories found")
+        except (
+            ValueError,
+            TypeError,
+            json.JSONDecodeError,
+            UnicodeDecodeError,
+            KeyError,
+            OverflowError,
+            OSError,
+        ) as exc:
+            store.rollback(checkpoint)
+            del blocks[block_start:]
+            if not isolate_member_errors:
+                store.close()
+                raise
+            member_errors.append(
+                {"member": member_name, "error": str(exc)}
+            )
+            progress.member_errors += 1
+        else:
+            trajectory_count += writer.trajectory_count
+            event_count += writer.event_count
+            progress.trajectories += writer.trajectory_count
+            progress.events += writer.event_count
+        finally:
+            progress.emit()
+
+    if trajectory_count <= 0:
+        store.close()
+        details = "; ".join(
+            f"{item['member']}: {item['error']}"
+            for item in member_errors
+        ) or "no usable trajectories"
+        raise ValueError(
+            f"{source_format.upper()} archive could not be analyzed: {details}"
+        )
+
+    sessions = _reconstruct_streamed_sessions(
+        store,
+        blocks,
+        session_gap_seconds=session_gap_seconds,
+        progress=progress,
+    )
+    final_progress = progress.emit(done=True)
+    return ArchiveAnalysis(
+        filename=filename,
+        source_format=source_format,
+        json_member_count=total_members,
+        trajectory_count=trajectory_count,
+        event_count=event_count,
+        sessions=sessions,
+        segment_events=store,
+        member_errors=tuple(member_errors),
+        progress=final_progress,
+    )
+
+
 def analyze_json_stream(
     stream: BinaryIO,
     *,
     filename: str,
     session_gap_seconds: float = DEFAULT_SESSION_GAP_SECONDS,
+    progress_callback: ProgressCallback | None = None,
 ) -> ArchiveAnalysis:
-    payload = json.load(stream)
-    trajectories = load_trajectory_payload(payload)
-    sessions = reconstruct_trajectory_sessions(
-        trajectories,
+    return _stream_members_into_store(
+        SegmentEventStore(),
+        [(0, filename, stream)],
+        total_members=1,
         session_gap_seconds=session_gap_seconds,
-    )
-    all_events = tuple(
-        extract_events_from_trajectories(trajectories)
-    )
-    segment_events = _partition_segment_events(
-        all_events,
-        sessions,
-    )
-    return ArchiveAnalysis(
+        progress_callback=progress_callback,
+        isolate_member_errors=False,
         filename=filename,
         source_format="json",
-        json_member_count=1,
-        trajectory_count=len(trajectories),
-        event_count=len(all_events),
-        sessions=sessions,
-        segment_events=segment_events,
     )
 
 
@@ -1431,70 +1885,12 @@ def analyze_zip_stream(
     *,
     filename: str,
     session_gap_seconds: float = DEFAULT_SESSION_GAP_SECONDS,
+    progress_callback: ProgressCallback | None = None,
 ) -> ArchiveAnalysis:
     if session_gap_seconds <= 0:
         raise ValueError("session_gap_seconds must be positive")
-    gap_ms = int(round(session_gap_seconds * 1000.0))
-
-    completed: list[SessionReconstruction] = []
-    completed_segment_events: list[
-        tuple[TrajectoryEvent, ...]
-    ] = []
-    current_events: list[TrajectoryEvent] = []
-    current_start_ms: int | None = None
-    current_end_ms: int | None = None
-    current_trajectory_count = 0
-    current_trajectory_end_times: list[int] = []
-    physical_session_index = 0
-    total_trajectories = 0
-    total_events = 0
-    member_errors: list[dict[str, str]] = []
-    compact_blocks: list[
-        tuple[
-            int,
-            int,
-            int,
-            tuple[int, ...],
-            tuple[TrajectoryEvent, ...],
-            str,
-        ]
-    ] = []
-
-    def flush_current() -> None:
-        nonlocal current_events
-        nonlocal current_start_ms
-        nonlocal current_end_ms
-        nonlocal current_trajectory_count
-        nonlocal current_trajectory_end_times
-        nonlocal physical_session_index
-
-        if current_start_ms is None or current_end_ms is None:
-            return
-        physical_session_index += 1
-        regimes = reconstruct_event_regimes(
-            current_events,
-            start_timestamp_ms=current_start_ms,
-            end_timestamp_ms=current_end_ms,
-            trajectory_count=current_trajectory_count,
-            trajectory_end_timestamps_ms=current_trajectory_end_times,
-            session_index=physical_session_index,
-            sampling_seconds=2.0,
-            bin_seconds=2.0,
-        )
-        completed.extend(regimes)
-        completed_segment_events.extend(
-            _partition_segment_events(
-                current_events,
-                regimes,
-            )
-        )
-        current_events = []
-        current_start_ms = None
-        current_end_ms = None
-        current_trajectory_count = 0
-        current_trajectory_end_times = []
-
-    with zipfile.ZipFile(stream) as archive:
+    archive = zipfile.ZipFile(stream)
+    try:
         members = [
             member
             for member in archive.infolist()
@@ -1504,122 +1900,23 @@ def analyze_zip_stream(
         if not members:
             raise ValueError("ZIP archive contains no JSON trajectory files")
 
-        for member in members:
-            try:
+        def member_inputs() -> Iterator[tuple[int, str, BinaryIO]]:
+            for index, member in enumerate(members):
                 with archive.open(member) as handle:
-                    payload = json.load(handle)
-                trajectories = load_trajectory_payload(payload)
-            except (ValueError, TypeError, json.JSONDecodeError, UnicodeDecodeError) as exc:
-                member_errors.append(
-                    {
-                        "member": member.filename,
-                        "error": str(exc),
-                    }
-                )
-                continue
+                    yield index, member.filename, handle
 
-            if not trajectories:
-                member_errors.append(
-                    {
-                        "member": member.filename,
-                        "error": "no usable car trajectories found",
-                    }
-                )
-                continue
-
-            total_trajectories += len(trajectories)
-            member_sessions = split_trajectories_into_sessions(
-                trajectories,
-                session_gap_seconds=session_gap_seconds,
-            )
-            del payload
-            del trajectories
-
-            for trajectory_session in member_sessions:
-                block_start_ms, block_end_ms = _session_bounds(
-                    trajectory_session
-                )
-                block_events = tuple(
-                    extract_events_from_trajectories(
-                        trajectory_session
-                    )
-                )
-                block_end_times = tuple(
-                    _trajectory_interval_ms(item)[1]
-                    for item in trajectory_session
-                )
-                total_events += len(block_events)
-                compact_blocks.append(
-                    (
-                        block_start_ms,
-                        block_end_ms,
-                        len(trajectory_session),
-                        block_end_times,
-                        block_events,
-                        member.filename,
-                    )
-                )
-
-    for (
-        block_start_ms,
-        block_end_ms,
-        block_trajectory_count,
-        block_end_times,
-        block_events,
-        _member_name,
-    ) in sorted(
-        compact_blocks,
-        key=lambda item: (
-            item[0],
-            item[1],
-            item[5],
-        ),
-    ):
-        if current_start_ms is None:
-            current_start_ms = block_start_ms
-            current_end_ms = block_end_ms
-            current_trajectory_count = block_trajectory_count
-            current_trajectory_end_times.extend(block_end_times)
-            current_events.extend(block_events)
-            continue
-
-        assert current_end_ms is not None
-        if block_start_ms - current_end_ms > gap_ms:
-            flush_current()
-            current_start_ms = block_start_ms
-            current_end_ms = block_end_ms
-            current_trajectory_count = block_trajectory_count
-            current_trajectory_end_times.extend(block_end_times)
-            current_events.extend(block_events)
-            continue
-
-        current_start_ms = min(current_start_ms, block_start_ms)
-        current_end_ms = max(current_end_ms, block_end_ms)
-        current_trajectory_count += block_trajectory_count
-        current_trajectory_end_times.extend(block_end_times)
-        current_events.extend(block_events)
-
-    flush_current()
-    if not completed:
-        details = (
-            "; ".join(
-                f"{item['member']}: {item['error']}"
-                for item in member_errors
-            )
-            or "no usable trajectories"
+        return _stream_members_into_store(
+            SegmentEventStore(),
+            member_inputs(),
+            total_members=len(members),
+            session_gap_seconds=session_gap_seconds,
+            progress_callback=progress_callback,
+            isolate_member_errors=True,
+            filename=filename,
+            source_format="zip",
         )
-        raise ValueError(f"ZIP archive could not be analyzed: {details}")
-
-    return ArchiveAnalysis(
-        filename=filename,
-        source_format="zip",
-        json_member_count=len(members),
-        trajectory_count=total_trajectories,
-        event_count=total_events,
-        sessions=tuple(completed),
-        segment_events=tuple(completed_segment_events),
-        member_errors=tuple(member_errors),
-    )
+    finally:
+        archive.close()
 
 
 def analyze_trajectory_stream(
@@ -1627,6 +1924,7 @@ def analyze_trajectory_stream(
     *,
     filename: str,
     session_gap_seconds: float = DEFAULT_SESSION_GAP_SECONDS,
+    progress_callback: ProgressCallback | None = None,
 ) -> ArchiveAnalysis:
     lowered = filename.lower()
     if lowered.endswith(".json"):
@@ -1634,11 +1932,13 @@ def analyze_trajectory_stream(
             stream,
             filename=filename,
             session_gap_seconds=session_gap_seconds,
+            progress_callback=progress_callback,
         )
     if lowered.endswith(".zip"):
         return analyze_zip_stream(
             stream,
             filename=filename,
             session_gap_seconds=session_gap_seconds,
+            progress_callback=progress_callback,
         )
     raise ValueError("Only JSON and ZIP trajectory files are supported")

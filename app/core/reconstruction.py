@@ -286,13 +286,20 @@ def split_trajectories_into_sessions(
 ) -> list[tuple[Trajectory, ...]]:
     """Split trajectories at large unobserved time gaps."""
     gap_ms = _validate_session_gap(session_gap_seconds)
-    ordered = sorted(
-        trajectories,
-        key=lambda trajectory: (
-            _trajectory_interval_ms(trajectory)[0],
-            _trajectory_interval_ms(trajectory)[1],
+    ordered_with_intervals = sorted(
+        (
+            (
+                *_trajectory_interval_ms(trajectory),
+                trajectory,
+            )
+            for trajectory in trajectories
         ),
+        key=lambda item: (item[0], item[1]),
     )
+    ordered = [
+        trajectory
+        for _start_ms, _end_ms, trajectory in ordered_with_intervals
+    ]
     if not ordered:
         return []
 

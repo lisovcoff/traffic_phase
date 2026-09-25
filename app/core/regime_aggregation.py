@@ -682,6 +682,10 @@ def _consensus_phases(
     return phases
 
 
+def _cycle_bucket(cycle_seconds: float) -> int:
+    return floor(float(cycle_seconds) / CYCLE_TOLERANCE_SECONDS)
+
+
 def build_regime_families(
     sessions: Sequence[SessionReconstruction],
     *,
@@ -710,6 +714,7 @@ def build_regime_families(
         ),
     )
     families: list[_FamilyWork] = []
+    families_by_cycle_bucket: dict[int, list[_FamilyWork]] = {}
 
     for session_id, session in ordered:
         signature = _session_signature(session)
@@ -738,7 +743,13 @@ def build_regime_families(
             ]
         ] = []
 
-        for family in families:
+        cycle_bucket = _cycle_bucket(cycle)
+        candidate_families = (
+            family
+            for bucket in range(cycle_bucket - 1, cycle_bucket + 2)
+            for family in families_by_cycle_bucket.get(bucket, ())
+        )
+        for family in candidate_families:
             reference_cycle = float(
                 family.reference.phase_model.cycle_seconds
             )
@@ -842,22 +853,25 @@ def build_regime_families(
             chosen = None
 
         if chosen is None:
-            families.append(
-                _FamilyWork(
-                    reference_id=session_id,
-                    reference=session,
-                    reference_signature=signature,
-                    reference_axis_signature=axis_signature,
-                    members=[
-                        (
-                            session_id,
-                            session,
-                            0,
-                            1.0,
-                        )
-                    ],
-                )
+            family = _FamilyWork(
+                reference_id=session_id,
+                reference=session,
+                reference_signature=signature,
+                reference_axis_signature=axis_signature,
+                members=[
+                    (
+                        session_id,
+                        session,
+                        0,
+                        1.0,
+                    )
+                ],
             )
+            families.append(family)
+            families_by_cycle_bucket.setdefault(
+                _cycle_bucket(cycle),
+                [],
+            ).append(family)
             continue
 
         (
