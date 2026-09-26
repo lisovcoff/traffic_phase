@@ -28,6 +28,18 @@ button:disabled{opacity:.45;cursor:default}
 select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;padding:8px}
 .stat{min-width:135px;flex:1;background:#10141a;border-radius:10px;padding:10px}
 .stat span{display:block;color:#8f9aaa;font-size:12px}.stat strong{display:block;margin-top:4px;font-size:18px}
+.operator-alert{border:1px solid #ef6576;background:#241519;color:#fff1f3;border-radius:14px;padding:14px 16px;margin-top:14px;display:flex;gap:12px;flex-direction:column}
+.operator-alert.recovery{border-color:#f2cc5c;background:#262116}
+.operator-alert.override{border-color:#8fb7ff;background:#151c28}
+.operator-alert.insufficient{border-color:#a7afba;background:#1b1f25}
+.operator-grid{display:grid;grid-template-columns:repeat(6,minmax(145px,1fr));gap:10px;margin-top:14px}
+.operator-card{background:#10141a;border:1px solid #2f3741;border-radius:12px;padding:12px;min-width:0}
+.operator-card.large{grid-column:span 2}.operator-card span{display:block;color:#8f9aaa;font-size:11px;letter-spacing:.04em}
+.operator-card strong{display:block;margin-top:5px;font-size:17px;overflow-wrap:anywhere}.operator-card small{display:block;margin-top:5px;color:#7f8a99;line-height:1.35}
+.operator-card.low-confidence{border-color:#f2cc5c}.operator-card.unknown-card{border-color:#ef6576;background:#21171b}.operator-card.recovery-card{border-color:#f2cc5c}
+.operator-section-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.operator-badge{padding:5px 9px;border-radius:999px;background:#242a33;font-size:11px}.operator-badge.unknown{border:1px solid #ef6576;letter-spacing:.06em}.operator-badge.override{border:1px solid #8fb7ff}
+.operator-detail-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin:12px 0}.operator-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+.operator-item{background:#10141a;border-radius:9px;border:1px solid #303743;padding:9px;font-size:12px}.operator-item.unknown{border-color:#ef6576;color:#fff1f3}.operator-item.template{border-style:dashed}
 #batchSlider{width:100%}.timelinebar{display:flex;height:34px;border-radius:8px;overflow:hidden;background:#11151b;margin:10px 0}
 .player-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 .player-jumps{display:flex;gap:8px;flex-wrap:wrap}
@@ -240,22 +252,51 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
 
   <div class="panel notice">
     <strong>Warm-start template:</strong> <span id="templateStatus" class="muted">Run Batch on a reference archive first.</span><br>
-    <span class="muted small">Realtime inference is causal: detections become visible only when their own timestamp is reached. The browser does not compute phases.</span>
+    <span class="muted small">Realtime inference is causal. The browser renders backend snapshots and never infers phase or signal state.</span>
   </div>
 
   <div id="realtimeViewer" class="hidden">
-    <div class="panel stats">
-      <div class="stat"><span>Simulated time</span><strong id="realtimeTime">—</strong></div>
-      <div class="stat"><span>Current phase</span><strong id="realtimePhase">UNKNOWN</strong></div>
-      <div class="stat"><span>Active movement groups</span><strong id="realtimeMovements">—</strong></div>
-      <div class="stat"><span>Confidence</span><strong id="realtimeConfidence">0.00</strong></div>
-      <div class="stat"><span>Synchronizer</span><strong id="realtimeSync" class="warmup">WARMUP</strong></div>
-      <div class="stat"><span>Adaptive mode</span><strong id="realtimeAdaptive">NORMAL</strong></div>
-      <div class="stat"><span>Phase offset</span><strong id="realtimeOffset">—</strong></div>
-      <div class="stat"><span>Template compatibility</span><strong id="realtimeCompatibility">CHECKING</strong></div>
-      <div class="stat"><span>Unable post-sync</span><strong id="realtimeUnknownPostSync">—</strong></div>
-      <div class="stat"><span>Unable last 60s</span><strong id="realtimeUnknownRolling">—</strong></div>
-      <div class="stat"><span>Deviation / reason</span><strong id="realtimeDeviation">—</strong></div>
+    <div id="realtimeOperatorAlert" class="operator-alert hidden">
+      <strong id="realtimeOperatorAlertTitle">UNKNOWN</strong>
+      <span id="realtimeOperatorAlertText">The current signal state is not confirmed.</span>
+    </div>
+
+    <div class="operator-grid primary">
+      <div class="operator-card large"><span>CURRENT TIME</span><strong id="realtimeTime">—</strong><small id="realtimeTimestampMs">—</small></div>
+      <div class="operator-card"><span>SYNC STATUS</span><strong id="realtimeSync">WARMUP</strong><small id="realtimeSyncDetail">—</small></div>
+      <div class="operator-card"><span>CURRENT PHASE</span><strong id="realtimePhase">UNKNOWN</strong><small id="realtimePhaseBasis">—</small></div>
+      <div id="realtimeConfidenceCard" class="operator-card"><span>CONFIDENCE</span><strong id="realtimeConfidence">0.00</strong><small id="realtimeConfidenceDetail">—</small></div>
+    </div>
+
+    <div class="operator-grid">
+      <div id="realtimeObservabilityCard" class="operator-card"><span>OBSERVABILITY</span><strong id="realtimeObservability">INSUFFICIENT_DATA</strong><small id="realtimeObservabilityDetail">—</small></div>
+      <div id="realtimeUnknownCard" class="operator-card unknown-card"><span>UNKNOWN REASON</span><strong id="realtimeUnknownReason">—</strong><small id="realtimeUnknownRate">—</small></div>
+      <div class="operator-card"><span>TEMPLATE COMPATIBILITY</span><strong id="realtimeCompatibility">CHECKING</strong><small id="realtimeCompatibilityDetail">—</small></div>
+      <div class="operator-card"><span>ADAPTIVE MODE</span><strong id="realtimeAdaptive">NORMAL</strong><small id="realtimeAdaptiveDetail">—</small></div>
+      <div class="operator-card"><span>PHASE EXTENSION</span><strong id="realtimeExtension">INACTIVE</strong><small id="realtimeExtensionDetail">—</small></div>
+      <div class="operator-card"><span>EXTENSION DURATION</span><strong id="realtimeExtensionDuration">0.0 s</strong><small id="realtimeExtensionCount">0 evidence event(s)</small></div>
+    </div>
+
+    <div class="panel">
+      <div class="operator-section-heading">
+        <div><h3>Effective live state</h3><span class="muted small">Backend effective snapshot used for operator display.</span></div>
+        <span id="realtimeLiveStateBadge" class="operator-badge unknown">UNKNOWN / UNCONFIRMED</span>
+      </div>
+      <div class="operator-detail-grid">
+        <div class="detail-card"><span>Effective axis</span><strong id="realtimeEffectiveAxis">—</strong></div>
+        <div class="detail-card"><span>Template axis</span><strong id="realtimeTemplateAxis">—</strong></div>
+        <div class="detail-card"><span>Template deviation</span><strong id="realtimeDeviation">—</strong></div>
+        <div class="detail-card"><span>Adaptive reason</span><strong id="realtimeAdaptiveReason">—</strong></div>
+      </div>
+      <div id="realtimeEffectiveMovements" class="operator-list"></div>
+    </div>
+
+    <div class="panel">
+      <div class="operator-section-heading">
+        <div><h3>Template state</h3><span class="muted small">Historical warm-start model state supplied by the backend.</span></div>
+        <span id="realtimeTemplateBadge" class="operator-badge">MODEL</span>
+      </div>
+      <div id="realtimeTemplateStates" class="operator-list"></div>
     </div>
 
     <div class="panel">
@@ -781,53 +822,169 @@ async function deleteRealtimeSilently(){
   realtimeId=null;realtimeSnapshot=null;
 }
 
+function realtimeUnknownReason(snapshot){
+  const reasons=Object.values(snapshot.unknown_reasons||{}).filter(Boolean);
+  if(reasons.length)return [...new Set(reasons)].join(', ');
+  return snapshot.diagnostic_reason||'—';
+}
+function realtimeDeterminationStatus(snapshot){
+  return snapshot.determination_status
+    ||(snapshot.observability&&snapshot.observability.determination_status)
+    ||'INSUFFICIENT_DATA';
+}
+function realtimeObservabilityLevel(snapshot){
+  return (snapshot.traffic_observability&&snapshot.traffic_observability.level)
+    ||(snapshot.observability&&snapshot.observability.traffic_observability&&snapshot.observability.traffic_observability.level)
+    ||'INSUFFICIENT_DATA';
+}
+function renderOperatorList(holder,items,template){
+  holder.innerHTML='';
+  if(!items.length){
+    const empty=document.createElement('div');empty.className='muted small';empty.textContent='No backend state returned.';holder.appendChild(empty);return;
+  }
+  items.forEach(item=>{
+    const row=document.createElement('div');
+    row.className='operator-item'+(template?' template':'')+(item.unknown?' unknown':'');
+    row.textContent=item.text;
+    holder.appendChild(row);
+  });
+}
+function renderTemplateStateList(snapshot){
+  const states=snapshot.template_signal_states||{};
+  renderOperatorList(
+    $('realtimeTemplateStates'),
+    Object.entries(states).map(([approach,state])=>({
+      text:approach+' · '+state,
+      unknown:state==='UNKNOWN'
+    })),
+    true
+  );
+}
+function renderEffectiveMovementList(snapshot){
+  const movementStates=snapshot.effective_movement_states||{};
+  const fallback=snapshot.active_movements||[];
+  const items=Object.entries(movementStates).map(([movement,details])=>({
+    text:movement+' · '+(details.effective_state||'UNKNOWN')+' · conf '+Number(details.confidence||0).toFixed(2)+(details.reason?' · '+details.reason:''),
+    unknown:details.effective_state==='UNKNOWN'
+  }));
+  renderOperatorList(
+    $('realtimeEffectiveMovements'),
+    items.length?items:fallback.map(item=>({
+      text:item.movement+' · '+(item.state||'UNKNOWN'),
+      unknown:(item.state||'UNKNOWN')==='UNKNOWN'
+    })),
+    false
+  );
+}
+function renderRealtimeOperatorAlert(snapshot,status,adaptiveMode,confidence){
+  const alert=$('realtimeOperatorAlert');
+  alert.className='operator-alert';
+  if(status==='INSUFFICIENT_DATA'){
+    alert.classList.add('insufficient');
+    $('realtimeOperatorAlertTitle').textContent='INSUFFICIENT DATA';
+    $('realtimeOperatorAlertText').textContent='Not enough usable traffic evidence to confirm realtime signal state. No phase is shown as confirmed.';
+  }else if(adaptiveMode==='RECOVERY'){
+    alert.classList.add('recovery');
+    $('realtimeOperatorAlertTitle').textContent='RECOVERY · PHASE NOT CONFIRMED';
+    $('realtimeOperatorAlertText').textContent='Backend is resynchronizing after an adaptive deviation. Current phase/state is UNKNOWN until recovery completes.';
+  }else if(adaptiveMode==='LIVE_OVERRIDE'){
+    alert.classList.add('override');
+    $('realtimeOperatorAlertTitle').textContent='LIVE OVERRIDE · TEMPLATE DEVIATION';
+    $('realtimeOperatorAlertText').textContent='Effective live state deviates from the historical template: template '+(snapshot.template_expected_axis||'—')+', live '+(snapshot.effective_axis||'—')+'.';
+  }else if(status!=='KNOWN'||confidence<0.20){
+    alert.classList.add('unknown');
+    $('realtimeOperatorAlertTitle').textContent='LOW CONFIDENCE · STATE NOT FULLY CONFIRMED';
+    $('realtimeOperatorAlertText').textContent='Backend returned a low-confidence snapshot. Treat the current signal state as uncertain.';
+  }else{
+    alert.classList.add('hidden');
+  }
+}
 function renderRealtimeSnapshot(snapshot){
   if(mode!=='realtime')return;
   $('sharedState').classList.remove('hidden');
+
   const adaptiveMode=snapshot.adaptive_mode||'NORMAL';
-  const expectedAxis=snapshot.template_expected_axis||'—';
-  const effectiveAxis=snapshot.effective_axis||'—';
-  $('sharedHint').textContent=adaptiveMode==='LIVE_OVERRIDE'
-    ?'Live override: template '+expectedAxis+', traffic evidence '+effectiveAxis+'.'
-    :(adaptiveMode==='RECOVERY'
-      ?'Realtime backend is resynchronizing after a temporary template deviation.'
-      :'Realtime backend snapshot. UNKNOWN means the phase cannot be determined from the available evidence. Signal colors are modeled from the inferred phase, not observed lamps.');
-  const date=new Date(snapshot.simulated_timestamp_ms);
-  $('realtimeTime').textContent=date.toLocaleString();
-  $('realtimePhase').textContent=snapshot.phase_id==null?'UNKNOWN':'Phase '+snapshot.phase_id;
-  const realtimeMovements=snapshot.active_movements||[];
-  $('realtimeMovements').textContent=realtimeMovements.length?realtimeMovements.map(item=>item.movement).join(', '):'—';
-  $('realtimeConfidence').textContent=Number(snapshot.confidence||0).toFixed(2);
-  $('realtimeSync').textContent=snapshot.synchronization_status||'WARMUP';
-  $('realtimeSync').className=snapshot.synchronization_status==='SYNCHRONIZED'?'ok':'warmup';
-  $('realtimeAdaptive').textContent=adaptiveMode+(effectiveAxis!=='—'?' · '+effectiveAxis:'');
-  $('realtimeAdaptive').className=adaptiveMode==='NORMAL'?'ok':'warmup';
-  $('realtimeOffset').textContent=snapshot.phase_offset_s==null?'—':Number(snapshot.phase_offset_s).toFixed(1)+' s';
+  const status=realtimeDeterminationStatus(snapshot);
+  const observabilityLevel=realtimeObservabilityLevel(snapshot);
+  const confidence=Number(snapshot.confidence||0);
   const compatibility=snapshot.template_compatibility||'CHECKING';
-  $('realtimeCompatibility').textContent=compatibility+' · match '+(Number(snapshot.synchronization_match_ratio||0)*100).toFixed(0)+'%';
-  $('realtimeCompatibility').className=compatibility==='COMPATIBLE'?'ok':(compatibility==='INCOMPATIBLE'?'error':'warmup');
-  const unknown=snapshot.unknown_metrics||{};
-  $('realtimeUnknownPostSync').textContent=unknown.post_sync_rate==null?'—':(unknown.post_sync_rate*100).toFixed(2)+'%';
-  $('realtimeUnknownRolling').textContent=unknown.rolling_60s_rate==null?'—':(unknown.rolling_60s_rate*100).toFixed(2)+'%';
-  const reasonValues=Object.values(snapshot.unknown_reasons||{});
-  const reason=reasonValues.length?[...new Set(reasonValues)].join(', '):(snapshot.warmup_reason||'—');
-  const deviation=snapshot.template_deviation_seconds==null?'':(' · extension +'+Number(snapshot.template_deviation_seconds).toFixed(1)+'s');
-  $('realtimeDeviation').textContent=reason+deviation;
+  const reason=realtimeUnknownReason(snapshot);
+  const extensionDuration=Number(snapshot.phase_extension_duration_seconds||0);
+  const phaseConfirmed=status==='KNOWN'&&adaptiveMode!=='RECOVERY';
+
+  renderRealtimeOperatorAlert(snapshot,status,adaptiveMode,confidence);
+
+  const date=new Date(Number(snapshot.timestamp_ms||snapshot.simulated_timestamp_ms));
+  $('realtimeTime').textContent=date.toLocaleString();
+  $('realtimeTimestampMs').textContent='backend timestamp '+Number(snapshot.timestamp_ms||snapshot.simulated_timestamp_ms);
+  $('realtimeSync').textContent=snapshot.synchronization_status||'WARMUP';
+  $('realtimeSyncDetail').textContent='offset '+(snapshot.phase_offset_s==null?'—':Number(snapshot.phase_offset_s).toFixed(2)+' s')+' · match '+(Number(snapshot.synchronization_match_ratio||0)*100).toFixed(0)+'%';
+
+  $('realtimePhase').textContent=adaptiveMode==='RECOVERY'
+    ?'UNKNOWN · RECOVERY'
+    :status==='KNOWN'
+      ?(snapshot.phase_id==null?'UNKNOWN':'Phase '+snapshot.phase_id)
+      :(snapshot.phase_id==null?'UNKNOWN':'Phase '+snapshot.phase_id+' · UNCERTAIN');
+  $('realtimePhaseBasis').textContent=adaptiveMode==='LIVE_OVERRIDE'
+    ?'template '+(snapshot.template_expected_axis||'—')+' · live '+(snapshot.effective_axis||'—')
+    :(phaseConfirmed?'backend snapshot · confirmed by observability':'backend snapshot · not confirmed');
+
+  $('realtimeConfidence').textContent=confidence.toFixed(2);
+  $('realtimeConfidenceDetail').textContent='phase '+Number(snapshot.phase_confidence||0).toFixed(2)+' · traffic '+Number(snapshot.traffic_evidence_confidence||0).toFixed(2)+' · adaptive '+Number(snapshot.adaptive_confidence||0).toFixed(2);
+  $('realtimeConfidenceCard').classList.toggle('low-confidence',status!=='KNOWN'||confidence<0.50);
+
+  $('realtimeObservability').textContent=observabilityLevel+' · '+status;
+  const trafficObs=snapshot.traffic_observability||{};
+  $('realtimeObservabilityDetail').textContent='evidence density '+Number(trafficObs.evidence_density||0).toFixed(2)+' · determined '+(Number(trafficObs.determined_rate||0)*100).toFixed(0)+'%';
+  const unknownRate=trafficObs.unknown_rate;
+  $('realtimeUnknownReason').textContent=status==='KNOWN'?'NONE':reason;
+  $('realtimeUnknownRate').textContent='UNKNOWN rate '+(unknownRate==null?'—':(Number(unknownRate)*100).toFixed(1)+'%')+' · longest '+(trafficObs.longest_unknown_interval_seconds==null?'—':Number(trafficObs.longest_unknown_interval_seconds).toFixed(1)+' s');
+  $('realtimeUnknownCard').classList.toggle('unknown-card',status!=='KNOWN');
+
+  $('realtimeCompatibility').textContent=compatibility;
+  $('realtimeCompatibilityDetail').textContent='match '+(Number(snapshot.synchronization_match_ratio||0)*100).toFixed(0)+'% · deviation '+(snapshot.template_deviation_seconds==null?'—':Number(snapshot.template_deviation_seconds).toFixed(1)+' s');
+
+  $('realtimeAdaptive').textContent=adaptiveMode;
+  $('realtimeAdaptiveDetail').textContent=snapshot.adaptive_reason||'No adaptive deviation active';
+
+  $('realtimeExtension').textContent=extensionDuration>0?'ACTIVE':'INACTIVE';
+  $('realtimeExtensionDetail').textContent=(snapshot.phase_extension_event_count||0)+' evidence event(s) · peak '+Number(snapshot.phase_extension_peak_duration_seconds||0).toFixed(1)+' s';
+  $('realtimeExtensionDuration').textContent=extensionDuration.toFixed(1)+' s';
+  $('realtimeExtensionCount').textContent=(snapshot.phase_extension_event_count||0)+' evidence event(s)';
+
+  $('realtimeEffectiveAxis').textContent=snapshot.effective_axis||'—';
+  $('realtimeTemplateAxis').textContent=snapshot.template_expected_axis||'—';
+  $('realtimeDeviation').textContent=snapshot.template_deviation_seconds==null?'—':Number(snapshot.template_deviation_seconds).toFixed(2)+' s';
+  $('realtimeAdaptiveReason').textContent=snapshot.adaptive_reason||'—';
+
+  const liveBadge=$('realtimeLiveStateBadge');
+  const effectiveUnknown=status!=='KNOWN'||adaptiveMode==='RECOVERY'||confidence<0.20;
+  liveBadge.textContent=effectiveUnknown?'UNKNOWN / UNCONFIRMED':'EFFECTIVE LIVE';
+  liveBadge.className='operator-badge '+(effectiveUnknown?'unknown':(adaptiveMode==='LIVE_OVERRIDE'?'override':''));
+
+  renderEffectiveMovementList(snapshot);
+  renderTemplateStateList(snapshot);
+
+  $('realtimeTemplateBadge').textContent=adaptiveMode==='LIVE_OVERRIDE'?'DEVIATING':(compatibility==='COMPATIBLE'?'COMPATIBLE':'MODEL');
+  $('realtimeTemplateBadge').className='operator-badge '+(adaptiveMode==='LIVE_OVERRIDE'?'override':'');
+
   const progress=Math.round(Number(snapshot.progress||0)*1000)/10;
   $('realtimeProgressText').textContent=progress.toFixed(1)+'% · '+(snapshot.finished?'finished':'running');
   $('realtimeProgressBar').style.width=progress+'%';
-  $('realtimeSource').textContent=snapshot.source.filename+' · '+snapshot.source.trajectory_count+' trajectories';
-  const evidence=snapshot.evidence_summary||{};
-  $('syncEvidence').textContent=String(evidence.synchronization_evidence_count||0);
-  $('bufferEvents').textContent=String(evidence.buffer_event_count||0);
-  $('emittedTrajectories').textContent=String(evidence.emitted_trajectory_count||0);
-  $('emittedEvents').textContent=String(evidence.emitted_event_count||0);
-  $('remainingTrajectories').textContent=String(evidence.remaining_trajectory_count||0);
-  renderSignalRenderer(snapshot.signal_renderer||null);
-}
+  const source=snapshot.source||{};
+  $('realtimeSource').textContent=(source.filename||'—')+' · '+Number(source.trajectory_count||0)+' trajectories';
 
-function renderSignalRenderer(data){
-  const holder=$('signalRenderer');
+  $('syncEvidence').textContent=String(snapshot.synchronization_evidence_count||0);
+  $('bufferEvents').textContent=String(snapshot.buffer_event_count||0);
+  $('emittedTrajectories').textContent=String((snapshot.evidence_summary&&snapshot.evidence_summary.emitted_trajectory_count)||0);
+  $('emittedEvents').textContent=String((snapshot.evidence_summary&&snapshot.evidence_summary.emitted_event_count)||0);
+  $('remainingTrajectories').textContent=String((snapshot.evidence_summary&&snapshot.evidence_summary.remaining_trajectory_count)||0);
+
+  $('sharedHint').textContent='Realtime operator dashboard. Phase and signal state values are backend snapshots; browser does not infer phases.';
+  renderSignalRenderer(snapshot.signal_renderer||null,'signalRenderer');
+}
+function renderSignalRenderer(data,targetId='signalRenderer'){
+  const holder=$(targetId);
   holder.innerHTML='';
   if(!data||!Array.isArray(data.heads)){
     const empty=document.createElement('div');

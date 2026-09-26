@@ -133,3 +133,27 @@ def test_visualization_page_contains_backend_only_batch_player():
     assert all(token in html for token in required)
     assert "SignalStateEstimator" not in html
     assert "EventPhaseDiscovery" not in html
+
+def test_visualization_contains_realtime_operator_dashboard_contract():
+    html = visualization_page()
+    required = (
+        "CURRENT TIME",
+        "SYNC STATUS",
+        "CURRENT PHASE",
+        "CONFIDENCE",
+        "OBSERVABILITY",
+        "UNKNOWN REASON",
+        "TEMPLATE COMPATIBILITY",
+        "ADAPTIVE MODE",
+        "PHASE EXTENSION",
+        "EXTENSION DURATION",
+        "realtimeTemplateStates",
+        "realtimeEffectiveMovements",
+        "realtimeOperatorAlert",
+        "INSUFFICIENT DATA",
+        "LIVE OVERRIDE",
+        "RECOVERY",
+        "renderRealtimeSnapshot(snapshot)",
+        "renderSignalRenderer(snapshot.signal_renderer||null,'signalRenderer')",
+    )
+    assert all(token in html for token in required)

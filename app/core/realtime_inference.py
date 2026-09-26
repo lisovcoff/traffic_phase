@@ -33,7 +33,10 @@ from app.core.realtime_phase_sync import (
     RealtimePhaseSynchronizer,
     RealtimePhaseTemplate,
 )
-from app.core.signal_renderer import build_signal_renderer_data
+from app.core.signal_renderer import (
+    RendererSignalSource,
+    build_signal_renderer_data,
+)
 from app.core.signal_state_estimator import (
     DEFAULT_RED_YELLOW_DURATION_SECONDS,
     DEFAULT_YELLOW_DURATION_SECONDS,
@@ -87,6 +90,7 @@ class RealtimeInferenceSnapshot:
     intersection_config: dict[str, object] | None = None
     signal_head_states: dict[str, str] | None = None
     signal_renderer: dict[str, object] | None = None
+    template_signal_renderer: dict[str, object] | None = None
     determination_status: DeterminationStatus = DeterminationStatus.INSUFFICIENT_DATA
     diagnostic_reason: DiagnosticReason | None = None
     observability: ObservabilitySnapshot | None = None
@@ -634,6 +638,10 @@ class RealtimeSignalInferenceEngine:
                 else []
             )
 
+        renderer_config = (
+            self.intersection_config
+            or DEFAULT_INTERSECTION_CONFIG
+        )
         compatibility = self._template_compatibility(synchronization)
         realtime_observability = build_realtime_observability(
             buffered_events,
@@ -832,8 +840,46 @@ class RealtimeSignalInferenceEngine:
                 if state.signal_head_id is not None
             },
             signal_renderer=build_signal_renderer_data(
-                self.intersection_config,
-                result.approaches,
+                renderer_config,
+                state_by_head={
+                    head.id: signal_states.get(head.approach, "UNKNOWN")
+                    for head in renderer_config.signal_heads
+                },
+                confidence=confidence,
+                source=(
+                    RendererSignalSource.UNKNOWN
+                    if realtime_observability.determination_status
+                    is not DeterminationStatus.KNOWN
+                    else (
+                        RendererSignalSource.MODELLED_TRANSITION
+                        if adaptive.mode
+                        in {
+                            AdaptiveRealtimeMode.PHASE_EXTENSION,
+                            AdaptiveRealtimeMode.LIVE_OVERRIDE,
+                        }
+                        else RendererSignalSource.INFERRED_MODEL
+                    )
+                ),
+            ),
+            template_signal_renderer=build_signal_renderer_data(
+                renderer_config,
+                state_by_head={
+                    head.id: template_signal_states.get(
+                        head.approach,
+                        "UNKNOWN",
+                    )
+                    for head in renderer_config.signal_heads
+                },
+                confidence=(
+                    float(template_phase.confidence)
+                    if template_phase is not None
+                    else 0.0
+                ),
+                source=(
+                    RendererSignalSource.INFERRED_MODEL
+                    if template_phase is not None
+                    else RendererSignalSource.UNKNOWN
+                ),
             ),
             duplicate=duplicate,
             determination_status=realtime_observability.determination_status,
@@ -896,6 +942,10 @@ class RealtimeSignalInferenceEngine:
         duplicate: bool,
         adaptive: AdaptiveRealtimeDecision | None = None,
     ) -> RealtimeInferenceSnapshot:
+        renderer_config = (
+            self.intersection_config
+            or DEFAULT_INTERSECTION_CONFIG
+        )
         states = {
             approach: "UNKNOWN"
             for approach in self.topology.approaches
@@ -1034,6 +1084,24 @@ class RealtimeSignalInferenceEngine:
                 else None
             ),
             signal_head_states=None,
+            signal_renderer=build_signal_renderer_data(
+                renderer_config,
+                state_by_head={
+                    head.id: "UNKNOWN"
+                    for head in renderer_config.signal_heads
+                },
+                confidence=0.0,
+                source=RendererSignalSource.UNKNOWN,
+            ),
+            template_signal_renderer=build_signal_renderer_data(
+                renderer_config,
+                state_by_head={
+                    head.id: "UNKNOWN"
+                    for head in renderer_config.signal_heads
+                },
+                confidence=0.0,
+                source=RendererSignalSource.UNKNOWN,
+            ),
             duplicate=duplicate,
             determination_status=warm_observability.determination_status,
             diagnostic_reason=warm_observability.diagnostic_reason,
