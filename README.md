@@ -251,10 +251,23 @@ INCOMPATIBLE instead of being presented as synchronized.
 
 ## Browser demonstration
 
-Run:
+Development run:
 
 ```powershell
 python -m uvicorn app.main:app --reload
+```
+
+Production run:
+
+```powershell
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Container run:
+
+```powershell
+docker build -t traffic-phase .
+docker run --rm -p 8000:8000 traffic-phase
 ```
 
 Open `http://127.0.0.1:8000/visualization`.
@@ -265,7 +278,7 @@ Open `http://127.0.0.1:8000/visualization`.
 2. analyze it;
 3. select a session when more than one exists;
 4. inspect cycle, confidence, phase model, timeline, slider/playback, and the
-   shared NS/EW intersection view.
+   shared configured-intersection view.
 
 **Realtime simulation**:
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from threading import RLock
 
 from fastapi import APIRouter, HTTPException
@@ -167,9 +168,19 @@ def _build_topology(
 
 
 class RealtimeEngineRegistry:
-    def __init__(self) -> None:
-        self._engines: dict[str, RealtimeOnlineSession] = {}
+    """Bounded process-local registry for long-lived realtime streams."""
+
+    def __init__(self, *, max_streams: int = 128) -> None:
+        if max_streams <= 0:
+            raise ValueError("max_streams must be positive")
+        self.max_streams = int(max_streams)
+        self._engines: OrderedDict[str, RealtimeOnlineSession] = OrderedDict()
         self._lock = RLock()
+
+    @property
+    def stream_count(self) -> int:
+        with self._lock:
+            return len(self._engines)
 
     def get_or_create(
         self,
@@ -254,7 +265,11 @@ class RealtimeEngineRegistry:
                     raise ValueError(
                         "stream already exists with a different topology"
                     )
+                self._engines.move_to_end(stream_id)
                 return engine
+
+            while len(self._engines) >= self.max_streams:
+                self._engines.popitem(last=False)
 
             engine = RealtimeOnlineSession(
                 phase_model,
@@ -267,6 +282,7 @@ class RealtimeEngineRegistry:
                 intersection_config=intersection_config,
             )
             self._engines[stream_id] = engine
+            self._engines.move_to_end(stream_id)
             return engine
 
     def reset(self, stream_id: str) -> None:

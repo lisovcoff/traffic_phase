@@ -339,7 +339,12 @@ class ArchiveAnalysis:
 
     def to_dict(self, *, timeline_points: int = DEFAULT_TIMELINE_POINTS) -> dict[str, object]:
         session_payloads = [
-            _session_payload(index, session, timeline_points=timeline_points)
+            _session_payload(
+                index,
+                session,
+                timeline_points=timeline_points,
+                intersection_config=self.intersection_config,
+            )
             for index, session in enumerate(self.sessions, start=1)
         ]
         if self.intersection_config is not None:
@@ -444,7 +449,8 @@ class ArchiveAnalysis:
                     "effective_phase_model"
                 )
                 effective_timeline = _phase_model_cycle_timeline(
-                    effective_model
+                    effective_model,
+                    intersection_config=self.intersection_config,
                 )
                 session_payloads[index]["effective_timeline"] = (
                     effective_timeline
@@ -1095,26 +1101,30 @@ def _axis_state(
 
 def _timeline_unknown_metrics(
     timeline: list[dict[str, object]],
+    *,
+    approaches: Sequence[str] | None = None,
 ) -> dict[str, object]:
-    """Report observability, not a target to eliminate UNKNOWN.
+    """Report observability, not a target to eliminate UNKNOWN."""
+    if approaches is None:
+        discovered: list[str] = []
+        seen: set[str] = set()
+        for point in timeline:
+            for approach in dict(point.get("states", {}) or {}):
+                if approach not in seen:
+                    seen.add(approach)
+                    discovered.append(approach)
+        approach_names = tuple(discovered)
+    else:
+        approach_names = tuple(str(value) for value in approaches)
 
-    UNKNOWN is the expected answer whenever the phase cannot be supported by
-    the available indirect traffic evidence. No arbitrary '<1%' target is
-    applied.
-    """
-    approaches = ("N", "S", "E", "W")
     if not timeline:
         return {
             "sample_count": 0,
             "overall_rate": None,
             "unable_to_determine_rate": None,
             "determined_rate": None,
-            "per_approach_rate": {
-                approach: None for approach in approaches
-            },
-            "longest_unknown_s": {
-                approach: None for approach in approaches
-            },
+            "per_approach_rate": {approach: None for approach in approach_names},
+            "longest_unknown_s": {approach: None for approach in approach_names},
             "reason_rate": {},
             "reason_seconds": {},
         }
@@ -1128,8 +1138,7 @@ def _timeline_unknown_metrics(
                 (
                     int(timeline[index + 1]["timestamp_ms"])
                     - int(point["timestamp_ms"])
-                )
-                / 1000.0,
+                ) / 1000.0,
             )
             for index, point in enumerate(timeline[:-1])
         ]
@@ -1138,83 +1147,59 @@ def _timeline_unknown_metrics(
             weights = [1.0 for _ in timeline]
 
     total_weight = sum(weights)
-    unknown_weight = {
-        approach: 0.0 for approach in approaches
-    }
-    longest = {
-        approach: 0.0 for approach in approaches
-    }
+    unknown_weight = {approach: 0.0 for approach in approach_names}
+    longest = {approach: 0.0 for approach in approach_names}
     reason_weight: dict[str, float] = {}
-    current_run = {
-        approach: 0.0 for approach in approaches
-    }
+    current_run = {approach: 0.0 for approach in approach_names}
 
     for point, weight in zip(timeline, weights):
         states = dict(point.get("states", {}) or {})
         reason = point.get("unknown_reason")
         if reason:
-            reason_weight[str(reason)] = (
-                reason_weight.get(str(reason), 0.0) + weight
-            )
-        for approach in approaches:
+            reason_weight[str(reason)] = reason_weight.get(str(reason), 0.0) + weight
+        for approach in approach_names:
             if states.get(approach, "UNKNOWN") == "UNKNOWN":
                 unknown_weight[approach] += weight
                 current_run[approach] += weight
-                longest[approach] = max(
-                    longest[approach],
-                    current_run[approach],
-                )
+                longest[approach] = max(longest[approach], current_run[approach])
             else:
                 current_run[approach] = 0.0
 
     per_approach = {
-        approach: round(
-            unknown_weight[approach] / total_weight,
-            4,
-        )
-        if total_weight > 0
-        else None
-        for approach in approaches
+        approach: round(unknown_weight[approach] / total_weight, 4)
+        if total_weight > 0 else None
+        for approach in approach_names
     }
     overall_unknown = sum(unknown_weight.values())
-    overall_denominator = total_weight * len(approaches)
+    overall_denominator = total_weight * len(approach_names)
     unable_rate = (
         round(overall_unknown / overall_denominator, 4)
-        if overall_denominator > 0
-        else None
+        if overall_denominator > 0 else None
     )
-    determined_rate = (
-        round(1.0 - unable_rate, 4)
-        if unable_rate is not None
-        else None
-    )
+    determined_rate = round(1.0 - unable_rate, 4) if unable_rate is not None else None
     return {
-        # overall_rate is retained for API compatibility; semantically it is
-        # identical to unable_to_determine_rate.
         "overall_rate": unable_rate,
         "unable_to_determine_rate": unable_rate,
         "determined_rate": determined_rate,
         "sample_count": len(timeline),
         "per_approach_rate": per_approach,
         "longest_unknown_s": {
-            approach: round(value, 3)
-            for approach, value in longest.items()
+            approach: round(value, 3) for approach, value in longest.items()
         },
-        "reason_rate": {
-            reason: round(weight / total_weight, 4)
-            for reason, weight in reason_weight.items()
-        } if total_weight > 0 else {},
+        "reason_rate": (
+            {reason: round(weight / total_weight, 4) for reason, weight in reason_weight.items()}
+            if total_weight > 0 else {}
+        ),
         "reason_seconds": {
-            reason: round(weight, 3)
-            for reason, weight in reason_weight.items()
+            reason: round(weight, 3) for reason, weight in reason_weight.items()
         },
     }
-
 
 def build_session_timeline(
     session: SessionReconstruction,
     *,
     max_points: int = DEFAULT_TIMELINE_POINTS,
+    intersection_config: IntersectionConfig | None = None,
 ) -> list[dict[str, object]]:
     if max_points <= 0:
         raise ValueError("max_points must be positive")
@@ -1240,9 +1225,15 @@ def build_session_timeline(
             for index in range(point_count)
         ]
 
+    intersection_config = (
+        intersection_config or DEFAULT_INTERSECTION_CONFIG
+    )
+    topology = intersection_config.to_topology()
     estimator = SignalStateEstimator(
         session.phase_model,
         event_origin_ms=session.phase_model.origin_timestamp_ms,
+        topology=topology,
+        intersection_config=intersection_config,
     )
     timeline: list[dict[str, object]] = []
     for timestamp_ms in timestamps:
@@ -1295,8 +1286,8 @@ def build_session_timeline(
                 "states": states,
                 "unknown_reason": unknown_reason,
                 "axis_states": {
-                    "NS": _axis_state(states, ("N", "S")),
-                    "EW": _axis_state(states, ("E", "W")),
+                    family.name: _axis_state(states, family.approaches)
+                    for family in topology.families
                 },
             }
         )
@@ -1805,6 +1796,7 @@ def _phase_model_cycle_timeline(
             else DEFAULT_INTERSECTION_CONFIG
         )
     approaches = tuple(intersection_config.approaches)
+    topology = intersection_config.to_topology()
     timeline: list[dict[str, object]] = []
 
     for index in range(point_count):
@@ -1836,13 +1828,17 @@ def _phase_model_cycle_timeline(
             confidence = float(phase.get("confidence", 0.0))
             for approach in active_approaches:
                 states[approach] = "GREEN"
-            active_set = set(active_approaches)
-            if active_set and active_set <= {"N", "S"}:
-                states["E"] = "RED"
-                states["W"] = "RED"
-            elif active_set and active_set <= {"E", "W"}:
-                states["N"] = "RED"
-                states["S"] = "RED"
+            for approach in approaches:
+                if approach in active_approaches:
+                    continue
+                if any(
+                    topology.approaches_conflict(
+                        approach,
+                        active,
+                    )
+                    for active in active_approaches
+                ):
+                    states[approach] = "RED"
 
         active_movements = [
             item
@@ -1880,15 +1876,14 @@ def _phase_model_cycle_timeline(
                 intersection_config,
                 state_by_head={
                     head.id: (
-                        "GREEN"
-                        if any(
-                            str(item.get("movement", "")) in head.movement_ids
-                            for item in active_movements
-                        )
+                        states.get(head.approach, "UNKNOWN")
+                        if head.is_primary
                         else (
-                            "RED"
-                            if phase is not None
-                            and head.approach in active_approaches
+                            "GREEN"
+                            if any(
+                                str(item.get("movement", "")) in head.movement_ids
+                                for item in active_movements
+                            )
                             else "UNKNOWN"
                         )
                     )
@@ -1902,8 +1897,8 @@ def _phase_model_cycle_timeline(
                 ),
             ),
             "axis_states": {
-                "NS": _axis_state(states, ("N", "S")),
-                "EW": _axis_state(states, ("E", "W")),
+                family.name: _axis_state(states, family.approaches)
+                for family in topology.families
             },
         })
     return timeline
@@ -1914,10 +1909,15 @@ def _session_payload(
     session: SessionReconstruction,
     *,
     timeline_points: int,
+    intersection_config: IntersectionConfig | None = None,
 ) -> dict[str, object]:
+    intersection_config = (
+        intersection_config or DEFAULT_INTERSECTION_CONFIG
+    )
     timeline = build_session_timeline(
         session,
         max_points=timeline_points,
+        intersection_config=intersection_config,
     )
     gap_semantics = _gap_semantics(session)
     phase_model = _compact_phase_model(session)
@@ -2048,7 +2048,8 @@ def _session_payload(
         "effective_timeline": effective_timeline,
         "player": player_payload,
         "effective_unknown_metrics": _timeline_unknown_metrics(
-            effective_timeline
+            effective_timeline,
+            approaches=intersection_config.approaches,
         ),
         "effective_uncovered_cycle_intervals": (
             _phase_model_dict_gaps(effective_phase_model)
@@ -2059,7 +2060,10 @@ def _session_payload(
             phase_model if template_usability["usable"] else None
         ),
         "timeline": timeline,
-        "unknown_metrics": _timeline_unknown_metrics(timeline),
+        "unknown_metrics": _timeline_unknown_metrics(
+            timeline,
+            approaches=intersection_config.approaches,
+        ),
         "uncovered_cycle_intervals": _phase_coverage_gaps(
             session.phase_model
         ),

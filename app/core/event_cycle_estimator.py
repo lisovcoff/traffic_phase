@@ -6,6 +6,10 @@ from typing import Iterable, Sequence
 import numpy as np
 
 from app.core.cycle_estimator import CycleEstimate, CycleEstimator
+from app.core.intersection_topology import (
+    DEFAULT_INTERSECTION_TOPOLOGY,
+    IntersectionTopology,
+)
 from app.core.models import EventType, TrajectoryEvent
 
 
@@ -67,15 +71,21 @@ def build_event_flow_signal(
     events: Iterable[TrajectoryEvent],
     *,
     sampling_seconds: float = 2.0,
+    topology: IntersectionTopology | None = None,
 ) -> EventFlowSignal:
     if sampling_seconds <= 0:
         raise ValueError("sampling_seconds must be positive")
+
+    topology = topology or DEFAULT_INTERSECTION_TOPOLOGY
+    families = tuple(topology.families)
+    if not families:
+        raise ValueError("topology requires at least one signal family")
 
     selected = [
         event
         for event in events
         if event.event_type in {EventType.RELEASE, EventType.CROSSING}
-        and _axis(event.approach) is not None
+        and event.approach in topology.approaches
     ]
     if not selected:
         raise ValueError("no usable RELEASE/CROSSING events")
@@ -85,13 +95,17 @@ def build_event_flow_signal(
     n_bins = int(np.floor((end_ms - start_ms) / 1000.0 / sampling_seconds)) + 1
     signal = np.zeros(max(1, n_bins), dtype=float)
 
-    counts = {"N": 0, "S": 0, "E": 0, "W": 0}
+    counts = {approach: 0 for approach in topology.approaches}
     for event in selected:
         index = int(
             (event.timestamp_ms - start_ms) / 1000.0 / sampling_seconds
         )
         weight = 1.0 if event.event_type == EventType.RELEASE else 0.5
-        if _axis(event.approach) == "EW":
+        family = topology.family_for_approach(event.approach)
+        # Preserve the signed two-family representation for the default and
+        # custom two-family intersections. With three or more families,
+        # avoid inventing an arbitrary sign axis.
+        if len(families) == 2 and family == families[1].name:
             weight *= -1.0
         signal[index] += weight
         counts[event.approach] += 1
@@ -117,10 +131,12 @@ def estimate_event_cycle(
     estimator: CycleEstimator | None = None,
     sampling_seconds: float = 2.0,
     min_events: int = 8,
+    topology: IntersectionTopology | None = None,
 ) -> EventCycleEstimate:
     flow = build_event_flow_signal(
         events,
         sampling_seconds=sampling_seconds,
+        topology=topology,
     )
     if flow.used_events < min_events:
         raise ValueError(

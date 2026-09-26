@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import pytest
 
+from app.core.archive_analysis import (
+    _phase_model_cycle_timeline,
+    _timeline_unknown_metrics,
+)
+from app.core.event_cycle_estimator import estimate_event_cycle
 from app.core.event_phase_discovery import EventPhaseDiscovery
 from app.core.realtime_inference import RealtimeSignalInferenceEngine
+from app.api.realtime import RealtimeEngineRegistry
 from app.core.realtime_phase_sync import RealtimePhaseSynchronizer, RealtimePhaseTemplate
 from app.api.realtime import (
     PhasePayload,
@@ -104,6 +110,60 @@ def test_custom_physical_names_are_not_interpreted_by_direction(factory):
     if fixture.name == "complex_overlap":
         assert set(config.approaches) == {"A1", "A2", "B1", "B2"}
         assert set(topology.conflicting_approaches_for("A1")) == {"B1", "B2"}
+
+
+def test_batch_helpers_use_configured_topology_for_custom_names():
+    fixture = FIXTURES[-1]()
+    topology = fixture.config.to_topology()
+
+    cycle = estimate_event_cycle(
+        fixture.events,
+        topology=topology,
+    )
+    assert cycle.flow.used_events == len(fixture.events)
+    assert set(cycle.flow.counts_by_direction) == set(topology.approaches)
+
+    timeline = _phase_model_cycle_timeline(
+        fixture.phase_model.to_dict(),
+        intersection_config=fixture.config,
+        max_points=4,
+    )
+    states = timeline[0]["states"]
+    assert states["A1"] == "GREEN"
+    assert states["A2"] == "GREEN"
+    assert states["B1"] == "RED"
+    assert states["B2"] == "RED"
+
+    metrics = _timeline_unknown_metrics(
+        timeline,
+        approaches=topology.approaches,
+    )
+    assert set(metrics["per_approach_rate"]) == set(topology.approaches)
+
+
+def test_realtime_engine_registry_is_bounded():
+    registry = RealtimeEngineRegistry(max_streams=2)
+
+    def create(stream_id):
+        return registry.get_or_create(
+            stream_id,
+            phase_model=None,
+            event_origin_ms=None,
+            recent_window_s=12.0,
+            yellow_duration_seconds=3.0,
+            red_yellow_duration_seconds=2.0,
+            baseline=None,
+            topology=None,
+            intersection_config=None,
+        )
+
+    first = create("stream-1")
+    create("stream-2")
+    create("stream-3")
+
+    assert registry.stream_count == 2
+    assert create("stream-1") is not first
+    assert registry.stream_count == 2
 
 
 def test_default_config_remains_backward_compatible():
