@@ -9,6 +9,10 @@ from typing import Iterable, Sequence
 from app.core.event_cycle_estimator import EventCycleEstimate, estimate_event_cycle
 from app.core.event_phase_discovery import EventPhaseDiscovery, EventPhaseDiscoveryResult
 from app.core.intersection_config import IntersectionConfig
+from app.core.intersection_topology import (
+    DEFAULT_INTERSECTION_TOPOLOGY,
+    IntersectionTopology,
+)
 from app.core.models import EventType, Trajectory, TrajectoryEvent
 from app.core.observability import (
     DiagnosticReason,
@@ -166,9 +170,15 @@ def _estimate_models(
     bin_seconds: float,
     intersection_config: IntersectionConfig | None = None,
 ) -> tuple[EventCycleEstimate, EventPhaseDiscoveryResult]:
+    topology = (
+        intersection_config.to_topology()
+        if intersection_config is not None
+        else DEFAULT_INTERSECTION_TOPOLOGY
+    )
     cycle = estimate_event_cycle(
         events,
         sampling_seconds=sampling_seconds,
+        topology=topology,
     )
     phase_model = EventPhaseDiscovery(
         bin_seconds=bin_seconds,
@@ -365,75 +375,68 @@ def _raw_axis_signature(
     *,
     cycle_seconds: float,
     anchor_timestamp_ms: int,
+    topology: IntersectionTopology | None = None,
 ) -> tuple[int, ...]:
-    """Fit a coarse NS/EW timing plan directly from raw traffic evidence.
+    """Fit a coarse two-family timing plan directly from raw traffic evidence.
 
-    This deliberately does not call EventPhaseDiscovery. Regime detection
-    must remain able to notice a same-cycle timing-plan change even when the
-    downstream movement-specific phase model is exactly what is degraded by
-    mixing those plans.
+    Regime detection stays independent from EventPhaseDiscovery so it can
+    notice a timing-plan change even when the downstream movement model is
+    degraded by mixing plans. Family membership comes from configured
+    topology rather than compass direction names.
     """
     cycle = float(cycle_seconds)
     if cycle <= 0:
         return ()
 
+    topology = topology or DEFAULT_INTERSECTION_TOPOLOGY
+    families = tuple(topology.families)
+    if len(families) != 2:
+        return ()
+
     n_bins = REGIME_PHASE_SIGNATURE_BINS
-    ns = [0.0] * n_bins
-    ew = [0.0] * n_bins
-    axis_events = {"NS": 0, "EW": 0}
-    axis_cycles: dict[str, set[int]] = {
-        "NS": set(),
-        "EW": set(),
-    }
+    profiles = {family.name: [0.0] * n_bins for family in families}
+    family_events = {family.name: 0 for family in families}
+    family_cycles = {family.name: set() for family in families}
 
     for event in events:
-        if event.event_type not in {
-            EventType.RELEASE,
-            EventType.CROSSING,
-        }:
+        if event.event_type not in {EventType.RELEASE, EventType.CROSSING}:
             continue
-        if event.approach in {"N", "S"}:
-            axis = "NS"
-            profile = ns
-        elif event.approach in {"E", "W"}:
-            axis = "EW"
-            profile = ew
-        else:
+        family_name = topology.family_for_approach(event.approach)
+        if family_name is None or family_name not in profiles:
             continue
 
-        relative_s = (
-            event.timestamp_ms - anchor_timestamp_ms
-        ) / 1000.0
+        relative_s = (event.timestamp_ms - anchor_timestamp_ms) / 1000.0
         cycle_index = int(relative_s // cycle)
         position_s = relative_s % cycle
-        bin_id = min(
-            n_bins - 1,
-            int(position_s / cycle * n_bins),
-        )
+        bin_id = min(n_bins - 1, int(position_s / cycle * n_bins))
         weight = (
-            1.0
-            if event.event_type == EventType.RELEASE
-            else 0.5
+            1.0 if event.event_type == EventType.RELEASE else 0.5
         ) * max(0.0, min(1.0, float(event.confidence)))
         if weight <= 0:
             continue
-        profile[bin_id] += weight
-        axis_events[axis] += 1
-        axis_cycles[axis].add(cycle_index)
+        profiles[family_name][bin_id] += weight
+        family_events[family_name] += 1
+        family_cycles[family_name].add(cycle_index)
 
+    first, second = families
     if (
-        min(axis_events.values()) < 6
-        or min(len(value) for value in axis_cycles.values()) < 3
+        min(family_events[first.name], family_events[second.name]) < 6
+        or min(
+            len(family_cycles[first.name]),
+            len(family_cycles[second.name]),
+        ) < 3
     ):
         return ()
 
-    ns_total = sum(ns)
-    ew_total = sum(ew)
-    if ns_total <= 0.0 or ew_total <= 0.0:
+    first_profile = profiles[first.name]
+    second_profile = profiles[second.name]
+    first_total = sum(first_profile)
+    second_total = sum(second_profile)
+    if first_total <= 0.0 or second_total <= 0.0:
         return ()
-    ns = [value / ns_total for value in ns]
-    ew = [value / ew_total for value in ew]
 
+    first_profile = [value / first_total for value in first_profile]
+    second_profile = [value / second_total for value in second_profile]
     min_phase_bins = max(
         1,
         int(round(DEFAULT_MIN_PHASE_SECONDS / cycle * n_bins)),
@@ -441,14 +444,14 @@ def _raw_axis_signature(
     if n_bins < 2 * min_phase_bins:
         return ()
 
-    ns2 = ns + ns
-    ew2 = ew + ew
-    ns_prefix = [0.0]
-    ew_prefix = [0.0]
-    for value in ns2:
-        ns_prefix.append(ns_prefix[-1] + value)
-    for value in ew2:
-        ew_prefix.append(ew_prefix[-1] + value)
+    first2 = first_profile + first_profile
+    second2 = second_profile + second_profile
+    first_prefix = [0.0]
+    second_prefix = [0.0]
+    for value in first2:
+        first_prefix.append(first_prefix[-1] + value)
+    for value in second2:
+        second_prefix.append(second_prefix[-1] + value)
 
     best_score = float("-inf")
     best_start = 0
@@ -459,9 +462,9 @@ def _raw_axis_signature(
             n_bins - min_phase_bins + 1,
         ):
             end = start + length
-            ns_inside = ns_prefix[end] - ns_prefix[start]
-            ew_inside = ew_prefix[end] - ew_prefix[start]
-            score = ns_inside + (1.0 - ew_inside)
+            first_inside = first_prefix[end] - first_prefix[start]
+            second_inside = second_prefix[end] - second_prefix[start]
+            score = first_inside + (1.0 - second_inside)
             if score > best_score:
                 best_score = score
                 best_start = start
@@ -471,7 +474,6 @@ def _raw_axis_signature(
     for offset in range(best_length):
         signature[(best_start + offset) % n_bins] = 1
     return tuple(signature)
-
 
 def _phase_signature_distance(
     left: Sequence[int],
@@ -508,6 +510,7 @@ def _rolling_cycle_windows(
     step_seconds: float,
     sampling_seconds: float,
     min_cycle_confidence: float,
+    topology: IntersectionTopology | None = None,
 ) -> tuple[RollingCycleWindow, ...]:
     if window_seconds <= 0 or step_seconds <= 0:
         raise ValueError("regime window and step must be positive")
@@ -563,6 +566,7 @@ def _rolling_cycle_windows(
                         sample,
                         cycle_seconds=result.estimate.cycle_seconds,
                         anchor_timestamp_ms=start_ms,
+                        topology=topology,
                     )
                 except ValueError:
                     # Keep period-only regime detection if raw phase-shape
@@ -766,6 +770,7 @@ def split_event_session_into_regimes(
     events: Sequence[TrajectoryEvent],
     *,
     start_timestamp_ms: int | None = None,
+    intersection_config: IntersectionConfig | None = None,
     end_timestamp_ms: int | None = None,
     sampling_seconds: float = 2.0,
     regime_window_seconds: float = DEFAULT_REGIME_WINDOW_SECONDS,
@@ -798,12 +803,18 @@ def split_event_session_into_regimes(
         if end_timestamp_ms is not None
         else ordered[-1].timestamp_ms
     )
+    topology = (
+        intersection_config.to_topology()
+        if intersection_config is not None
+        else DEFAULT_INTERSECTION_TOPOLOGY
+    )
     windows = _rolling_cycle_windows(
         ordered,
         window_seconds=regime_window_seconds,
         step_seconds=regime_step_seconds,
         sampling_seconds=sampling_seconds,
         min_cycle_confidence=regime_min_cycle_confidence,
+        topology=topology,
     )
     boundaries = confirmed_cycle_regime_boundaries(
         windows,
@@ -1204,6 +1215,7 @@ def reconstruct_event_regimes(
         regime_confirmation_windows=regime_confirmation_windows,
         regime_period_tolerance_seconds=regime_period_tolerance_seconds,
         regime_min_cycle_confidence=regime_min_cycle_confidence,
+        intersection_config=intersection_config,
     )
     if not regimes:
         return ()
