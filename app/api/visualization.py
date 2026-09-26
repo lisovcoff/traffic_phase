@@ -29,6 +29,31 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
 .stat{min-width:135px;flex:1;background:#10141a;border-radius:10px;padding:10px}
 .stat span{display:block;color:#8f9aaa;font-size:12px}.stat strong{display:block;margin-top:4px;font-size:18px}
 #batchSlider{width:100%}.timelinebar{display:flex;height:34px;border-radius:8px;overflow:hidden;background:#11151b;margin:10px 0}
+.player-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.player-jumps{display:flex;gap:8px;flex-wrap:wrap}
+.player-readout{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin:12px 0}
+.player-readout>div,.detail-card{background:#10141a;border-radius:10px;padding:10px}
+.player-readout span,.detail-card span{display:block;color:#8f9aaa;font-size:11px}
+.player-readout strong,.detail-card strong{display:block;margin-top:4px}
+.timeline-axis{display:flex;justify-content:space-between;color:#7f8a99;font-size:10px;margin-top:4px}
+.timeline-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;color:#98a2b3;font-size:11px}
+.timeline-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:#536170}
+.timeline-legend .legend-movement{background:#6b6578}.timeline-legend .legend-unknown{background:#343943}.timeline-legend .legend-transition{background:#8b7450}.timeline-legend .legend-extension{background:#596d87}.timeline-legend .legend-anomaly{background:#875d66}
+.timeline-lanes{display:grid;grid-template-columns:82px 1fr;gap:6px 10px;margin-top:12px}
+.timeline-lane-label{color:#8f9aaa;font-size:11px;align-self:center}
+.timeline-lane{min-height:26px;position:relative;border-radius:6px;background:#10141a;overflow:hidden}
+.timeline-segment{position:absolute;top:3px;bottom:3px;border-radius:4px;min-width:2px;background:#596777;cursor:pointer}
+.timeline-segment.phase{background:#495d55}.timeline-segment.movement{background:#665c72}
+.timeline-segment.unknown{background:#343943;border:1px dashed #8f98a5}.timeline-segment.transition{background:#8b7450}
+.timeline-segment.extension{background:#596d87;border:1px dashed #b4c1d0}.timeline-segment.anomaly{background:#875d66}
+.timeline-segment.active{outline:2px solid #eef2f7;outline-offset:-2px}
+.player-detail .detail-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.player-detail h4{margin:0 0 8px}.detail-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin:12px 0}
+.detail-columns{display:grid;grid-template-columns:1fr 1fr;gap:14px}.detail-list{display:grid;gap:6px}
+.detail-item{background:#10141a;border-radius:8px;padding:8px;font-size:12px}
+.batch-player button:disabled{opacity:.35}
+@media(max-width:900px){.player-readout,.detail-grid{grid-template-columns:1fr 1fr}.detail-columns{grid-template-columns:1fr}}
+@media(max-width:640px){.player-readout,.detail-grid{grid-template-columns:1fr}.timeline-lanes{grid-template-columns:1fr}.timeline-lane-label{margin-top:6px}}
 .segment{min-width:2px;border-right:1px solid #11151b}.segment.ns{background:#314b40}.segment.ew{background:#4b3e31}.segment.unknown{background:#343943}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .signal-renderer{--signal-gap:12px;display:grid;gap:var(--signal-gap);grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
@@ -118,14 +143,69 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       </div>
     </details>
 
-    <div class="panel">
-      <div class="controls">
-        <button id="batchPlay" class="secondary">Play</button>
-        <button id="batchPause" class="secondary">Pause</button>
-        <span id="batchTimeLabel" class="muted">—</span>
+    <div class="panel batch-player">
+      <div class="player-toolbar">
+        <div class="controls">
+          <button id="batchPlay" class="primary">Play</button>
+          <button id="batchPause" class="secondary">Pause</button>
+          <label for="batchSpeed">Speed</label>
+          <select id="batchSpeed">
+            <option value="0.5">x0.5</option>
+            <option value="1" selected>x1</option>
+            <option value="2">x2</option>
+            <option value="4">x4</option>
+            <option value="10">x10</option>
+            <option value="50">MAX</option>
+          </select>
+          <strong id="batchTimeLabel">—</strong>
+        </div>
+        <div class="player-jumps">
+          <button id="batchPrevPhase" class="secondary">Previous phase</button>
+          <button id="batchNextPhase" class="secondary">Next phase</button>
+          <button id="batchNextUnknown" class="secondary">Next UNKNOWN</button>
+          <button id="batchNextExtension" class="secondary">Next extension</button>
+          <button id="batchNextAnomaly" class="secondary">Next anomaly</button>
+        </div>
       </div>
-      <input id="batchSlider" type="range" min="0" max="0" value="0" step="1">
-      <div id="phaseTimeline" class="timelinebar" title="Bounded phase timeline returned by the backend"></div>
+      <div class="player-readout">
+        <div><span>Exact timestamp</span><strong id="batchExactTimestamp">—</strong></div>
+        <div><span>Cycle position</span><strong id="batchCyclePosition">—</strong></div>
+        <div><span>Phase boundaries</span><strong id="batchBoundaryReadout">—</strong></div>
+        <div><span>Timeline status</span><strong id="batchTimelineStatus">—</strong></div>
+      </div>
+      <input id="batchSlider" type="range" min="0" max="0" value="0" step="1" aria-label="Batch reconstruction timeline">
+      <div id="phaseTimeline" class="timelinebar player-track phase-track" title="Backend reconstruction timeline"></div>
+      <div class="timeline-axis" id="batchTimelineAxis"></div>
+      <div class="timeline-legend">
+        <span><i class="legend-phase"></i> phase</span>
+        <span><i class="legend-movement"></i> movement</span>
+        <span><i class="legend-unknown"></i> UNKNOWN</span>
+        <span><i class="legend-transition"></i> transition</span>
+        <span><i class="legend-extension"></i> extension</span>
+        <span><i class="legend-anomaly"></i> anomaly</span>
+      </div>
+      <div class="timeline-lanes">
+        <div class="timeline-lane-label">Movements</div>
+        <div id="movementTimeline" class="timeline-lane"></div>
+        <div class="timeline-lane-label">States</div>
+        <div id="stateTimeline" class="timeline-lane"></div>
+      </div>
+    </div>
+    <div class="panel player-detail">
+      <div class="detail-heading">
+        <div><h3>Selected reconstruction point</h3><span id="batchPointLabel" class="muted small">—</span></div>
+        <span id="batchPlayerAdaptive" class="badge">—</span>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-card"><span>Signal state</span><strong id="batchSignalState">—</strong></div>
+        <div class="detail-card"><span>Phase</span><strong id="batchPlayerPhase">UNKNOWN</strong></div>
+        <div class="detail-card"><span>Confidence</span><strong id="batchPlayerConfidence">0.00</strong></div>
+        <div class="detail-card"><span>Unknown reason</span><strong id="batchUnknownReason">—</strong></div>
+      </div>
+      <div class="detail-columns">
+        <div><h4>Movement states</h4><div id="batchMovementStates" class="detail-list"></div></div>
+        <div><h4>Evidence</h4><div id="batchEvidence" class="detail-list"></div></div>
+      </div>
     </div>
 
     <div class="panel">
@@ -210,7 +290,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
 <script>
 const $=id=>document.getElementById(id);
 let mode='batch';
-let batchAnalysis=null,batchSession=null,batchIndex=0,batchTimer=null;
+let batchAnalysis=null,batchSession=null,batchIndex=0,batchTimer=null,batchSpeed=1;
 let realtimeId=null,realtimeSnapshot=null,realtimeTimer=null;
 
 function setMode(next){
@@ -234,6 +314,12 @@ $('batchSessionSelect').addEventListener('change',()=>openBatchSession(Number($(
 $('batchSlider').addEventListener('input',()=>{batchIndex=Number($('batchSlider').value);renderBatchPoint()});
 $('batchPlay').addEventListener('click',playBatch);
 $('batchPause').addEventListener('click',stopBatch);
+$('batchSpeed').addEventListener('change',()=>{batchSpeed=Number($('batchSpeed').value)||1});
+$('batchPrevPhase').addEventListener('click',()=>jumpBatch('previous_phase'));
+$('batchNextPhase').addEventListener('click',()=>jumpBatch('next_phase'));
+$('batchNextUnknown').addEventListener('click',()=>jumpBatch('next_unknown'));
+$('batchNextExtension').addEventListener('click',()=>jumpBatch('next_extension'));
+$('batchNextAnomaly').addEventListener('click',()=>jumpBatch('next_anomaly'));
 
 $('realtimeFile').addEventListener('change',updateRealtimeStart);
 $('realtimeStart').addEventListener('click',startRealtime);
@@ -343,12 +429,19 @@ function openBatchSession(i){
   $('batchRegimeFamily').textContent=family?(family.family_id+' · '+family.member_count+' member(s) · '+family.model_quality+' · vote '+(Number(family.consensus_coverage||0)*100).toFixed(1)+'%'):'—';
   $('batchPooled').textContent=family?(family.pooling_status+' · '+(family.pooled_event_count||0)+' events · '+(family.pooled_cycle_count||0)+' cycles · coverage '+(family.pooled_coverage==null?'—':(Number(family.pooled_coverage)*100).toFixed(1)+'%')+' · quality '+(family.pooled_model_quality||'—')+' · movement candidates '+(family.pooled_movement_candidate_count||0)+' / stages '+(family.pooled_movement_stage_count||0)):'—';
 
-  const timeline=batchSession.effective_timeline||[];
+  const timeline=(batchSession.player&&batchSession.player.timeline)||batchSession.timeline||[];
+  batchSpeed=Number($('batchSpeed').value)||1;
   $('batchSlider').max=String(Math.max(0,timeline.length-1));
   $('batchSlider').value='0';
   $('batchSlider').disabled=timeline.length===0;
   $('batchPlay').disabled=timeline.length<2;
   $('batchPause').disabled=timeline.length<2;
+  const nav=(batchSession.player&&batchSession.player.navigation)||{};
+  $('batchPrevPhase').disabled=!Array.isArray(nav.phase_starts)||nav.phase_starts.length===0;
+  $('batchNextPhase').disabled=!Array.isArray(nav.phase_starts)||nav.phase_starts.length===0;
+  $('batchNextUnknown').disabled=!Array.isArray(nav.unknown)||nav.unknown.length===0;
+  $('batchNextExtension').disabled=!Array.isArray(nav.extensions)||nav.extensions.length===0;
+  $('batchNextAnomaly').disabled=!Array.isArray(nav.anomalies)||nav.anomalies.length===0;
   buildBatchPhaseModel();
   buildBatchTimeline();
   updateTemplateStatus();
@@ -409,58 +502,191 @@ function buildBatchPhaseModel(){
   if(!movementStages.length&&!movementDecisions.length&&!gapProbes.length&&!pooledStages.length&&!pooledCandidates.length&&!pooledDecisions.length)movementHolder.textContent='No movement-specific signal groups inferred.';
 }
 
-function buildBatchTimeline(){
-  const bar=$('phaseTimeline');bar.innerHTML='';
-  const timeline=batchSession.effective_timeline||[];
-  if(!timeline.length){bar.innerHTML='<div class="segment unknown" style="width:100%"></div>';return}
-  timeline.forEach(point=>{
-    const seg=document.createElement('div');
-    const ns=(point.axis_states&&point.axis_states.NS)||'UNKNOWN';
-    const ew=(point.axis_states&&point.axis_states.EW)||'UNKNOWN';
-    const states=point.states||{};
-    const active=v=>v==='GREEN'||v==='YELLOW'||v==='RED_YELLOW';
-    const cls=(active(states.N)||active(states.S))?'ns':((active(states.E)||active(states.W))?'ew':'unknown');
-    seg.className='segment '+cls;
-    seg.style.width=(100/timeline.length)+'%';
-    seg.title=point.offset_s.toFixed(1)+'s · phase '+(point.phase_id==null?'UNKNOWN':point.phase_id)+' · NS '+ns+' · EW '+ew;
-    bar.appendChild(seg);
-  });
+function playerTimeline(){
+  return (batchSession&&batchSession.player&&batchSession.player.timeline)
+    || (batchSession&&batchSession.timeline)
+    || [];
 }
-
-function renderBatchPoint(){
-  if(mode!=='batch'||!batchSession)return;
-  const timeline=batchSession.effective_timeline||[];
-  $('sharedState').classList.remove('hidden');
-  $('sharedHint').textContent='Backend preview of the effective evidence-backed cycle.';
+function batchPlayerEndTimestamp(index){
+  const timeline=playerTimeline();
+  if(!timeline.length)return null;
+  const next=timeline[index+1];
+  if(next&&Number.isFinite(Number(next.timestamp_ms)))return Number(next.timestamp_ms);
+  return batchSession&&batchSession.end_timestamp_ms!=null?Number(batchSession.end_timestamp_ms):Number(timeline[index].timestamp_ms);
+}
+function percentForTimestamp(timestamp){
+  if(!batchSession)return 0;
+  const start=Number(batchSession.start_timestamp_ms);
+  const end=Number(batchSession.end_timestamp_ms);
+  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)return 0;
+  return Math.max(0,Math.min(100,((Number(timestamp)-start)/(end-start))*100));
+}
+function addTimelineSegment(holder,{start_ms,end_ms,kind,label,index}){
+  const start=Number(start_ms),end=Number(end_ms);
+  const left=percentForTimestamp(start);
+  const width=Math.max(0.35,percentForTimestamp(Math.max(start,end))-left);
+  const seg=document.createElement('button');
+  seg.type='button';seg.dataset.index=String(index);
+  seg.className='timeline-segment '+kind+(index===batchIndex?' active':'');
+  seg.style.left=left+'%';seg.style.width=width+'%';
+  seg.title=label||'';seg.setAttribute('aria-label',label||kind);
+  seg.addEventListener('click',()=>selectBatchIndex(index));
+  holder.appendChild(seg);
+}
+function buildBatchTimeline(){
+  const bar=$('phaseTimeline'),movement=$('movementTimeline'),states=$('stateTimeline');
+  bar.innerHTML='';movement.innerHTML='';states.innerHTML='';
+  const timeline=playerTimeline();
   if(!timeline.length){
-    $('batchPhase').textContent='UNKNOWN';$('batchActiveMovements').textContent='—';$('batchPhaseConfidence').textContent='0.00';
-    $('batchTimeLabel').textContent='No timeline: insufficient inference data';
-    renderSignalRenderer(batchSession.signal_renderer||null);
+    bar.innerHTML='<div class="segment unknown" style="width:100%"></div>';
+    $('batchTimelineAxis').innerHTML='';
     return;
   }
-  const point=timeline[Math.min(batchIndex,timeline.length-1)];
-  $('batchSlider').value=String(batchIndex);
-  $('batchPhase').textContent=point.phase_id==null?'UNKNOWN':('Phase '+point.phase_id+(point.transition?' · transition':''));
-  const batchMovements=point.active_movements||[];
-  $('batchActiveMovements').textContent=batchMovements.length?batchMovements.map(item=>item.movement).join(', '):'—';
-  $('batchPhaseConfidence').textContent=Number(point.confidence||0).toFixed(2);
-  const cycleSeconds=Number((batchSession.effective_phase_model||{}).cycle_seconds||0);
-  $('batchTimeLabel').textContent=point.offset_s.toFixed(1)+' s / '+cycleSeconds.toFixed(1)+' s cycle';
-  renderSignalRenderer(point.signal_renderer||batchSession.signal_renderer||null);
+  timeline.forEach((point,index)=>{
+    const start=Number(point.timestamp_ms),end=batchPlayerEndTimestamp(index)||start;
+    const phase=point.phase_id==null?'UNKNOWN':('Phase '+point.phase_id);
+    addTimelineSegment(bar,{start_ms:start,end_ms:end,kind:point.phase_id==null?'unknown':'phase',
+      label:new Date(start).toISOString()+' · '+phase+' · cycle '+Number(point.cycle_position_s||0).toFixed(1)+'s',index});
+    const stateLabel=Object.entries(point.states||{}).map(([approach,state])=>approach+':'+state).join(' · ');
+    addTimelineSegment(states,{start_ms:start,end_ms:end,kind:point.transition?'transition':(point.unknown_reason?'unknown':'phase'),
+      label:stateLabel||'UNKNOWN',index});
+  });
+  const player=batchSession.player||{};
+  (player.movement_intervals||[]).forEach(interval=>{
+    const start=Number(interval.start_timestamp_ms),end=Number(interval.end_timestamp_ms);
+    const label='Movement '+interval.movement+' · '+Number(interval.cycle_start_s||0).toFixed(1)+'–'+Number(interval.cycle_end_s||0).toFixed(1)+'s';
+    addTimelineSegment(movement,{start_ms:start,end_ms:end,kind:'movement',label,index:nearestBatchIndex(start)});
+  });
+  (player.unknown_intervals||[]).forEach(interval=>addTimelineSegment(bar,{
+    start_ms:Number(interval.start_timestamp_ms),end_ms:Number(interval.end_timestamp_ms),kind:'unknown',
+    label:'UNKNOWN · '+(interval.reason||'unknown'),index:nearestBatchIndex(Number(interval.start_timestamp_ms))}));
+  (player.transition_intervals||[]).forEach(interval=>addTimelineSegment(bar,{
+    start_ms:Number(interval.start_timestamp_ms),end_ms:Number(interval.end_timestamp_ms),kind:'transition',
+    label:'Transition interval',index:nearestBatchIndex(Number(interval.start_timestamp_ms))}));
+  (player.phase_extension_intervals||[]).forEach(interval=>addTimelineSegment(bar,{
+    start_ms:Number(interval.start_timestamp_ms),end_ms:Number(interval.end_timestamp_ms),kind:'extension',
+    label:'Phase extension',index:nearestBatchIndex(Number(interval.start_timestamp_ms))}));
+  (player.anomaly_intervals||[]).forEach(interval=>{
+    addTimelineSegment(bar,{
+      start_ms:Number(interval.start_timestamp_ms),end_ms:Number(interval.end_timestamp_ms),kind:'anomaly',
+      label:'Anomaly · '+(interval.kind||'unknown'),index:nearestBatchIndex(Number(interval.start_timestamp_ms))
+    });
+  });
+  const axis=$('batchTimelineAxis');
+  axis.innerHTML='<span>'+new Date(Number(timeline[0].timestamp_ms)).toLocaleTimeString()+'</span><span>'+new Date(Number(timeline[timeline.length-1].timestamp_ms)).toLocaleTimeString()+'</span>';
 }
-
+function syncBatchTimelineActive(){
+  document.querySelectorAll('#phaseTimeline .timeline-segment,#movementTimeline .timeline-segment,#stateTimeline .timeline-segment').forEach(seg=>{
+    seg.classList.toggle('active',Number(seg.dataset.index)===batchIndex);
+  });
+}
+function nearestBatchIndex(timestamp){
+  const timeline=playerTimeline();
+  if(!timeline.length)return 0;
+  let best=0,bestDistance=Infinity;
+  timeline.forEach((point,index)=>{
+    const distance=Math.abs(Number(point.timestamp_ms)-Number(timestamp));
+    if(distance<bestDistance){best=index;bestDistance=distance}
+  });
+  return best;
+}
+function selectBatchIndex(index){
+  const timeline=playerTimeline();
+  if(!timeline.length)return;
+  batchIndex=Math.max(0,Math.min(timeline.length-1,Number(index)));
+  renderBatchPoint();
+  syncBatchTimelineActive();
+}
+function renderBatchDetailList(holder,items,emptyText){
+  holder.innerHTML='';
+  if(!items.length){
+    const empty=document.createElement('div');empty.className='muted small';empty.textContent=emptyText;holder.appendChild(empty);return;
+  }
+  items.forEach(item=>{const row=document.createElement('div');row.className='detail-item';row.textContent=item;holder.appendChild(row)});
+}
+function renderBatchPoint(){
+  if(mode!=='batch'||!batchSession)return;
+  const timeline=playerTimeline();
+  $('sharedState').classList.remove('hidden');
+  $('sharedHint').textContent='Backend reconstruction snapshot. Browser playback selects and renders returned points; it does not infer phases.';
+  if(!timeline.length){
+    $('batchPhase').textContent='UNKNOWN';$('batchActiveMovements').textContent='—';$('batchPhaseConfidence').textContent='0.00';
+    $('batchTimeLabel').textContent='No timeline: insufficient reconstruction data';
+    $('batchExactTimestamp').textContent='—';$('batchCyclePosition').textContent='—';$('batchBoundaryReadout').textContent='—';$('batchTimelineStatus').textContent='No backend timeline';
+    $('batchSignalState').textContent='UNKNOWN';$('batchPlayerPhase').textContent='UNKNOWN';$('batchPlayerConfidence').textContent='0.00';$('batchUnknownReason').textContent='insufficient_reconstruction_data';
+    $('batchPlayerAdaptive').textContent=(batchSession.player&&batchSession.player.adaptive_mode)||'BATCH_RECONSTRUCTION';
+    renderSignalRenderer(batchSession.signal_renderer||null);return;
+  }
+  const point=timeline[Math.min(batchIndex,timeline.length-1)];
+  const player=batchSession.player||{};
+  const exactDate=new Date(Number(point.timestamp_ms));
+  const states=point.states||{};
+  const stateText=Object.entries(states).map(([approach,state])=>approach+' '+state).join(' · ')||'UNKNOWN';
+  const phase=point.phase_id==null?'UNKNOWN':('Phase '+point.phase_id);
+  const movements=point.movement_states||point.active_movements||[];
+  const movementLabels=movements.map(item=>item.movement+' · '+(item.state||'UNKNOWN')+' · conf '+Number(item.confidence||0).toFixed(2));
+  const evidence=point.evidence||{};
+  const evidenceLabels=[
+    'phase support '+Number(evidence.phase_supporting_event_count||0),
+    'phase contradictory '+Number(evidence.phase_contradictory_event_count||0),
+    'movement support '+Number(evidence.movement_supporting_event_count||0)
+  ];
+  const boundaries=player.phase_boundaries||[];
+  const cyclePosition=Number(point.cycle_position_s||0);
+  let boundaryReadout='—';
+  if(boundaries.length){
+    const exact=boundaries.find(item=>Math.abs(Number(item.cycle_position_s||0)-cyclePosition)<0.6);
+    const nearest=[...boundaries].sort((a,b)=>Math.abs(Number(a.cycle_position_s||0)-cyclePosition)-Math.abs(Number(b.cycle_position_s||0)-cyclePosition))[0];
+    if(exact)boundaryReadout='P'+exact.phase_id+' boundary @ '+Number(exact.cycle_position_s||0).toFixed(1)+'s';
+    else if(nearest)boundaryReadout='nearest P'+nearest.phase_id+' @ '+Number(nearest.cycle_position_s||0).toFixed(1)+'s';
+  }
+  $('batchSlider').value=String(batchIndex);
+  $('batchTimeLabel').textContent=exactDate.toLocaleString()+' · '+Number(point.offset_s||0).toFixed(1)+' s';
+  $('batchExactTimestamp').textContent=exactDate.toISOString()+' · '+exactDate.toLocaleTimeString();
+  $('batchPointLabel').textContent='Point '+(batchIndex+1)+' / '+timeline.length+' · '+Number(point.timestamp_ms);
+  $('batchCyclePosition').textContent=cyclePosition.toFixed(3)+' s';
+  $('batchBoundaryReadout').textContent=boundaryReadout;
+  $('batchTimelineStatus').textContent=(point.transition?'TRANSITION · ':'')+(point.unknown_reason?'UNKNOWN · '+point.unknown_reason:'determined');
+  $('batchPhase').textContent=phase+(point.transition?' · transition':'');
+  $('batchActiveMovements').textContent=movements.length?movements.map(item=>item.movement).join(', '):'—';
+  $('batchPhaseConfidence').textContent=Number(point.confidence||0).toFixed(2);
+  $('batchSignalState').textContent=stateText;
+  $('batchPlayerPhase').textContent=phase;
+  $('batchPlayerConfidence').textContent=Number(point.confidence||0).toFixed(2);
+  $('batchUnknownReason').textContent=point.unknown_reason||'—';
+  $('batchPlayerAdaptive').textContent=player.adaptive_mode||point.adaptive_mode||'BATCH_RECONSTRUCTION';
+  renderBatchDetailList($('batchMovementStates'),movementLabels,'No movement state active at this timestamp.');
+  renderBatchDetailList($('batchEvidence'),evidenceLabels.concat([
+    'signal source '+(point.signal_source||'backend reconstruction'),
+    'snapshot timestamp '+Number(point.timestamp_ms)
+  ]),'No evidence metadata returned by backend.');
+  renderSignalRenderer(point.signal_renderer||batchSession.signal_renderer||null);
+  syncBatchTimelineActive();
+}
 function playBatch(){
   stopBatch();
-  const timeline=(batchSession&&batchSession.effective_timeline)||[];
+  const timeline=playerTimeline();
   if(timeline.length<2)return;
   if(batchIndex>=timeline.length-1)batchIndex=0;
-  batchTimer=setInterval(()=>{
+  const advance=()=>{
     if(batchIndex>=timeline.length-1){stopBatch();return}
-    batchIndex++;renderBatchPoint();
-  },350);
+    const current=timeline[batchIndex],next=timeline[batchIndex+1];
+    const delay=Math.max(25,Math.min(5000,(Number(next.timestamp_ms)-Number(current.timestamp_ms))/Math.max(0.1,batchSpeed)));
+    batchTimer=setTimeout(()=>{batchIndex++;renderBatchPoint();if(batchTimer)advance()},delay);
+  };
+  advance();
 }
-function stopBatch(){if(batchTimer){clearInterval(batchTimer);batchTimer=null}}
-
+function stopBatch(){if(batchTimer){clearTimeout(batchTimer);batchTimer=null}}
+function jumpBatch(kind){
+  const nav=(batchSession&&batchSession.player&&batchSession.player.navigation)||{};
+  const key=kind==='previous_phase'||kind==='next_phase'?'phase_starts':kind==='next_unknown'?'unknown':kind==='next_extension'?'extensions':'anomalies';
+  const points=Array.isArray(nav[key])?nav[key]:[];
+  if(!points.length)return;
+  let target;
+  if(kind==='previous_phase'){target=[...points].reverse().find(index=>index<batchIndex);if(target==null)target=points[points.length-1]}
+  else {target=points.find(index=>index>batchIndex);if(target==null)target=points[0]}
+  selectBatchIndex(target);
+}
 function currentRegimeFamily(){
   if(!batchAnalysis||!batchSession||!batchSession.regime_family_id)return null;
   return (batchAnalysis.regime_families||[]).find(item=>item.family_id===batchSession.regime_family_id)||null;

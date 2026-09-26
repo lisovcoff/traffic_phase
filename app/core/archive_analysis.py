@@ -1479,6 +1479,300 @@ def _phase_model_dict_gaps(
     return gaps
 
 
+def _timeline_run_intervals(
+    timeline: Sequence[dict[str, object]],
+    *,
+    predicate: Callable[[dict[str, object]], bool],
+    end_timestamp_ms: int,
+    reason_getter: Callable[[dict[str, object]], str | None] | None = None,
+) -> list[dict[str, object]]:
+    intervals: list[dict[str, object]] = []
+    current_start: int | None = None
+    current_end: int | None = None
+    current_reason: str | None = None
+    for point in timeline:
+        timestamp = int(point["timestamp_ms"])
+        matches = bool(predicate(point))
+        reason = reason_getter(point) if matches and reason_getter is not None else None
+        if matches and current_start is None:
+            current_start=current_end=timestamp
+            current_reason=reason
+        elif matches and reason==current_reason:
+            current_end=timestamp
+        elif matches:
+            if current_start is not None and current_end is not None:
+                intervals.append({
+                    "start_timestamp_ms":current_start,
+                    "end_timestamp_ms":max(current_end,timestamp),
+                    "duration_s":round(max(0,max(current_end,timestamp)-current_start)/1000.0,3),
+                    "reason":current_reason,
+                })
+            current_start=current_end=timestamp
+            current_reason=reason
+        elif current_start is not None and current_end is not None:
+            interval_end=max(current_end,timestamp)
+            intervals.append({
+                "start_timestamp_ms":current_start,
+                "end_timestamp_ms":interval_end,
+                "duration_s":round(max(0,interval_end-current_start)/1000.0,3),
+                "reason":current_reason,
+            })
+            current_start=current_end=None
+            current_reason=None
+    if current_start is not None and current_end is not None:
+        interval_end=max(current_end,int(end_timestamp_ms))
+        intervals.append({
+            "start_timestamp_ms":current_start,
+            "end_timestamp_ms":interval_end,
+            "duration_s":round(max(0,interval_end-current_start)/1000.0,3),
+            "reason":current_reason,
+        })
+    return intervals
+
+
+def _expand_cycle_intervals(
+    intervals: Sequence[dict[str, object]],
+    *,
+    start_timestamp_ms: int,
+    end_timestamp_ms: int,
+    cycle_origin_timestamp_ms: int,
+    cycle_seconds: float | None,
+) -> list[dict[str, object]]:
+    cycle=float(cycle_seconds or 0.0)
+    if cycle<=0:
+        return []
+    duration_s=max(0.0,(end_timestamp_ms-start_timestamp_ms)/1000.0)
+    first_cycle=int(
+        ((start_timestamp_ms-cycle_origin_timestamp_ms)/1000.0)//cycle
+    )-1
+    last_cycle=int(
+        ((end_timestamp_ms-cycle_origin_timestamp_ms)/1000.0)//cycle
+    )+1
+    expanded=[]
+    for interval in intervals:
+        start_s=float(interval.get("cycle_start_s",0.0))
+        end_s=float(interval.get("cycle_end_s",0.0))
+        duration=(end_s-start_s)%cycle
+        if duration<=1e-9:
+            duration=cycle
+        for cycle_index in range(first_cycle,last_cycle+1):
+            occurrence_start=cycle_origin_timestamp_ms+int(
+                round((cycle_index*cycle+start_s)*1000.0)
+            )
+            occurrence_end=cycle_origin_timestamp_ms+int(
+                round((cycle_index*cycle+start_s+duration)*1000.0)
+            )
+            clipped_start=max(occurrence_start,start_timestamp_ms)
+            clipped_end=min(occurrence_end,end_timestamp_ms)
+            if clipped_end<=clipped_start:
+                continue
+            item=dict(interval)
+            item["start_timestamp_ms"]=clipped_start
+            item["end_timestamp_ms"]=clipped_end
+            item["duration_s"]=round(
+                (clipped_end-clipped_start)/1000.0,
+                3,
+            )
+            expanded.append(item)
+    return expanded
+
+
+def _movement_intervals_from_timeline(
+    timeline: Sequence[dict[str, object]],
+    *,
+    end_timestamp_ms: int,
+) -> list[dict[str, object]]:
+    active_by_key: dict[tuple[str, str], dict[str, object]] = {}
+    intervals: list[dict[str, object]] = []
+
+    for point in timeline:
+        timestamp = int(point["timestamp_ms"])
+        movements = list(
+            point.get("movement_states", [])
+            or point.get("active_movements", [])
+            or []
+        )
+        seen: set[tuple[str, str]] = set()
+        for movement in movements:
+            movement_name = str(movement.get("movement", ""))
+            approach = str(movement.get("approach", ""))
+            key = (movement_name, approach)
+            if not movement_name or key in seen:
+                continue
+            seen.add(key)
+            current = active_by_key.get(key)
+            if current is None:
+                active_by_key[key] = {
+                    "movement": movement_name,
+                    "approach": approach,
+                    "state": str(movement.get("state", "GREEN")),
+                    "confidence": round(
+                        float(movement.get("confidence", 0.0)),
+                        4,
+                    ),
+                    "supporting_event_count": int(
+                        movement.get("supporting_event_count", 0)
+                    ),
+                    "source": "backend_reconstruction",
+                    "start_timestamp_ms": timestamp,
+                    "end_timestamp_ms": timestamp,
+                }
+            else:
+                current["end_timestamp_ms"] = timestamp
+                current["confidence"] = max(
+                    float(current.get("confidence", 0.0)),
+                    float(movement.get("confidence", 0.0)),
+                )
+                current["supporting_event_count"] = max(
+                    int(current.get("supporting_event_count", 0)),
+                    int(movement.get("supporting_event_count", 0)),
+                )
+
+        for key in tuple(active_by_key):
+            if key in seen:
+                continue
+            current = active_by_key.pop(key)
+            interval_end = max(
+                int(current["end_timestamp_ms"]),
+                timestamp,
+            )
+            current["end_timestamp_ms"] = interval_end
+            current["duration_s"] = round(
+                max(
+                    0,
+                    interval_end - int(current["start_timestamp_ms"]),
+                )
+                / 1000.0,
+                3,
+            )
+            intervals.append(current)
+
+    for current in active_by_key.values():
+        interval_end = max(
+            int(current["end_timestamp_ms"]),
+            int(end_timestamp_ms),
+        )
+        current["end_timestamp_ms"] = interval_end
+        current["duration_s"] = round(
+            max(
+                0,
+                interval_end - int(current["start_timestamp_ms"]),
+            )
+            / 1000.0,
+            3,
+        )
+        intervals.append(current)
+
+    return sorted(
+        intervals,
+        key=lambda item: (
+            int(item["start_timestamp_ms"]),
+            str(item["movement"]),
+            str(item["approach"]),
+        ),
+    )
+
+
+def _batch_player_payload(
+    *,
+    timeline: Sequence[dict[str, object]],
+    phases: Sequence[dict[str, object]],
+    movement_stages: Sequence[dict[str, object]],
+    gap_semantics: dict[str, object],
+    start_timestamp_ms: int,
+    end_timestamp_ms: int,
+    duration_s: float,
+    cycle_seconds: float | None,
+    cycle_origin_timestamp_ms: int,
+) -> dict[str, object]:
+    phase_boundaries=[
+        {
+            "phase_id":phase.get("phase_id"),
+            "cycle_position_s":round(float(phase.get("phase_start",0.0)),3),
+            "kind":"start",
+            "active_approaches":list(phase.get("active_approaches",[]) or []),
+        }
+        for phase in phases
+    ]
+    movement_intervals=_movement_intervals_from_timeline(
+        timeline,
+        end_timestamp_ms=end_timestamp_ms,
+    )
+    gap_items=list(gap_semantics.get("gaps",[]) or [])
+    anomaly_templates=[
+        {
+            "kind":str(gap.get("kind")),
+            "reason":str(gap.get("reason","")),
+            "cycle_start_s":round(float(gap.get("start_s",0.0)),3),
+            "cycle_end_s":round(float(gap.get("end_s",0.0)),3),
+            "duration_s":round(float(gap.get("duration_s",0.0)),3),
+            "source":"gap_semantics",
+        }
+        for gap in gap_items
+        if str(gap.get("kind")) in {"TRANSITION_AMBIGUOUS","UNRESOLVED_STAGE"}
+    ]
+    anomaly_intervals=_expand_cycle_intervals(
+        anomaly_templates,
+        start_timestamp_ms=start_timestamp_ms,
+        end_timestamp_ms=end_timestamp_ms,
+        cycle_origin_timestamp_ms=cycle_origin_timestamp_ms,
+        cycle_seconds=cycle_seconds,
+    )
+    transition_intervals=_timeline_run_intervals(
+        timeline,predicate=lambda point:bool(point.get("transition")),
+        end_timestamp_ms=end_timestamp_ms,
+    )
+    unknown_intervals=_timeline_run_intervals(
+        timeline,predicate=lambda point:bool(point.get("unknown_reason")),
+        end_timestamp_ms=end_timestamp_ms,
+        reason_getter=lambda point:str(point.get("unknown_reason")) if point.get("unknown_reason") else None,
+    )
+
+    phase_starts=[]
+    unknown_indices=[]
+    transition_indices=[]
+    anomaly_indices=[]
+    previous_phase=object()
+    for index,point in enumerate(timeline):
+        phase_id=point.get("phase_id")
+        if phase_id is not None and phase_id!=previous_phase:
+            phase_starts.append(index)
+        previous_phase=phase_id
+        if point.get("unknown_reason"):
+            unknown_indices.append(index)
+        if point.get("transition"):
+            transition_indices.append(index)
+        timestamp=int(point["timestamp_ms"])
+        if any(int(interval["start_timestamp_ms"])<=timestamp<int(interval["end_timestamp_ms"]) for interval in anomaly_intervals):
+            anomaly_indices.append(index)
+
+    return {
+        "version":"1",
+        "mode":"BATCH_RECONSTRUCTION",
+        "adaptive_mode":"BATCH_RECONSTRUCTION",
+        "start_timestamp_ms":int(start_timestamp_ms),
+        "end_timestamp_ms":int(end_timestamp_ms),
+        "duration_s":round(float(duration_s),3),
+        "cycle_seconds":round(float(cycle_seconds),3) if cycle_seconds is not None else None,
+        "timeline":[dict(point) for point in timeline],
+        "phase_boundaries":phase_boundaries,
+        "movement_intervals":movement_intervals,
+        "unknown_intervals":unknown_intervals,
+        "transition_intervals":transition_intervals,
+        "phase_extension_intervals":[],
+        "anomaly_intervals":anomaly_intervals,
+        "navigation":{
+            "phase_starts":phase_starts,
+            "previous_phase":phase_starts,
+            "next_phase":phase_starts,
+            "unknown":unknown_indices,
+            "extensions":[],
+            "anomalies":anomaly_indices,
+            "transitions":transition_indices,
+        },
+    }
+
+
 def _phase_model_cycle_timeline(
     phase_model: dict[str, object] | None,
     *,
@@ -1643,17 +1937,93 @@ def _session_payload(
     effective_phase_model = (
         phase_model if determination["evidence_sufficient"] else None
     )
+    player_model = effective_phase_model or phase_model
     intersection_config = (
         IntersectionConfig.from_dict(
-            effective_phase_model["intersection_config"]
+            player_model["intersection_config"]
         )
-        if effective_phase_model
-        and isinstance(effective_phase_model.get("intersection_config"), dict)
+        if player_model
+        and isinstance(player_model.get("intersection_config"), dict)
         else DEFAULT_INTERSECTION_CONFIG
     )
     effective_timeline = _phase_model_cycle_timeline(
         effective_phase_model,
         intersection_config=intersection_config,
+    )
+    phase_map = {
+        item.get("phase_id"): item
+        for item in list(
+            (player_model or {}).get("phases", []) or []
+        )
+    }
+    for point in timeline:
+        phase = phase_map.get(point.get("phase_id"))
+        states = dict(point.get("states", {}) or {})
+        point["signal_renderer"] = build_signal_renderer_data(
+            intersection_config,
+            state_by_head={
+                head.id: states.get(head.approach, "UNKNOWN")
+                for head in intersection_config.signal_heads
+            },
+            confidence=float(point.get("confidence", 0.0)),
+            source=(
+                RendererSignalSource.MODELLED_TRANSITION
+                if point.get("transition")
+                else (
+                    RendererSignalSource.UNKNOWN
+                    if point.get("unknown_reason")
+                    else RendererSignalSource.INFERRED_MODEL
+                )
+            ),
+        )
+        point["movement_states"]=[
+            {
+                **dict(item),
+                "state":"GREEN",
+            }
+            for item in list(point.get("active_movements", []) or [])
+        ]
+        point["adaptive_mode"]="BATCH_RECONSTRUCTION"
+        point["signal_source"]=(
+            "MODELLED_TRANSITION"
+            if point.get("transition")
+            else (
+                "UNKNOWN"
+                if point.get("unknown_reason")
+                else "INFERRED_MODEL"
+            )
+        )
+        point["evidence"]={
+            "phase_supporting_event_count":int((phase or {}).get("supporting_event_count",0)),
+            "phase_contradictory_event_count":int((phase or {}).get("contradictory_event_count",0)),
+            "movement_supporting_event_count":sum(
+                int(item.get("supporting_event_count",0))
+                for item in list(point.get("active_movements",[]) or [])
+            ),
+        }
+    player_payload=_batch_player_payload(
+        timeline=timeline,
+        phases=list((player_model or {}).get("phases", []) or []),
+        movement_stages=list((player_model or {}).get("movement_stages", []) or []),
+        gap_semantics={"gaps":list(gap_semantics.get("gaps", []) or [])},
+        start_timestamp_ms=session.start_timestamp_ms,
+        end_timestamp_ms=session.end_timestamp_ms,
+        duration_s=session.duration_s,
+        cycle_seconds=(
+            float(player_model.get("cycle_seconds",0.0))
+            if player_model is not None
+            else None
+        ),
+        cycle_origin_timestamp_ms=(
+            int(
+                player_model.get(
+                    "origin_timestamp_ms",
+                    session.start_timestamp_ms,
+                )
+            )
+            if player_model is not None
+            else session.start_timestamp_ms
+        ),
     )
     return {
         "session_id": index,
@@ -1676,6 +2046,7 @@ def _session_payload(
         "phase_model": phase_model,
         "effective_phase_model": effective_phase_model,
         "effective_timeline": effective_timeline,
+        "player": player_payload,
         "effective_unknown_metrics": _timeline_unknown_metrics(
             effective_timeline
         ),
