@@ -172,7 +172,7 @@ class MemberAudit:
         self.first_millis: int | None = None
         self.last_millis: int | None = None
         self._seen_ids: set[str] = set()
-        self._last_millis: int | None = None
+        self._last_start_ms: int | None = None
         self.error: str | None = None
 
     def accept(self, item: object) -> dict | None:
@@ -191,9 +191,6 @@ class MemberAudit:
             except (TypeError, ValueError):
                 self.invalid_or_skipped_count += 1
             if millis is not None:
-                if self._last_millis is not None and millis < self._last_millis:
-                    self.order_violation_count += 1
-                self._last_millis = millis
                 self.first_millis = millis if self.first_millis is None else min(self.first_millis, millis)
                 self.last_millis = millis if self.last_millis is None else max(self.last_millis, millis)
         if not item.get("zone_in"):
@@ -208,9 +205,23 @@ class MemberAudit:
         detections = item.get("detections")
         if isinstance(detections, list):
             self.detection_count += len(detections)
-        if _trajectory_from_dict(item) is None:
+        trajectory = _trajectory_from_dict(item)
+        if trajectory is None:
             self.invalid_or_skipped_count += 1
             return None
+
+        trajectory_start_ms = (
+            trajectory.detections[0].millis
+            if trajectory.detections
+            else trajectory.timestamp_ms
+        )
+        if (
+            self._last_start_ms is not None
+            and trajectory_start_ms < self._last_start_ms
+        ):
+            self.order_violation_count += 1
+        self._last_start_ms = int(trajectory_start_ms)
+
         self.usable_car_count += 1
         return item
 
