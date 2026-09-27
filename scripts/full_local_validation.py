@@ -249,7 +249,18 @@ def prepare_sorted_member(stream: BinaryIO, *, name: str, work_dir: Path, chunk_
             item = audit.accept(value)
             if item is None:
                 continue
-            chunk_records.append((int(item["millis"]), ordinal, item))
+            trajectory = _trajectory_from_dict(item)
+            if trajectory is None:
+                continue
+            # Production session reconstruction requires trajectory order by
+            # interval start, which is the first detection timestamp. The
+            # top-level trajectory millis is the exit time and is unsuitable.
+            trajectory_start_ms = (
+                trajectory.detections[0].millis
+                if trajectory.detections
+                else trajectory.timestamp_ms
+            )
+            chunk_records.append((int(trajectory_start_ms), ordinal, item))
             ordinal += 1
             if len(chunk_records) >= chunk_trajectories:
                 chunk_records.sort(key=lambda x: (x[0], x[1]))

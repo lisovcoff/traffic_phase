@@ -9,9 +9,30 @@ from scripts.full_local_validation import prepare_sorted_member
 
 def test_external_sort_reorders_out_of_order_trajectories(tmp_path: Path):
     payload = [
-        {"id": "late", "millis": 3000, "zone_in": "N", "zone_out": "_S", "category_name": "car", "detections": []},
-        {"id": "early", "millis": 1000, "zone_in": "S", "zone_out": "_N", "category_name": "car", "detections": []},
-        {"id": "middle", "millis": 2000, "zone_in": "E", "zone_out": "_W", "category_name": "car", "detections": []},
+        {
+            "id": "late",
+            "millis": 1000,
+            "zone_in": "N",
+            "zone_out": "_S",
+            "category_name": "car",
+            "detections": [{"millis": 3000, "lat": 54.0, "lng": 61.0}],
+        },
+        {
+            "id": "early",
+            "millis": 3000,
+            "zone_in": "S",
+            "zone_out": "_N",
+            "category_name": "car",
+            "detections": [{"millis": 1000, "lat": 54.0, "lng": 61.0}],
+        },
+        {
+            "id": "middle",
+            "millis": 2000,
+            "zone_in": "E",
+            "zone_out": "_W",
+            "category_name": "car",
+            "detections": [{"millis": 2000, "lat": 54.0, "lng": 61.0}],
+        },
     ]
     output, audit = prepare_sorted_member(
         io.BytesIO(json.dumps(payload).encode("utf-8")),
@@ -24,7 +45,7 @@ def test_external_sort_reorders_out_of_order_trajectories(tmp_path: Path):
     finally:
         output.close()
 
-    assert [item["millis"] for item in normalized] == [1000, 2000, 3000]
+    assert [item["id"] for item in normalized] == ["early", "middle", "late"]
     assert audit.order_violation_count == 1
     assert audit.usable_car_count == 3
 
