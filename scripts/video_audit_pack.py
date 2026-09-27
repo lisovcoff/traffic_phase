@@ -68,6 +68,11 @@ def parse_window(value:str):
     if min(center,before,after)<0: raise SystemExit("event-window values must be non-negative")
     return center,before,after
 
+def make_contact_sheet(ffmpeg, input_pattern, output_pattern, quality):
+    cmd=[ffmpeg,"-hide_banner","-loglevel","error","-y","-framerate","1","-i",str(input_pattern),
+         "-vf","tile=5x6:padding=4:margin=4","-q:v",str(max(2,min(31,quality))),str(output_pattern)]
+    subprocess.run(cmd,check=True)
+
 def main():
     args=parse_args(); ffmpeg=require_ffmpeg()
     if not args.video.is_file(): raise SystemExit(f"Video not found: {args.video}")
@@ -77,6 +82,7 @@ def main():
     out=args.output_dir.resolve(); (out/"overview").mkdir(parents=True,exist_ok=True); (out/"events").mkdir(exist_ok=True)
     stats=trajectory_stats(args.zip,args.max_trajectories)
     run_ffmpeg(ffmpeg,args.video,out/"overview"/"frame_%06d.jpg",1.0/args.every_seconds,args.jpeg_quality)
+    make_contact_sheet(ffmpeg,out/"overview"/"frame_%06d.jpg",out/"overview"/"contact_%02d.jpg",args.jpeg_quality)
     windows=[]
     for i,raw in enumerate(args.event_window,1):
         center,before,after=parse_window(raw); start=max(0,center-before); d=out/"events"/f"event_{i:02d}"; d.mkdir(parents=True,exist_ok=True)
