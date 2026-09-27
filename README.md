@@ -412,3 +412,32 @@ validation/
   manifest.local.example.json
 tests/
 ```
+
+## Full local validation on the supplied six archives
+
+A local runner is provided for the six real ZIP archives in the supplied data set. Source archives remain on the local machine.
+
+Put the six files in the repository's `data` directory:
+
+    Ленина-Свердловский 11.02.25-19.02.25.zip
+    Ленина-Свердловский 27.02.25.zip
+    Ленина-Энтузиастов 10.02.25-17.02.25.zip
+    Ленина-Энтузиастов 05.10.24.zip
+    Чичерина-40 Лет Победы 12.04.24.zip
+    Чичерина-40 Лет Победы 19.04.24.zip
+
+Run from the repository root:
+
+    python -m scripts.full_local_validation --data-dir .\data --output-dir .\validation_output_local
+
+The runner audits every JSON member with a streaming parser. The supplied archives can contain top-level trajectories whose `millis` order is not monotonic, so usable `car` trajectories are sorted with an external disk-backed sort before entering the production streaming batch pipeline. The entire archive is never loaded into RAM.
+
+Outputs:
+
+    validation_output_local\summary.json
+    validation_output_local\report.md
+    validation_output_local\datasets.json
+
+The six archives cover reference, accident, and one-lane-closure scenarios. No night archive is present, so night validation is reported as unavailable rather than inferred.
+
+The report contains corpus audit, runtime, UNKNOWN, anomaly, and batch/realtime consistency measurements. These are not controller-state accuracy because the supplied corpus has no labelled signal-controller ground truth.
