@@ -536,16 +536,20 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
                 self.send_header("Accept-Ranges", "bytes")
                 self.end_headers()
-                with path.open("rb") as f:
-                    f.seek(start)
-                    remaining = length
-                    while remaining > 0:
-                        chunk = f.read(min(1024 * 1024, remaining))
-                        if not chunk:
-                            break
-                        self.wfile.write(chunk)
-                        remaining -= len(chunk)
-                return
+                try:
+                    with path.open("rb") as f:
+                        f.seek(start)
+                        remaining = length
+                        while remaining > 0:
+                            chunk = f.read(min(1024 * 1024, remaining))
+                            if not chunk:
+                                break
+                            self.wfile.write(chunk)
+                            remaining -= len(chunk)
+                except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+                    # Browsers cancel stale range requests during seek/buffering.
+                    # The client-side disconnect is not a server error.
+                    return
 
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
