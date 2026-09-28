@@ -412,16 +412,15 @@ class SignalPlanDiscovery:
                 aggregate_priors,
             )
 
-            # Movement periodicity is the primary signal. Aggregate
-            # autocorrelation is a secondary consensus prior, while
-            # consistency/fragmentation suppress periods that only look good
-            # because the events happen to fall into a few dense bins.
+            # Movement structure is the primary evidence. Aggregate
+            # autocorrelation is retained as a diagnostic field, but is not
+            # allowed to override a structurally simpler recurring plan.
             score = (
-                0.40 * movement_score
+                0.50 * movement_score
                 + 0.15 * separation_score
-                + 0.30 * aggregate_score
-                + 0.10 * consistency_score
-                + 0.05 * fragmentation_score
+                + 0.15 * consistency_score
+                + 0.15 * fragmentation_score
+                + 0.05 * transition_score
             )
             # A tiny-transition preference is deliberately weak: it is a
             # regularizer, not a hard assumption about controller behavior.
@@ -720,7 +719,7 @@ class SignalPlanDiscovery:
         transition_count = len(runs)
         transition_score = float(
             np.clip(
-                1.0 / max(1.0, 1.0 + max(0, transition_count - 6)),
+                1.0 / max(1.0, 1.0 + max(0, transition_count - 3)),
                 0.0,
                 1.0,
             )
@@ -1129,26 +1128,10 @@ def _dominant_activation_mask(
         return np.zeros(0, dtype=bool)
     mask = values >= float(threshold)
     mask = _fill_short_gaps_circular(mask, max_gaps=max_gap_bins)
-    if np.all(mask):
+    if np.any(mask):
         return mask
-    peak_index = int(np.argmax(values))
-    mask[peak_index] = True
-
-    left = peak_index
-    while mask[(left - 1) % len(mask)] and left != (left - 1) % len(mask):
-        left = (left - 1) % len(mask)
-
-    right = peak_index
-    while mask[(right + 1) % len(mask)] and right != (right + 1) % len(mask):
-        right = (right + 1) % len(mask)
-
     result = np.zeros_like(mask, dtype=bool)
-    index = left
-    while True:
-        result[index] = True
-        if index == right:
-            break
-        index = (index + 1) % len(mask)
+    result[int(np.argmax(values))] = True
     return result
 
 
