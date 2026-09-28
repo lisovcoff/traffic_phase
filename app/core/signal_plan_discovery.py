@@ -24,6 +24,7 @@ class CycleCandidate:
     aggregate_score: float = 0.0
     consistency_score: float = 0.0
     fragmentation_score: float = 0.0
+    lag_consistency_score: float = 0.0
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -243,14 +244,15 @@ class SignalPlanDiscovery:
         *,
         cycle_seconds: float | None = None,
     ) -> SignalPlan:
-        selected = self._select_events(events)
+        all_events = list(events)
+        selected = self._select_events(all_events)
         if len(selected) < self.min_movement_events:
             raise ValueError(
                 "insufficient RELEASE/CROSSING events for signal-plan discovery"
             )
 
         origin = min(event.timestamp_ms for event in selected)
-        cycle_candidates = self._cycle_candidates(selected, origin)
+        cycle_candidates = self._cycle_candidates(all_events, origin)
         if cycle_seconds is None:
             if not cycle_candidates:
                 raise ValueError("unable to estimate a recurring traffic cycle")
@@ -269,6 +271,7 @@ class SignalPlanDiscovery:
                         aggregate_score=1.0,
                         consistency_score=1.0,
                         fragmentation_score=1.0,
+                        lag_consistency_score=1.0,
                     )
                 ]
             )
@@ -405,6 +408,7 @@ class SignalPlanDiscovery:
                 consistency_score,
                 fragmentation_score,
                 transition_score,
+                lag_consistency_score,
             ) = metrics
 
             aggregate_score = self._aggregate_cycle_support(
@@ -435,6 +439,7 @@ class SignalPlanDiscovery:
                     aggregate_score=float(aggregate_score),
                     consistency_score=float(consistency_score),
                     fragmentation_score=float(fragmentation_score),
+                    lag_consistency_score=float(lag_consistency_score),
                 )
             )
 
@@ -548,15 +553,25 @@ class SignalPlanDiscovery:
         if cycle_count < self.min_observed_cycles:
             return None
 
-        movement_times: dict[str, list[float]] = {}
+        channel_times: dict[tuple[EventType, str], list[float]] = {}
         for event in events:
-            movement_times.setdefault(event.movement, []).append(
+            if event.event_type not in {EventType.STOP, EventType.RELEASE}:
+                continue
+            channel_times.setdefault(
+                (event.event_type, event.movement),
+                [],
+            ).append(
                 (event.timestamp_ms - origin_timestamp_ms) / 1000.0
             )
+
+        movement_times: dict[str, list[float]] = {}
+        for (_event_type, movement), times in channel_times.items():
+            movement_times.setdefault(movement, []).extend(times)
 
         weighted_scores: list[tuple[float, float]] = []
         weighted_consistency: list[tuple[float, float]] = []
         weighted_fragmentation: list[tuple[float, float]] = []
+        weighted_lag_consistency: list[tuple[float, float]] = []
         movement_masks: dict[str, np.ndarray] = {}
         axis_masks: dict[str, np.ndarray] = {
             "NS": np.zeros(
@@ -652,6 +667,22 @@ class SignalPlanDiscovery:
             fragmentation = 1.0 / max(1, active_runs)
             weighted_fragmentation.append((fragmentation, weight))
 
+            channel_lags: list[float] = []
+            for (channel_type, channel_movement), channel_values in channel_times.items():
+                if channel_movement != movement or len(channel_values) < 3:
+                    continue
+                ordered = sorted(channel_values)
+                for left_index in range(len(ordered)):
+                    for right_index in range(left_index + 1, len(ordered)):
+                        delta = ordered[right_index] - ordered[left_index]
+                        if delta >= cycle_seconds * 0.65:
+                            channel_lags.append(delta)
+            lag_consistency = _pairwise_period_lag_score(
+                channel_lags,
+                period_seconds=cycle_seconds,
+            )
+            weighted_lag_consistency.append((lag_consistency, weight))
+
             approach = movement.split("->", 1)[0]
             axis = (
                 "NS"
@@ -686,6 +717,14 @@ class SignalPlanDiscovery:
                 weights=np.asarray([weight for _, weight in weighted_fragmentation]),
             )
             if weighted_fragmentation
+            else 0.0
+        )
+        lag_consistency_score = float(
+            np.average(
+                np.asarray([score for score, _ in weighted_lag_consistency]),
+                weights=np.asarray([weight for _, weight in weighted_lag_consistency]),
+            )
+            if weighted_lag_consistency
             else 0.0
         )
 
@@ -731,6 +770,7 @@ class SignalPlanDiscovery:
             consistency_score,
             fragmentation_score,
             transition_score,
+            lag_consistency_score,
         )
 
     def _movement_cycle_consistency(
@@ -1025,6 +1065,30 @@ class SignalPlanDiscovery:
             + np.roll(values, -1)
         ) / 4.0
 
+
+
+
+def _pairwise_period_lag_score(
+    deltas: Sequence[float],
+    *,
+    period_seconds: float,
+) -> float:
+    if period_seconds <= 0 or not deltas:
+        return 0.0
+
+    tolerance = max(3.0, period_seconds * 0.05)
+    scores: list[float] = []
+    for delta in deltas:
+        multiple = max(1, int(round(delta / period_seconds)))
+        target = multiple * period_seconds
+        error = abs(delta - target)
+        scores.append(
+            float(np.exp(-0.5 * (error / tolerance) ** 2))
+        )
+
+    scores.sort()
+    retained = scores[len(scores) // 2:]
+    return float(np.mean(retained)) if retained else 0.0
 
 
 def _known_movements(
