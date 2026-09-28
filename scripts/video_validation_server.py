@@ -35,6 +35,8 @@ input[type="datetime-local"]{background:#111721;color:var(--text);border:1px sol
 .layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(360px,.9fr);gap:14px}
 .panel{padding:14px}
 video{width:100%;display:block;border-radius:9px;background:#000;max-height:70vh}
+.video-stage{position:relative}
+.trajectory-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .video-meta{display:flex;gap:16px;flex-wrap:wrap;margin-top:9px}
 .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
 .big-time{font-size:20px;font-weight:700}
@@ -84,7 +86,10 @@ details{margin-top:10px}.json-box{white-space:pre-wrap;word-break:break-word;col
   <div class="layout">
     <section>
       <div class="panel">
-        <video id="video" controls preload="metadata"></video>
+        <div class="video-stage">
+          <video id="video" controls preload="metadata"></video>
+          <canvas id="trajectoryOverlay" class="trajectory-overlay"></canvas>
+        </div>
         <div class="video-meta">
           <div><span class="muted small">Видео</span><div id="videoClock" class="big-time">—</div></div>
           <div><span class="muted small">Позиция</span><div id="videoPosition">0.0 с</div></div>
@@ -153,6 +158,10 @@ let points = [];
 let session = null;
 let currentIndex = 0;
 let cycleSeconds = 0;
+let trajectoryDetections = [];
+let trajectoryCursor = 0;
+let lastTrajectoryTargetMs = null;
+const TRAJECTORY_TOLERANCE_MS = 500;
 
 function fmtDate(ms){
   if(ms == null || !Number.isFinite(Number(ms))) return '—';
@@ -199,6 +208,109 @@ function cyclePosition(point){
   const origin = Number(session.phase_model?.origin_timestamp_ms||session.start_timestamp_ms);
   const abs = pointAbsMs(point);
   return cycleSeconds ? (((abs-origin)/1000)%cycleSeconds+cycleSeconds)%cycleSeconds : 0;
+}
+function prepareTrajectoryData(raw){
+  const rows = Array.isArray(raw) ? raw : [];
+  const detections = [];
+  for(const track of rows){
+    const trackId = track?.id ?? '—';
+    const zoneIn = track?.zone_in ?? null;
+    const zoneOut = track?.zone_out ?? null;
+    for(const det of (Array.isArray(track?.detections) ? track.detections : [])){
+      const ms = Number(det?.millis);
+      const values = [
+        Number(det?.x1), Number(det?.y1), Number(det?.x2), Number(det?.y2),
+        Number(det?.centroid_x), Number(det?.centroid_y)
+      ];
+      if(!Number.isFinite(ms) || values.some(v => !Number.isFinite(v))) continue;
+      detections.push({
+        millis: ms,
+        trackId: trackId,
+        zoneIn: zoneIn,
+        zoneOut: zoneOut,
+        x1: values[0],
+        y1: values[1],
+        x2: values[2],
+        y2: values[3],
+        cx: values[4],
+        cy: values[5],
+        score: Number(det?.score)
+      });
+    }
+  }
+  detections.sort((a,b)=>a.millis-b.millis);
+  trajectoryDetections = detections;
+  trajectoryCursor = 0;
+  lastTrajectoryTargetMs = null;
+}
+function drawTrajectoryOverlay(targetMs){
+  const canvas = $('trajectoryOverlay');
+  const video = $('video');
+  if(!canvas || !video) return;
+
+  const width = Math.max(1, Math.round(video.clientWidth));
+  const height = Math.max(1, Math.round(video.clientHeight));
+  if(canvas.width !== width || canvas.height !== height){
+    canvas.width = width;
+    canvas.height = height;
+  }
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,width,height);
+  if(!trajectoryDetections.length) return;
+
+  if(lastTrajectoryTargetMs !== null && targetMs < lastTrajectoryTargetMs){
+    trajectoryCursor = 0;
+  }
+  lastTrajectoryTargetMs = targetMs;
+
+  while(
+    trajectoryCursor < trajectoryDetections.length &&
+    trajectoryDetections[trajectoryCursor].millis < targetMs - TRAJECTORY_TOLERANCE_MS
+  ){
+    trajectoryCursor++;
+  }
+
+  let end = trajectoryCursor;
+  while(
+    end < trajectoryDetections.length &&
+    trajectoryDetections[end].millis <= targetMs + TRAJECTORY_TOLERANCE_MS
+  ){
+    end++;
+  }
+
+  ctx.textBaseline = 'bottom';
+  ctx.font = '600 12px system-ui, sans-serif';
+  for(let i=trajectoryCursor;i<end;i++){
+    const d = trajectoryDetections[i];
+    const x = d.x1 * width;
+    const y = d.y1 * height;
+    const w = (d.x2-d.x1) * width;
+    const h = (d.y2-d.y1) * height;
+
+    ctx.strokeStyle = '#ff3b30';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x,y,w,h);
+
+    ctx.beginPath();
+    ctx.arc(d.cx*width,d.cy*height,3,0,Math.PI*2);
+    ctx.fillStyle = '#ff3b30';
+    ctx.fill();
+
+    const movement = (d.zoneIn || d.zoneOut)
+      ? String(d.zoneIn ?? '?') + '→' + String(d.zoneOut ?? '?')
+      : '';
+    const score = Number.isFinite(d.score) ? ' ' + d.score.toFixed(2) : '';
+    const label = String(d.trackId) + (movement ? ' ' + movement : '') + score;
+    const tw = ctx.measureText(label).width + 8;
+    const th = 17;
+    const ly = Math.max(th, y);
+
+    ctx.fillStyle = 'rgba(255,59,48,.84)';
+    ctx.fillRect(x,ly-th,tw,th);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label,x+4,ly-3);
+  }
 }
 function signalCard(approach,state){
   const card=document.createElement('div'); card.className='signal-card';
@@ -284,6 +396,7 @@ function updateFromVideo(){
   const ms=videoArchiveMs();
   $('videoClock').textContent=fmtDate(ms);
   $('videoPosition').textContent=Number($('video').currentTime||0).toFixed(1)+' с';
+  drawTrajectoryOverlay(ms);
   if(!session)return;
   currentIndex=nearestIndex(ms);
   renderPoint();
@@ -292,6 +405,11 @@ async function init(){
   const [cfgRes,analysisRes]=await Promise.all([fetch('/config'),fetch('/analysis')]);
   if(!cfgRes.ok||!analysisRes.ok) throw new Error('Не удалось загрузить конфигурацию или JSON');
   config=await cfgRes.json();
+  if(config.trajectoryEnabled){
+    const trajectoryRes=await fetch('/trajectories');
+    if(!trajectoryRes.ok) throw new Error('Не удалось загрузить trajectory JSON');
+    prepareTrajectoryData(await trajectoryRes.json());
+  }
   const analysis=await analysisRes.json();
   session=(analysis.sessions||[])[0];
   if(!session) throw new Error('В analysis JSON нет session');
@@ -368,6 +486,7 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "videoStartMs": app["video_start_ms"],
                     "videoStart": app["video_start"],
+                    "trajectoryEnabled": bool(app["trajectory_payload"]),
                 }
             )
         if path == "/analysis":
@@ -375,6 +494,8 @@ class Handler(BaseHTTPRequestHandler):
                 app["analysis_path"],
                 "application/json",
             )
+        if path == "/trajectories":
+            return self._send_json(app["trajectory_payload"])
         if path == "/video":
             return self._send_file(
                 app["video_path"],
@@ -445,6 +566,11 @@ def main() -> None:
     parser.add_argument("--video", required=True, type=Path)
     parser.add_argument("--analysis", required=True, type=Path)
     parser.add_argument(
+        "--trajectories",
+        type=Path,
+        help="Optional raw trajectory JSON; overlays source detections on the video.",
+    )
+    parser.add_argument(
         "--video-start",
         required=True,
         help="ISO-8601 timestamp with timezone, e.g. 2025-02-27T09:59:56+05:00",
@@ -455,14 +581,50 @@ def main() -> None:
 
     video = args.video.resolve()
     analysis = args.analysis.resolve()
+    trajectories = args.trajectories.resolve() if args.trajectories else None
 
     if not video.exists():
         raise SystemExit(f"Video not found: {video}")
     if not analysis.exists():
         raise SystemExit(f"Analysis not found: {analysis}")
+    if trajectories is not None and not trajectories.exists():
+        raise SystemExit(f"Trajectories not found: {trajectories}")
 
     analysis_data = _load_analysis(analysis)
     video_start_ms = _parse_iso_ms(args.video_start)
+    trajectory_payload = []
+    if trajectories is not None:
+        with trajectories.open("r", encoding="utf-8") as f:
+            raw_trajectories = json.load(f)
+        if not isinstance(raw_trajectories, list):
+            raise SystemExit("Trajectories JSON must contain a top-level list")
+        for track in raw_trajectories:
+            if not isinstance(track, dict):
+                continue
+            track_id = track.get("id")
+            zone_in = track.get("zone_in")
+            zone_out = track.get("zone_out")
+            for det in track.get("detections") or []:
+                if not isinstance(det, dict):
+                    continue
+                try:
+                    payload = {
+                        "millis": int(det["millis"]),
+                        "trackId": track_id,
+                        "zoneIn": zone_in,
+                        "zoneOut": zone_out,
+                        "x1": float(det["x1"]),
+                        "y1": float(det["y1"]),
+                        "x2": float(det["x2"]),
+                        "y2": float(det["y2"]),
+                        "cx": float(det["centroid_x"]),
+                        "cy": float(det["centroid_y"]),
+                        "score": det.get("score"),
+                    }
+                except (KeyError, TypeError, ValueError):
+                    continue
+                trajectory_payload.append(payload)
+        trajectory_payload.sort(key=lambda item: item["millis"])
 
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     server.app_state = {  # type: ignore[attr-defined]
@@ -471,9 +633,13 @@ def main() -> None:
         "video_start_ms": video_start_ms,
         "video_start": args.video_start,
         "analysis": analysis_data,
+        "trajectory_payload": trajectory_payload,
     }
     print(f"Open http://{args.host}:{args.port}")
     print(f"Video: {video}")
+    if trajectories is not None:
+        print(f"Trajectories: {trajectories}")
+        print(f"Trajectory detections: {len(trajectory_payload)}")
     print(f"Video start: {args.video_start}")
     print(f"Analysis: {analysis}")
     try:
