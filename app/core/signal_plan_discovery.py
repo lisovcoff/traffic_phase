@@ -209,7 +209,7 @@ class SignalPlanDiscovery:
         max_cycle_seconds: float = 180.0,
         min_movement_events: int = 6,
         min_observed_cycles: int = 3,
-        presence_threshold: float = 0.30,
+        presence_threshold: float = 0.12,
         head_jaccard_threshold: float = 0.65,
     ) -> None:
         if bin_seconds <= 0:
@@ -404,15 +404,6 @@ class SignalPlanDiscovery:
         # because every movement repeats once per controller cycle.
         if candidates:
             best = candidates[0]
-            for candidate in candidates:
-                if (
-                    candidate.period_seconds < best.period_seconds
-                    and best.period_seconds
-                    / max(candidate.period_seconds, 1e-9)
-                    >= 1.8
-                    and candidate.score >= best.score * 0.97
-                ):
-                    continue
             # The sorted list already carries the strongest candidate first;
             # the explicit harmonic rule is applied below.
             near_harmonics = [
@@ -494,7 +485,7 @@ class SignalPlanDiscovery:
                 continue
             mask = presence >= max(
                 self.presence_threshold,
-                peak * 0.35,
+                peak * 0.45,
             )
             if not np.any(mask):
                 continue
