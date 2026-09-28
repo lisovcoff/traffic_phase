@@ -46,6 +46,8 @@ def main() -> int:
 
     analysis_events = events
     if args.start_seconds is not None and args.window_seconds is not None:
+        if not events:
+            parser.error("source contains no usable events")
         event_origin_ms = min(event.timestamp_ms for event in events)
         window_start_ms = event_origin_ms + int(args.start_seconds * 1000.0)
         window_end_ms = window_start_ms + int(args.window_seconds * 1000.0)
@@ -54,13 +56,19 @@ def main() -> int:
             for event in events
             if window_start_ms <= event.timestamp_ms < window_end_ms
         ]
+        # The discovery period requires repeated evidence; a narrow local
+        # window may contain too few RELEASEs to build a recurring profile.
+        # Keep the CLI useful by reporting a clear, non-traceback error.
         if not analysis_events:
             parser.error("analysis window contains no usable events")
 
-    plan = SignalPlanDiscovery().discover(
-        analysis_events,
-        cycle_seconds=args.cycle_seconds,
-    )
+    try:
+        plan = SignalPlanDiscovery().discover(
+            analysis_events,
+            cycle_seconds=args.cycle_seconds,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
 
     print(
         json.dumps(
