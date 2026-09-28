@@ -170,3 +170,27 @@ def test_visualization_contains_realtime_operator_dashboard_contract():
         "renderSignalRenderer(snapshot.signal_renderer||null,'realtimeSignalRenderer')",
     )
     assert all(token in html for token in required)
+
+
+def test_video_validation_server_import_and_timestamp_parser():
+    from scripts.video_validation_server import _parse_iso_ms
+
+    value = _parse_iso_ms("2025-02-27T09:59:56+05:00")
+    assert isinstance(value, int)
+    assert value > 1_000_000_000_000
+
+
+def test_video_validation_server_load_analysis_requires_timeline(tmp_path):
+    import json
+
+    from scripts.video_validation_server import _load_analysis
+
+    path = tmp_path / "analysis.json"
+    path.write_text(json.dumps({"sessions": [{"status": "ok"}]}), encoding="utf-8")
+
+    try:
+        _load_analysis(path)
+    except ValueError as exc:
+        assert "effective_timeline" in str(exc)
+    else:
+        raise AssertionError("expected validation error")
