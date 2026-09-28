@@ -20,12 +20,45 @@ def main() -> int:
         default=None,
         help="Optional known cycle length; otherwise infer it from movement events.",
     )
+    parser.add_argument(
+        "--start-seconds",
+        type=float,
+        default=None,
+        help="Optional analysis-window start, relative to the first usable event.",
+    )
+    parser.add_argument(
+        "--window-seconds",
+        type=float,
+        default=None,
+        help="Optional local analysis-window length.",
+    )
     args = parser.parse_args()
 
     trajectories = load_trajectory_file(args.path)
     events = extract_events_from_trajectories(trajectories)
+
+    if (args.start_seconds is None) != (args.window_seconds is None):
+        parser.error("--start-seconds and --window-seconds must be supplied together")
+    if args.start_seconds is not None and args.start_seconds < 0:
+        parser.error("--start-seconds must be non-negative")
+    if args.window_seconds is not None and args.window_seconds <= 0:
+        parser.error("--window-seconds must be positive")
+
+    analysis_events = events
+    if args.start_seconds is not None and args.window_seconds is not None:
+        event_origin_ms = min(event.timestamp_ms for event in events)
+        window_start_ms = event_origin_ms + int(args.start_seconds * 1000.0)
+        window_end_ms = window_start_ms + int(args.window_seconds * 1000.0)
+        analysis_events = [
+            event
+            for event in events
+            if window_start_ms <= event.timestamp_ms < window_end_ms
+        ]
+        if not analysis_events:
+            parser.error("analysis window contains no usable events")
+
     plan = SignalPlanDiscovery().discover(
-        events,
+        analysis_events,
         cycle_seconds=args.cycle_seconds,
     )
 
