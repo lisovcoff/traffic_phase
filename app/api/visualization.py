@@ -10,11 +10,11 @@ router = APIRouter(prefix="/visualization", tags=["visualization"])
 def visualization_page() -> str:
     return r"""
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Traffic phase demo</title>
+<title>Состояние фаз светофора</title>
 <style>
 :root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
 *{box-sizing:border-box}body{margin:0;background:#0d1015;color:#edf2f7}
@@ -94,73 +94,117 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
 .progress{height:8px;background:#10141a;border-radius:99px;overflow:hidden;margin-top:10px}.progress>div{height:100%;background:#697586;width:0%}
 .small{font-size:13px}
 @media(max-width:760px){.grid{grid-template-columns:1fr}}
+
+.signal-overview{margin-top:14px;padding:18px;border-color:#3a4350;background:#151a22}
+.signal-overview-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
+.signal-overview-heading h2{margin:0 0 5px;font-size:20px}
+.signal-overview-heading p{margin:0;max-width:760px;line-height:1.45}
+.signal-hero-meta{font-size:12px;font-weight:700;padding:8px 11px;border:1px solid #384353;border-radius:9px;background:#0f141b;color:#dce4ee}
+.signal-renderer{grid-template-columns:repeat(4,minmax(170px,1fr));gap:12px;margin-top:16px}
+.signal-approach{padding:14px;text-align:center;background:#10151c;border-color:#3a4350;min-height:180px}
+.signal-approach-title{margin-bottom:8px}
+.signal-approach-title strong{font-size:18px}
+.signal-approach-title .muted{font-size:11px}
+.signal-head{padding:10px;margin-top:6px}
+.signal-head-title{justify-content:center;font-size:12px;color:#aeb8c6}
+.signal-section{display:flex;justify-content:center;align-items:center;gap:14px;padding:11px;margin-top:8px}
+.signal-lamps{flex-direction:column;gap:7px}
+.signal-lamp{width:24px;height:24px;opacity:.2}
+.signal-state{font-size:16px;letter-spacing:.02em}
+.signal-state.state-GREEN{color:#49d17d}
+.signal-state.state-YELLOW{color:#f2cc5c}
+.signal-state.state-RED{color:#ef6576}
+.signal-state.state-RED_YELLOW{color:#f29d5c}
+.signal-state.state-UNKNOWN{color:#a7afba}
+.signal-movement{font-size:11px;line-height:1.35}
+.signal-source{font-size:9px;margin-top:5px}
+.signal-confidence{font-size:10px;margin-top:3px}
+@media(max-width:800px){.signal-renderer{grid-template-columns:repeat(2,minmax(160px,1fr))}}
+@media(max-width:520px){.signal-renderer{grid-template-columns:1fr}.signal-section{justify-content:flex-start}}
 </style>
 </head>
 <body>
 <main>
-<h1>Traffic phase demo</h1>
-<p class="muted">Signal phases are inferred indirectly from vehicle trajectories. Ground truth is unavailable.</p>
+<h1>Состояние фаз светофора</h1>
+<p class="muted">Состояние светофора восстанавливается по траекториям транспорта. Прямых данных контроллера нет.</p>
 
 <div class="modebar">
-  <button id="modeBatch" class="mode-btn active">Batch</button>
-  <button id="modeRealtime" class="mode-btn">Realtime simulation</button>
+  <button id="modeBatch" class="mode-btn active">Пакетный анализ</button>
+  <button id="modeRealtime" class="mode-btn">Имитация реального времени</button>
 </div>
+
+<div id="sharedState" class="panel signal-overview">
+  <div class="signal-overview-heading">
+    <div>
+      <h2>Состояние светофора</h2>
+      <p id="sharedHint" class="muted small">Состояние восстанавливается по траекториям транспорта. Ниже показано модельное состояние; прямых данных контроллера светофора нет.</p>
+    </div>
+    <div id="signalHeroMeta" class="signal-hero-meta">Ожидание анализа</div>
+  </div>
+  <div id="signalRenderer" class="signal-renderer"></div>
+  <div class="signal-legend">
+    <span class="observed">Наблюдаемые события</span>
+    <span class="modelled">Модельный переход / состояние</span>
+    <span>Пунктир означает, что состояние рассчитано моделью, а не наблюдалось напрямую.</span>
+  </div>
+</div>
+
 
 <section id="batchMode">
   <div class="panel toolbar">
     <input id="batchFile" type="file" accept=".json,.zip,application/json,application/zip">
-    <button id="batchAnalyze" class="primary" disabled>Analyze archive</button>
+    <button id="batchAnalyze" class="primary" disabled>Анализировать архив</button>
     <span id="batchStatus" class="muted">Choose JSON or ZIP.</span>
   </div>
 
     <div class="panel stats">
-      <div class="stat"><span>Processed members</span><strong id="batchProcessedMembers">0 / 0</strong></div>
-      <div class="stat"><span>Trajectories</span><strong id="batchProcessedTrajectories">0</strong></div>
-      <div class="stat"><span>Events</span><strong id="batchProcessedEvents">0</strong></div>
-      <div class="stat"><span>Current session</span><strong id="batchCurrentSession">—</strong></div>
-      <div class="stat"><span>Elapsed</span><strong id="batchElapsed">0.0 s</strong></div>
+      <div class="stat"><span>Обработано JSON-файлов</span><strong id="batchProcessedMembers">0 / 0</strong></div>
+      <div class="stat"><span>Траектории</span><strong id="batchProcessedTrajectories">0</strong></div>
+      <div class="stat"><span>События</span><strong id="batchProcessedEvents">0</strong></div>
+      <div class="stat"><span>Текущая сессия</span><strong id="batchCurrentSession">—</strong></div>
+      <div class="stat"><span>Время обработки</span><strong id="batchElapsed">0.0 s</strong></div>
     </div>
 
   <div id="batchSessionRow" class="panel hidden">
-    <label for="batchSessionSelect">Analysis segment:</label>
+    <label for="batchSessionSelect">Сегмент анализа:</label>
     <select id="batchSessionSelect"></select>
   </div>
 
   <div id="batchViewer" class="hidden">
     <div class="panel stats">
-      <div class="stat"><span>Cycle length</span><strong id="batchCycle">—</strong></div>
-      <div class="stat"><span>Determination confidence</span><strong id="batchCycleConfidence">—</strong></div>
-      <div class="stat"><span>Current phase</span><strong id="batchPhase">UNKNOWN</strong></div>
-      <div class="stat"><span>Active movement groups</span><strong id="batchActiveMovements">—</strong></div>
-      <div class="stat"><span>Phase confidence</span><strong id="batchPhaseConfidence">—</strong></div>
-      <div class="stat"><span>Vehicles / events</span><strong id="batchCounts">—</strong></div>
-      <div class="stat"><span>Determination</span><strong id="batchQuality">—</strong></div>
-      <div class="stat"><span>Determined coverage</span><strong id="batchCoverage">—</strong></div>
-      <div class="stat"><span>Unable to determine</span><strong id="batchUnknown">—</strong></div>
-      <div class="stat"><span>Unable N/S/E/W</span><strong id="batchUnknownByApproach">—</strong></div>
-      <div class="stat"><span>Model source</span><strong id="batchUnresolved">—</strong></div>
-      <div class="stat"><span>Realtime template</span><strong id="batchTemplateUsability">—</strong></div>
+      <div class="stat"><span>Длина цикла</span><strong id="batchCycle">—</strong></div>
+      <div class="stat"><span>Уверенность модели</span><strong id="batchCycleConfidence">—</strong></div>
+      <div class="stat"><span>Текущая фаза</span><strong id="batchPhase">UNKNOWN</strong></div>
+      <div class="stat"><span>Активные направления</span><strong id="batchActiveMovements">—</strong></div>
+      <div class="stat"><span>Уверенность фазы</span><strong id="batchPhaseConfidence">—</strong></div>
+      <div class="stat"><span>Траектории / события</span><strong id="batchCounts">—</strong></div>
+      <div class="stat"><span>Определённость</span><strong id="batchQuality">—</strong></div>
+      <div class="stat"><span>Покрытие модели</span><strong id="batchCoverage">—</strong></div>
+      <div class="stat"><span>Не определено</span><strong id="batchUnknown">—</strong></div>
+      <div class="stat"><span>Не определено по направлениям</span><strong id="batchUnknownByApproach">—</strong></div>
+      <div class="stat"><span>Источник модели</span><strong id="batchUnresolved">—</strong></div>
+      <div class="stat"><span>Шаблон realtime</span><strong id="batchTemplateUsability">—</strong></div>
     </div>
 
     <details class="panel">
-      <summary><strong>Diagnostics</strong> · local reconstruction, pooling and research-only hypotheses</summary>
+      <summary><strong>Диагностика</strong> · реконструкция, объединение режимов и технические показатели</summary>
       <div class="stats" style="margin-top:12px">
-        <div class="stat"><span>Local model quality</span><strong id="batchLocalQuality">—</strong></div>
-        <div class="stat"><span>Local coverage</span><strong id="batchLocalCoverage">—</strong></div>
-        <div class="stat"><span>Regime family</span><strong id="batchRegimeFamily">—</strong></div>
-        <div class="stat"><span>Pooled raw reconstruction</span><strong id="batchPooled">—</strong></div>
-        <div class="stat"><span>Boundary suggestion</span><strong id="batchRecovery">—</strong></div>
-        <div class="stat"><span>Gap diagnostics</span><strong id="batchGapSemantics">—</strong></div>
-        <div class="stat"><span>Local unable cause</span><strong id="batchUnknownCause">—</strong></div>
+        <div class="stat"><span>Качество локальной модели</span><strong id="batchLocalQuality">—</strong></div>
+        <div class="stat"><span>Покрытие</span><strong id="batchLocalCoverage">—</strong></div>
+        <div class="stat"><span>Семейство режима</span><strong id="batchRegimeFamily">—</strong></div>
+        <div class="stat"><span>Общая реконструкция</span><strong id="batchPooled">—</strong></div>
+        <div class="stat"><span>Предложенные границы</span><strong id="batchRecovery">—</strong></div>
+        <div class="stat"><span>Диагностика разрывов</span><strong id="batchGapSemantics">—</strong></div>
+        <div class="stat"><span>Причина неопределённости</span><strong id="batchUnknownCause">—</strong></div>
       </div>
     </details>
 
     <div class="panel batch-player">
       <div class="player-toolbar">
         <div class="controls">
-          <button id="batchPlay" class="primary">Play</button>
-          <button id="batchPause" class="secondary">Pause</button>
-          <label for="batchSpeed">Speed</label>
+          <button id="batchPlay" class="primary">Воспроизвести</button>
+          <button id="batchPause" class="secondary">Пауза</button>
+          <label for="batchSpeed">Скорость</label>
           <select id="batchSpeed">
             <option value="0.5">x0.5</option>
             <option value="1" selected>x1</option>
@@ -172,18 +216,18 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
           <strong id="batchTimeLabel">—</strong>
         </div>
         <div class="player-jumps">
-          <button id="batchPrevPhase" class="secondary">Previous phase</button>
-          <button id="batchNextPhase" class="secondary">Next phase</button>
-          <button id="batchNextUnknown" class="secondary">Next UNKNOWN</button>
-          <button id="batchNextExtension" class="secondary">Next extension</button>
-          <button id="batchNextAnomaly" class="secondary">Next anomaly</button>
+          <button id="batchPrevPhase" class="secondary">Предыдущая фаза</button>
+          <button id="batchNextPhase" class="secondary">Следующая фаза</button>
+          <button id="batchNextUnknown" class="secondary">Следующая неопределённость</button>
+          <button id="batchNextExtension" class="secondary">Следующее продление</button>
+          <button id="batchNextAnomaly" class="secondary">Следующая аномалия</button>
         </div>
       </div>
       <div class="player-readout">
-        <div><span>Exact timestamp</span><strong id="batchExactTimestamp">—</strong></div>
-        <div><span>Cycle position</span><strong id="batchCyclePosition">—</strong></div>
-        <div><span>Phase boundaries</span><strong id="batchBoundaryReadout">—</strong></div>
-        <div><span>Timeline status</span><strong id="batchTimelineStatus">—</strong></div>
+        <div><span>Точное время</span><strong id="batchExactTimestamp">—</strong></div>
+        <div><span>Позиция в цикле</span><strong id="batchCyclePosition">—</strong></div>
+        <div><span>Границы фаз</span><strong id="batchBoundaryReadout">—</strong></div>
+        <div><span>Состояние</span><strong id="batchTimelineStatus">—</strong></div>
       </div>
       <input id="batchSlider" type="range" min="0" max="0" value="0" step="1" aria-label="Batch reconstruction timeline">
       <div id="phaseTimeline" class="timelinebar player-track phase-track" title="Backend reconstruction timeline"></div>
@@ -205,27 +249,27 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
     </div>
     <div class="panel player-detail">
       <div class="detail-heading">
-        <div><h3>Selected reconstruction point</h3><span id="batchPointLabel" class="muted small">—</span></div>
+        <div><h3>Выбранная точка реконструкции</h3><span id="batchPointLabel" class="muted small">—</span></div>
         <span id="batchPlayerAdaptive" class="badge">—</span>
       </div>
       <div class="detail-grid">
-        <div class="detail-card"><span>Signal state</span><strong id="batchSignalState">—</strong></div>
-        <div class="detail-card"><span>Phase</span><strong id="batchPlayerPhase">UNKNOWN</strong></div>
-        <div class="detail-card"><span>Confidence</span><strong id="batchPlayerConfidence">0.00</strong></div>
-        <div class="detail-card"><span>Unknown reason</span><strong id="batchUnknownReason">—</strong></div>
+        <div class="detail-card"><span>Состояния сигналов</span><strong id="batchSignalState">—</strong></div>
+        <div class="detail-card"><span>Фаза</span><strong id="batchPlayerPhase">UNKNOWN</strong></div>
+        <div class="detail-card"><span>Уверенность</span><strong id="batchPlayerConfidence">0.00</strong></div>
+        <div class="detail-card"><span>Причина неопределённости</span><strong id="batchUnknownReason">—</strong></div>
       </div>
       <div class="detail-columns">
-        <div><h4>Movement states</h4><div id="batchMovementStates" class="detail-list"></div></div>
-        <div><h4>Evidence</h4><div id="batchEvidence" class="detail-list"></div></div>
+        <div><h4>Состояния направлений</h4><div id="batchMovementStates" class="detail-list"></div></div>
+        <div><h4>Основание</h4><div id="batchEvidence" class="detail-list"></div></div>
       </div>
     </div>
 
     <div class="panel">
-      <h3>Effective phase model</h3>
+      <h3>Итоговая модель фаз</h3>
       <div id="batchPhaseList" class="phase-list"></div>
       <div class="muted small" style="margin-top:10px">Only evidence-backed intervals are authoritative. This is the best supported model for the selected regime; uncovered intervals remain impossible to determine.</div>
       <details style="margin-top:12px">
-        <summary>Movement / gap research diagnostics</summary>
+        <summary>Расширенная диагностика направлений и разрывов</summary>
         <div id="batchMovementList" class="phase-list" style="margin-top:10px"></div>
         <div class="muted small" style="margin-top:10px">These diagnostics explain rejected or ambiguous hypotheses and never fill the authoritative main-phase gaps.</div>
       </details>
@@ -236,9 +280,9 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
 <section id="realtimeMode" class="hidden">
   <div class="panel toolbar">
     <input id="realtimeFile" type="file" accept=".json,.zip,application/json,application/zip">
-    <button id="realtimeStart" class="primary" disabled>Start</button>
-    <button id="realtimePlay" class="secondary" disabled>Play</button>
-    <button id="realtimePause" class="secondary" disabled>Pause</button>
+    <button id="realtimeStart" class="primary" disabled>Запустить</button>
+    <button id="realtimePlay" class="secondary" disabled>Воспроизвести</button>
+    <button id="realtimePause" class="secondary" disabled>Пауза</button>
     <button id="realtimeStep" class="secondary" disabled>Step</button>
     <button id="realtimeReset" class="secondary" disabled>Reset</button>
     <label for="realtimeSpeed">Speed</label>
@@ -251,49 +295,49 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
   </div>
 
   <div class="panel notice">
-    <strong>Warm-start template:</strong> <span id="templateStatus" class="muted">Run Batch on a reference archive first.</span><br>
+    <strong>Шаблон для запуска realtime:</strong> <span id="templateStatus" class="muted">Run Batch on a reference archive first.</span><br>
     <span class="muted small">Realtime inference is causal. The browser renders backend snapshots and never infers phase or signal state.</span>
   </div>
 
   <div id="realtimeViewer" class="hidden">
     <div id="realtimeOperatorAlert" class="operator-alert hidden">
       <strong id="realtimeOperatorAlertTitle">UNKNOWN</strong>
-      <span id="realtimeOperatorAlertText">The current signal state is not confirmed.</span>
+      <span id="realtimeOperatorAlertText">Текущее состояние сигнала не подтверждено.</span>
     </div>
 
     <div class="operator-grid primary">
-      <div class="operator-card large"><span>CURRENT TIME</span><strong id="realtimeTime">—</strong><small id="realtimeTimestampMs">—</small></div>
-      <div class="operator-card"><span>SYNC STATUS</span><strong id="realtimeSync">WARMUP</strong><small id="realtimeSyncDetail">—</small></div>
-      <div class="operator-card"><span>CURRENT PHASE</span><strong id="realtimePhase">UNKNOWN</strong><small id="realtimePhaseBasis">—</small></div>
-      <div id="realtimeConfidenceCard" class="operator-card"><span>CONFIDENCE</span><strong id="realtimeConfidence">0.00</strong><small id="realtimeConfidenceDetail">—</small></div>
+      <div class="operator-card large"><span>ТЕКУЩЕЕ ВРЕМЯ</span><strong id="realtimeTime">—</strong><small id="realtimeTimestampMs">—</small></div>
+      <div class="operator-card"><span>СИНХРОНИЗАЦИЯ</span><strong id="realtimeSync">WARMUP</strong><small id="realtimeSyncDetail">—</small></div>
+      <div class="operator-card"><span>ТЕКУЩАЯ ФАЗА</span><strong id="realtimePhase">UNKNOWN</strong><small id="realtimePhaseBasis">—</small></div>
+      <div id="realtimeConfidenceCard" class="operator-card"><span>УВЕРЕННОСТЬ</span><strong id="realtimeConfidence">0.00</strong><small id="realtimeConfidenceDetail">—</small></div>
     </div>
 
     <div class="operator-grid">
-      <div id="realtimeObservabilityCard" class="operator-card"><span>OBSERVABILITY</span><strong id="realtimeObservability">INSUFFICIENT_DATA</strong><small id="realtimeObservabilityDetail">—</small></div>
-      <div id="realtimeUnknownCard" class="operator-card unknown-card"><span>UNKNOWN REASON</span><strong id="realtimeUnknownReason">—</strong><small id="realtimeUnknownRate">—</small></div>
-      <div class="operator-card"><span>TEMPLATE COMPATIBILITY</span><strong id="realtimeCompatibility">CHECKING</strong><small id="realtimeCompatibilityDetail">—</small></div>
-      <div class="operator-card"><span>ADAPTIVE MODE</span><strong id="realtimeAdaptive">NORMAL</strong><small id="realtimeAdaptiveDetail">—</small></div>
-      <div class="operator-card"><span>PHASE EXTENSION</span><strong id="realtimeExtension">INACTIVE</strong><small id="realtimeExtensionDetail">—</small></div>
-      <div class="operator-card"><span>EXTENSION DURATION</span><strong id="realtimeExtensionDuration">0.0 s</strong><small id="realtimeExtensionCount">0 evidence event(s)</small></div>
+      <div id="realtimeObservabilityCard" class="operator-card"><span>НАБЛЮДАЕМОСТЬ</span><strong id="realtimeObservability">INSUFFICIENT_DATA</strong><small id="realtimeObservabilityDetail">—</small></div>
+      <div id="realtimeUnknownCard" class="operator-card unknown-card"><span>ПРИЧИНА НЕОПРЕДЕЛЁННОСТИ</span><strong id="realtimeUnknownReason">—</strong><small id="realtimeUnknownRate">—</small></div>
+      <div class="operator-card"><span>СОВМЕСТИМОСТЬ ШАБЛОНА</span><strong id="realtimeCompatibility">CHECKING</strong><small id="realtimeCompatibilityDetail">—</small></div>
+      <div class="operator-card"><span>РЕЖИМ АДАПТАЦИИ</span><strong id="realtimeAdaptive">NORMAL</strong><small id="realtimeAdaptiveDetail">—</small></div>
+      <div class="operator-card"><span>ПРОДЛЕНИЕ ФАЗЫ</span><strong id="realtimeExtension">INACTIVE</strong><small id="realtimeExtensionDetail">—</small></div>
+      <div class="operator-card"><span>ДЛИТЕЛЬНОСТЬ ПРОДЛЕНИЯ</span><strong id="realtimeExtensionDuration">0.0 s</strong><small id="realtimeExtensionCount">0 evidence event(s)</small></div>
     </div>
 
     <div class="panel">
       <div class="operator-section-heading">
-        <div><h3>Effective live state</h3><span class="muted small">Backend effective snapshot used for operator display.</span></div>
+        <div><h3>Текущее эффективное состояние</h3><span class="muted small">Состояние, которое backend использует для отображения.</span></div>
         <span id="realtimeLiveStateBadge" class="operator-badge unknown">UNKNOWN / UNCONFIRMED</span>
       </div>
       <div class="operator-detail-grid">
-        <div class="detail-card"><span>Effective axis</span><strong id="realtimeEffectiveAxis">—</strong></div>
-        <div class="detail-card"><span>Template axis</span><strong id="realtimeTemplateAxis">—</strong></div>
-        <div class="detail-card"><span>Template deviation</span><strong id="realtimeDeviation">—</strong></div>
-        <div class="detail-card"><span>Adaptive reason</span><strong id="realtimeAdaptiveReason">—</strong></div>
+        <div class="detail-card"><span>Текущая ось</span><strong id="realtimeEffectiveAxis">—</strong></div>
+        <div class="detail-card"><span>Ось шаблона</span><strong id="realtimeTemplateAxis">—</strong></div>
+        <div class="detail-card"><span>Отклонение от шаблона</span><strong id="realtimeDeviation">—</strong></div>
+        <div class="detail-card"><span>Причина адаптации</span><strong id="realtimeAdaptiveReason">—</strong></div>
       </div>
       <div id="realtimeEffectiveMovements" class="operator-list"></div>
     </div>
 
     <div class="panel">
       <div class="operator-section-heading">
-        <div><h3>Template state</h3><span class="muted small">Historical warm-start model state supplied by the backend.</span></div>
+        <div><h3>Состояние шаблона</h3><span class="muted small">Историческая модель для начальной синхронизации realtime.</span></div>
         <span id="realtimeTemplateBadge" class="operator-badge">MODEL</span>
       </div>
       <div id="realtimeTemplateStates" class="operator-list"></div>
@@ -308,25 +352,15 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
     </div>
 
     <div class="panel stats">
-      <div class="stat"><span>Sync evidence</span><strong id="syncEvidence">0</strong></div>
-      <div class="stat"><span>Buffer events</span><strong id="bufferEvents">0</strong></div>
-      <div class="stat"><span>Emitted trajectories</span><strong id="emittedTrajectories">0</strong></div>
-      <div class="stat"><span>Emitted events</span><strong id="emittedEvents">0</strong></div>
-      <div class="stat"><span>Remaining trajectories</span><strong id="remainingTrajectories">0</strong></div>
+      <div class="stat"><span>События синхронизации</span><strong id="syncEvidence">0</strong></div>
+      <div class="stat"><span>События в буфере</span><strong id="bufferEvents">0</strong></div>
+      <div class="stat"><span>Передано траекторий</span><strong id="emittedTrajectories">0</strong></div>
+      <div class="stat"><span>Передано событий</span><strong id="emittedEvents">0</strong></div>
+      <div class="stat"><span>Осталось траекторий</span><strong id="remainingTrajectories">0</strong></div>
     </div>
   </div>
 </section>
 
-<div id="sharedState" class="panel hidden">
-  <h3>Configured signal heads</h3>
-  <p id="sharedHint" class="muted small">Signal state renderer.</p>
-  <div id="signalRenderer" class="signal-renderer"></div>
-  <div class="signal-legend">
-    <span class="observed">Observed evidence</span>
-    <span class="modelled">Modelled transition / model state</span>
-    <span>Dashed sections are modelled, not direct lamp observations.</span>
-  </div>
-</div>
 
 <script>
 const $=id=>document.getElementById(id);
@@ -344,7 +378,11 @@ function setMode(next){
   stopRealtime();
   if(next==='batch'&&batchSession)renderBatchPoint();
   else if(next==='realtime'&&realtimeSnapshot)renderRealtimeSnapshot(realtimeSnapshot);
-  else $('sharedState').classList.add('hidden');
+  else {
+    $('sharedState').classList.remove('hidden');
+    $('sharedHint').textContent='Загрузите архив и запустите анализ, чтобы увидеть состояние сигналов.';
+    $('signalHeroMeta').textContent='Ожидание анализа';
+  }
 }
 $('modeBatch').addEventListener('click',()=>setMode('batch'));
 $('modeRealtime').addEventListener('click',()=>setMode('realtime'));
@@ -383,7 +421,7 @@ async function analyzeBatch(){
   stopBatch();
   const file=$('batchFile').files[0];
   if(!file)return;
-  $('batchStatus').textContent='Analyzing…';
+  $('batchStatus').textContent='Идёт анализ…';
   const form=new FormData();form.append('file',file);
   try{
     const response=await fetch('/api/v1/phase/analyze',{method:'POST',body:form});
@@ -402,12 +440,12 @@ async function analyzeBatch(){
       select.appendChild(option);
     });
     $('batchSessionRow').classList.toggle('hidden',sessions.length===1);
-    $('batchStatus').textContent='Loaded '+batchAnalysis.source.filename+': '+sessions.length+' analysis segment(s), '+(batchAnalysis.source.regime_family_count||0)+' regime family/families.';
+    $('batchStatus').textContent='Загружен '+batchAnalysis.source.filename+': '+sessions.length+' сегмент(а) анализа, '+(batchAnalysis.source.regime_family_count||0)+' семейство(а) режима.';
     openBatchSession(0);
   }catch(error){
     $('batchViewer').classList.add('hidden');
     $('batchSessionRow').classList.add('hidden');
-    $('batchStatus').textContent='Error: '+error.message;
+    $('batchStatus').textContent='Ошибка: '+error.message;
   }
 }
 
@@ -439,16 +477,16 @@ function openBatchSession(i){
   $('batchUnknownByApproach').textContent=['N','S','E','W'].map(a=>a+' '+(byApproach[a]==null?'—':(Number(byApproach[a])*100).toFixed(1)+'%')).join(' · ');
 
   const status=determination.status||'UNABLE_TO_DETERMINE';
-  $('batchQuality').textContent=status;
+  $('batchQuality').textContent=ruStatus(status);
   $('batchQuality').className=status==='AVAILABLE'?'ok':(status==='UNABLE_TO_DETERMINE'?'error':'warmup');
   $('batchUnresolved').textContent=determination.source||'—';
 
-  $('batchTemplateUsability').textContent=(template.status||'NOT_USABLE')+' · '+(template.source||'—')+(template.usable?'':' · batch-only');
+  $('batchTemplateUsability').textContent=ruStatus(template.status||'NOT_USABLE')+' · '+(template.source||'—')+(template.usable?'':' · только Batch');
   $('batchTemplateUsability').className=template.usable?'ok':'warmup';
 
   const localQuality=batchSession.model_quality||'UNKNOWN';
   const localReasons=batchSession.quality_reasons||[];
-  $('batchLocalQuality').textContent=localQuality+(localReasons.length?(' · '+localReasons.join(', ')):'');
+  $('batchLocalQuality').textContent=ruStatus(localQuality)+(localReasons.length?(' · '+localReasons.join(', ')):'');
   $('batchLocalQuality').className=localQuality==='GOOD'?'ok':(localQuality==='INSUFFICIENT'?'error':'warmup');
   $('batchLocalCoverage').textContent=localModel.cycle_coverage==null?'—':(Number(localModel.cycle_coverage)*100).toFixed(1)+'%';
 
@@ -585,7 +623,7 @@ function buildBatchTimeline(){
   }
   timeline.forEach((point,index)=>{
     const start=Number(point.timestamp_ms),end=batchPlayerEndTimestamp(index)||start;
-    const phase=point.phase_id==null?'UNKNOWN':('Phase '+point.phase_id);
+    const phase=point.phase_id==null?'НЕ ОПРЕДЕЛЕНО':('Фаза '+point.phase_id);
     addTimelineSegment(bar,{start_ms:start,end_ms:end,kind:point.phase_id==null?'unknown':'phase',
       label:new Date(start).toISOString()+' · '+phase+' · cycle '+Number(point.cycle_position_s||0).toFixed(1)+'s',index});
     const stateLabel=Object.entries(point.states||{}).map(([approach,state])=>approach+':'+state).join(' · ');
@@ -662,7 +700,7 @@ function renderBatchPoint(){
   const player=batchSession.player||{};
   const exactDate=new Date(Number(point.timestamp_ms));
   const states=point.states||{};
-  const stateText=Object.entries(states).map(([approach,state])=>approach+' '+state).join(' · ')||'UNKNOWN';
+  const stateText=Object.entries(states).map(([approach,state])=>ruApproach(approach)+' · '+ruSignalState(state)).join(' · ')||'НЕ ОПРЕДЕЛЕНО';
   const phase=point.phase_id==null?'UNKNOWN':('Phase '+point.phase_id);
   const movements=point.movement_states||point.active_movements||[];
   const movementLabels=movements.map(item=>item.movement+' · '+(item.state||'UNKNOWN')+' · conf '+Number(item.confidence||0).toFixed(2));
@@ -687,21 +725,21 @@ function renderBatchPoint(){
   $('batchPointLabel').textContent='Point '+(batchIndex+1)+' / '+timeline.length+' · '+Number(point.timestamp_ms);
   $('batchCyclePosition').textContent=cyclePosition.toFixed(3)+' s';
   $('batchBoundaryReadout').textContent=boundaryReadout;
-  $('batchTimelineStatus').textContent=(point.transition?'TRANSITION · ':'')+(point.unknown_reason?'UNKNOWN · '+point.unknown_reason:'determined');
-  $('batchPhase').textContent=phase+(point.transition?' · transition':'');
+  $('batchTimelineStatus').textContent=(point.transition?'МОДЕЛЬНЫЙ ПЕРЕХОД · ':'')+(point.unknown_reason?'НЕ ОПРЕДЕЛЕНО · '+point.unknown_reason:'ОПРЕДЕЛЕНО ПО МОДЕЛИ');
+  $('batchPhase').textContent=phase+(point.transition?' · переход':'');
   $('batchActiveMovements').textContent=movements.length?movements.map(item=>item.movement).join(', '):'—';
   $('batchPhaseConfidence').textContent=Number(point.confidence||0).toFixed(2);
   $('batchSignalState').textContent=stateText;
   $('batchPlayerPhase').textContent=phase;
   $('batchPlayerConfidence').textContent=Number(point.confidence||0).toFixed(2);
-  $('batchUnknownReason').textContent=point.unknown_reason||'—';
-  $('batchPlayerAdaptive').textContent=player.adaptive_mode||point.adaptive_mode||'BATCH_RECONSTRUCTION';
+  $('batchUnknownReason').textContent=point.unknown_reason||'Нет: состояние выведено из модели фазы';
+  $('batchPlayerAdaptive').textContent='МОДЕЛЬНЫЙ ПРОСМОТР';
   renderBatchDetailList($('batchMovementStates'),movementLabels,'No movement state active at this timestamp.');
   renderBatchDetailList($('batchEvidence'),evidenceLabels.concat([
     'signal source '+(point.signal_source||'backend reconstruction'),
     'snapshot timestamp '+Number(point.timestamp_ms)
   ]),'No evidence metadata returned by backend.');
-  renderSignalRenderer(point.signal_renderer||batchSession.signal_renderer||null);
+  renderSignalRenderer(point.signal_renderer||batchSession.signal_renderer||null); $('signalHeroMeta').textContent=phase+' · позиция '+cyclePosition.toFixed(1)+' с · модельная реконструкция';
   syncBatchTimelineActive();
 }
 function playBatch(){
@@ -882,19 +920,19 @@ function renderRealtimeOperatorAlert(snapshot,status,adaptiveMode,confidence){
   if(status==='INSUFFICIENT_DATA'){
     alert.classList.add('insufficient');
     $('realtimeOperatorAlertTitle').textContent='INSUFFICIENT DATA';
-    $('realtimeOperatorAlertText').textContent='Not enough usable traffic evidence to confirm realtime signal state. No phase is shown as confirmed.';
+    $('realtimeOperatorAlertText').textContent='Недостаточно данных от транспорта для подтверждения состояния сигнала. Фаза не считается подтверждённой.';
   }else if(adaptiveMode==='RECOVERY'){
     alert.classList.add('recovery');
     $('realtimeOperatorAlertTitle').textContent='RECOVERY · PHASE NOT CONFIRMED';
-    $('realtimeOperatorAlertText').textContent='Backend is resynchronizing after an adaptive deviation. Current phase/state is UNKNOWN until recovery completes.';
+    $('realtimeOperatorAlertText').textContent='Backend выполняет повторную синхронизацию после отклонения от шаблона. Текущая фаза и состояние сигнала пока не подтверждены.';
   }else if(adaptiveMode==='LIVE_OVERRIDE'){
     alert.classList.add('override');
     $('realtimeOperatorAlertTitle').textContent='LIVE OVERRIDE · TEMPLATE DEVIATION';
-    $('realtimeOperatorAlertText').textContent='Effective live state deviates from the historical template: template '+(snapshot.template_expected_axis||'—')+', live '+(snapshot.effective_axis||'—')+'.';
+    $('realtimeOperatorAlertText').textContent='Текущее состояние отличается от исторического шаблона: шаблон '+(snapshot.template_expected_axis||'—')+', live '+(snapshot.effective_axis||'—')+'.';
   }else if(status!=='KNOWN'||confidence<0.20){
     alert.classList.add('unknown');
-    $('realtimeOperatorAlertTitle').textContent='LOW CONFIDENCE · STATE NOT FULLY CONFIRMED';
-    $('realtimeOperatorAlertText').textContent='Backend returned a low-confidence snapshot. Treat the current signal state as uncertain.';
+    $('realtimeOperatorAlertTitle').textContent='LOW УВЕРЕННОСТЬ · STATE NOT FULLY CONFIRMED';
+    $('realtimeOperatorAlertText').textContent='Backend вернул снимок с низкой уверенностью. Текущее состояние сигнала считается неопределённым.';
   }else{
     alert.classList.add('hidden');
   }
@@ -911,13 +949,14 @@ function renderRealtimeSnapshot(snapshot){
   const reason=realtimeUnknownReason(snapshot);
   const extensionDuration=Number(snapshot.phase_extension_duration_seconds||0);
   const phaseConfirmed=status==='KNOWN'&&adaptiveMode!=='RECOVERY';
+  $('signalHeroMeta').textContent=(snapshot.phase_id==null?'Фаза не определена':'Фаза '+snapshot.phase_id)+' · realtime · '+(adaptiveMode==='LIVE_OVERRIDE'?'отклонение от шаблона':'потоковая реконструкция');
 
   renderRealtimeOperatorAlert(snapshot,status,adaptiveMode,confidence);
 
   const date=new Date(Number(snapshot.timestamp_ms||snapshot.simulated_timestamp_ms));
   $('realtimeTime').textContent=date.toLocaleString();
   $('realtimeTimestampMs').textContent='backend timestamp '+Number(snapshot.timestamp_ms||snapshot.simulated_timestamp_ms);
-  $('realtimeSync').textContent=snapshot.synchronization_status||'WARMUP';
+  $('realtimeSync').textContent=ruStatus(snapshot.synchronization_status||'WARMUP');
   $('realtimeSyncDetail').textContent='offset '+(snapshot.phase_offset_s==null?'—':Number(snapshot.phase_offset_s).toFixed(2)+' s')+' · match '+(Number(snapshot.synchronization_match_ratio||0)*100).toFixed(0)+'%';
 
   $('realtimePhase').textContent=adaptiveMode==='RECOVERY'
@@ -933,7 +972,7 @@ function renderRealtimeSnapshot(snapshot){
   $('realtimeConfidenceDetail').textContent='phase '+Number(snapshot.phase_confidence||0).toFixed(2)+' · traffic '+Number(snapshot.traffic_evidence_confidence||0).toFixed(2)+' · adaptive '+Number(snapshot.adaptive_confidence||0).toFixed(2);
   $('realtimeConfidenceCard').classList.toggle('low-confidence',status!=='KNOWN'||confidence<0.50);
 
-  $('realtimeObservability').textContent=observabilityLevel+' · '+status;
+  $('realtimeObservability').textContent=ruStatus(observabilityLevel)+' · '+ruStatus(status);
   const trafficObs=snapshot.traffic_observability||{};
   $('realtimeObservabilityDetail').textContent='evidence density '+Number(trafficObs.evidence_density||0).toFixed(2)+' · determined '+(Number(trafficObs.determined_rate||0)*100).toFixed(0)+'%';
   const unknownRate=trafficObs.unknown_rate;
@@ -941,13 +980,13 @@ function renderRealtimeSnapshot(snapshot){
   $('realtimeUnknownRate').textContent='UNKNOWN rate '+(unknownRate==null?'—':(Number(unknownRate)*100).toFixed(1)+'%')+' · longest '+(trafficObs.longest_unknown_interval_seconds==null?'—':Number(trafficObs.longest_unknown_interval_seconds).toFixed(1)+' s');
   $('realtimeUnknownCard').classList.toggle('unknown-card',status!=='KNOWN');
 
-  $('realtimeCompatibility').textContent=compatibility;
+  $('realtimeCompatibility').textContent=ruStatus(compatibility);
   $('realtimeCompatibilityDetail').textContent='match '+(Number(snapshot.synchronization_match_ratio||0)*100).toFixed(0)+'% · deviation '+(snapshot.template_deviation_seconds==null?'—':Number(snapshot.template_deviation_seconds).toFixed(1)+' s');
 
-  $('realtimeAdaptive').textContent=adaptiveMode;
+  $('realtimeAdaptive').textContent=ruStatus(adaptiveMode);
   $('realtimeAdaptiveDetail').textContent=snapshot.adaptive_reason||'No adaptive deviation active';
 
-  $('realtimeExtension').textContent=extensionDuration>0?'ACTIVE':'INACTIVE';
+  $('realtimeExtension').textContent=ruStatus(extensionDuration>0?'ACTIVE':'INACTIVE');
   $('realtimeExtensionDetail').textContent=(snapshot.phase_extension_event_count||0)+' evidence event(s) · peak '+Number(snapshot.phase_extension_peak_duration_seconds||0).toFixed(1)+' s';
   $('realtimeExtensionDuration').textContent=extensionDuration.toFixed(1)+' s';
   $('realtimeExtensionCount').textContent=(snapshot.phase_extension_event_count||0)+' evidence event(s)';
@@ -959,13 +998,13 @@ function renderRealtimeSnapshot(snapshot){
 
   const liveBadge=$('realtimeLiveStateBadge');
   const effectiveUnknown=status!=='KNOWN'||adaptiveMode==='RECOVERY'||confidence<0.20;
-  liveBadge.textContent=effectiveUnknown?'UNKNOWN / UNCONFIRMED':'EFFECTIVE LIVE';
+  liveBadge.textContent=effectiveUnknown?'НЕ ОПРЕДЕЛЕНО / НЕ ПОДТВЕРЖДЕНО':'ТЕКУЩЕЕ СОСТОЯНИЕ';
   liveBadge.className='operator-badge '+(effectiveUnknown?'unknown':(adaptiveMode==='LIVE_OVERRIDE'?'override':''));
 
   renderEffectiveMovementList(snapshot);
   renderTemplateStateList(snapshot);
 
-  $('realtimeTemplateBadge').textContent=adaptiveMode==='LIVE_OVERRIDE'?'DEVIATING':(compatibility==='COMPATIBLE'?'COMPATIBLE':'MODEL');
+  $('realtimeTemplateBadge').textContent=adaptiveMode==='LIVE_OVERRIDE'?'ОТКЛОНЕНИЕ':(compatibility==='COMPATIBLE'?'СОВМЕСТИМ':'МОДЕЛЬ');
   $('realtimeTemplateBadge').className='operator-badge '+(adaptiveMode==='LIVE_OVERRIDE'?'override':'');
 
   const progress=Math.round(Number(snapshot.progress||0)*1000)/10;
@@ -982,6 +1021,18 @@ function renderRealtimeSnapshot(snapshot){
 
   $('sharedHint').textContent='Realtime operator dashboard. Phase and signal state values are backend snapshots; browser does not infer phases.';
   renderSignalRenderer(snapshot.signal_renderer||null,'signalRenderer');
+}
+const RU_APPROACHES={N:'Север',S:'Юг',E:'Восток',W:'Запад'};
+const RU_STATES={GREEN:'ЗЕЛЁНЫЙ',YELLOW:'ЖЁЛТЫЙ',RED:'КРАСНЫЙ',RED_YELLOW:'КРАСНЫЙ + ЖЁЛТЫЙ',OFF:'ВЫКЛЮЧЕН',UNKNOWN:'НЕ ОПРЕДЕЛЕНО',MIXED:'СМЕШАННЫЙ'};
+const RU_SOURCES={OBSERVED_EVIDENCE:'ПО НАБЛЮДАЕМЫМ СОБЫТИЯМ',MODELLED_TRANSITION:'МОДЕЛЬНЫЙ ПЕРЕХОД',INFERRED_MODEL:'ПО МОДЕЛИ',UNKNOWN:'НЕ ОПРЕДЕЛЕНО'};
+const RU_STATUS={AVAILABLE:'ДОСТУПНО',PARTIAL:'ЧАСТИЧНО',UNABLE_TO_DETERMINE:'НЕ ОПРЕДЕЛЕНО',USABLE:'ГОТОВ',NOT_USABLE:'НЕ ГОТОВ',GOOD:'ХОРОШЕЕ',INSUFFICIENT:'НЕДОСТАТОЧНО',WARMUP:'РАЗОГРЕВ',SYNCHRONIZED:'СИНХРОНИЗИРОВАНО',INCOMPATIBLE:'НЕСОВМЕСТИМ',COMPATIBLE:'СОВМЕСТИМ',CHECKING:'ПРОВЕРКА',NORMAL:'НОРМАЛЬНЫЙ',RECOVERY:'ВОССТАНОВЛЕНИЕ',LIVE_OVERRIDE:'ОТКЛОНЕНИЕ ОТ ШАБЛОНА',ACTIVE:'АКТИВНО',INACTIVE:'НЕАКТИВНО',KNOWN:'ОПРЕДЕЛЕНО',UNKNOWN:'НЕ ОПРЕДЕЛЕНО',INSUFFICIENT_DATA:'НЕДОСТАТОЧНО ДАННЫХ'};
+function ruApproach(value){return RU_APPROACHES[String(value)]||String(value||'—')}
+function ruSignalState(value){return RU_STATES[String(value)]||String(value||'НЕ ОПРЕДЕЛЕНО')}
+function ruSignalSource(value){return RU_SOURCES[String(value)]||String(value||'—')}
+function ruStatus(value){return RU_STATUS[String(value)]||String(value||'—')}
+function ruMovement(value){
+  const match=String(value||'').match(/^([NSEW])->_?([NSEW])$/);
+  return match?ruApproach(match[1])+' → '+ruApproach(match[2]):String(value||'—');
 }
 function renderSignalRenderer(data,targetId='signalRenderer'){
   const holder=$(targetId);
@@ -1000,7 +1051,7 @@ function renderSignalRenderer(data,targetId='signalRenderer'){
     const title=document.createElement('div');
     title.className='signal-approach-title';
     const name=document.createElement('strong');
-    name.textContent=approach;
+    name.textContent=ruApproach(approach);
     const heads=data.heads.filter(head=>head.approach===approach);
     const count=document.createElement('span');
     count.className='muted small';
@@ -1011,7 +1062,7 @@ function renderSignalRenderer(data,targetId='signalRenderer'){
       headEl.className='signal-head '+(head.kind==='additional'?'additional':'');
       const headTitle=document.createElement('div');
       headTitle.className='signal-head-title';
-      headTitle.textContent=head.id+(head.kind==='additional'?' · additional':' · main');
+      headTitle.textContent=head.id+(head.kind==='additional'?' · дополнительный':' · основной');
       headEl.appendChild(headTitle);
       (head.sections||[]).forEach(section=>{
         const row=document.createElement('div');
@@ -1032,12 +1083,12 @@ function renderSignalRenderer(data,targetId='signalRenderer'){
         });
         const meta=document.createElement('div');meta.className='signal-meta';
         const state=document.createElement('div');
-        state.className='signal-state '+(section.state==='UNKNOWN'?'unknown':'');
-        state.textContent=section.state;
+        state.className='signal-state '+(section.state==='UNKNOWN'?'unknown ':'')+'state-'+section.state;
+        state.textContent=ruSignalState(section.state);
         const movement=document.createElement('div');movement.className='signal-movement';
-        movement.textContent=section.movement;
+        movement.textContent=ruMovement(section.movement);
         const source=document.createElement('div');source.className='signal-source';
-        source.textContent=section.source;
+        source.textContent=ruSignalSource(section.source);
         const conf=document.createElement('div');conf.className='signal-confidence';
         conf.textContent='confidence '+Number(section.confidence||0).toFixed(2);
         meta.append(state,movement,source,conf);row.append(lamps,meta);headEl.appendChild(row);

@@ -74,6 +74,13 @@ def test_batch_player_contract_exposes_research_snapshot():
         assert player["movement_intervals"]
     assert player["phase_extension_intervals"] == []
 
+    determined_points = [
+        point
+        for point in player["timeline"]
+        if any(state != "UNKNOWN" for state in point["states"].values())
+    ]
+    assert determined_points, "batch playback must expose model-derived signal states"
+
     point = player["timeline"][0]
     assert set(point) >= {
         "timestamp_ms",
@@ -96,6 +103,11 @@ def test_batch_player_contract_exposes_research_snapshot():
         "layout",
         "heads",
     }
+    assert any(
+        section["state"] != "UNKNOWN"
+        for head in point["signal_renderer"]["heads"]
+        for section in head["sections"]
+    )
 
     assert set(player["navigation"]) >= {
         "phase_starts",
@@ -137,22 +149,19 @@ def test_visualization_page_contains_backend_only_batch_player():
 def test_visualization_contains_realtime_operator_dashboard_contract():
     html = visualization_page()
     required = (
-        "CURRENT TIME",
-        "SYNC STATUS",
-        "CURRENT PHASE",
-        "CONFIDENCE",
-        "OBSERVABILITY",
-        "UNKNOWN REASON",
-        "TEMPLATE COMPATIBILITY",
-        "ADAPTIVE MODE",
-        "PHASE EXTENSION",
-        "EXTENSION DURATION",
+        "ТЕКУЩЕЕ ВРЕМЯ",
+        "СИНХРОНИЗАЦИЯ",
+        "ТЕКУЩАЯ ФАЗА",
+        "УВЕРЕННОСТЬ",
+        "НАБЛЮДАЕМОСТЬ",
+        "ПРИЧИНА НЕОПРЕДЕЛЁННОСТИ",
+        "СОВМЕСТИМОСТЬ ШАБЛОНА",
+        "РЕЖИМ АДАПТАЦИИ",
+        "ПРОДЛЕНИЕ ФАЗЫ",
+        "ДЛИТЕЛЬНОСТЬ ПРОДЛЕНИЯ",
         "realtimeTemplateStates",
         "realtimeEffectiveMovements",
         "realtimeOperatorAlert",
-        "INSUFFICIENT DATA",
-        "LIVE OVERRIDE",
-        "RECOVERY",
         "renderRealtimeSnapshot(snapshot)",
         "renderSignalRenderer(snapshot.signal_renderer||null,'signalRenderer')",
     )

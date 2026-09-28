@@ -1238,19 +1238,52 @@ def build_session_timeline(
     timeline: list[dict[str, object]] = []
     for timestamp_ms in timestamps:
         phase, cycle_position_s = _phase_at(session, timestamp_ms)
-        relative_time_s = max(
-            0.0,
-            (
-                timestamp_ms
-                - session.phase_model.origin_timestamp_ms
-            )
-            / 1000.0,
+        # Batch playback is a historical visualization of the reconstructed
+        # timing plan. Passing an empty event list to SignalStateEstimator here
+        # forces every approach to UNKNOWN by design, because realtime evidence
+        # is intentionally required by the live estimator. For historical
+        # playback, use the already reconstructed phase model and keep the
+        # result explicitly model-derived in the renderer.
+        states = {approach: "UNKNOWN" for approach in topology.approaches}
+        transition = False
+        phase_id = getattr(phase, "phase_id", None)
+        phase_confidence = (
+            max(0.0, min(1.0, float(getattr(phase, "confidence", 0.0))))
+            if phase is not None
+            else 0.0
         )
-        signal = estimator.estimate(relative_time_s, ())
-        states = {
-            item.approach: item.state.value
-            for item in signal.approaches
-        }
+
+        if phase is not None:
+            active_approaches = set(
+                getattr(phase, "active_approaches", ()) or ()
+            )
+            for approach in active_approaches:
+                if approach in states:
+                    states[approach] = "GREEN"
+
+            for approach in topology.approaches:
+                if approach in active_approaches:
+                    continue
+                if any(
+                    topology.approaches_conflict(approach, active)
+                    for active in active_approaches
+                ):
+                    states[approach] = "RED"
+
+            # Preserve the explicit modelled YELLOW / RED+YELLOW transition
+            # semantics at phase boundaries without introducing live evidence.
+            for head in intersection_config.signal_heads:
+                if not head.is_primary or head.approach not in states:
+                    continue
+                transition_model = estimator._transition_model_for_head(
+                    float(cycle_position_s or 0.0),
+                    phase,
+                    head,
+                )
+                if transition_model is not None:
+                    states[head.approach] = transition_model.state.value
+                    transition = True
+
         has_unknown = any(
             state == "UNKNOWN"
             for state in states.values()
@@ -1259,10 +1292,8 @@ def build_session_timeline(
             unknown_reason = None
         elif phase is None:
             unknown_reason = "uncovered_phase"
-        elif signal.phase_confidence < estimator.min_phase_confidence:
-            unknown_reason = "low_phase_confidence"
         else:
-            unknown_reason = "estimator_unknown"
+            unknown_reason = "unobserved_approach"
         timeline.append(
             {
                 "timestamp_ms": int(timestamp_ms),
@@ -1271,8 +1302,8 @@ def build_session_timeline(
                     3,
                 ),
                 "cycle_position_s": cycle_position_s,
-                "phase_id": signal.phase_id,
-                "transition": signal.transition,
+                "phase_id": phase_id,
+                "transition": transition,
                 "active_approaches": (
                     list(phase.active_approaches)
                     if phase is not None
@@ -1282,7 +1313,7 @@ def build_session_timeline(
                     session,
                     cycle_position_s,
                 ),
-                "confidence": signal.phase_confidence,
+                "confidence": phase_confidence,
                 "states": states,
                 "unknown_reason": unknown_reason,
                 "axis_states": {
