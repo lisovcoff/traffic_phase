@@ -161,8 +161,12 @@ def test_visualization_contains_realtime_operator_dashboard_contract():
         "ДЛИТЕЛЬНОСТЬ ПРОДЛЕНИЯ",
         "realtimeTemplateStates",
         "realtimeEffectiveMovements",
+        "batchSignalStateView",
+        "realtimeSignalStateView",
+        "signalRenderer",
+        "realtimeSignalRenderer",
         "realtimeOperatorAlert",
         "renderRealtimeSnapshot(snapshot)",
-        "renderSignalRenderer(snapshot.signal_renderer||null,'signalRenderer')",
+        "renderSignalRenderer(snapshot.signal_renderer||null,'realtimeSignalRenderer')",
     )
     assert all(token in html for token in required)

@@ -120,6 +120,14 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
 .signal-source{font-size:9px;margin-top:5px}
 .signal-confidence{font-size:10px;margin-top:3px}
 @media(max-width:800px){.signal-renderer{grid-template-columns:repeat(2,minmax(160px,1fr))}}
+
+.signal-overview.compact{padding:15px;margin:12px 0 14px}
+.signal-overview.compact .signal-overview-heading h2{font-size:18px}
+.signal-overview.compact .signal-approach{min-height:150px;padding:12px}
+.signal-overview.compact .signal-lamp{width:22px;height:22px}
+.signal-overview.compact .signal-section{padding:9px;margin-top:6px}
+.signal-overview.compact .signal-state{font-size:15px}
+.signal-overview.compact .signal-legend{margin-top:8px;font-size:10px}
 @media(max-width:520px){.signal-renderer{grid-template-columns:1fr}.signal-section{justify-content:flex-start}}
 </style>
 </head>
@@ -133,28 +141,12 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
   <button id="modeRealtime" class="mode-btn">Имитация реального времени</button>
 </div>
 
-<div id="sharedState" class="panel signal-overview">
-  <div class="signal-overview-heading">
-    <div>
-      <h2>Состояние светофора</h2>
-      <p id="sharedHint" class="muted small">Состояние восстанавливается по траекториям транспорта. Ниже показано модельное состояние; прямых данных контроллера светофора нет.</p>
-    </div>
-    <div id="signalHeroMeta" class="signal-hero-meta">Ожидание анализа</div>
-  </div>
-  <div id="signalRenderer" class="signal-renderer"></div>
-  <div class="signal-legend">
-    <span class="observed">Наблюдаемые события</span>
-    <span class="modelled">Модельный переход / состояние</span>
-    <span>Пунктир означает, что состояние рассчитано моделью, а не наблюдалось напрямую.</span>
-  </div>
-</div>
-
 
 <section id="batchMode">
   <div class="panel toolbar">
     <input id="batchFile" type="file" accept=".json,.zip,application/json,application/zip">
     <button id="batchAnalyze" class="primary" disabled>Анализировать архив</button>
-    <span id="batchStatus" class="muted">Choose JSON or ZIP.</span>
+    <span id="batchStatus" class="muted">Выберите JSON или ZIP.</span>
   </div>
 
     <div class="panel stats">
@@ -175,7 +167,7 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="stat"><span>Длина цикла</span><strong id="batchCycle">—</strong></div>
       <div class="stat"><span>Уверенность модели</span><strong id="batchCycleConfidence">—</strong></div>
       <div class="stat"><span>Текущая фаза</span><strong id="batchPhase">UNKNOWN</strong></div>
-      <div class="stat"><span>Активные направления</span><strong id="batchActiveMovements">—</strong></div>
+      <div class="stat"><span>Активные движения</span><strong id="batchActiveMovements">—</strong></div>
       <div class="stat"><span>Уверенность фазы</span><strong id="batchPhaseConfidence">—</strong></div>
       <div class="stat"><span>Траектории / события</span><strong id="batchCounts">—</strong></div>
       <div class="stat"><span>Определённость</span><strong id="batchQuality">—</strong></div>
@@ -223,6 +215,24 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
           <button id="batchNextAnomaly" class="secondary">Следующая аномалия</button>
         </div>
       </div>
+      <div id="batchSignalStateView" class="signal-overview compact hidden">
+        <div class="signal-overview-heading">
+          <div>
+            <h2>Состояние светофора</h2>
+            <p id="batchSignalHint" class="muted small">Состояние восстановлено по траекториям транспорта. Это модельный результат, а не прямое чтение контроллера.</p>
+          </div>
+          <div id="batchSignalHeroMeta" class="signal-hero-meta">Ожидание</div>
+        </div>
+        <div id="signalRenderer" class="signal-renderer"></div>
+        <div class="signal-legend">
+          <span><i class="legend-phase"></i> Фаза</span>
+          <span><i class="legend-movement"></i> Движение</span>
+          <span><i class="legend-unknown"></i> Не определено</span>
+          <span><i class="legend-transition"></i> Переход</span>
+          <span class="muted small">Цвет сигнала — результат модельной реконструкции.</span>
+        </div>
+      </div>
+
       <div class="player-readout">
         <div><span>Точное время</span><strong id="batchExactTimestamp">—</strong></div>
         <div><span>Позиция в цикле</span><strong id="batchCyclePosition">—</strong></div>
@@ -267,11 +277,11 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
     <div class="panel">
       <h3>Итоговая модель фаз</h3>
       <div id="batchPhaseList" class="phase-list"></div>
-      <div class="muted small" style="margin-top:10px">Only evidence-backed intervals are authoritative. This is the best supported model for the selected regime; uncovered intervals remain impossible to determine.</div>
+      <div class="muted small" style="margin-top:10px">Только интервалы, подтверждённые данными, считаются достоверной частью модели. Непокрытые интервалы не заполняются догадками.</div>
       <details style="margin-top:12px">
         <summary>Расширенная диагностика направлений и разрывов</summary>
         <div id="batchMovementList" class="phase-list" style="margin-top:10px"></div>
-        <div class="muted small" style="margin-top:10px">These diagnostics explain rejected or ambiguous hypotheses and never fill the authoritative main-phase gaps.</div>
+        <div class="muted small" style="margin-top:10px">Эта диагностика объясняет спорные гипотезы и не заполняет пробелы основной модели фаз.</div>
       </details>
     </div>
   </div>
@@ -310,6 +320,24 @@ select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;
       <div class="operator-card"><span>СИНХРОНИЗАЦИЯ</span><strong id="realtimeSync">WARMUP</strong><small id="realtimeSyncDetail">—</small></div>
       <div class="operator-card"><span>ТЕКУЩАЯ ФАЗА</span><strong id="realtimePhase">UNKNOWN</strong><small id="realtimePhaseBasis">—</small></div>
       <div id="realtimeConfidenceCard" class="operator-card"><span>УВЕРЕННОСТЬ</span><strong id="realtimeConfidence">0.00</strong><small id="realtimeConfidenceDetail">—</small></div>
+    </div>
+
+    <div id="realtimeSignalStateView" class="signal-overview compact hidden">
+      <div class="signal-overview-heading">
+        <div>
+          <h2>Состояние светофора</h2>
+          <p id="realtimeSignalHint" class="muted small">Текущее состояние восстанавливается по уже поступившим событиям realtime.</p>
+        </div>
+        <div id="realtimeSignalHeroMeta" class="signal-hero-meta">Ожидание realtime</div>
+      </div>
+      <div id="realtimeSignalRenderer" class="signal-renderer"></div>
+      <div class="signal-legend">
+        <span><i class="legend-phase"></i> Фаза</span>
+        <span><i class="legend-movement"></i> Движение</span>
+        <span><i class="legend-unknown"></i> Не определено</span>
+        <span><i class="legend-transition"></i> Переход</span>
+        <span class="muted small">В realtime состояние подтверждается по текущим наблюдаемым событиям.</span>
+      </div>
     </div>
 
     <div class="operator-grid">
@@ -379,9 +407,8 @@ function setMode(next){
   if(next==='batch'&&batchSession)renderBatchPoint();
   else if(next==='realtime'&&realtimeSnapshot)renderRealtimeSnapshot(realtimeSnapshot);
   else {
-    $('sharedState').classList.remove('hidden');
-    $('sharedHint').textContent='Загрузите архив и запустите анализ, чтобы увидеть состояние сигналов.';
-    $('signalHeroMeta').textContent='Ожидание анализа';
+    $('batchSignalStateView').classList.add('hidden');
+    $('realtimeSignalStateView').classList.add('hidden');
   }
 }
 $('modeBatch').addEventListener('click',()=>setMode('batch'));
@@ -686,15 +713,15 @@ function renderBatchDetailList(holder,items,emptyText){
 function renderBatchPoint(){
   if(mode!=='batch'||!batchSession)return;
   const timeline=playerTimeline();
-  $('sharedState').classList.remove('hidden');
-  $('sharedHint').textContent='Backend reconstruction snapshot. Browser playback selects and renders returned points; it does not infer phases.';
+  $('batchSignalStateView').classList.remove('hidden');
+  $('batchSignalHint').textContent='Состояние восстановлено по траекториям транспорта. Это модельный результат, а не прямое чтение контроллера.';
   if(!timeline.length){
     $('batchPhase').textContent='UNKNOWN';$('batchActiveMovements').textContent='—';$('batchPhaseConfidence').textContent='0.00';
     $('batchTimeLabel').textContent='No timeline: insufficient reconstruction data';
     $('batchExactTimestamp').textContent='—';$('batchCyclePosition').textContent='—';$('batchBoundaryReadout').textContent='—';$('batchTimelineStatus').textContent='No backend timeline';
     $('batchSignalState').textContent='UNKNOWN';$('batchPlayerPhase').textContent='UNKNOWN';$('batchPlayerConfidence').textContent='0.00';$('batchUnknownReason').textContent='insufficient_reconstruction_data';
     $('batchPlayerAdaptive').textContent=(batchSession.player&&batchSession.player.adaptive_mode)||'BATCH_RECONSTRUCTION';
-    renderSignalRenderer(batchSession.signal_renderer||null);return;
+    renderSignalRenderer(batchSession.signal_renderer||null,'signalRenderer'); $('batchSignalHeroMeta').textContent='Нет временной шкалы'; return;
   }
   const point=timeline[Math.min(batchIndex,timeline.length-1)];
   const player=batchSession.player||{};
@@ -734,12 +761,12 @@ function renderBatchPoint(){
   $('batchPlayerConfidence').textContent=Number(point.confidence||0).toFixed(2);
   $('batchUnknownReason').textContent=point.unknown_reason||'Нет: состояние выведено из модели фазы';
   $('batchPlayerAdaptive').textContent='МОДЕЛЬНЫЙ ПРОСМОТР';
-  renderBatchDetailList($('batchMovementStates'),movementLabels,'No movement state active at this timestamp.');
+  renderBatchDetailList($('batchMovementStates'),movementLabels,'Для этого момента нет активных движений.');
   renderBatchDetailList($('batchEvidence'),evidenceLabels.concat([
     'signal source '+(point.signal_source||'backend reconstruction'),
     'snapshot timestamp '+Number(point.timestamp_ms)
-  ]),'No evidence metadata returned by backend.');
-  renderSignalRenderer(point.signal_renderer||batchSession.signal_renderer||null); $('signalHeroMeta').textContent=phase+' · позиция '+cyclePosition.toFixed(1)+' с · модельная реконструкция';
+  ]),'Backend не вернул дополнительные сведения.');
+  renderSignalRenderer(point.signal_renderer||batchSession.signal_renderer||null,'signalRenderer'); $('batchSignalHeroMeta').textContent=phase+' · позиция '+cyclePosition.toFixed(1)+' с · модельная реконструкция';
   syncBatchTimelineActive();
 }
 function playBatch(){
@@ -939,7 +966,7 @@ function renderRealtimeOperatorAlert(snapshot,status,adaptiveMode,confidence){
 }
 function renderRealtimeSnapshot(snapshot){
   if(mode!=='realtime')return;
-  $('sharedState').classList.remove('hidden');
+  $('realtimeSignalStateView').classList.remove('hidden');
 
   const adaptiveMode=snapshot.adaptive_mode||'NORMAL';
   const status=realtimeDeterminationStatus(snapshot);
@@ -949,7 +976,7 @@ function renderRealtimeSnapshot(snapshot){
   const reason=realtimeUnknownReason(snapshot);
   const extensionDuration=Number(snapshot.phase_extension_duration_seconds||0);
   const phaseConfirmed=status==='KNOWN'&&adaptiveMode!=='RECOVERY';
-  $('signalHeroMeta').textContent=(snapshot.phase_id==null?'Фаза не определена':'Фаза '+snapshot.phase_id)+' · realtime · '+(adaptiveMode==='LIVE_OVERRIDE'?'отклонение от шаблона':'потоковая реконструкция');
+  $('realtimeSignalHeroMeta').textContent=(snapshot.phase_id==null?'Фаза не определена':'Фаза '+snapshot.phase_id)+' · realtime · '+(adaptiveMode==='LIVE_OVERRIDE'?'отклонение от шаблона':'потоковая реконструкция');
 
   renderRealtimeOperatorAlert(snapshot,status,adaptiveMode,confidence);
 
@@ -1019,8 +1046,8 @@ function renderRealtimeSnapshot(snapshot){
   $('emittedEvents').textContent=String((snapshot.evidence_summary&&snapshot.evidence_summary.emitted_event_count)||0);
   $('remainingTrajectories').textContent=String((snapshot.evidence_summary&&snapshot.evidence_summary.remaining_trajectory_count)||0);
 
-  $('sharedHint').textContent='Realtime operator dashboard. Phase and signal state values are backend snapshots; browser does not infer phases.';
-  renderSignalRenderer(snapshot.signal_renderer||null,'signalRenderer');
+  $('realtimeSignalHint').textContent='Текущее состояние восстанавливается по уже поступившим событиям realtime. Браузер не вычисляет фазу самостоятельно.';
+  renderSignalRenderer(snapshot.signal_renderer||null,'realtimeSignalRenderer');
 }
 const RU_APPROACHES={N:'Север',S:'Юг',E:'Восток',W:'Запад'};
 const RU_STATES={GREEN:'ЗЕЛЁНЫЙ',YELLOW:'ЖЁЛТЫЙ',RED:'КРАСНЫЙ',RED_YELLOW:'КРАСНЫЙ + ЖЁЛТЫЙ',OFF:'ВЫКЛЮЧЕН',UNKNOWN:'НЕ ОПРЕДЕЛЕНО',MIXED:'СМЕШАННЫЙ'};
@@ -1040,7 +1067,7 @@ function renderSignalRenderer(data,targetId='signalRenderer'){
   if(!data||!Array.isArray(data.heads)){
     const empty=document.createElement('div');
     empty.className='muted small';
-    empty.textContent='No configured signal renderer data.';
+    empty.textContent='Нет данных для отображения сигналов.';
     holder.appendChild(empty);
     return;
   }
