@@ -5,6 +5,7 @@ from typing import Iterable, Sequence
 
 import numpy as np
 
+from app.core.event_cycle_estimator import estimate_event_cycle
 from app.core.intersection_config import (
     IntersectionConfig,
     Movement,
@@ -20,6 +21,9 @@ class CycleCandidate:
     score: float
     movement_score: float
     separation_score: float
+    aggregate_score: float = 0.0
+    consistency_score: float = 0.0
+    fragmentation_score: float = 0.0
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -262,6 +266,9 @@ class SignalPlanDiscovery:
                         score=1.0,
                         movement_score=1.0,
                         separation_score=1.0,
+                        aggregate_score=1.0,
+                        consistency_score=1.0,
+                        fragmentation_score=1.0,
                     )
                 ]
             )
@@ -371,6 +378,13 @@ class SignalPlanDiscovery:
             max_period + 0.001,
             self.bin_seconds,
         )
+
+        # Use the existing family-level autocorrelation estimator as an
+        # independent period prior. The movement-level evidence remains
+        # decisive, but a candidate that agrees with both views should beat a
+        # candidate that wins only because of sparse movement timing.
+        aggregate_priors = self._aggregate_cycle_priors(events)
+
         candidates: list[CycleCandidate] = []
         for period in periods:
             metrics = self._score_period(
@@ -380,32 +394,60 @@ class SignalPlanDiscovery:
             )
             if metrics is None:
                 continue
-            movement_score, separation_score = metrics
-            score = 0.70 * movement_score + 0.30 * separation_score
+            (
+                movement_score,
+                separation_score,
+                consistency_score,
+                fragmentation_score,
+                transition_score,
+            ) = metrics
+
+            aggregate_score = self._aggregate_cycle_support(
+                float(period),
+                aggregate_priors,
+            )
+
+            # Movement periodicity is the primary signal. Aggregate
+            # autocorrelation is a secondary consensus prior, while
+            # consistency/fragmentation suppress periods that only look good
+            # because the events happen to fall into a few dense bins.
+            score = (
+                0.40 * movement_score
+                + 0.15 * separation_score
+                + 0.30 * aggregate_score
+                + 0.10 * consistency_score
+                + 0.05 * fragmentation_score
+            )
+            # A tiny-transition preference is deliberately weak: it is a
+            # regularizer, not a hard assumption about controller behavior.
+            score += 0.02 * transition_score
+
             candidates.append(
                 CycleCandidate(
                     period_seconds=float(period),
-                    score=float(score),
+                    score=float(np.clip(score, 0.0, 1.0)),
                     movement_score=float(movement_score),
                     separation_score=float(separation_score),
+                    aggregate_score=float(aggregate_score),
+                    consistency_score=float(consistency_score),
+                    fragmentation_score=float(fragmentation_score),
                 )
             )
+
         candidates.sort(
             key=lambda item: (
                 -item.score,
+                -item.aggregate_score,
+                -item.consistency_score,
                 -item.separation_score,
                 item.period_seconds,
             )
         )
 
         # Prefer a longer fundamental period when a shorter subharmonic has
-        # essentially the same movement/separation score. This prevents an
-        # 80-second controller from collapsing into a 40-second cycle merely
-        # because every movement repeats once per controller cycle.
+        # essentially the same consensus score.
         if candidates:
             best = candidates[0]
-            # The sorted list already carries the strongest candidate first;
-            # the explicit harmonic rule is applied below.
             near_harmonics = [
                 item
                 for item in candidates
@@ -428,13 +470,67 @@ class SignalPlanDiscovery:
 
         return candidates
 
+    def _aggregate_cycle_priors(
+        self,
+        events: Sequence[TrajectoryEvent],
+    ) -> tuple[tuple[float, float], ...]:
+        try:
+            estimate = estimate_event_cycle(
+                events,
+                sampling_seconds=self.bin_seconds,
+                min_events=self.min_movement_events,
+            )
+        except (RuntimeError, ValueError):
+            return ()
+
+        return tuple(
+            (
+                float(candidate.period_seconds),
+                float(candidate.score),
+            )
+            for candidate in estimate.estimate.candidate_periods
+        )
+
+    def _aggregate_cycle_support(
+        self,
+        period_seconds: float,
+        priors: Sequence[tuple[float, float]],
+    ) -> float:
+        if not priors:
+            return 0.0
+
+        max_score = max(score for _, score in priors)
+        if max_score <= 0:
+            return 0.0
+
+        # A smooth tolerance makes 98s receive meaningful support from a
+        # strong 100s autocorrelation peak without hard snapping the period.
+        tolerance = max(4.0, period_seconds * 0.04)
+        return float(
+            np.clip(
+                max(
+                    (
+                        (score / max_score)
+                        * np.exp(
+                            -0.5
+                            * ((period - period_seconds) / tolerance) ** 2
+                        )
+                        for period, score in priors
+                    ),
+                    default=0.0,
+                ),
+                0.0,
+                1.0,
+            )
+        )
+
     def _score_period(
         self,
         events: Sequence[TrajectoryEvent],
         *,
         origin_timestamp_ms: int,
         cycle_seconds: float,
-    ) -> tuple[float, float] | None:
+    ) -> tuple[float, float, float, float, float] | None:
         cycle_count = int(
             np.floor(
                 (
@@ -455,6 +551,9 @@ class SignalPlanDiscovery:
             )
 
         weighted_scores: list[tuple[float, float]] = []
+        weighted_consistency: list[tuple[float, float]] = []
+        weighted_fragmentation: list[tuple[float, float]] = []
+        movement_masks: dict[str, np.ndarray] = {}
         axis_masks: dict[str, np.ndarray] = {
             "NS": np.zeros(
                 max(1, int(round(cycle_seconds / self.bin_seconds))),
@@ -493,6 +592,8 @@ class SignalPlanDiscovery:
             )
             if not np.any(mask):
                 continue
+            movement_masks[movement] = mask
+
             event_bins = np.mod(
                 np.asarray(times) / self.bin_seconds,
                 len(mask),
@@ -527,8 +628,34 @@ class SignalPlanDiscovery:
             weight = float(np.log1p(len(times)))
             weighted_scores.append((movement_score, weight))
 
+            # Compare each populated cycle with the aggregate phase profile.
+            # A real controller cycle should reproduce the same movement
+            # geometry from cycle to cycle; a coincidental period tends to
+            # scatter each cycle differently.
+            consistency = self._movement_cycle_consistency(
+                matrix,
+                mask,
+            )
+            weighted_consistency.append((consistency, weight))
+
+            active_runs = sum(
+                1
+                for start, end, active in _circular_runs(
+                    [bool(item) for item in mask]
+                )
+                if active
+            )
+            fragmentation = 1.0 / max(1, active_runs)
+            weighted_fragmentation.append((fragmentation, weight))
+
             approach = movement.split("->", 1)[0]
-            axis = "NS" if approach in {"N", "S"} else "EW" if approach in {"E", "W"} else None
+            axis = (
+                "NS"
+                if approach in {"N", "S"}
+                else "EW"
+                if approach in {"E", "W"}
+                else None
+            )
             if axis is not None:
                 axis_masks[axis] |= mask
 
@@ -541,6 +668,22 @@ class SignalPlanDiscovery:
                 weights=np.asarray([weight for _, weight in weighted_scores]),
             )
         )
+        consistency_score = float(
+            np.average(
+                np.asarray([score for score, _ in weighted_consistency]),
+                weights=np.asarray([weight for _, weight in weighted_consistency]),
+            )
+            if weighted_consistency
+            else 0.0
+        )
+        fragmentation_score = float(
+            np.average(
+                np.asarray([score for score, _ in weighted_fragmentation]),
+                weights=np.asarray([weight for _, weight in weighted_fragmentation]),
+            )
+            if weighted_fragmentation
+            else 0.0
+        )
 
         union = axis_masks["NS"] | axis_masks["EW"]
         separation_score = (
@@ -552,7 +695,59 @@ class SignalPlanDiscovery:
                 / max(1, np.count_nonzero(union))
             )
         )
-        return movement_score, float(np.clip(separation_score, 0.0, 1.0))
+
+        # Build a phase-label sequence from movement masks and count distinct
+        # runs. Excessive fragmentation is evidence against the candidate.
+        n_bins = len(union)
+        phase_values: list[tuple[str, ...]] = []
+        for index in range(n_bins):
+            phase_values.append(
+                tuple(
+                    sorted(
+                        movement
+                        for movement, mask in movement_masks.items()
+                        if mask[index]
+                    )
+                )
+            )
+
+        runs = _circular_runs(phase_values)
+        transition_count = len(runs)
+        transition_score = float(
+            np.clip(
+                1.0 / max(1.0, 1.0 + max(0, transition_count - 6)),
+                0.0,
+                1.0,
+            )
+        )
+
+        return (
+            movement_score,
+            float(np.clip(separation_score, 0.0, 1.0)),
+            consistency_score,
+            fragmentation_score,
+            transition_score,
+        )
+
+    def _movement_cycle_consistency(
+        self,
+        matrix: np.ndarray,
+        aggregate_mask: np.ndarray,
+    ) -> float:
+        populated: list[np.ndarray] = []
+        for row in matrix:
+            row_mask = row > 0
+            if not np.any(row_mask):
+                continue
+            # Compare against the aggregate activation mask using Jaccard.
+            intersection = np.count_nonzero(row_mask & aggregate_mask)
+            union = np.count_nonzero(row_mask | aggregate_mask)
+            if union > 0:
+                populated.append(intersection / union)
+
+        if len(populated) < self.min_observed_cycles:
+            return 0.0
+        return float(np.clip(np.mean(populated), 0.0, 1.0))
 
     def _movement_profiles(
         self,
@@ -825,6 +1020,7 @@ class SignalPlanDiscovery:
             + 2.0 * values
             + np.roll(values, -1)
         ) / 4.0
+
 
 
 def _known_movements(
