@@ -331,8 +331,13 @@ class SignalPlanDiscovery:
         events: Iterable[TrajectoryEvent],
     ) -> list[TrajectoryEvent]:
         result = []
+        # RELEASE is the only event here that directly represents a vehicle
+        # restarting after a stop. CROSSING is intentionally excluded because
+        # its timestamp may be a track-end/geometric observation rather than a
+        # signal-related transition; treating it equally biases cycle origin
+        # and period estimation.
         for event in events:
-            if event.event_type not in {EventType.RELEASE, EventType.CROSSING}:
+            if event.event_type is not EventType.RELEASE:
                 continue
             movement = str(event.movement or "").strip()
             if "->" not in movement or movement.endswith("->UNKNOWN"):
