@@ -553,6 +553,7 @@ class SignalPlanDiscovery:
         weighted_scores: list[tuple[float, float]] = []
         weighted_consistency: list[tuple[float, float]] = []
         weighted_fragmentation: list[tuple[float, float]] = []
+        movement_masks: dict[str, np.ndarray] = {}
         axis_masks: dict[str, np.ndarray] = {
             "NS": np.zeros(
                 max(1, int(round(cycle_seconds / self.bin_seconds))),
@@ -591,6 +592,7 @@ class SignalPlanDiscovery:
             )
             if not np.any(mask):
                 continue
+            movement_masks[movement] = mask
 
             event_bins = np.mod(
                 np.asarray(times) / self.bin_seconds,
@@ -699,21 +701,15 @@ class SignalPlanDiscovery:
         n_bins = len(union)
         phase_values: list[tuple[str, ...]] = []
         for index in range(n_bins):
-            active = tuple(
-                sorted(
-                    movement
-                    for movement, times in movement_times.items()
-                    if len(times) >= self.min_movement_events
-                    and _mask_contains_bin(
-                        times,
-                        origin_timestamp_ms=origin_timestamp_ms,
-                        cycle_seconds=cycle_seconds,
-                        bin_index=index,
-                        bin_seconds=self.bin_seconds,
+            phase_values.append(
+                tuple(
+                    sorted(
+                        movement
+                        for movement, mask in movement_masks.items()
+                        if mask[index]
                     )
                 )
             )
-            phase_values.append(active)
 
         runs = _circular_runs(phase_values)
         transition_count = len(runs)
@@ -1025,25 +1021,6 @@ class SignalPlanDiscovery:
             + np.roll(values, -1)
         ) / 4.0
 
-
-
-def _mask_contains_bin(
-    times: Sequence[float],
-    *,
-    origin_timestamp_ms: int,
-    cycle_seconds: float,
-    bin_index: int,
-    bin_seconds: float,
-) -> bool:
-    target_start = bin_index * bin_seconds
-    target_end = target_start + bin_seconds
-    for timestamp in times:
-        phase = (
-            (timestamp * 1000.0 - origin_timestamp_ms) / 1000.0
-        ) % cycle_seconds
-        if target_start <= phase < target_end:
-            return True
-    return False
 
 
 def _known_movements(
