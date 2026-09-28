@@ -483,9 +483,13 @@ class SignalPlanDiscovery:
             peak = float(np.max(presence))
             if peak <= 0:
                 continue
-            mask = presence >= max(
-                self.presence_threshold,
-                peak * 0.45,
+            mask = _dominant_activation_mask(
+                presence,
+                threshold=max(
+                    self.presence_threshold,
+                    peak * 0.45,
+                ),
+                max_gap_bins=4,
             )
             if not np.any(mask):
                 continue
@@ -747,6 +751,7 @@ class SignalPlanDiscovery:
             )
             stage_values.append(active)
 
+        stage_values = _smooth_stage_values(stage_values, max_run_bins=2)
         runs = _circular_runs(stage_values)
         stages: list[SignalStage] = []
         stage_id = 1
@@ -910,6 +915,68 @@ def _fill_short_gaps_circular(
             & np.roll(values, -1)
         )
     return values
+
+
+def _dominant_activation_mask(
+    presence: np.ndarray,
+    *,
+    threshold: float,
+    max_gap_bins: int,
+) -> np.ndarray:
+    values = np.asarray(presence, dtype=float)
+    if values.size == 0:
+        return np.zeros(0, dtype=bool)
+    mask = values >= float(threshold)
+    mask = _fill_short_gaps_circular(mask, max_gaps=max_gap_bins)
+    if np.all(mask):
+        return mask
+    peak_index = int(np.argmax(values))
+    mask[peak_index] = True
+
+    left = peak_index
+    while mask[(left - 1) % len(mask)] and left != (left - 1) % len(mask):
+        left = (left - 1) % len(mask)
+
+    right = peak_index
+    while mask[(right + 1) % len(mask)] and right != (right + 1) % len(mask):
+        right = (right + 1) % len(mask)
+
+    result = np.zeros_like(mask, dtype=bool)
+    index = left
+    while True:
+        result[index] = True
+        if index == right:
+            break
+        index = (index + 1) % len(mask)
+    return result
+
+
+def _smooth_stage_values(
+    values: Sequence[tuple[str, ...]],
+    *,
+    max_run_bins: int,
+) -> list[tuple[str, ...]]:
+    result = list(values)
+    n = len(result)
+    if n < 3 or max_run_bins <= 0:
+        return result
+
+    for _ in range(max_run_bins):
+        runs = _circular_runs(result)
+        for start, end, value in runs:
+            length = end - start if start <= end else (n - start) + end
+            if length > max_run_bins:
+                continue
+            previous = result[(start - 1) % n]
+            following = result[end % n]
+            replacement = following if following == previous else (
+                previous if len(previous) >= len(following) else following
+            )
+            index = start
+            for _ in range(length):
+                result[index] = replacement
+                index = (index + 1) % n
+    return result
 
 
 def _mask_to_intervals(
