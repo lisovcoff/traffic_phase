@@ -35,4 +35,4 @@ def test_build_movement_activity_keeps_movement_evidence_separate_from_signal_st
     assert rows[0]["movement"] == "N->E"
     assert rows[0]["active_tracks"] == 1
     assert rows[1]["release_count"] == 1
-    assert "GREEN" not in result["meaning"]
+    assert "signal-state classifier" not in result["meaning"].lower()
