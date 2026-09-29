@@ -7,11 +7,51 @@ import sys
 from pathlib import Path
 
 
+def _manual_boundary_metrics(
+    manual_path: Path,
+    *,
+    period: int,
+    origin: int,
+    ew: int,
+    arrow: int,
+    ns: int,
+) -> dict[str, tuple[float, float]]:
+    data = json.loads(manual_path.read_text(encoding="utf-8"))
+    predicted = {
+        "EW": float(origin),
+        "N_ARROW": float(origin + ew),
+        "NS": float(origin + ew + arrow),
+    }
+    result: dict[str, tuple[float, float]] = {}
+    for kind, phase in predicted.items():
+        marks = [
+            float(mark["offset_s"])
+            for mark in data.get("marks", [])
+            if mark.get("kind") == kind and "offset_s" in mark
+        ]
+        if not marks:
+            continue
+        errors = []
+        for timestamp in marks:
+            error = abs(
+                ((timestamp - phase + period / 2.0) % period)
+                - period / 2.0
+            )
+            errors.append(error)
+        result[kind] = (sum(errors) / len(errors), max(errors))
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run the Lenina three-state kinematic regression."
     )
     parser.add_argument("trajectory_json", type=Path)
+    parser.add_argument(
+        "--manual-marks",
+        type=Path,
+        default=Path("tests/fixtures/lenina_manual_signal_marks.json"),
+    )
     args = parser.parse_args()
 
     output = Path("lenina_ci_three_state_cycle.json")
@@ -55,6 +95,23 @@ def main() -> int:
         f"Lenina regression: T={period}s, EW={ew}s, "
         f"N+arrow={arrow}s, NS={ns}s"
     )
+
+    if args.manual_marks.exists():
+        boundary_metrics = _manual_boundary_metrics(
+            args.manual_marks,
+            period=period,
+            origin=int(result["origin_offset_s"]),
+            ew=ew,
+            arrow=arrow,
+            ns=ns,
+        )
+        print("Manual boundary diagnostics:")
+        for kind in ("EW", "N_ARROW", "NS"):
+            metrics = boundary_metrics.get(kind)
+            if metrics is None:
+                continue
+            mae, max_error = metrics
+            print(f"  {kind}: MAE={mae:.2f}s max={max_error:.2f}s")
 
     # Diagnostic comparison for the known competing hypotheses.  Keep this
     # in CI so a failed regression tells us which part of the objective makes
