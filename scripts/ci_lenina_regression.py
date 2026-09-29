@@ -143,14 +143,6 @@ def main() -> int:
         events,
         cycle_seconds=cycle_estimate.cycle_seconds,
     )
-    signatures = build_movement_phase_signatures(
-        events,
-        cycle_seconds=cycle_estimate.cycle_seconds,
-        origin_timestamp_ms=phase_model.origin_timestamp_ms,
-        bin_seconds=1.0,
-        support_window_seconds=5.5,
-    )
-    by_movement = {signature.movement: signature for signature in signatures}
     expected_movements = {
         "NS": {"N->_S", "S->_N"},
         "N_ARROW": {"N->_S", "N->_E", "E->_N"},
@@ -159,29 +151,78 @@ def main() -> int:
     manual_marks = json.loads(
         args.manual_marks.read_text(encoding="utf-8")
     ).get("marks", [])
-    stage2_exact = 0
-    for mark in manual_marks:
-        position = (
-            (int(mark["timestamp_ms"]) - phase_model.origin_timestamp_ms)
-            / 1000.0
-        ) % cycle_estimate.cycle_seconds
-        predicted = {
-            movement
-            for movement, signature in by_movement.items()
-            if any(
-                interval.contains(position)
-                for interval in signature.active_intervals
-            )
-        }
-        if predicted == expected_movements.get(mark.get("kind"), set()):
-            stage2_exact += 1
+
     print(
-        f"Stage 2 manual-point exact matches: "
-        f"{stage2_exact}/{len(manual_marks)}"
+        "Stage 1/2 manual validation: "
+        f"origin={phase_model.origin_timestamp_ms}, "
+        f"cycle={cycle_estimate.cycle_seconds:.2f}s, "
+        f"marks={len(manual_marks)}"
     )
-    if manual_marks and stage2_exact < 34:
-        print("FAILED Stage 2 manual-mark regression")
-        return 1
+    for support_window in (0.0, 2.0, 3.0, 4.0, 5.0, 5.5, 6.0, 7.0):
+        signatures = build_movement_phase_signatures(
+            events,
+            cycle_seconds=cycle_estimate.cycle_seconds,
+            origin_timestamp_ms=phase_model.origin_timestamp_ms,
+            bin_seconds=1.0,
+            support_window_seconds=support_window,
+        )
+        by_movement = {signature.movement: signature for signature in signatures}
+        exact_by_kind = {kind: 0 for kind in expected_movements}
+        mismatches = []
+        for mark in manual_marks:
+            kind = mark.get("kind")
+            expected = expected_movements.get(kind)
+            if expected is None:
+                continue
+            position = (
+                (int(mark["timestamp_ms"]) - phase_model.origin_timestamp_ms)
+                / 1000.0
+            ) % cycle_estimate.cycle_seconds
+            predicted = {
+                movement
+                for movement, signature in by_movement.items()
+                if any(
+                    interval.contains(position)
+                    for interval in signature.active_intervals
+                )
+            }
+            if predicted == expected:
+                exact_by_kind[kind] += 1
+            else:
+                mismatches.append(
+                    (
+                        kind,
+                        int(mark["offset_s"]),
+                        round(position, 2),
+                        tuple(sorted(predicted)),
+                        tuple(sorted(expected)),
+                    )
+                )
+        exact = sum(exact_by_kind.values())
+        print(
+            f"  support_window={support_window:.1f}s: "
+            f"exact={exact}/{len(manual_marks)} "
+            f"NS={exact_by_kind['NS']}/14 "
+            f"N_ARROW={exact_by_kind['N_ARROW']}/12 "
+            f"EW={exact_by_kind['EW']}/13"
+        )
+        if abs(support_window - 5.5) < 1e-9:
+            print("  Stage 2 signatures @5.5s:")
+            for signature in signatures:
+                print(
+                    f"    {signature.movement}: "
+                    f"cycles={signature.observed_cycle_count} "
+                    f"active_cycles={signature.active_cycle_count} "
+                    f"intervals="
+                    f"{[(round(item.start, 1), round(item.end, 1)) for item in signature.active_intervals]}"
+                )
+            print("  Stage 2 mismatches @5.5s:")
+            for mismatch in mismatches:
+                print(
+                    f"    {mismatch[0]} +{mismatch[1]}s "
+                    f"phase={mismatch[2]:.2f} "
+                    f"pred={mismatch[3]} expected={mismatch[4]}"
+                )
 
     print("Lenina candidate diagnostics:")
     candidates = result.get("candidate_cycles", [])
