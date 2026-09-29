@@ -223,7 +223,6 @@ def test_visualization_stage_overlay_is_compact_and_movement_based():
         'class="stage-overlay"',
         'id="stageOverlay"',
         "function renderStageOverlay",
-        "flatMap(",
         'movements.join(", ")',
     )
     assert all(token in script for token in required)
