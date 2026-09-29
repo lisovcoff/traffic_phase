@@ -240,6 +240,40 @@ def _movement_event_signal(
     return start, signal
 
 
+def _family_activity_signal(
+    rows: list[dict[str, object]],
+) -> tuple[int, list[float]]:
+    """Build a signed NS-vs-EW movement-activity signal.
+
+    The signal is derived from vehicle motion, not lamp color. N/S movements
+    contribute positively and E/W movements negatively, so recurring
+    alternation of the two conflict families becomes visible to the same
+    period estimator used elsewhere in the pipeline.
+    """
+    by_second: dict[int, float] = defaultdict(float)
+    for row in rows:
+        movement = str(row.get("movement", "")).strip()
+        if "->" not in movement:
+            continue
+        approach = movement.split("->", 1)[0]
+        moving = float(row.get("moving_tracks", 0))
+        stopped = float(row.get("stopped_tracks", 0))
+        value = moving + 0.25 * stopped
+        if approach in {"N", "S"}:
+            by_second[int(row["second"])] += value
+        elif approach in {"E", "W"}:
+            by_second[int(row["second"])] -= value
+
+    if not by_second:
+        return 0, []
+    start = min(by_second)
+    end = max(by_second)
+    signal = [0.0] * (end - start + 1)
+    for second, value in by_second.items():
+        signal[second - start] = value
+    return start, signal
+
+
 def _cycle_candidates(
     signal: list[float],
     *,
@@ -556,6 +590,15 @@ def discover_movement_profiles(
         movement_candidates,
     )
 
+    _family_start, family_signal = _family_activity_signal(
+        [row for rows in grouped.values() for row in rows]
+    )
+    family_activity_candidates = _cycle_candidates(
+        family_signal,
+        min_cycle_seconds=min_cycle_seconds,
+        max_cycle_seconds=max_cycle_seconds,
+    ) if family_signal else []
+
     if not global_candidates:
         _start, global_signal = _movement_event_signal(
             [
@@ -635,6 +678,7 @@ def discover_movement_profiles(
                 selected_cycle_int
             ),
             "global_cycle_candidates": global_candidates[:10],
+            "global_activity_cycle_candidates": family_activity_candidates[:10],
             "movement_profiles": [],
         }
 
@@ -841,6 +885,7 @@ def discover_movement_profiles(
         ),
         "selected_cycle_seconds": float(selected_cycle_int),
         "global_cycle_candidates": global_candidates[:10],
+        "global_activity_cycle_candidates": family_activity_candidates[:10],
         "movement_profiles": profiles,
     }
 
