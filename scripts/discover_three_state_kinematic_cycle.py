@@ -31,10 +31,12 @@ STATE_NAMES = ("EW", "N_ARROW", "NS")
 MOVEMENT_ACTIVE_STATES = {
     "E->_W": frozenset({"EW"}),
     "W->_E": frozenset({"EW"}),
+    "W->_S": frozenset({"EW"}),
     "E->_N": frozenset({"N_ARROW"}),
     "N->_E": frozenset({"N_ARROW"}),
     "N->_S": frozenset({"N_ARROW", "NS"}),
     "S->_N": frozenset({"NS"}),
+    "S->_E": frozenset({"NS"}),
 }
 
 
@@ -64,7 +66,7 @@ def _event_weights(event: TrajectoryEvent) -> tuple[float, float]:
     if event.event_type is EventType.CROSSING:
         return 0.8 * confidence, 0.0
     if event.event_type is EventType.STOP:
-        return 0.0, 1.0 * confidence
+        return 0.0, 0.25 * confidence
     return 0.0, 0.0
 
 
@@ -233,7 +235,7 @@ def _fit_period(
         return None
 
     min_ew, min_arrow, min_ns, max_arrow = _boundary_limits(period_s)
-    total_weight = sum(math.sqrt(item.event_count) for item in evidence)
+    total_weight = sum(min(12.0, math.sqrt(item.event_count)) for item in evidence)
 
     best: Fit | None = None
     for boundary_1_s in range(
@@ -259,7 +261,7 @@ def _fit_period(
             }
 
             score = sum(
-                movement_scores[item.movement] * math.sqrt(item.event_count)
+                movement_scores[item.movement] * min(12.0, math.sqrt(item.event_count))
                 for item in evidence
             ) / max(total_weight, 1e-9)
 
