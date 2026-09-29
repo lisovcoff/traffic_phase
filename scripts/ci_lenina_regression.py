@@ -12,15 +12,22 @@ def _manual_boundary_metrics(
     *,
     period: int,
     origin: int,
+    anchor_ms: int,
     ew: int,
     arrow: int,
     ns: int,
 ) -> dict[str, tuple[float, float]]:
     data = json.loads(manual_path.read_text(encoding="utf-8"))
+    manual_start_ms = int(data["start_ms"])
+    # origin is relative to the trajectory-event anchor, while manual marks
+    # are relative to the manual fixture start. Convert both to one clock
+    # before computing circular boundary errors.
+    anchor_offset_s = (anchor_ms - manual_start_ms) / 1000.0
+    absolute_origin = anchor_offset_s + float(origin)
     predicted = {
-        "EW": float(origin),
-        "N_ARROW": float(origin + ew),
-        "NS": float(origin + ew + arrow),
+        "EW": absolute_origin,
+        "N_ARROW": absolute_origin + ew,
+        "NS": absolute_origin + ew + arrow,
     }
     result: dict[str, tuple[float, float]] = {}
     for kind, phase in predicted.items():
@@ -101,6 +108,7 @@ def main() -> int:
             args.manual_marks,
             period=period,
             origin=int(result["origin_offset_s"]),
+            anchor_ms=int(result["origin_anchor_timestamp_ms"]),
             ew=ew,
             arrow=arrow,
             ns=ns,
