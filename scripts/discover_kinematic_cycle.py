@@ -22,192 +22,23 @@ class EventPoint:
 
 
 @dataclass(frozen=True)
-class MovementFit:
+class MovementEvidence:
     movement: str
-    cost: float
-    start_s: float
-    end_s: float
-    duration_s: float
-    release_anchor_score: float
-    release_cycle_coverage: float
-    crossing_inside: float
-    stop_outside: float
+    family: str
+    phases: np.ndarray
+    total_score: float
+    total_abs_score: float
     event_count: int
 
 
-def _circular_forward_distance(value: float, start: float, period: float) -> float:
-    return (value - start) % period
-
-
-def _movement_release_anchors(
-    events: list[EventPoint],
-    *,
-    period_s: int,
-    origin_s: float,
-) -> tuple[list[float], int]:
-    """Select at most one lead-release anchor per candidate cycle.
-
-    The previous prototype clustered adjacent RELEASE events by a fixed time
-    gap. That is not cycle-aware and can reward arbitrary event bunches. Here
-    we first assign RELEASE events to candidate cycles and keep the earliest
-    RELEASE in each populated cycle as a lead-release proxy.
-    """
-    releases = sorted(
-        point.timestamp_s
-        for point in events
-        if point.event_type is EventType.RELEASE
-    )
-    if not releases:
-        return [], 0
-
-    by_cycle: dict[int, float] = {}
-    for timestamp_s in releases:
-        cycle_id = math.floor((timestamp_s - origin_s) / period_s)
-        current = by_cycle.get(cycle_id)
-        if current is None or timestamp_s < current:
-            by_cycle[cycle_id] = timestamp_s
-
-    return list(by_cycle.values()), len(by_cycle)
-
-
-def _interval_contains(
-    phase: float,
-    start_s: float,
-    end_s: float,
-    period: float,
-) -> bool:
-    if start_s <= end_s:
-        return start_s <= phase < end_s
-    return phase >= start_s or phase < end_s
-
-
-def _best_movement_fit(
-    events: list[EventPoint],
-    *,
-    period_s: int,
-    origin_s: float,
-    min_green_s: int = 8,
-    max_green_fraction: float = 0.75,
-    reaction_min_s: float = 0.5,
-    reaction_max_s: float = 6.0,
-) -> MovementFit | None:
-    if not events:
-        return None
-
-    anchors, release_cycle_count = _movement_release_anchors(
-        events,
-        period_s=period_s,
-        origin_s=origin_s,
-    )
-    crossings = [
-        (point.timestamp_s - origin_s) % period_s
-        for point in events
-        if point.event_type is EventType.CROSSING
-    ]
-    stops = [
-        (point.timestamp_s - origin_s) % period_s
-        for point in events
-        if point.event_type is EventType.STOP
-    ]
-
-    max_green_s = min(
-        period_s - 10,
-        max(min_green_s, int(round(period_s * max_green_fraction))),
-    )
-    if max_green_s < min_green_s:
-        return None
-
-    best: MovementFit | None = None
-
-    for duration_s in range(min_green_s, max_green_s + 1):
-        for start_s in range(period_s):
-            end_s = (start_s + duration_s) % period_s
-
-            if anchors:
-                anchor_scores = []
-                for anchor in anchors:
-                    phase = (anchor - origin_s) % period_s
-                    delay = _circular_forward_distance(
-                        phase,
-                        start_s,
-                        period_s,
-                    )
-                    if reaction_min_s <= delay <= reaction_max_s:
-                        anchor_scores.append(
-                            math.exp(-((delay - 1.5) ** 2) / (2.0 * 1.5**2))
-                        )
-                    else:
-                        anchor_scores.append(0.0)
-                anchor_score = float(np.mean(anchor_scores))
-                # A candidate cycle should explain releases in repeated cycles,
-                # not merely one convenient absolute-time cluster.
-                release_cycle_coverage = release_cycle_count / max(
-                    1,
-                    len({
-                        math.floor(
-                            (point.timestamp_s - origin_s) / period_s
-                        )
-                        for point in events
-                        if point.event_type is EventType.RELEASE
-                    }),
-                )
-            else:
-                anchor_score = 0.0
-                release_cycle_coverage = 0.0
-
-            crossing_inside = (
-                float(np.mean([
-                    _interval_contains(
-                        phase,
-                        start_s,
-                        end_s,
-                        period_s,
-                    )
-                    for phase in crossings
-                ]))
-                if crossings
-                else 0.5
-            )
-
-            stop_outside = (
-                float(np.mean([
-                    not _interval_contains(
-                        phase,
-                        start_s,
-                        end_s,
-                        period_s,
-                    )
-                    for phase in stops
-                ]))
-                if stops
-                else 0.5
-            )
-
-            stop_inside = 1.0 - stop_outside
-            cost = (
-                10.0 * (1.0 - anchor_score)
-                + 3.0 * (1.0 - release_cycle_coverage)
-                + 5.0 * (1.0 - crossing_inside)
-                + 10.0 * stop_inside
-                + 0.015 * duration_s
-            )
-
-            fit = MovementFit(
-                movement=events[0].movement,
-                cost=float(cost),
-                start_s=float(start_s),
-                end_s=float(end_s),
-                duration_s=float(duration_s),
-                release_anchor_score=float(anchor_score),
-                release_cycle_coverage=float(release_cycle_coverage),
-                crossing_inside=float(crossing_inside),
-                stop_outside=float(stop_outside),
-                event_count=len(events),
-            )
-            if best is None or fit.cost < best.cost:
-                best = fit
-
-    return best
+@dataclass(frozen=True)
+class PhaseFit:
+    cycle_seconds: int
+    boundary_1_s: int
+    boundary_2_s: int
+    score: float
+    mixed_duration_s: int
+    movement_scores: dict[str, float]
 
 
 def _family_for_movement(movement: str) -> str | None:
@@ -219,84 +50,170 @@ def _family_for_movement(movement: str) -> str | None:
     return None
 
 
-def _family_masks(
-    fits: list[MovementFit],
+def _event_score(event_type: EventType) -> float:
+    # Positive evidence means "this movement is active".
+    # STOP is negative evidence for active signal state.
+    if event_type is EventType.RELEASE:
+        return 1.0
+    if event_type is EventType.CROSSING:
+        return 0.8
+    if event_type is EventType.STOP:
+        return -1.0
+    return 0.0
+
+
+def _phase_evidence(
+    events: list[EventPoint],
+    *,
     period_s: int,
-) -> tuple[np.ndarray, np.ndarray]:
-    ns = np.zeros(period_s, dtype=bool)
-    ew = np.zeros(period_s, dtype=bool)
+) -> MovementEvidence:
+    family = _family_for_movement(events[0].movement)
+    if family is None:
+        raise ValueError(f"unsupported movement family: {events[0].movement}")
 
-    for fit in fits:
-        family = _family_for_movement(fit.movement)
-        if family is None:
-            continue
-        for phase in range(period_s):
-            active = _interval_contains(
-                float(phase),
-                fit.start_s,
-                fit.end_s,
-                period_s,
-            )
-            if family == "NS" and active:
-                ns[phase] = True
-            elif family == "EW" and active:
-                ew[phase] = True
+    phases = np.zeros(period_s, dtype=float)
+    for point in events:
+        phase = int(math.floor(point.timestamp_s % period_s)) % period_s
+        phases[phase] += _event_score(point.event_type)
 
-    return ns, ew
+    total_score = float(np.sum(phases))
+    total_abs_score = float(
+        sum(abs(_event_score(point.event_type)) for point in events)
+    )
+    return MovementEvidence(
+        movement=events[0].movement,
+        family=family,
+        phases=phases,
+        total_score=total_score,
+        total_abs_score=max(total_abs_score, 1.0),
+        event_count=len(events),
+    )
 
 
-def _score_period(
+def _build_evidence(
     points: list[EventPoint],
     *,
     period_s: int,
-    origin_s: float,
     min_movement_events: int,
-) -> tuple[float, list[MovementFit], float, float] | None:
+) -> list[MovementEvidence]:
     grouped: dict[str, list[EventPoint]] = defaultdict(list)
     for point in points:
         grouped[point.movement].append(point)
 
-    fits: list[MovementFit] = []
-    weights: list[float] = []
-
+    result: list[MovementEvidence] = []
     for movement, events in sorted(grouped.items()):
         if len(events) < min_movement_events:
             continue
-        fit = _best_movement_fit(
-            events,
-            period_s=period_s,
-            origin_s=origin_s,
-        )
-        if fit is None:
-            continue
-        fits.append(fit)
-        weights.append(math.log1p(len(events)))
+        result.append(_phase_evidence(events, period_s=period_s))
 
-    if not fits:
+    return result
+
+
+def _prefix(values: np.ndarray) -> np.ndarray:
+    return np.concatenate(([0.0], np.cumsum(values)))
+
+
+def _interval_sum(prefix: np.ndarray, start_s: int, end_s: int) -> float:
+    return float(prefix[end_s] - prefix[start_s])
+
+
+def _boundary_constraints(period_s: int) -> tuple[int, int, int]:
+    min_primary = max(10, int(round(period_s * 0.20)))
+    min_mixed = max(8, int(round(period_s * 0.10)))
+    max_mixed = max(min_mixed, int(round(period_s * 0.35)))
+    return min_primary, min_mixed, max_mixed
+
+
+def _fit_period(
+    evidence: list[MovementEvidence],
+    *,
+    period_s: int,
+) -> PhaseFit | None:
+    if not evidence:
         return None
 
-    weight_sum = sum(weights)
-    movement_cost = sum(
-        fit.cost * weight
-        for fit, weight in zip(fits, weights)
-    ) / max(weight_sum, 1e-9)
+    min_primary, min_mixed, max_mixed = _boundary_constraints(period_s)
+    best: PhaseFit | None = None
 
-    ns_mask, ew_mask = _family_masks(fits, period_s)
-    overlap = float(np.mean(ns_mask & ew_mask))
-    uncovered = float(np.mean(~(ns_mask | ew_mask)))
+    prefixes = {
+        item.movement: _prefix(item.phases)
+        for item in evidence
+    }
 
-    total_cost = (
-        movement_cost
-        + 18.0 * overlap
-        + 0.5 * uncovered
-    )
+    for boundary_1_s in range(min_primary, period_s - min_primary - min_mixed + 1):
+        for boundary_2_s in range(
+            boundary_1_s + min_mixed,
+            min(period_s - min_primary, boundary_1_s + max_mixed) + 1,
+        ):
+            mixed_duration = boundary_2_s - boundary_1_s
+            weighted_scores: list[float] = []
+            movement_scores: dict[str, float] = {}
 
-    return (
-        float(total_cost),
-        fits,
-        float(movement_cost),
-        float(overlap),
-    )
+            for item in evidence:
+                prefix = prefixes[item.movement]
+                if item.family == "EW":
+                    # EW is allowed in stage 1 + mixed stage; stage 3 is its
+                    # exclusive red interval.
+                    inactive_score = _interval_sum(
+                        prefix,
+                        boundary_2_s,
+                        period_s,
+                    )
+                else:
+                    # NS is allowed in mixed stage + stage 3; stage 1 is its
+                    # exclusive red interval.
+                    inactive_score = _interval_sum(
+                        prefix,
+                        0,
+                        boundary_1_s,
+                    )
+
+                active_score = item.total_score - inactive_score
+                fit_score = (
+                    active_score - inactive_score
+                ) / item.total_abs_score
+                fit_score = float(np.clip(fit_score, -1.0, 1.0))
+                movement_scores[item.movement] = fit_score
+                weighted_scores.append(
+                    fit_score * math.log1p(item.event_count)
+                )
+
+            if not weighted_scores:
+                continue
+
+            weight_sum = sum(
+                math.log1p(item.event_count)
+                for item in evidence
+            )
+            score = sum(weighted_scores) / max(weight_sum, 1e-9)
+
+            fit = PhaseFit(
+                cycle_seconds=period_s,
+                boundary_1_s=boundary_1_s,
+                boundary_2_s=boundary_2_s,
+                score=float(score),
+                mixed_duration_s=mixed_duration,
+                movement_scores=movement_scores,
+            )
+            if best is None or fit.score > best.score:
+                best = fit
+
+    return best
+
+
+def _movement_score_summary(
+    evidence: list[MovementEvidence],
+    fit: PhaseFit,
+) -> list[dict[str, object]]:
+    return [
+        {
+            "movement": item.movement,
+            "family": item.family,
+            "fit_score": round(fit.movement_scores[item.movement], 4),
+            "event_count": item.event_count,
+        }
+        for item in sorted(evidence, key=lambda value: value.movement)
+    ]
 
 
 def discover_kinematic_cycle(
@@ -322,11 +239,12 @@ def discover_kinematic_cycle(
         for event in selected_events
         if event.event_type is EventType.RELEASE
     ]
-    origin_ms = min(
-        event.timestamp_ms for event in release_events
-    ) if release_events else min(
-        event.timestamp_ms for event in selected_events
+    origin_ms = (
+        min(event.timestamp_ms for event in release_events)
+        if release_events
+        else min(event.timestamp_ms for event in selected_events)
     )
+
     points = [
         EventPoint(
             movement=event.movement,
@@ -334,99 +252,99 @@ def discover_kinematic_cycle(
             timestamp_s=(event.timestamp_ms - origin_ms) / 1000.0,
         )
         for event in selected_events
-        if event.event_type in {
-            EventType.STOP,
-            EventType.RELEASE,
-            EventType.CROSSING,
-        }
+        if event.event_type
+        in {EventType.STOP, EventType.RELEASE, EventType.CROSSING}
     ]
 
     candidates: list[dict[str, object]] = []
+    selected_fits: dict[int, tuple[PhaseFit, list[MovementEvidence]]] = {}
+
     for period_s in range(min_cycle_s, max_cycle_s + 1):
-        scored = _score_period(
+        evidence = _build_evidence(
             points,
             period_s=period_s,
-            origin_s=0.0,
             min_movement_events=min_movement_events,
         )
-        if scored is None:
+        fit = _fit_period(evidence, period_s=period_s)
+        if fit is None:
             continue
-        total_cost, fits, movement_cost, family_overlap = scored
-        candidates.append({
-            "cycle_seconds": period_s,
-            "total_cost": round(total_cost, 4),
-            "movement_cost": round(movement_cost, 4),
-            "family_overlap": round(family_overlap, 4),
-            "movement_count": len(fits),
-        })
+
+        selected_fits[period_s] = (fit, evidence)
+        primary_fraction = (
+            fit.boundary_1_s + (period_s - fit.boundary_2_s)
+        ) / period_s
+        candidates.append(
+            {
+                "cycle_seconds": period_s,
+                "score": round(fit.score, 4),
+                "boundary_1_s": fit.boundary_1_s,
+                "boundary_2_s": fit.boundary_2_s,
+                "mixed_duration_s": fit.mixed_duration_s,
+                "primary_stage_fraction": round(primary_fraction, 4),
+                "movement_count": len(evidence),
+            }
+        )
 
     if not candidates:
         raise ValueError(
             "no cycle candidates: not enough movement events in the requested range"
         )
 
-    candidates.sort(key=lambda item: (
-        float(item["total_cost"]),
-        float(item["family_overlap"]),
-        int(item["cycle_seconds"]),
-    ))
-    selected_cycle = int(candidates[0]["cycle_seconds"])
-
-    selected_scored = _score_period(
-        points,
-        period_s=selected_cycle,
-        origin_s=0.0,
-        min_movement_events=min_movement_events,
+    candidates.sort(
+        key=lambda item: (
+            -float(item["score"]),
+            -int(item["movement_count"]),
+            int(item["cycle_seconds"]),
+        )
     )
-    if selected_scored is None:
-        raise RuntimeError("selected cycle could not be refit")
+    selected_cycle = int(candidates[0]["cycle_seconds"])
+    selected_fit, selected_evidence = selected_fits[selected_cycle]
 
-    _, fits, movement_cost, family_overlap = selected_scored
-    ns_mask, ew_mask = _family_masks(fits, selected_cycle)
+    b1 = selected_fit.boundary_1_s
+    b2 = selected_fit.boundary_2_s
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "meaning": (
-            "Research prototype for cycle identification from kinematic event "
-            "constraints. It is not controller telemetry and does not classify "
-            "traffic-light colors."
+            "Joint research prototype for cycle and shared phase-boundary "
+            "identification from kinematic event evidence. It is not controller "
+            "telemetry and does not classify traffic-light colors."
         ),
         "selected_cycle_seconds": selected_cycle,
         "origin_timestamp_ms": origin_ms,
         "event_count": len(points),
         "movement_count": len({point.movement for point in points}),
+        "model": {
+            "stage_count": 3,
+            "stage_1": {
+                "name": "EW_EXCLUSIVE",
+                "start_s": 0,
+                "end_s": b1,
+            },
+            "stage_2": {
+                "name": "MIXED_TRANSITION",
+                "start_s": b1,
+                "end_s": b2,
+            },
+            "stage_3": {
+                "name": "NS_EXCLUSIVE",
+                "start_s": b2,
+                "end_s": selected_cycle,
+            },
+            "constraint": (
+                "EW movements are active in stage 1 + mixed stage; NS movements "
+                "are active in mixed stage + stage 3. Stops are therefore evidence "
+                "for the corresponding exclusive stage being red."
+            ),
+        },
         "candidate_cycles": candidates[:15],
         "selected_fit": {
-            "movement_cost": round(movement_cost, 4),
-            "family_overlap": round(family_overlap, 4),
-            "ns_coverage": round(float(np.mean(ns_mask)), 4),
-            "ew_coverage": round(float(np.mean(ew_mask)), 4),
-            "movements": [
-                {
-                    "movement": fit.movement,
-                    "start_s": fit.start_s,
-                    "end_s": fit.end_s,
-                    "duration_s": fit.duration_s,
-                    "release_anchor_score": round(
-                        fit.release_anchor_score,
-                        4,
-                    ),
-                    "release_cycle_coverage": round(
-                        fit.release_cycle_coverage,
-                        4,
-                    ),
-                    "crossing_inside": round(
-                        fit.crossing_inside,
-                        4,
-                    ),
-                    "stop_outside": round(
-                        fit.stop_outside,
-                        4,
-                    ),
-                    "event_count": fit.event_count,
-                }
-                for fit in sorted(fits, key=lambda item: item.movement)
-            ],
+            "score": round(selected_fit.score, 4),
+            "mixed_duration_s": selected_fit.mixed_duration_s,
+            "movement_scores": _movement_score_summary(
+                selected_evidence,
+                selected_fit,
+            ),
         },
     }
 
@@ -434,8 +352,8 @@ def discover_kinematic_cycle(
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Research prototype: infer traffic-signal cycle from STOP/"
-            "RELEASE/CROSSING kinematic constraints."
+            "Research prototype: jointly infer cycle and three shared phase "
+            "boundaries from STOP/RELEASE/CROSSING constraints."
         )
     )
     parser.add_argument("path", type=Path, help="Trajectory JSON file")
@@ -477,7 +395,7 @@ def main() -> int:
     )
 
     print(
-        "Kinematic cycle prototype: "
+        "Joint kinematic phase prototype: "
         f"selected={result['selected_cycle_seconds']}s, "
         f"events={result['event_count']}, "
         f"movements={result['movement_count']}"
