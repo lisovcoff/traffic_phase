@@ -396,6 +396,7 @@ def main() -> int:
 
     print(
         "Joint kinematic phase prototype: "
+        f"schema={result['schema_version']}, "
         f"selected={result['selected_cycle_seconds']}s, "
         f"events={result['event_count']}, "
         f"movements={result['movement_count']}"
