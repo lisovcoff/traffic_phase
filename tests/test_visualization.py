@@ -205,8 +205,8 @@ def test_coordinate_viewer_script_exposes_stage_analysis_pipeline():
     required = (
         "_build_stage_analysis",
         "build_signal_group_model",
-        "Stage 1",
-        "Stage 2",
+        '"stage1":',
+        '"stage2":',
         "movement_to_group",
         "--no-analysis",
     )
