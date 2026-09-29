@@ -409,3 +409,94 @@ def test_movement_without_demand_does_not_create_a_group():
 
     assert result.groups == ()
     assert result.insufficient_movements == ()
+
+
+def test_signal_group_mapping_preserves_supported_group_membership():
+    from app.core.signal_group_mapping import (
+        SignalGroupMappingStatus,
+        build_signal_group_mapping,
+    )
+
+    result = SignalGroupDiscovery().discover(
+        [
+            _signature("N->S", "N", 10.0, 40.0),
+            _signature("N->W", "N", 11.0, 41.0),
+        ]
+    )
+
+    mapping = build_signal_group_mapping(result)
+
+    assert mapping.movement_to_group == {
+        "N->S": "N:SG1",
+        "N->W": "N:SG1",
+    }
+    assert mapping.group_to_movements == {
+        "N:SG1": ("N->S", "N->W"),
+    }
+    assert mapping.unmapped_movements == ()
+    assert all(
+        entry.status is SignalGroupMappingStatus.MAPPED
+        for entry in mapping.entries
+    )
+
+
+def test_signal_group_mapping_keeps_singleton_as_structural_hypothesis():
+    from app.core.signal_group_mapping import build_signal_group_mapping
+
+    result = SignalGroupDiscovery().discover(
+        [_signature("N->S", "N", 10.0, 40.0)]
+    )
+
+    mapping = build_signal_group_mapping(result)
+
+    assert len(mapping.entries) == 1
+    entry = mapping.entries[0]
+    assert entry.group_id == "N:SG1"
+    assert entry.evidence is SignalGroupEvidence.STRUCTURAL_HYPOTHESIS
+    assert mapping.to_dict()["entries"][0]["status"] == "mapped"
+
+
+def test_signal_group_mapping_preserves_insufficient_movements_as_unmapped():
+    from app.core.signal_group_mapping import (
+        SignalGroupMappingStatus,
+        build_signal_group_mapping,
+    )
+
+    result = SignalGroupDiscovery().discover(
+        [
+            _signature("N->S", "N", 10.0, 40.0),
+            _signature("N->E", "N", 20.0, 40.0, support_cycles=2),
+        ]
+    )
+
+    mapping = build_signal_group_mapping(result)
+
+    assert mapping.movement_to_group == {"N->S": "N:SG1"}
+    assert mapping.unmapped_movements == ("N->E",)
+    assert mapping.entries[1].status is SignalGroupMappingStatus.UNMAPPED
+    assert mapping.entries[1].evidence is SignalGroupEvidence.INSUFFICIENT_EVIDENCE
+    assert mapping.entries[1].confidence == 0.0
+
+
+def test_signal_group_mapping_is_deterministic_and_serializable():
+    from app.core.signal_group_mapping import build_signal_group_mapping
+
+    result = SignalGroupDiscovery().discover(
+        [
+            _signature("W->E", "W", 50.0, 70.0),
+            _signature("N->W", "N", 10.0, 30.0),
+            _signature("N->S", "N", 11.0, 31.0),
+        ]
+    )
+
+    mapping = build_signal_group_mapping(result)
+
+    assert [entry.movement_id for entry in mapping.entries] == [
+        "N->S",
+        "N->W",
+        "W->E",
+    ]
+    payload = mapping.to_dict()
+    assert payload["movement_to_group"]["N->S"] == "N:SG1"
+    assert payload["group_to_movements"]["N:SG1"] == ["N->S", "N->W"]
+
