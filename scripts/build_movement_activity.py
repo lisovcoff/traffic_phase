@@ -187,6 +187,7 @@ def build_movement_activity(
         ),
         "rows": rows,
     }
+    return result
 
 
 def main() -> int:
