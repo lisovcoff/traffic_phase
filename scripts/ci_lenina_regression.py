@@ -56,6 +56,31 @@ def main() -> int:
         f"N+arrow={arrow}s, NS={ns}s"
     )
 
+    # Diagnostic comparison for the known competing hypotheses.  Keep this
+    # in CI so a failed regression tells us which part of the objective makes
+    # 78/80/95/100-second candidates win, instead of requiring a local rerun.
+    print("Lenina candidate diagnostics:")
+    candidates = result.get("candidate_cycles", [])
+    by_period = {
+        int(item["cycle_seconds"]): item
+        for item in candidates
+        if int(item["cycle_seconds"]) in {78, 80, 95, 100}
+    }
+    for candidate_period in (78, 80, 95, 100):
+        item = by_period.get(candidate_period)
+        if item is None:
+            print(f"  T={candidate_period}s: not available")
+            continue
+        print(
+            f"  T={candidate_period}s "
+            f"joint={item['score']:.4f} "
+            f"phase={item['phase_fit_score']:.4f} "
+            f"periodicity={item['release_periodicity_score']:.4f} "
+            f"EW={item['EW_duration_s']} "
+            f"N+arrow={item['N_ARROW_duration_s']} "
+            f"NS={item['NS_duration_s']}"
+        )
+
     failed = [name for name, passed in checks.items() if not passed]
     if failed:
         print("FAILED regression checks:", ", ".join(failed))
