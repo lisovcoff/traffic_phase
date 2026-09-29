@@ -11,6 +11,7 @@ from app.core.models import EventType, Trajectory, TrajectoryEvent
 from app.core.preprocessing import load_trajectory_file
 from app.core.trajectory_geometry import haversine_distance_m
 from app.core.reconstruction import extract_events_from_trajectories
+from app.core.cycle_estimator import CycleEstimator
 
 
 def _second_range(trajectory: Trajectory) -> range:
@@ -192,8 +193,6 @@ def build_movement_activity(
         "rows": rows,
     }
     return result
-
-
 
 
 def _circular_distance(
@@ -651,9 +650,7 @@ def discover_movement_profiles(
     )
 
     profiles: list[dict[str, object]] = []
-    for movement, rows in sorted(
-        grouped.items()
-    ):
+    for movement, rows in sorted(grouped.items()):
         release_seconds = [
             int(row["second"])
             for row in rows
@@ -697,17 +694,11 @@ def discover_movement_profiles(
             total_cycles=total_cycles,
         )
 
-        approach = movement.split(
-            "->",
-            1,
-        )[0]
+        approach = movement.split("->", 1)[0]
         approach_rows = [
             row
             for other_movement, other_rows in grouped.items()
-            if other_movement.split(
-                "->",
-                1,
-            )[0] == approach
+            if other_movement.split("->", 1)[0] == approach
             for row in other_rows
         ]
         approach_event_seconds = sorted({
@@ -724,48 +715,30 @@ def discover_movement_profiles(
             cycle_seconds=selected_cycle_int,
             total_cycles=total_cycles,
         )
-        movement_mask = [
-            value >= 0.35
-            for value in phase_support
-        ]
-        approach_mask = [
-            value >= 0.35
-            for value in approach_support
-        ]
+        movement_mask = [value >= 0.35 for value in phase_support]
+        approach_mask = [value >= 0.35 for value in approach_support]
         intersection = sum(
             movement_value and approach_value
-            for movement_value, approach_value
-            in zip(
+            for movement_value, approach_value in zip(
                 movement_mask,
                 approach_mask,
             )
         )
         union = sum(
             movement_value or approach_value
-            for movement_value, approach_value
-            in zip(
+            for movement_value, approach_value in zip(
                 movement_mask,
                 approach_mask,
             )
         )
-        jaccard = (
-            intersection / union
-            if union
-            else 0.0
-        )
+        jaccard = intersection / union if union else 0.0
 
         release_phases = [
-            float(
-                (second - start_second)
-                % selected_cycle_int
-            )
+            float((second - start_second) % selected_cycle_int)
             for second in release_seconds
         ]
         crossing_phases = [
-            float(
-                (second - start_second)
-                % selected_cycle_int
-            )
+            float((second - start_second) % selected_cycle_int)
             for second in crossing_seconds
         ]
         release_median = _circular_median(
@@ -805,96 +778,52 @@ def discover_movement_profiles(
 
         nearby_candidates = [
             candidate
-            for candidate in movement_candidates.get(
-                movement,
-                [],
-            )
+            for candidate in movement_candidates.get(movement, [])
             if abs(
                 float(candidate["cycle_seconds"])
                 - selected_cycle_int
             ) <= 3.0
         ]
 
-        profiles.append(
-            {
-                "movement": movement,
-                "approach": approach,
-                "observed_event_cycles": observed_cycles,
-                "release_event_count": len(
-                    release_seconds
-                ),
-                "crossing_event_count": len(
-                    crossing_seconds
-                ),
-                "release_phase_median_s": round(
-                    release_median,
-                    2,
-                ),
-                "crossing_phase_median_s": round(
-                    crossing_median,
-                    2,
-                ),
-                "release_repeatability": round(
-                    release_repeatability,
-                    4,
-                ),
-                "crossing_repeatability": round(
-                    crossing_repeatability,
-                    4,
-                ),
-                "event_windows": [
-                    {
-                        "phase_start_s": round(
-                            window_start,
-                            2,
-                        ),
-                        "phase_end_s": round(
-                            window_end,
-                            2,
-                        ),
-                        "mean_cycle_support": round(
-                            support,
-                            4,
-                        ),
-                    }
-                    for window_start, window_end, support
-                    in event_windows
-                ],
-                "activity_windows": [
-                    {
-                        "phase_start_s": round(
-                            window_start,
-                            2,
-                        ),
-                        "phase_end_s": round(
-                            window_end,
-                            2,
-                        ),
-                        "mean_cycle_support": round(
-                            support,
-                            4,
-                        ),
-                    }
-                    for window_start, window_end, support
-                    in activity_windows
-                ],
-                "movement_vs_approach_jaccard": round(
-                    jaccard,
-                    4,
-                ),
-                "distinct_from_approach": bool(
-                    observed_cycles >= min_event_cycles
-                    and bool(activity_windows)
-                    and jaccard < 0.60
-                ),
-                "movement_cycle_candidate_seconds": (
-                    nearby_candidates[0]["cycle_seconds"]
-                    if nearby_candidates
-                    else None
-                ),
-                "top_cycle_candidates": nearby_candidates[:5],
-            }
-        )
+        profiles.append({
+            "movement": movement,
+            "approach": approach,
+            "observed_event_cycles": observed_cycles,
+            "release_event_count": len(release_seconds),
+            "crossing_event_count": len(crossing_seconds),
+            "release_phase_median_s": round(release_median, 2),
+            "crossing_phase_median_s": round(crossing_median, 2),
+            "release_repeatability": round(release_repeatability, 4),
+            "crossing_repeatability": round(crossing_repeatability, 4),
+            "event_windows": [
+                {
+                    "phase_start_s": round(window_start, 2),
+                    "phase_end_s": round(window_end, 2),
+                    "mean_cycle_support": round(support, 4),
+                }
+                for window_start, window_end, support in event_windows
+            ],
+            "activity_windows": [
+                {
+                    "phase_start_s": round(window_start, 2),
+                    "phase_end_s": round(window_end, 2),
+                    "mean_cycle_support": round(support, 4),
+                }
+                for window_start, window_end, support in activity_windows
+            ],
+            "movement_vs_approach_jaccard": round(jaccard, 4),
+            "distinct_from_approach": bool(
+                observed_cycles >= min_event_cycles
+                and bool(activity_windows)
+                and jaccard < 0.60
+            ),
+            "movement_cycle_candidate_seconds": (
+                nearby_candidates[0]["cycle_seconds"]
+                if nearby_candidates
+                else None
+            ),
+            "top_cycle_candidates": nearby_candidates[:5],
+        })
 
     profiles.sort(
         key=lambda item: (
@@ -910,12 +839,11 @@ def discover_movement_profiles(
             "autocorrelation. These are hypotheses about recurring flow "
             "windows, not GREEN/RED lamp classifications."
         ),
-        "selected_cycle_seconds": float(
-            selected_cycle_int
-        ),
+        "selected_cycle_seconds": float(selected_cycle_int),
         "global_cycle_candidates": global_candidates[:10],
         "movement_profiles": profiles,
     }
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(
