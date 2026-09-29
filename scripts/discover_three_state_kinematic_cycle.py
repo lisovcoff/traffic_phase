@@ -236,6 +236,20 @@ def _boundary_limits(period_s: int) -> tuple[int, int, int, int]:
     return min_ew, min_arrow, min_ns, max_arrow
 
 
+def _circular_window_matrix(values: np.ndarray) -> np.ndarray:
+    """Return sums for every window length and circular start position."""
+    period_s = len(values)
+    doubled = np.concatenate((values, values))
+    prefix = np.concatenate(([0.0], np.cumsum(doubled)))
+    windows = np.zeros((period_s + 1, period_s), dtype=float)
+
+    for duration_s in range(1, period_s + 1):
+        windows[duration_s] = (
+            prefix[duration_s : duration_s + period_s] - prefix[:period_s]
+        )
+    return windows
+
+
 def _fit_period(
     evidence: list[Evidence],
     *,
@@ -245,48 +259,131 @@ def _fit_period(
         return None
 
     min_ew, min_arrow, min_ns, max_arrow = _boundary_limits(period_s)
-    total_weight = sum(min(12.0, math.sqrt(item.event_count)) for item in evidence)
+    movement_weights = np.array(
+        [min(12.0, math.sqrt(item.event_count)) for item in evidence],
+        dtype=float,
+    )
+    total_weight = float(np.sum(movement_weights))
+    if total_weight <= 0.0:
+        return None
+
+    # The original implementation searched:
+    #   period × origin × boundary_1 × boundary_2 × movement.
+    # The phase origin is only a rotation of the same circular cycle.  Because
+    # every movement score is additive over its active state intervals, we can
+    # aggregate movement evidence by state first and evaluate every origin
+    # vectorially.  This removes one full O(period) loop and most Python-level
+    # work while preserving the same objective.
+    state_activity = np.zeros((len(STATE_NAMES), period_s), dtype=float)
+
+    for item, movement_weight in zip(evidence, movement_weights):
+        coefficient = 2.0 * float(movement_weight) / max(item.total_weight, 1e-9)
+        for state_index, state_name in enumerate(STATE_NAMES):
+            if state_name in MOVEMENT_ACTIVE_STATES[item.movement]:
+                state_activity[state_index] += coefficient * item.activity
+
+    windows = [
+        _circular_window_matrix(state_activity[state_index])
+        for state_index in range(len(STATE_NAMES))
+    ]
 
     best: Fit | None = None
+    phase_positions = np.arange(period_s)
+
     for boundary_1_s in range(
         min_ew,
         period_s - min_arrow - min_ns + 1,
     ):
-        boundary_2_max = min(
-            period_s - min_ns,
-            boundary_1_s + max_arrow,
-        )
         for boundary_2_s in range(
             boundary_1_s + min_arrow,
-            boundary_2_max + 1,
+            min(period_s - min_ns, boundary_1_s + max_arrow) + 1,
         ):
-            movement_scores = {
-                item.movement: _movement_fit_score(
-                    item,
+            arrow_duration = boundary_2_s - boundary_1_s
+            ns_duration = period_s - boundary_2_s
+
+            # For every possible EW origin, the following three intervals are:
+            #   EW      [origin, origin + boundary_1)
+            #   N_ARROW [origin + boundary_1, origin + boundary_2)
+            #   NS      [origin + boundary_2, origin + period)
+            #
+            # The precomputed circular-window matrices make each interval
+            # lookup O(1).  np.take handles the modulo rotation without
+            # allocating rolled arrays for every candidate.
+            ew_sum = windows[0][boundary_1_s, phase_positions]
+            arrow_starts = (phase_positions + boundary_1_s) % period_s
+            ns_starts = (phase_positions + boundary_2_s) % period_s
+            arrow_sum = windows[1][arrow_duration, arrow_starts]
+            ns_sum = windows[2][ns_duration, ns_starts]
+
+            variable_score = ew_sum + arrow_sum + ns_sum
+            scores = variable_score / total_weight - 1.0
+            best_index = int(np.argmax(scores))
+            score = float(scores[best_index])
+
+            if best is None or score > best.score:
+                best = Fit(
                     period_s=period_s,
+                    origin_offset_s=best_index,
                     boundary_1_s=boundary_1_s,
                     boundary_2_s=boundary_2_s,
+                    score=score,
+                    movement_scores={},
                 )
-                for item in evidence
-            }
 
-            score = sum(
-                movement_scores[item.movement] * min(12.0, math.sqrt(item.event_count))
-                for item in evidence
-            ) / max(total_weight, 1e-9)
+    if best is None:
+        return None
 
-            fit = Fit(
-                period_s=period_s,
-                origin_offset_s=0,
-                boundary_1_s=boundary_1_s,
-                boundary_2_s=boundary_2_s,
-                score=float(score),
-                movement_scores=movement_scores,
+    # Recompute per-movement scores only for the winning structure.  This is
+    # intentionally kept separate from the fast search path because these
+    # values are diagnostic output, not part of the candidate ranking.
+    movement_scores: dict[str, float] = {}
+    for item in evidence:
+        active_intervals: list[tuple[int, int]] = []
+        for state_index, state_name in enumerate(STATE_NAMES):
+            if state_name not in MOVEMENT_ACTIVE_STATES[item.movement]:
+                continue
+
+            if state_index == 0:
+                duration = best.boundary_1_s
+                start = best.origin_offset_s
+            elif state_index == 1:
+                duration = best.boundary_2_s - best.boundary_1_s
+                start = best.origin_offset_s + best.boundary_1_s
+            else:
+                duration = best.period_s - best.boundary_2_s
+                start = best.origin_offset_s + best.boundary_2_s
+
+            start %= best.period_s
+            end = start + duration
+            if end <= best.period_s:
+                active_intervals.append((start, end))
+            else:
+                active_intervals.append((start, best.period_s))
+                active_intervals.append((0, end - best.period_s))
+
+        activity_prefix = _prefix(item.activity)
+        active_activity = _sum_intervals(
+            activity_prefix,
+            tuple(active_intervals),
+        )
+        total_activity = float(np.sum(item.activity))
+        movement_scores[item.movement] = float(
+            np.clip(
+                (2.0 * active_activity - total_activity)
+                / max(item.total_weight, 1e-9),
+                -1.0,
+                1.0,
             )
-            if best is None or fit.score > best.score:
-                best = fit
+        )
 
-    return best
+    return Fit(
+        period_s=best.period_s,
+        origin_offset_s=best.origin_offset_s,
+        boundary_1_s=best.boundary_1_s,
+        boundary_2_s=best.boundary_2_s,
+        score=best.score,
+        movement_scores=movement_scores,
+    )
 
 
 def _release_start_times(events: list[TrajectoryEvent]) -> list[float]:
@@ -369,47 +466,38 @@ def discover_three_state_cycle(
     selected_fits: dict[tuple[int, int], Fit] = {}
 
     for period_s in range(min_cycle_s, max_cycle_s + 1):
-        # Phase zero is unknown. Search one complete phase rotation rather
-        # than assuming that the first EW kinematic event is the cycle start.
-        for origin_offset_s in range(period_s):
-            origin_ms = anchor_ms + origin_offset_s * 1000
-            evidence = _phase_arrays(
-                usable,
-                period_s=period_s,
-                origin_ms=origin_ms,
-            )
-            fit = _fit_period(evidence, period_s=period_s)
-            if fit is None:
-                continue
+        # Anchor the phase arrays once.  _fit_period treats the origin as a
+        # circular rotation, so rebuilding the event arrays for every origin
+        # is unnecessary.
+        evidence = _phase_arrays(
+            usable,
+            period_s=period_s,
+            origin_ms=anchor_ms,
+        )
+        selected = _fit_period(evidence, period_s=period_s)
+        if selected is None:
+            continue
 
-            selected = Fit(
-                period_s=fit.period_s,
-                origin_offset_s=origin_offset_s,
-                boundary_1_s=fit.boundary_1_s,
-                boundary_2_s=fit.boundary_2_s,
-                score=fit.score,
-                movement_scores=fit.movement_scores,
-            )
-            selected_fits[(period_s, origin_offset_s)] = selected
-            periodicity = _periodicity_score(
-                release_starts_s,
-                period_s=period_s,
-            )
-            joint_score = 0.65 * periodicity + 0.35 * selected.score
-            candidates.append({
-                "cycle_seconds": period_s,
-                "origin_offset_s": origin_offset_s,
-                "score": round(joint_score, 4),
-                "phase_fit_score": round(selected.score, 4),
-                "release_periodicity_score": round(periodicity, 4),
-                "EW_duration_s": selected.boundary_1_s,
-                "N_ARROW_duration_s": (
-                    selected.boundary_2_s - selected.boundary_1_s
-                ),
-                "NS_duration_s": (
-                    selected.period_s - selected.boundary_2_s
-                ),
-            })
+        selected_fits[(period_s, selected.origin_offset_s)] = selected
+        periodicity = _periodicity_score(
+            release_starts_s,
+            period_s=period_s,
+        )
+        joint_score = 0.65 * periodicity + 0.35 * selected.score
+        candidates.append({
+            "cycle_seconds": period_s,
+            "origin_offset_s": selected.origin_offset_s,
+            "score": round(joint_score, 4),
+            "phase_fit_score": round(selected.score, 4),
+            "release_periodicity_score": round(periodicity, 4),
+            "EW_duration_s": selected.boundary_1_s,
+            "N_ARROW_duration_s": (
+                selected.boundary_2_s - selected.boundary_1_s
+            ),
+            "NS_duration_s": (
+                selected.period_s - selected.boundary_2_s
+            ),
+        })
 
     if not candidates:
         raise ValueError("no three-state cycle candidates")
