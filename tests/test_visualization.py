@@ -194,3 +194,23 @@ def test_video_validation_server_load_analysis_requires_timeline(tmp_path):
         assert "effective_timeline" in str(exc)
     else:
         raise AssertionError("expected validation error")
+
+def test_coordinate_viewer_script_exposes_stage_analysis_pipeline():
+    from pathlib import Path
+
+    script = Path("scripts/visualize_trajectory_coordinates.py").read_text(
+        encoding="utf-8"
+    )
+
+    required = (
+        "_build_stage_analysis",
+        "build_signal_group_model",
+        "Stage 1",
+        "Stage 2",
+        "movement_to_group",
+        "--no-analysis",
+    )
+    assert all(token in script for token in required)
+
+
+

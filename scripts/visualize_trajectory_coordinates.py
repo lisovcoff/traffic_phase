@@ -5,6 +5,12 @@ import json
 from pathlib import Path
 from statistics import mean
 
+from app.core.event_cycle_estimator import estimate_event_cycle
+from app.core.event_phase_discovery import EventPhaseDiscovery
+from app.core.preprocessing import load_trajectory_file
+from app.core.reconstruction import extract_events_from_trajectories
+from app.core.signal_group_mapping import build_signal_group_model
+
 
 def _load_trajectories(path: Path) -> list[dict]:
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -31,6 +37,57 @@ def _load_trajectories(path: Path) -> list[dict]:
         if isinstance(item, dict)
         and isinstance(item.get("detections"), list)
     ]
+
+
+def _build_stage_analysis(path: Path) -> dict[str, object]:
+    """Run the authoritative Stage 1/2 pipeline for the viewer."""
+    trajectories = load_trajectory_file(path)
+    events = extract_events_from_trajectories(trajectories)
+    cycle = estimate_event_cycle(events).estimate
+    phase_model = EventPhaseDiscovery(bin_seconds=2.0).discover(
+        events,
+        cycle_seconds=cycle.cycle_seconds,
+    )
+    stage2 = build_signal_group_model(
+        events,
+        cycle_seconds=cycle.cycle_seconds,
+        origin_timestamp_ms=phase_model.origin_timestamp_ms,
+        bin_seconds=1.0,
+    )
+    phase_confidence = (
+        sum(phase.confidence for phase in phase_model.phases)
+        / len(phase_model.phases)
+        if phase_model.phases
+        else 0.0
+    )
+    return {
+        "stage1": {
+            "cycle_seconds": float(cycle.cycle_seconds),
+            "cycle_confidence": float(cycle.confidence),
+            "origin_timestamp_ms": int(phase_model.origin_timestamp_ms),
+            "phase_confidence": float(phase_confidence),
+            "phases": [
+                phase.to_dict() for phase in phase_model.phases
+            ],
+        },
+        "stage2": {
+            "cycle_seconds": float(stage2.cycle_seconds),
+            "origin_timestamp_ms": int(stage2.origin_timestamp_ms),
+            "signatures_count": len(stage2.signatures),
+            "groups": [
+                group.to_dict()
+                for group in stage2.discovery.groups
+            ],
+            "relations": [
+                relation.to_dict()
+                for relation in stage2.discovery.relations
+            ],
+            "insufficient_movements": list(
+                stage2.discovery.insufficient_movements
+            ),
+            "mapping": stage2.mapping.to_dict(),
+        },
+    }
 
 
 def _escape_json(value: object) -> str:
@@ -127,6 +184,19 @@ HTML_TEMPLATE = r"""<!doctype html>
   canvas { display:block; width:100%; height:auto; background:#fff; border:1px solid #aaa; }
   .legend { margin-top:8px; display:flex; gap:14px; flex-wrap:wrap; font-size:13px; }
   .stats { margin-top:8px; font-size:13px; color:#444; }
+  .analysis-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+  .analysis-card { background:#fff; border:1px solid #ccc; border-radius:8px; padding:10px; min-width:0; }
+  .analysis-card h2 { margin:0 0 8px; font-size:17px; }
+  .analysis-summary { font-size:13px; color:#444; margin-bottom:8px; }
+  .phase-row, .group-row { border:1px solid #ddd; border-radius:6px; padding:7px; margin-top:6px; font-size:12px; }
+  .phase-row.current, .group-row.current { border-width:2px; }
+  .phase-row strong, .group-row strong { font-size:13px; }
+  .analysis-muted { color:#777; }
+  .analysis-bad { color:#a00; }
+  .relations { margin-top:8px; }
+  .relations summary { cursor:pointer; font-size:12px; }
+  .relation-row { margin-top:4px; font-size:11px; }
+  @media (max-width:900px) { .analysis-grid { grid-template-columns:1fr; } }
   label { font-size:13px; }
 </style>
 </head>
@@ -154,8 +224,18 @@ HTML_TEMPLATE = r"""<!doctype html>
     <div class="time" id="time"></div>
     <canvas id="view" width="1200" height="760"></canvas>
     <div class="stats" id="stats"></div>
+    <div class="analysis-grid">
+      <section class="analysis-card">
+        <h2>Stage 1 — цикл и фазы</h2>
+        <div id="stage1"></div>
+      </section>
+      <section class="analysis-card">
+        <h2>Stage 2 — логические группы</h2>
+        <div id="stage2"></div>
+      </section>
+    </div>
     <pre class="stats" id="marks"></pre>
-    <div class="legend">Крупные N/S/E/W показывают усреднённое положение детекций с соответствующей зоной в исходном JSON.</div>
+    <div class="legend">Крупные N/S/E/W показывают усреднённое положение детекций с соответствующей зоной в исходном JSON. Под графиком отображается текущий результат Stage 1 и Stage 2 для той же отметки времени.</div>
   </div>
 </div>
 
@@ -177,6 +257,10 @@ const playButton = document.getElementById("play");
 const showIds = document.getElementById("showIds");
 const showMoves = document.getElementById("showMoves");
 const marksEl = document.getElementById("marks");
+const stage1El = document.getElementById("stage1");
+const stage2El = document.getElementById("stage2");
+const stage1 = DATA.stage1 || null;
+const stage2 = DATA.stage2 || null;
 
 timeline.min = 0;
 timeline.max = Math.max(0, END_MS - START_MS);
@@ -285,6 +369,10 @@ function drawVehicles(t) {
       if (showIds.checked && showMoves.checked) text += " ";
       if (showMoves.checked && track.in && track.out) {
         text += String(track.in) + "→" + String(track.out);
+        if (track.movement && stage2 && stage2.mapping && stage2.mapping.movement_to_group) {
+          const groupId = stage2.mapping.movement_to_group[track.movement];
+          if (groupId) text += " [" + groupId + "]";
+        }
       }
       if (text) {
         ctx.font = "11px system-ui, sans-serif";
@@ -297,6 +385,146 @@ function drawVehicles(t) {
   }
 
   return {active, zoneCounts};
+}
+
+
+function formatInterval(start, end, cycle) {
+  const duration = (Number(end) - Number(start) + Number(cycle)) % Number(cycle);
+  const seconds = duration === 0 && Number(start) === Number(end)
+    ? Number(cycle)
+    : duration;
+  return Number(start).toFixed(1) + "–" + Number(end).toFixed(1) +
+    " с (" + seconds.toFixed(1) + " с)";
+}
+
+function containsPhase(start, end, phase, cycle) {
+  start = Number(start); end = Number(end); phase = Number(phase); cycle = Number(cycle);
+  if (start === end) return true;
+  if (start < end) return start <= phase && phase < end;
+  return phase >= start || phase < end;
+}
+
+function renderStage1(cyclePosition) {
+  if (!stage1) {
+    stage1El.innerHTML = '<div class="analysis-bad">Stage 1 не рассчитан.</div>';
+    return;
+  }
+
+  const phase = (stage1.phases || []).find(item =>
+    containsPhase(item.phase_start, item.phase_end, cyclePosition, stage1.cycle_seconds)
+  );
+  let html =
+    '<div class="analysis-summary">' +
+    'Цикл: <strong>' + Number(stage1.cycle_seconds).toFixed(2) + ' с</strong>' +
+    ' | confidence: <strong>' + Number(stage1.cycle_confidence).toFixed(3) + '</strong>' +
+    ' | phase confidence: <strong>' + Number(stage1.phase_confidence).toFixed(3) + '</strong>' +
+    ' | текущая позиция: <strong>' + Number(cyclePosition).toFixed(1) + ' с</strong>' +
+    '</div>';
+
+  if (!stage1.phases || !stage1.phases.length) {
+    html += '<div class="analysis-muted">Фазы не обнаружены.</div>';
+  } else {
+    for (const item of stage1.phases) {
+      const current = phase && item.phase_id === phase.phase_id;
+      html +=
+        '<div class="phase-row' + (current ? ' current' : '') + '">' +
+        '<strong>Phase ' + item.phase_id + (current ? ' — ТЕКУЩАЯ' : '') + '</strong>' +
+        '<br>' + formatInterval(item.phase_start, item.phase_end, stage1.cycle_seconds) +
+        '<br>подходы: ' + (item.active_approaches || []).join(', ') +
+        '<br>confidence: ' + Number(item.confidence).toFixed(3) +
+        ' | support: ' + item.supporting_event_count +
+        ' | contradiction: ' + item.contradictory_event_count +
+        '</div>';
+    }
+  }
+  stage1El.innerHTML = html;
+}
+
+function renderStage2(cyclePosition) {
+  if (!stage2) {
+    stage2El.innerHTML = '<div class="analysis-bad">Stage 2 не рассчитан.</div>';
+    return;
+  }
+
+  const groups = stage2.groups || [];
+  const mapping = (stage2.mapping && stage2.mapping.movement_to_group) || {};
+  let currentGroups = 0;
+  let html =
+    '<div class="analysis-summary">' +
+    'сигнатур: <strong>' + stage2.signatures_count + '</strong>' +
+    ' | групп: <strong>' + groups.length + '</strong>' +
+    ' | unmapped: <strong>' + ((stage2.mapping && stage2.mapping.unmapped_movements) || []).length + '</strong>' +
+    '</div>';
+
+  if (!groups.length) {
+    html += '<div class="analysis-muted">Логические группы не обнаружены.</div>';
+  } else {
+    for (const group of groups) {
+      const active = (group.intervals || []).some(interval =>
+        containsPhase(interval.start, interval.end, cyclePosition, stage2.cycle_seconds)
+      );
+      if (active) currentGroups++;
+      html +=
+        '<div class="group-row' + (active ? ' current' : '') + '">' +
+        '<strong>' + group.group_id + (active ? ' — АКТИВНА' : '') + '</strong>' +
+        '<br>approach: ' + group.approach +
+        '<br>движения: ' + (group.movement_ids || []).join(', ') +
+        '<br>evidence: ' + group.evidence +
+        ' | confidence: ' + Number(group.confidence).toFixed(3) +
+        '<br>интервалы: ' + (group.intervals || []).map(interval =>
+          formatInterval(interval.start, interval.end, stage2.cycle_seconds)
+        ).join('; ') +
+        '</div>';
+    }
+  }
+
+  const insufficient = (stage2.insufficient_movements || []).join(', ');
+  html +=
+    '<div class="analysis-muted" style="margin-top:7px">Текущих активных групп: ' +
+    currentGroups + '</div>';
+
+  if (insufficient) {
+    html += '<div class="analysis-muted" style="margin-top:5px">Insufficient evidence: ' +
+      insufficient + '</div>';
+  }
+
+  const relations = (stage2.relations || []).filter(item =>
+    item.relation !== "disjoint"
+  );
+  if (relations.length) {
+    html += '<details class="relations"><summary>Связи Stage 2 (' +
+      relations.length + ' не-disjoint)</summary>';
+    for (const item of relations) {
+      html += '<div class="relation-row">' +
+        item.left_movement + ' ↔ ' + item.right_movement +
+        ': <strong>' + item.relation + '</strong>' +
+        ' [' + item.evidence + ']</div>';
+    }
+    html += '</details>';
+  }
+
+  const mappedCount = Object.keys(mapping).length;
+  html += '<div class="analysis-muted" style="margin-top:5px">Mapped movements: ' +
+    mappedCount + '</div>';
+
+  stage2El.innerHTML = html;
+}
+
+function renderAnalysis(currentTimeMs) {
+  if (!stage1 && !stage2) {
+    stage1El.innerHTML = '<div class="analysis-bad">Анализ Stage 1/2 не был выполнен.</div>';
+    stage2El.innerHTML = '<div class="analysis-bad">Анализ Stage 1/2 не был выполнен.</div>';
+    return;
+  }
+
+  const anchor = (stage1 && stage1.origin_timestamp_ms) ||
+    (stage2 && stage2.origin_timestamp_ms) || START_MS;
+  const cycle = (stage1 && stage1.cycle_seconds) ||
+    (stage2 && stage2.cycle_seconds) || 1;
+  const cyclePosition = ((currentTimeMs - anchor) / 1000) % cycle;
+  const normalized = (cyclePosition + cycle) % cycle;
+  renderStage1(normalized);
+  renderStage2(normalized);
 }
 
 function render() {
@@ -317,6 +545,8 @@ function render() {
     " | E: " + z.E +
     " | W: " + z.W +
     " | zone=null: " + z.none;
+
+  renderAnalysis(t);
 }
 
 function setTime(ms) {
@@ -432,6 +662,11 @@ def main() -> int:
         default=500,
         help="Timeline step size.",
     )
+    parser.add_argument(
+        "--no-analysis",
+        action="store_true",
+        help="Skip Stage 1/2 analysis and build only the coordinate viewer.",
+    )
     args = parser.parse_args()
 
     if args.stale_ms <= 0:
@@ -445,6 +680,14 @@ def main() -> int:
     if not tracks:
         parser.error("no usable trajectory detections found")
 
+    analysis: dict[str, object] | None = None
+    analysis_error: str | None = None
+    if not args.no_analysis:
+        try:
+            analysis = _build_stage_analysis(args.path)
+        except Exception as exc:
+            analysis_error = str(exc)
+
     data = {
         "start_ms": start_ms,
         "end_ms": end_ms,
@@ -455,6 +698,9 @@ def main() -> int:
             zone: [round(x, 5), round(y, 5)]
             for zone, (x, y) in zones.items()
         },
+        "stage1": analysis["stage1"] if analysis else None,
+        "stage2": analysis["stage2"] if analysis else None,
+        "analysis_error": analysis_error,
     }
 
     output = HTML_TEMPLATE.replace("__DATA__", _escape_json(data))
@@ -463,6 +709,16 @@ def main() -> int:
     print(f"Viewer: {args.output}")
     print(f"Trajectories: {len(tracks)}")
     print(f"Time range: {(end_ms - start_ms) / 1000:.1f}s")
+    if analysis is not None:
+        print(
+            "Stage 1/2: "
+            f"cycle={analysis['stage1']['cycle_seconds']:.2f}s, "
+            f"phases={len(analysis['stage1']['phases'])}, "
+            f"logical_groups={len(analysis['stage2']['groups'])}, "
+            f"mapped_movements={len(analysis['stage2']['mapping']['movement_to_group'])}"
+        )
+    elif analysis_error:
+        print(f"Stage 1/2 analysis error: {analysis_error}")
     print(
         "Controls: Space=play/pause, arrows=±1s, "
         "Shift+arrows=±10s"
