@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 from pathlib import Path
 from statistics import mean, median
 
@@ -60,7 +59,7 @@ def main() -> int:
         "--boundary-tolerance",
         type=float,
         default=10.0,
-        help="Flag marks farther than this many seconds from a model boundary.",
+        help="Flag marks farther than this many seconds from their model boundary.",
     )
     args = parser.parse_args()
 
@@ -79,15 +78,17 @@ def main() -> int:
     if not isinstance(stage1, dict) or not isinstance(stage3, dict):
         parser.error("model must contain stage_1 and stage_3")
 
-    boundary_values = []
-    for stage in (stage1, stage3):
-        value = stage.get("start_s") if stage is stage3 else stage.get("end_s")
-        if isinstance(value, (int, float)):
-            boundary_values.append(float(value))
+    stage1_end = stage1.get("end_s")
+    stage3_start = stage3.get("start_s")
+    if not isinstance(stage1_end, (int, float)) or not isinstance(
+        stage3_start, (int, float)
+    ):
+        parser.error("model must contain numeric stage boundaries")
 
-    boundary_values = sorted(set(boundary_values))
-    if len(boundary_values) != 2:
-        parser.error("could not resolve exactly two phase boundaries")
+    boundary_by_kind = {
+        "EW": 0.0,
+        "NS": float(stage3_start),
+    }
 
     marks = _load_marks(args.marks)
     rows: list[dict[str, object]] = []
