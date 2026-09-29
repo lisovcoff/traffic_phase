@@ -166,7 +166,16 @@ def main() -> int:
             bin_seconds=1.0,
             support_window_seconds=support_window,
         )
-        by_movement = {signature.movement: signature for signature in signatures}
+        supported_movements = {
+            signature.movement
+            for signature in signatures
+            if signature.is_sufficient
+        }
+        by_movement = {
+            signature.movement: signature
+            for signature in signatures
+            if signature.movement in supported_movements
+        }
         exact_by_kind = {kind: 0 for kind in expected_movements}
         mismatches = []
         for mark in manual_marks:
@@ -202,11 +211,16 @@ def main() -> int:
         print(
             f"  support_window={support_window:.1f}s: "
             f"exact={exact}/{len(manual_marks)} "
+            f"supported={len(supported_movements)} "
             f"NS={exact_by_kind['NS']}/14 "
             f"N_ARROW={exact_by_kind['N_ARROW']}/12 "
             f"EW={exact_by_kind['EW']}/13"
         )
         if abs(support_window - 5.5) < 1e-9:
+            print(
+                "  Stage 2 supported movements @5.5s: "
+                + ", ".join(sorted(supported_movements))
+            )
             print("  Stage 2 signatures @5.5s:")
             for signature in signatures:
                 print(
@@ -223,6 +237,10 @@ def main() -> int:
                     f"phase={mismatch[2]:.2f} "
                     f"pred={mismatch[3]} expected={mismatch[4]}"
                 )
+
+        if abs(support_window - 5.5) < 1e-9 and exact < 34:
+            print("FAILED Stage 2 manual-mark regression")
+            return 1
 
     print("Lenina candidate diagnostics:")
     candidates = result.get("candidate_cycles", [])

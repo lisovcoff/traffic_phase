@@ -624,3 +624,34 @@ def test_support_window_rejects_invalid_values():
             pass
         else:
             raise AssertionError("expected invalid support window to raise")
+
+def test_is_sufficient_requires_repeated_high_repeatability_evidence():
+    sparse = _signature(
+        "N->S",
+        "N",
+        30.0,
+        50.0,
+        support_cycles=8,
+        repeatability=0.50,
+    )
+    low_cycle = _signature(
+        "N->S",
+        "N",
+        30.0,
+        50.0,
+        support_cycles=5,
+        repeatability=1.0,
+    )
+    stable = _signature(
+        "N->S",
+        "N",
+        30.0,
+        50.0,
+        support_cycles=8,
+        repeatability=0.75,
+    )
+
+    assert not sparse.is_sufficient
+    assert not low_cycle.is_sufficient
+    assert stable.is_sufficient
+

@@ -410,11 +410,15 @@ function renderStageOverlay(currentTimeMs) {
     return;
   }
 
-  const activeApproaches = new Set(activePhase.active_approaches);
+  const mappedMovements = new Set(
+    Object.keys(
+      (stage2 && stage2.mapping && stage2.mapping.movement_to_group) || {}
+    )
+  );
   const movements = [...new Set(
     ((stage2 && stage2.signatures) || [])
       .filter(signature => {
-        if (!activeApproaches.has(signature.approach)) return false;
+        if (!mappedMovements.has(signature.movement)) return false;
         return (signature.active_intervals || []).some(interval =>
           containsPhase(
             interval.start,
@@ -438,11 +442,7 @@ function renderStageOverlay(currentTimeMs) {
     return;
   }
 
-  stageOverlayMovementsEl.textContent =
-    "Зелёный: " + [...activeApproaches]
-      .sort()
-      .map(approach => approach + "→*")
-      .join(", ");
+  stageOverlayMovementsEl.textContent = "Зелёный: не определено";
 }
 
 function render() {

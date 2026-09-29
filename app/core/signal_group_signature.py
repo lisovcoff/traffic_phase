@@ -131,7 +131,13 @@ class MovementPhaseSignature:
 
     @property
     def is_sufficient(self) -> bool:
-        return self.support_count > 0 and self.active_cycle_count >= 3
+        # A logical signal group must recur across enough cycles to distinguish
+        # a stable signal pattern from a few incidental trajectories.
+        return (
+            self.support_count > 0
+            and self.observed_cycle_count >= 6
+            and self.repeatability >= 0.75
+        )
 
 
 def build_movement_phase_signatures(
