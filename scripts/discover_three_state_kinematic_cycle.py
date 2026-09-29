@@ -303,9 +303,17 @@ def discover_three_state_cycle(
     selected_fits: dict[tuple[int, int], Fit] = {}
 
     for period_s in range(min_cycle_s, max_cycle_s + 1):
-        # Phase zero is unknown. Search one complete phase rotation rather
-        # than assuming that the first EW kinematic event is the cycle start.
-        for origin_offset_s in range(period_s):
+        # Phase zero is unknown. A full one-second origin scan is unnecessarily
+        # expensive because every origin rebuilds all phase evidence and scans
+        # all boundary pairs. First scan a coarse grid, then refine around the
+        # best origin for this period.
+        coarse_step_s = 5
+        coarse_offsets = list(range(0, period_s, coarse_step_s))
+        if coarse_offsets[-1] != period_s - 1:
+            coarse_offsets.append(period_s - 1)
+
+        period_candidates: list[tuple[int, Fit]] = []
+        for origin_offset_s in coarse_offsets:
             origin_ms = anchor_ms + origin_offset_s * 1000
             evidence = _phase_arrays(
                 usable,
@@ -324,19 +332,54 @@ def discover_three_state_cycle(
                 score=fit.score,
                 movement_scores=fit.movement_scores,
             )
-            selected_fits[(period_s, origin_offset_s)] = selected
-            candidates.append({
-                "cycle_seconds": period_s,
-                "origin_offset_s": origin_offset_s,
-                "score": round(selected.score, 4),
-                "EW_duration_s": selected.boundary_1_s,
-                "N_ARROW_duration_s": (
-                    selected.boundary_2_s - selected.boundary_1_s
-                ),
-                "NS_duration_s": (
-                    selected.period_s - selected.boundary_2_s
-                ),
-            })
+            period_candidates.append((origin_offset_s, selected))
+
+        if period_candidates:
+            _, coarse_best = max(
+                period_candidates,
+                key=lambda item: item[1].score,
+            )
+            refine_offsets = {
+                offset % period_s
+                for delta in range(-3, 4)
+                for offset in [coarse_best.origin_offset_s + delta]
+            }
+
+            for origin_offset_s in sorted(refine_offsets):
+                if origin_offset_s == coarse_best.origin_offset_s:
+                    selected = coarse_best
+                else:
+                    origin_ms = anchor_ms + origin_offset_s * 1000
+                    evidence = _phase_arrays(
+                        usable,
+                        period_s=period_s,
+                        origin_ms=origin_ms,
+                    )
+                    fit = _fit_period(evidence, period_s=period_s)
+                    if fit is None:
+                        continue
+                    selected = Fit(
+                        period_s=fit.period_s,
+                        origin_offset_s=origin_offset_s,
+                        boundary_1_s=fit.boundary_1_s,
+                        boundary_2_s=fit.boundary_2_s,
+                        score=fit.score,
+                        movement_scores=fit.movement_scores,
+                    )
+
+                selected_fits[(period_s, origin_offset_s)] = selected
+                candidates.append({
+                    "cycle_seconds": period_s,
+                    "origin_offset_s": origin_offset_s,
+                    "score": round(selected.score, 4),
+                    "EW_duration_s": selected.boundary_1_s,
+                    "N_ARROW_duration_s": (
+                        selected.boundary_2_s - selected.boundary_1_s
+                    ),
+                    "NS_duration_s": (
+                        selected.period_s - selected.boundary_2_s
+                    ),
+                })
 
     if not candidates:
         raise ValueError("no three-state cycle candidates")
