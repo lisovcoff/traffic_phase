@@ -23,7 +23,7 @@ class SignalGroupCandidate:
 
     group_id: str
     approach: str
-    interval: CircularInterval
+    intervals: tuple[CircularInterval, ...]
     movement_ids: tuple[str, ...]
     evidence: SignalGroupEvidence
     confidence: float
@@ -32,11 +32,14 @@ class SignalGroupCandidate:
         return {
             "group_id": self.group_id,
             "approach": self.approach,
-            "interval": {
-                "start": self.interval.start,
-                "end": self.interval.end,
-                "cycle_seconds": self.interval.cycle_seconds,
-            },
+            "intervals": [
+                {
+                    "start": interval.start,
+                    "end": interval.end,
+                    "cycle_seconds": interval.cycle_seconds,
+                }
+                for interval in self.intervals
+            ],
             "movement_ids": list(self.movement_ids),
             "evidence": self.evidence.value,
             "confidence": self.confidence,
@@ -171,7 +174,7 @@ class SignalGroupDiscovery:
                 SignalGroupCandidate(
                     group_id=f"{representative.approach}:SG{index}",
                     approach=representative.approach,
-                    interval=representative.active_intervals[0],
+                    intervals=representative.active_intervals,
                     movement_ids=tuple(item.movement for item in group),
                     evidence=SignalGroupEvidence.SUPPORTED,
                     confidence=max(0.0, min(1.0, confidence)),

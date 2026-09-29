@@ -34,14 +34,19 @@ def _signature(
     support_cycles: int = 8,
     repeatability: float = 1.0,
     stability: float = 1.0,
+    intervals: tuple[tuple[float, float], ...] | None = None,
 ) -> MovementPhaseSignature:
+    interval_values = intervals or ((start, end),)
     return MovementPhaseSignature(
         movement=movement,
         approach=approach,
         cycle_seconds=100.0,
         bin_seconds=1.0,
         phase_presence=tuple([1.0] * 100),
-        active_intervals=(CircularInterval(start, end, 100.0),),
+        active_intervals=tuple(
+            CircularInterval(first, last, 100.0)
+            for first, last in interval_values
+        ),
         support_count=support_cycles,
         observed_cycle_count=support_cycles,
         active_cycle_count=support_cycles,
@@ -87,6 +92,36 @@ def test_separated_movements_are_disjoint():
     right = _signature("N->E", "N", 50.0, 70.0)
 
     assert compare_movement_signatures(left, right) is SignalGroupRelation.DISJOINT
+
+
+def test_partial_overlap_is_preserved_as_evidence():
+    left = _signature("N->S", "N", 10.0, 40.0)
+    right = _signature("N->E", "N", 30.0, 60.0)
+
+    assert compare_movement_signatures(left, right) is SignalGroupRelation.PARTIAL_OVERLAP
+
+
+def test_double_serviced_signatures_require_set_level_equivalence():
+    left = _signature(
+        "N->S", "N", 5.0, 20.0,
+        intervals=((5.0, 20.0), (60.0, 75.0)),
+    )
+    right = _signature(
+        "N->W", "N", 6.0, 21.0,
+        intervals=((6.0, 21.0), (61.0, 76.0)),
+    )
+
+    assert compare_movement_signatures(left, right) is SignalGroupRelation.EQUIVALENT
+
+
+def test_one_matching_interval_does_not_hide_second_service_difference():
+    left = _signature(
+        "N->S", "N", 5.0, 20.0,
+        intervals=((5.0, 20.0), (60.0, 75.0)),
+    )
+    right = _signature("N->W", "N", 6.0, 21.0)
+
+    assert compare_movement_signatures(left, right) is SignalGroupRelation.PARTIAL_OVERLAP
 
 
 def test_coincident_cross_approach_movements_never_merge():
@@ -246,8 +281,27 @@ def test_circular_group_interval_crossing_zero():
     )
 
     assert len(result.groups) == 1
-    assert result.groups[0].interval.contains(99.0)
-    assert result.groups[0].interval.contains(5.0)
+    assert result.groups[0].intervals[0].contains(99.0)
+    assert result.groups[0].intervals[0].contains(5.0)
+
+
+def test_double_servicing_is_preserved_in_group_candidate():
+    result = SignalGroupDiscovery().discover(
+        [
+            _signature(
+                "N->S", "N", 5.0, 20.0,
+                intervals=((5.0, 20.0), (60.0, 75.0)),
+            ),
+            _signature(
+                "N->W", "N", 6.0, 21.0,
+                intervals=((6.0, 21.0), (61.0, 76.0)),
+            ),
+        ]
+    )
+
+    assert len(result.groups) == 1
+    assert len(result.groups[0].intervals) == 2
+    assert result.groups[0].intervals[1].contains(70.0)
 
 
 def test_variable_duration_does_not_force_a_split():
