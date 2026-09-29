@@ -144,6 +144,7 @@ HTML_TEMPLATE = r"""<!doctype html>
       <button id="forward10">+10 с</button>
       <button id="markEW">Метка EW</button>
       <button id="markNS">Метка NS</button>
+      <button id="markNArrow">Метка N+доп</button>
       <button id="downloadMarks">Скачать метки</button>
       <button id="clearMarks">Очистить метки</button>
       <label><input id="showIds" type="checkbox"> ID</label>
@@ -351,6 +352,7 @@ function downloadMarks() {
 
 document.getElementById("markEW").addEventListener("click", () => addMark("EW"));
 document.getElementById("markNS").addEventListener("click", () => addMark("NS"));
+document.getElementById("markNArrow").addEventListener("click", () => addMark("N_ARROW"));
 document.getElementById("downloadMarks").addEventListener("click", downloadMarks);
 document.getElementById("clearMarks").addEventListener("click", () => {
   marks.length = 0;
@@ -396,6 +398,8 @@ document.addEventListener("keydown", (event) => {
     addMark("EW");
   } else if (event.key.toLowerCase() === "n") {
     addMark("NS");
+  } else if (event.key.toLowerCase() === "a") {
+    addMark("N_ARROW");
   }
 });
 
