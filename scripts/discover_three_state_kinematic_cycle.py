@@ -121,29 +121,6 @@ def _phase_arrays(
     return result
 
 
-
-
-def _shift_evidence(
-    evidence: list[Evidence],
-    *,
-    shift_s: int,
-) -> list[Evidence]:
-    """Rotate phase evidence when the origin moves by whole seconds."""
-    if not shift_s:
-        return evidence
-
-    return [
-        Evidence(
-            movement=item.movement,
-            activity=np.roll(item.activity, -shift_s),
-            stops=np.roll(item.stops, -shift_s),
-            total_weight=item.total_weight,
-            event_count=item.event_count,
-        )
-        for item in evidence
-    ]
-
-
 def _prefix(values: np.ndarray) -> np.ndarray:
     return np.concatenate(([0.0], np.cumsum(values)))
 
@@ -326,26 +303,14 @@ def discover_three_state_cycle(
     selected_fits: dict[tuple[int, int], Fit] = {}
 
     for period_s in range(min_cycle_s, max_cycle_s + 1):
-        base_evidence = _phase_arrays(
-            usable,
-            period_s=period_s,
-            origin_ms=anchor_ms,
-        )
-        if not base_evidence:
-            continue
-
-        # Phase zero is unknown. First scan a coarse grid, then refine the
-        # best origin. Changing the origin only rotates phase histograms.
-        coarse_step_s = 5
-        coarse_offsets = list(range(0, period_s, coarse_step_s))
-        if coarse_offsets[-1] != period_s - 1:
-            coarse_offsets.append(period_s - 1)
-
-        period_candidates: list[tuple[int, Fit]] = []
-        for origin_offset_s in coarse_offsets:
-            evidence = _shift_evidence(
-                base_evidence,
-                shift_s=origin_offset_s,
+        # Phase zero is unknown. Search one complete phase rotation rather
+        # than assuming that the first EW kinematic event is the cycle start.
+        for origin_offset_s in range(period_s):
+            origin_ms = anchor_ms + origin_offset_s * 1000
+            evidence = _phase_arrays(
+                usable,
+                period_s=period_s,
+                origin_ms=origin_ms,
             )
             fit = _fit_period(evidence, period_s=period_s)
             if fit is None:
@@ -359,52 +324,19 @@ def discover_three_state_cycle(
                 score=fit.score,
                 movement_scores=fit.movement_scores,
             )
-            period_candidates.append((origin_offset_s, selected))
-
-        if period_candidates:
-            _, coarse_best = max(
-                period_candidates,
-                key=lambda item: item[1].score,
-            )
-            refine_offsets = {
-                offset % period_s
-                for delta in range(-3, 4)
-                for offset in [coarse_best.origin_offset_s + delta]
-            }
-
-            for origin_offset_s in sorted(refine_offsets):
-                if origin_offset_s == coarse_best.origin_offset_s:
-                    selected = coarse_best
-                else:
-                    evidence = _shift_evidence(
-                        base_evidence,
-                        shift_s=origin_offset_s,
-                    )
-                    fit = _fit_period(evidence, period_s=period_s)
-                    if fit is None:
-                        continue
-                    selected = Fit(
-                        period_s=fit.period_s,
-                        origin_offset_s=origin_offset_s,
-                        boundary_1_s=fit.boundary_1_s,
-                        boundary_2_s=fit.boundary_2_s,
-                        score=fit.score,
-                        movement_scores=fit.movement_scores,
-                    )
-
-                selected_fits[(period_s, origin_offset_s)] = selected
-                candidates.append({
-                    "cycle_seconds": period_s,
-                    "origin_offset_s": origin_offset_s,
-                    "score": round(selected.score, 4),
-                    "EW_duration_s": selected.boundary_1_s,
-                    "N_ARROW_duration_s": (
-                        selected.boundary_2_s - selected.boundary_1_s
-                    ),
-                    "NS_duration_s": (
-                        selected.period_s - selected.boundary_2_s
-                    ),
-                })
+            selected_fits[(period_s, origin_offset_s)] = selected
+            candidates.append({
+                "cycle_seconds": period_s,
+                "origin_offset_s": origin_offset_s,
+                "score": round(selected.score, 4),
+                "EW_duration_s": selected.boundary_1_s,
+                "N_ARROW_duration_s": (
+                    selected.boundary_2_s - selected.boundary_1_s
+                ),
+                "NS_duration_s": (
+                    selected.period_s - selected.boundary_2_s
+                ),
+            })
 
     if not candidates:
         raise ValueError("no three-state cycle candidates")
