@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import statistics
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -64,6 +65,7 @@ class Fit:
 # STOP is excluded from the phase objective because a stop during green
 # can be caused by spillback or non-signal effects.
 SIGNAL_REACTION_DELAY_S = 2.0
+GREEN_START_CLUSTER_GAP_S = 6.0
 
 
 def _event_weights(event: TrajectoryEvent) -> tuple[float, float]:
@@ -287,6 +289,59 @@ def _fit_period(
     return best
 
 
+def _release_start_times(events: list[TrajectoryEvent]) -> list[float]:
+    grouped: dict[str, list[float]] = defaultdict(list)
+    for event in events:
+        if (
+            event.movement in MOVEMENT_ACTIVE_STATES
+            and event.event_type is EventType.RELEASE
+            and event.confidence > 0.0
+        ):
+            grouped[event.movement].append(event.timestamp_ms / 1000.0)
+
+    starts: list[float] = []
+    for times in grouped.values():
+        times.sort()
+        previous: float | None = None
+        for timestamp_s in times:
+            if previous is None or timestamp_s - previous > GREEN_START_CLUSTER_GAP_S:
+                starts.append(timestamp_s)
+            previous = timestamp_s
+    return sorted(starts)
+
+
+def _periodicity_score(
+    release_starts_s: list[float],
+    *,
+    period_s: int,
+    tolerance_s: float = 3.0,
+) -> float:
+    if len(release_starts_s) < 2:
+        return 0.0
+
+    matched = 0
+    errors: list[float] = []
+    for index, left in enumerate(release_starts_s[:-1]):
+        for right in release_starts_s[index + 1:]:
+            delta = right - left
+            if delta < period_s - tolerance_s:
+                continue
+            multiple = max(1, round(delta / period_s))
+            error = abs(delta - multiple * period_s)
+            if error <= tolerance_s:
+                matched += 1
+                errors.append(error)
+            if delta > 3 * period_s + tolerance_s:
+                break
+
+    if matched == 0:
+        return 0.0
+    coverage = matched / max(1, len(release_starts_s) - 1)
+    precision = 1.0 - statistics.mean(errors) / max(tolerance_s, 1e-9)
+    return float(min(1.0, coverage) * max(0.0, precision))
+
+
+
 def discover_three_state_cycle(
     events: list[TrajectoryEvent],
     *,
@@ -308,6 +363,7 @@ def discover_three_state_cycle(
         raise ValueError("no usable canonical movement events")
 
     anchor_ms = min(event.timestamp_ms for event in usable)
+    release_starts_s = _release_start_times(usable)
 
     candidates: list[dict[str, object]] = []
     selected_fits: dict[tuple[int, int], Fit] = {}
@@ -335,10 +391,17 @@ def discover_three_state_cycle(
                 movement_scores=fit.movement_scores,
             )
             selected_fits[(period_s, origin_offset_s)] = selected
+            periodicity = _periodicity_score(
+                release_starts_s,
+                period_s=period_s,
+            )
+            joint_score = 0.65 * periodicity + 0.35 * selected.score
             candidates.append({
                 "cycle_seconds": period_s,
                 "origin_offset_s": origin_offset_s,
-                "score": round(selected.score, 4),
+                "score": round(joint_score, 4),
+                "phase_fit_score": round(selected.score, 4),
+                "release_periodicity_score": round(periodicity, 4),
                 "EW_duration_s": selected.boundary_1_s,
                 "N_ARROW_duration_s": (
                     selected.boundary_2_s - selected.boundary_1_s
@@ -368,7 +431,7 @@ def discover_three_state_cycle(
     ]
 
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "meaning": (
             "Research prototype for joint three-state cycle identification "
             "from kinematic events using a validated movement-state structure. "
@@ -391,6 +454,8 @@ def discover_three_state_cycle(
             "are excluded from the phase objective."
         ),
         "signal_reaction_delay_s": SIGNAL_REACTION_DELAY_S,
+        "green_start_cluster_gap_s": GREEN_START_CLUSTER_GAP_S,
+        "release_start_count": len(release_starts_s),
         "selected_cycle_seconds": selected_fit.period_s,
         "origin_anchor_timestamp_ms": anchor_ms,
         "origin_offset_s": selected_fit.origin_offset_s,
