@@ -29,6 +29,7 @@ class MovementFit:
     end_s: float
     duration_s: float
     release_anchor_score: float
+    release_cycle_coverage: float
     crossing_inside: float
     stop_outside: float
     event_count: int
@@ -41,23 +42,32 @@ def _circular_forward_distance(value: float, start: float, period: float) -> flo
 def _movement_release_anchors(
     events: list[EventPoint],
     *,
-    cluster_gap_s: float = 4.0,
-) -> list[float]:
+    period_s: int,
+    origin_s: float,
+) -> tuple[list[float], int]:
+    """Select at most one lead-release anchor per candidate cycle.
+
+    The previous prototype clustered adjacent RELEASE events by a fixed time
+    gap. That is not cycle-aware and can reward arbitrary event bunches. Here
+    we first assign RELEASE events to candidate cycles and keep the earliest
+    RELEASE in each populated cycle as a lead-release proxy.
+    """
     releases = sorted(
         point.timestamp_s
         for point in events
         if point.event_type is EventType.RELEASE
     )
     if not releases:
-        return []
+        return [], 0
 
-    anchors = [releases[0]]
-    last = releases[0]
-    for timestamp_s in releases[1:]:
-        if timestamp_s - last > cluster_gap_s:
-            anchors.append(timestamp_s)
-        last = timestamp_s
-    return anchors
+    by_cycle: dict[int, float] = {}
+    for timestamp_s in releases:
+        cycle_id = math.floor((timestamp_s - origin_s) / period_s)
+        current = by_cycle.get(cycle_id)
+        if current is None or timestamp_s < current:
+            by_cycle[cycle_id] = timestamp_s
+
+    return list(by_cycle.values()), len(by_cycle)
 
 
 def _interval_contains(
@@ -75,6 +85,7 @@ def _best_movement_fit(
     events: list[EventPoint],
     *,
     period_s: int,
+    origin_s: float,
     min_green_s: int = 8,
     max_green_fraction: float = 0.75,
     reaction_min_s: float = 0.5,
@@ -83,14 +94,18 @@ def _best_movement_fit(
     if not events:
         return None
 
-    anchors = _movement_release_anchors(events)
+    anchors, release_cycle_count = _movement_release_anchors(
+        events,
+        period_s=period_s,
+        origin_s=origin_s,
+    )
     crossings = [
-        point.timestamp_s % period_s
+        (point.timestamp_s - origin_s) % period_s
         for point in events
         if point.event_type is EventType.CROSSING
     ]
     stops = [
-        point.timestamp_s % period_s
+        (point.timestamp_s - origin_s) % period_s
         for point in events
         if point.event_type is EventType.STOP
     ]
@@ -111,7 +126,7 @@ def _best_movement_fit(
             if anchors:
                 anchor_scores = []
                 for anchor in anchors:
-                    phase = anchor % period_s
+                    phase = (anchor - origin_s) % period_s
                     delay = _circular_forward_distance(
                         phase,
                         start_s,
@@ -124,8 +139,21 @@ def _best_movement_fit(
                     else:
                         anchor_scores.append(0.0)
                 anchor_score = float(np.mean(anchor_scores))
+                # A candidate cycle should explain releases in repeated cycles,
+                # not merely one convenient absolute-time cluster.
+                release_cycle_coverage = release_cycle_count / max(
+                    1,
+                    len({
+                        math.floor(
+                            (point.timestamp_s - origin_s) / period_s
+                        )
+                        for point in events
+                        if point.event_type is EventType.RELEASE
+                    }),
+                )
             else:
                 anchor_score = 0.0
+                release_cycle_coverage = 0.0
 
             crossing_inside = (
                 float(np.mean([
@@ -157,9 +185,10 @@ def _best_movement_fit(
 
             stop_inside = 1.0 - stop_outside
             cost = (
-                7.0 * (1.0 - anchor_score)
-                + 2.0 * (1.0 - crossing_inside)
-                + 8.0 * stop_inside
+                10.0 * (1.0 - anchor_score)
+                + 3.0 * (1.0 - release_cycle_coverage)
+                + 5.0 * (1.0 - crossing_inside)
+                + 10.0 * stop_inside
                 + 0.015 * duration_s
             )
 
@@ -170,6 +199,7 @@ def _best_movement_fit(
                 end_s=float(end_s),
                 duration_s=float(duration_s),
                 release_anchor_score=float(anchor_score),
+                release_cycle_coverage=float(release_cycle_coverage),
                 crossing_inside=float(crossing_inside),
                 stop_outside=float(stop_outside),
                 event_count=len(events),
@@ -219,6 +249,7 @@ def _score_period(
     points: list[EventPoint],
     *,
     period_s: int,
+    origin_s: float,
     min_movement_events: int,
 ) -> tuple[float, list[MovementFit], float, float] | None:
     grouped: dict[str, list[EventPoint]] = defaultdict(list)
@@ -231,7 +262,11 @@ def _score_period(
     for movement, events in sorted(grouped.items()):
         if len(events) < min_movement_events:
             continue
-        fit = _best_movement_fit(events, period_s=period_s)
+        fit = _best_movement_fit(
+            events,
+            period_s=period_s,
+            origin_s=origin_s,
+        )
         if fit is None:
             continue
         fits.append(fit)
@@ -282,7 +317,16 @@ def discover_kinematic_cycle(
     if not selected_events:
         raise ValueError("no usable movement events")
 
-    origin_ms = min(event.timestamp_ms for event in selected_events)
+    release_events = [
+        event
+        for event in selected_events
+        if event.event_type is EventType.RELEASE
+    ]
+    origin_ms = min(
+        event.timestamp_ms for event in release_events
+    ) if release_events else min(
+        event.timestamp_ms for event in selected_events
+    )
     points = [
         EventPoint(
             movement=event.movement,
@@ -302,6 +346,7 @@ def discover_kinematic_cycle(
         scored = _score_period(
             points,
             period_s=period_s,
+            origin_s=0.0,
             min_movement_events=min_movement_events,
         )
         if scored is None:
@@ -330,6 +375,7 @@ def discover_kinematic_cycle(
     selected_scored = _score_period(
         points,
         period_s=selected_cycle,
+        origin_s=0.0,
         min_movement_events=min_movement_events,
     )
     if selected_scored is None:
@@ -363,6 +409,10 @@ def discover_kinematic_cycle(
                     "duration_s": fit.duration_s,
                     "release_anchor_score": round(
                         fit.release_anchor_score,
+                        4,
+                    ),
+                    "release_cycle_coverage": round(
+                        fit.release_cycle_coverage,
                         4,
                     ),
                     "crossing_inside": round(
