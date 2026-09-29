@@ -95,7 +95,7 @@ def _escape_json(value: object) -> str:
         value,
         ensure_ascii=False,
         separators=(",", ":"),
-    ).replace("</", "<\/")
+    ).replace("</", "<\\/")
 
 
 def _prepare_tracks(
@@ -184,19 +184,10 @@ HTML_TEMPLATE = r"""<!doctype html>
   canvas { display:block; width:100%; height:auto; background:#fff; border:1px solid #aaa; }
   .legend { margin-top:8px; display:flex; gap:14px; flex-wrap:wrap; font-size:13px; }
   .stats { margin-top:8px; font-size:13px; color:#444; }
-  .analysis-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
-  .analysis-card { background:#fff; border:1px solid #ccc; border-radius:8px; padding:10px; min-width:0; }
-  .analysis-card h2 { margin:0 0 8px; font-size:17px; }
-  .analysis-summary { font-size:13px; color:#444; margin-bottom:8px; }
-  .phase-row, .group-row { border:1px solid #ddd; border-radius:6px; padding:7px; margin-top:6px; font-size:12px; }
-  .phase-row.current, .group-row.current { border-width:2px; }
-  .phase-row strong, .group-row strong { font-size:13px; }
-  .analysis-muted { color:#777; }
-  .analysis-bad { color:#a00; }
-  .relations { margin-top:8px; }
-  .relations summary { cursor:pointer; font-size:12px; }
-  .relation-row { margin-top:4px; font-size:11px; }
-  @media (max-width:900px) { .analysis-grid { grid-template-columns:1fr; } }
+  .canvas-wrap { position:relative; }
+  .stage-overlay { position:absolute; top:12px; left:12px; z-index:5; padding:8px 11px; background:rgba(255,255,255,.94); border:1px solid #999; border-radius:7px; box-shadow:0 2px 8px rgba(0,0,0,.12); font-size:16px; font-weight:700; pointer-events:none; max-width:70%; }
+  .stage-overlay .stage-title { font-size:11px; font-weight:600; color:#666; margin-bottom:2px; }
+  .stage-overlay .stage-movements { font-variant-numeric:tabular-nums; }
   label { font-size:13px; }
 </style>
 </head>
@@ -222,18 +213,14 @@ HTML_TEMPLATE = r"""<!doctype html>
     </div>
     <input id="timeline" type="range" min="0" max="1" step="0.5" value="0">
     <div class="time" id="time"></div>
-    <canvas id="view" width="1200" height="760"></canvas>
-    <div class="stats" id="stats"></div>
-    <div class="analysis-grid">
-      <section class="analysis-card">
-        <h2>Stage 1 — цикл и фазы</h2>
-        <div id="stage1"></div>
-      </section>
-      <section class="analysis-card">
-        <h2>Stage 2 — логические группы</h2>
-        <div id="stage2"></div>
-      </section>
+    <div class="canvas-wrap">
+      <canvas id="view" width="1200" height="760"></canvas>
+      <div class="stage-overlay" id="stageOverlay">
+        <div class="stage-title">Стадия</div>
+        <div class="stage-movements">—</div>
+      </div>
     </div>
+    <div class="stats" id="stats"></div>
     <pre class="stats" id="marks"></pre>
     <div class="legend">Крупные N/S/E/W показывают усреднённое положение детекций с соответствующей зоной в исходном JSON. Под графиком отображается текущий результат Stage 1 и Stage 2 для той же отметки времени.</div>
   </div>
@@ -257,8 +244,8 @@ const playButton = document.getElementById("play");
 const showIds = document.getElementById("showIds");
 const showMoves = document.getElementById("showMoves");
 const marksEl = document.getElementById("marks");
-const stage1El = document.getElementById("stage1");
-const stage2El = document.getElementById("stage2");
+const stageOverlayEl = document.getElementById("stageOverlay");
+const stageOverlayMovementsEl = stageOverlayEl.querySelector(".stage-movements");
 const stage1 = DATA.stage1 || null;
 const stage2 = DATA.stage2 || null;
 
@@ -388,143 +375,42 @@ function drawVehicles(t) {
 }
 
 
-function formatInterval(start, end, cycle) {
-  const duration = (Number(end) - Number(start) + Number(cycle)) % Number(cycle);
-  const seconds = duration === 0 && Number(start) === Number(end)
-    ? Number(cycle)
-    : duration;
-  return Number(start).toFixed(1) + "–" + Number(end).toFixed(1) +
-    " с (" + seconds.toFixed(1) + " с)";
-}
-
 function containsPhase(start, end, phase, cycle) {
-  start = Number(start); end = Number(end); phase = Number(phase); cycle = Number(cycle);
+  start = Number(start);
+  end = Number(end);
+  phase = Number(phase);
+  cycle = Number(cycle);
   if (start === end) return true;
   if (start < end) return start <= phase && phase < end;
   return phase >= start || phase < end;
 }
 
-function renderStage1(cyclePosition) {
-  if (!stage1) {
-    stage1El.innerHTML = '<div class="analysis-bad">Stage 1 не рассчитан.</div>';
+function renderStageOverlay(currentTimeMs) {
+  if (!stage2 && !stage1) {
+    stageOverlayMovementsEl.textContent = "не определена";
     return;
   }
 
-  const phase = (stage1.phases || []).find(item =>
-    containsPhase(item.phase_start, item.phase_end, cyclePosition, stage1.cycle_seconds)
-  );
-  let html =
-    '<div class="analysis-summary">' +
-    'Цикл: <strong>' + Number(stage1.cycle_seconds).toFixed(2) + ' с</strong>' +
-    ' | confidence: <strong>' + Number(stage1.cycle_confidence).toFixed(3) + '</strong>' +
-    ' | phase confidence: <strong>' + Number(stage1.phase_confidence).toFixed(3) + '</strong>' +
-    ' | текущая позиция: <strong>' + Number(cyclePosition).toFixed(1) + ' с</strong>' +
-    '</div>';
-
-  if (!stage1.phases || !stage1.phases.length) {
-    html += '<div class="analysis-muted">Фазы не обнаружены.</div>';
-  } else {
-    for (const item of stage1.phases) {
-      const current = phase && item.phase_id === phase.phase_id;
-      html +=
-        '<div class="phase-row' + (current ? ' current' : '') + '">' +
-        '<strong>Phase ' + item.phase_id + (current ? ' — ТЕКУЩАЯ' : '') + '</strong>' +
-        '<br>' + formatInterval(item.phase_start, item.phase_end, stage1.cycle_seconds) +
-        '<br>подходы: ' + (item.active_approaches || []).join(', ') +
-        '<br>confidence: ' + Number(item.confidence).toFixed(3) +
-        ' | support: ' + item.supporting_event_count +
-        ' | contradiction: ' + item.contradictory_event_count +
-        '</div>';
-    }
-  }
-  stage1El.innerHTML = html;
-}
-
-function renderStage2(cyclePosition) {
-  if (!stage2) {
-    stage2El.innerHTML = '<div class="analysis-bad">Stage 2 не рассчитан.</div>';
-    return;
-  }
-
-  const groups = stage2.groups || [];
-  const mapping = (stage2.mapping && stage2.mapping.movement_to_group) || {};
-  let currentGroups = 0;
-  let html =
-    '<div class="analysis-summary">' +
-    'сигнатур: <strong>' + stage2.signatures_count + '</strong>' +
-    ' | групп: <strong>' + groups.length + '</strong>' +
-    ' | unmapped: <strong>' + ((stage2.mapping && stage2.mapping.unmapped_movements) || []).length + '</strong>' +
-    '</div>';
-
-  if (!groups.length) {
-    html += '<div class="analysis-muted">Логические группы не обнаружены.</div>';
-  } else {
-    for (const group of groups) {
-      const active = (group.intervals || []).some(interval =>
-        containsPhase(interval.start, interval.end, cyclePosition, stage2.cycle_seconds)
-      );
-      if (active) currentGroups++;
-      html +=
-        '<div class="group-row' + (active ? ' current' : '') + '">' +
-        '<strong>' + group.group_id + (active ? ' — АКТИВНА' : '') + '</strong>' +
-        '<br>approach: ' + group.approach +
-        '<br>движения: ' + (group.movement_ids || []).join(', ') +
-        '<br>evidence: ' + group.evidence +
-        ' | confidence: ' + Number(group.confidence).toFixed(3) +
-        '<br>интервалы: ' + (group.intervals || []).map(interval =>
-          formatInterval(interval.start, interval.end, stage2.cycle_seconds)
-        ).join('; ') +
-        '</div>';
-    }
-  }
-
-  const insufficient = (stage2.insufficient_movements || []).join(', ');
-  html +=
-    '<div class="analysis-muted" style="margin-top:7px">Текущих активных групп: ' +
-    currentGroups + '</div>';
-
-  if (insufficient) {
-    html += '<div class="analysis-muted" style="margin-top:5px">Insufficient evidence: ' +
-      insufficient + '</div>';
-  }
-
-  const relations = (stage2.relations || []).filter(item =>
-    item.relation !== "disjoint"
-  );
-  if (relations.length) {
-    html += '<details class="relations"><summary>Связи Stage 2 (' +
-      relations.length + ' не-disjoint)</summary>';
-    for (const item of relations) {
-      html += '<div class="relation-row">' +
-        item.left_movement + ' ↔ ' + item.right_movement +
-        ': <strong>' + item.relation + '</strong>' +
-        ' [' + item.evidence + ']</div>';
-    }
-    html += '</details>';
-  }
-
-  const mappedCount = Object.keys(mapping).length;
-  html += '<div class="analysis-muted" style="margin-top:5px">Mapped movements: ' +
-    mappedCount + '</div>';
-
-  stage2El.innerHTML = html;
-}
-
-function renderAnalysis(currentTimeMs) {
-  if (!stage1 && !stage2) {
-    stage1El.innerHTML = '<div class="analysis-bad">Анализ Stage 1/2 не был выполнен.</div>';
-    stage2El.innerHTML = '<div class="analysis-bad">Анализ Stage 1/2 не был выполнен.</div>';
-    return;
-  }
-
-  const anchor = (stage1 && stage1.origin_timestamp_ms) ||
-    (stage2 && stage2.origin_timestamp_ms) || START_MS;
-  const cycle = (stage1 && stage1.cycle_seconds) ||
-    (stage2 && stage2.cycle_seconds) || 1;
+  const anchor = (stage2 && stage2.origin_timestamp_ms) ||
+    (stage1 && stage1.origin_timestamp_ms) || START_MS;
+  const cycle = (stage2 && stage2.cycle_seconds) ||
+    (stage1 && stage1.cycle_seconds) || 1;
   const cyclePosition = ((currentTimeMs - anchor) / 1000) % cycle;
   const normalized = (cyclePosition + cycle) % cycle;
-  renderStage1(normalized);
-  renderStage2(normalized);
+
+  const activeGroups = ((stage2 && stage2.groups) || []).filter(group =>
+    (group.intervals || []).some(interval =>
+      containsPhase(interval.start, interval.end, normalized, cycle)
+    )
+  );
+
+  const movements = [...new Set(
+    activeGroups.flatMap(group => group.movement_ids || [])
+  )].sort();
+
+  stageOverlayMovementsEl.textContent = movements.length
+    ? movements.join(", ")
+    : "не определена";
 }
 
 function render() {
@@ -546,7 +432,7 @@ function render() {
     " | W: " + z.W +
     " | zone=null: " + z.none;
 
-  renderAnalysis(t);
+  renderStageOverlay(t);
 }
 
 function setTime(ms) {

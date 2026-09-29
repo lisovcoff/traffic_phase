@@ -212,5 +212,22 @@ def test_coordinate_viewer_script_exposes_stage_analysis_pipeline():
     )
     assert all(token in script for token in required)
 
+def test_visualization_stage_overlay_is_compact_and_movement_based():
+    from pathlib import Path
 
+    script = Path("scripts/visualize_trajectory_coordinates.py").read_text(
+        encoding="utf-8"
+    )
+
+    required = (
+        'class="stage-overlay"',
+        'id="stageOverlay"',
+        "function renderStageOverlay",
+        "activeGroups.flatMap",
+        'movements.join(", ")',
+    )
+    assert all(token in script for token in required)
+    assert 'class="analysis-grid"' not in script
+    assert "function renderStage1" not in script
+    assert "function renderStage2" not in script
 
