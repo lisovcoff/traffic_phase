@@ -87,15 +87,20 @@ def main() -> int:
     arrow = int(model["N_ARROW_duration_s"])
     ns = int(model["NS_duration_s"])
 
-    # Regression envelope is derived from the user's manual video annotation:
-    # EW -> N+arrow -> NS repeats every 80s, with approximately 30s/20s/30s.
-    # This is a benchmark for the observed Lenina interval, not controller
-    # telemetry and not an independently verified lamp-color ground truth.
+    # The earlier 80s envelope came from a short transient video interval.
+    # The full manual fixture contains repeated boundaries across ~21 minutes;
+    # phase-folding those marks at T=100s gives approximately:
+    #   EW -> N_ARROW: 48s
+    #   N_ARROW -> NS: 21s
+    #   NS -> EW: 31s
+    # Use conservative envelopes around that observed structure. This is a
+    # benchmark for the annotated Lenina interval, not controller telemetry
+    # and not independently verified lamp-color ground truth.
     checks = {
-        "cycle": 78 <= period <= 82,
-        "EW": 27 <= ew <= 33,
-        "N_ARROW": 17 <= arrow <= 23,
-        "NS": 27 <= ns <= 33,
+        "cycle": 96 <= period <= 104,
+        "EW": 42 <= ew <= 52,
+        "N_ARROW": 18 <= arrow <= 28,
+        "NS": 26 <= ns <= 34,
     }
 
     print(
@@ -103,6 +108,7 @@ def main() -> int:
         f"N+arrow={arrow}s, NS={ns}s"
     )
 
+    boundary_metrics = {}
     if args.manual_marks.exists():
         boundary_metrics = _manual_boundary_metrics(
             args.manual_marks,
@@ -146,6 +152,10 @@ def main() -> int:
             f"NS={item['NS_duration_s']}"
         )
 
+    # Manual boundary MAE is diagnostic rather than a hard gate for now:
+    # the marks are human observations and may miss a transition by several
+    # seconds or omit a cycle. Duration/period envelopes remain the primary
+    # regression gate until we have independently verified transition timing.
     failed = [name for name, passed in checks.items() if not passed]
     if failed:
         print("FAILED regression checks:", ", ".join(failed))
