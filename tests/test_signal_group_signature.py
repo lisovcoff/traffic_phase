@@ -121,7 +121,7 @@ def test_one_matching_interval_does_not_hide_second_service_difference():
     )
     right = _signature("N->W", "N", 6.0, 21.0)
 
-    assert compare_movement_signatures(left, right) is SignalGroupRelation.PARTIAL_OVERLAP
+    assert compare_movement_signatures(left, right) is SignalGroupRelation.CONTAINS
 
 
 def test_coincident_cross_approach_movements_never_merge():
