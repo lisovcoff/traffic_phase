@@ -59,14 +59,19 @@ class Fit:
     movement_scores: dict[str, float]
 
 
+# RELEASE is the closest available kinematic proxy for a green onset.
+# CROSSING is supporting evidence but is delayed by queue discharge.
+# STOP is excluded from the phase objective because a stop during green
+# can be caused by spillback or non-signal effects.
+SIGNAL_REACTION_DELAY_S = 2.0
+
+
 def _event_weights(event: TrajectoryEvent) -> tuple[float, float]:
     confidence = max(0.0, min(1.0, float(event.confidence)))
     if event.event_type is EventType.RELEASE:
         return 1.0 * confidence, 0.0
     if event.event_type is EventType.CROSSING:
-        return 0.8 * confidence, 0.0
-    if event.event_type is EventType.STOP:
-        return 0.0, 0.25 * confidence
+        return 0.25 * confidence, 0.0
     return 0.0, 0.0
 
 
@@ -97,9 +102,12 @@ def _phase_arrays(
             if weight <= 0.0:
                 continue
 
+            adjusted_timestamp_ms = (
+                event.timestamp_ms - int(SIGNAL_REACTION_DELAY_S * 1000)
+            )
             phase = int(
                 math.floor(
-                    ((event.timestamp_ms - origin_ms) / 1000.0) % period_s
+                    ((adjusted_timestamp_ms - origin_ms) / 1000.0) % period_s
                 )
             ) % period_s
             activity[phase] += activity_weight
@@ -377,10 +385,12 @@ def discover_three_state_cycle(
             },
         },
         "objective": (
-            "Score every STOP/RELEASE/CROSSING event against the expected "
-            "active/inactive state of its movement. Activity outside the "
-            "movement's allowed states and STOP inside them are penalties."
+            "Score RELEASE events as primary green-onset evidence and "
+            "CROSSING events as weaker supporting evidence against the "
+            "expected active/inactive state of each movement. STOP events "
+            "are excluded from the phase objective."
         ),
+        "signal_reaction_delay_s": SIGNAL_REACTION_DELAY_S,
         "selected_cycle_seconds": selected_fit.period_s,
         "origin_anchor_timestamp_ms": anchor_ms,
         "origin_offset_s": selected_fit.origin_offset_s,
