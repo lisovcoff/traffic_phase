@@ -27,20 +27,24 @@ def _load_marks(path: Path) -> dict[str, list[float]]:
     return result
 
 
+def _circular_distance(
+    phase_s: float,
+    boundary_s: float,
+    period_s: float,
+) -> float:
+    delta = abs(phase_s - boundary_s)
+    return min(delta, period_s - delta)
+
+
 def _phase_distance(
     timestamp_ms: float,
     *,
     origin_ms: float,
     period_s: float,
-    boundaries_s: list[float],
+    boundary_s: float,
 ) -> tuple[float, float]:
     phase_s = ((timestamp_ms - origin_ms) / 1000.0) % period_s
-    distances = [
-        min(abs(phase_s - boundary), period_s - abs(phase_s - boundary))
-        for boundary in boundaries_s
-    ]
-    best_index = min(range(len(distances)), key=distances.__getitem__)
-    return phase_s, distances[best_index]
+    return phase_s, _circular_distance(phase_s, boundary_s, period_s)
 
 
 def main() -> int:
@@ -95,7 +99,7 @@ def main() -> int:
                 timestamp_ms,
                 origin_ms=float(origin_ms),
                 period_s=float(period),
-                boundaries_s=boundary_values,
+                boundary_s=boundary_by_kind[kind],
             )
             all_distances.append(distance_s)
             rows.append({
@@ -107,8 +111,9 @@ def main() -> int:
             })
 
     print(
-        f"Model: T={period}s, boundaries="
-        + ", ".join(f"{value:g}s" for value in boundary_values)
+        f"Model: T={period}s, EW_start=0s, "
+        f"NS_start={boundary_by_kind['NS']:g}s, "
+        f"mixed_boundary={float(stage1_end):g}s"
     )
     if all_distances:
         print(
