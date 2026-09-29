@@ -29,6 +29,7 @@ class MovementEvidence:
     total_score: float
     total_abs_score: float
     event_count: int
+    release_timestamps_s: tuple[float, ...]
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,8 @@ class PhaseFit:
     score: float
     mixed_duration_s: int
     movement_scores: dict[str, float]
+    release_consistency_score: float
+    release_interval_count: int
 
 
 def _family_for_movement(movement: str) -> str | None:
@@ -80,6 +83,11 @@ def _phase_evidence(
     total_abs_score = float(
         sum(abs(_event_score(point.event_type)) for point in events)
     )
+    release_timestamps_s = tuple(sorted(
+        point.timestamp_s
+        for point in events
+        if point.event_type is EventType.RELEASE
+    ))
     return MovementEvidence(
         movement=events[0].movement,
         family=family,
@@ -87,6 +95,7 @@ def _phase_evidence(
         total_score=total_score,
         total_abs_score=max(total_abs_score, 1.0),
         event_count=len(events),
+        release_timestamps_s=release_timestamps_s,
     )
 
 
@@ -117,6 +126,42 @@ def _interval_sum(prefix: np.ndarray, start_s: int, end_s: int) -> float:
     return float(prefix[end_s] - prefix[start_s])
 
 
+def _release_period_consistency(
+    timestamps_s: tuple[float, ...],
+    *,
+    period_s: int,
+) -> tuple[float, int]:
+    """Measure whether separated release bursts repeat near a period.
+
+    Only gaps long enough to plausibly span one or more complete cycles are
+    scored. Short headway/platoon gaps are ignored. The residual is measured
+    against the nearest positive integer multiple of the candidate period.
+    This is a secondary prior; it does not assert that a RELEASE event is a
+    phase boundary.
+    """
+    if len(timestamps_s) < 2:
+        return 0.5, 0
+
+    min_gap_s = max(20.0, period_s * 0.45)
+    gaps = [
+        right - left
+        for left, right in zip(timestamps_s, timestamps_s[1:])
+        if right - left >= min_gap_s
+    ]
+    if not gaps:
+        return 0.5, 0
+
+    scores: list[float] = []
+    for gap_s in gaps:
+        cycles = max(1, round(gap_s / period_s))
+        residual_s = abs(gap_s - cycles * period_s)
+        scores.append(
+            math.exp(-((residual_s / 8.0) ** 2) / 2.0)
+        )
+
+    return float(np.mean(scores)), len(scores)
+
+
 def _boundary_constraints(period_s: int) -> tuple[int, int, int]:
     min_primary = max(10, int(round(period_s * 0.20)))
     min_mixed = max(8, int(round(period_s * 0.10)))
@@ -137,6 +182,14 @@ def _fit_period(
 
     prefixes = {
         item.movement: _prefix(item.phases)
+        for item in evidence
+    }
+
+    release_consistency_by_movement = {
+        item.movement: _release_period_consistency(
+            item.release_timestamps_s,
+            period_s=period_s,
+        )
         for item in evidence
     }
 
@@ -185,7 +238,41 @@ def _fit_period(
                 math.log1p(item.event_count)
                 for item in evidence
             )
-            score = sum(weighted_scores) / max(weight_sum, 1e-9)
+            stage_score = sum(weighted_scores) / max(weight_sum, 1e-9)
+
+            consistency_values = [
+                release_consistency_by_movement[item.movement]
+                for item in evidence
+                if release_consistency_by_movement[item.movement][1] > 0
+            ]
+            if consistency_values:
+                consistency_weights = [
+                    math.sqrt(count)
+                    for _, count in consistency_values
+                ]
+                release_consistency_score = (
+                    sum(
+                        score_value * weight
+                        for (score_value, _), weight
+                        in zip(consistency_values, consistency_weights)
+                    )
+                    / max(sum(consistency_weights), 1e-9)
+                )
+                release_interval_count = sum(
+                    count for _, count in consistency_values
+                )
+            else:
+                release_consistency_score = 0.5
+                release_interval_count = 0
+
+            # The kinematic stage fit remains primary. A modest secondary prior
+            # rewards candidate periods that also explain separated release
+            # bursts as repeated cycles, while staying neutral when evidence is
+            # too sparse to support this signal.
+            score = (
+                stage_score
+                + 0.20 * (release_consistency_score - 0.5)
+            )
 
             fit = PhaseFit(
                 cycle_seconds=period_s,
@@ -194,6 +281,8 @@ def _fit_period(
                 score=float(score),
                 mixed_duration_s=mixed_duration,
                 movement_scores=movement_scores,
+                release_consistency_score=float(release_consistency_score),
+                release_interval_count=release_interval_count,
             )
             if best is None or fit.score > best.score:
                 best = fit
@@ -282,6 +371,11 @@ def discover_kinematic_cycle(
                 "mixed_duration_s": fit.mixed_duration_s,
                 "primary_stage_fraction": round(primary_fraction, 4),
                 "movement_count": len(evidence),
+                "release_consistency_score": round(
+                    fit.release_consistency_score,
+                    4,
+                ),
+                "release_interval_count": fit.release_interval_count,
             }
         )
 
