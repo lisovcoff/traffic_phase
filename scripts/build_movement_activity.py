@@ -153,9 +153,12 @@ def build_movement_activity(
             ),
         }
         if timezone_offset_minutes is not None:
-            local_time = (
-                datetime.fromtimestamp(second, tz=timezone.utc)
-                + timedelta(minutes=timezone_offset_minutes)
+            local_timezone = timezone(
+                timedelta(minutes=timezone_offset_minutes)
+            )
+            local_time = datetime.fromtimestamp(
+                second,
+                tz=local_timezone,
             )
             row["absolute_time_local"] = local_time.isoformat()
         rows.append(row)
