@@ -142,6 +142,10 @@ HTML_TEMPLATE = r"""<!doctype html>
       <button id="back1">−1 с</button>
       <button id="forward1">+1 с</button>
       <button id="forward10">+10 с</button>
+      <button id="markEW">Метка EW</button>
+      <button id="markNS">Метка NS</button>
+      <button id="downloadMarks">Скачать метки</button>
+      <button id="clearMarks">Очистить метки</button>
       <label><input id="showIds" type="checkbox"> ID</label>
       <label><input id="showMoves" type="checkbox" checked> движение</label>
     </div>
@@ -149,6 +153,7 @@ HTML_TEMPLATE = r"""<!doctype html>
     <div class="time" id="time"></div>
     <canvas id="view" width="1200" height="760"></canvas>
     <div class="stats" id="stats"></div>
+    <pre class="stats" id="marks"></pre>
     <div class="legend">Крупные N/S/E/W показывают усреднённое положение детекций с соответствующей зоной в исходном JSON.</div>
   </div>
 </div>
@@ -170,6 +175,7 @@ const statsEl = document.getElementById("stats");
 const playButton = document.getElementById("play");
 const showIds = document.getElementById("showIds");
 const showMoves = document.getElementById("showMoves");
+const marksEl = document.getElementById("marks");
 
 timeline.min = 0;
 timeline.max = Math.max(0, END_MS - START_MS);
@@ -178,8 +184,10 @@ let currentMs = START_MS;
 let playing = false;
 let timer = null;
 let playStepMs = 500;
+const marks = [];
 
 function formatLocal(ms) {
+
   const d = new Date(ms);
   return d.toLocaleString("ru-RU", {
     timeZone: "Asia/Yekaterinburg",
@@ -315,6 +323,40 @@ function setTime(ms) {
   render();
 }
 
+function addMark(kind) {
+  marks.push({
+    kind,
+    timestamp_ms: currentMs,
+    timestamp_local: formatLocal(currentMs),
+    offset_s: Number(((currentMs - START_MS) / 1000).toFixed(3))
+  });
+  marksEl.textContent = marks.map((mark, index) =>
+    (index + 1) + ". " + mark.kind + "  " + mark.timestamp_local +
+    "  (+" + mark.offset_s.toFixed(3) + " с)"
+  ).join("\n");
+}
+
+function downloadMarks() {
+  const blob = new Blob(
+    [JSON.stringify({start_ms: START_MS, marks}, null, 2)],
+    {type: "application/json"}
+  );
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "trajectory_manual_marks.json";
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("markEW").addEventListener("click", () => addMark("EW"));
+document.getElementById("markNS").addEventListener("click", () => addMark("NS"));
+document.getElementById("downloadMarks").addEventListener("click", downloadMarks);
+document.getElementById("clearMarks").addEventListener("click", () => {
+  marks.length = 0;
+  marksEl.textContent = "";
+});
+
 function stop() {
   playing = false;
   if (timer !== null) {
@@ -350,6 +392,10 @@ document.addEventListener("keydown", (event) => {
     setTime(currentMs - (event.shiftKey ? 10000 : 1000));
   } else if (event.key === "ArrowRight") {
     setTime(currentMs + (event.shiftKey ? 10000 : 1000));
+  } else if (event.key.toLowerCase() === "e") {
+    addMark("EW");
+  } else if (event.key.toLowerCase() === "n") {
+    addMark("NS");
   }
 });
 
