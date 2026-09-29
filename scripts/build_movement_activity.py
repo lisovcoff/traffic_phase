@@ -195,95 +195,229 @@ def build_movement_activity(
 
 
 
-def _circular_distance(left: float, right: float, cycle_seconds: float) -> float:
+
+def _circular_distance(
+    left: float,
+    right: float,
+    cycle_seconds: float,
+) -> float:
     distance = abs(left - right) % cycle_seconds
     return min(distance, cycle_seconds - distance)
 
 
-def _circular_median(values: list[float], cycle_seconds: float) -> float:
+def _circular_median(
+    values: list[float],
+    cycle_seconds: float,
+) -> float:
     if not values:
         return 0.0
     return min(
         values,
         key=lambda candidate: sum(
-            _circular_distance(candidate, value, cycle_seconds)
+            _circular_distance(
+                candidate,
+                value,
+                cycle_seconds,
+            )
             for value in values
         ),
     )
 
 
-def _movement_event_signal(rows: list[dict[str, object]]) -> dict[int, float]:
-    signal: dict[int, float] = {}
+def _movement_event_signal(
+    rows: list[dict[str, object]],
+) -> tuple[int, list[float]]:
+    seconds = [int(row["second"]) for row in rows]
+    if not seconds:
+        return 0, []
+    start = min(seconds)
+    end = max(seconds)
+    signal = [0.0] * (end - start + 1)
     for row in rows:
-        second = int(row["second"])
-        signal[second] = (
-            signal.get(second, 0.0)
-            + float(row["release_count"])
+        signal[int(row["second"]) - start] += (
+            float(row["release_count"])
             + 0.5 * float(row["crossing_count"])
         )
-    return signal
+    return start, signal
 
 
-def _lag_score(
-    signal: dict[int, float],
-    lag_seconds: int,
-) -> tuple[float, int]:
-    if not signal:
-        return 0.0, 0
-
-    start = min(signal)
-    end = max(signal)
-    left = [
-        signal.get(second, 0.0)
-        for second in range(start, end - lag_seconds + 1)
-    ]
-    right = [
-        signal.get(second + lag_seconds, 0.0)
-        for second in range(start, end - lag_seconds + 1)
-    ]
-    overlap = sum(1 for value in left if value > 0.0 or right[len([*[]])] > 0.0)
-    # The expression above is intentionally not used for scoring; keep the
-    # actual non-zero pair count explicit below to avoid treating silence as
-    # recurrence evidence.
-    paired = [
-        (a, b)
-        for a, b in zip(left, right)
-        if a > 0.0 and b > 0.0
-    ]
-    if len(paired) < 3:
-        return 0.0, len(paired)
-
-    numerator = sum(a * b for a, b in paired)
-    denominator = math.sqrt(
-        sum(a * a for a, _ in paired)
-        * sum(b * b for _, b in paired)
-    )
-    return (numerator / denominator if denominator else 0.0), len(paired)
-
-
-def _run_intervals(mask: list[bool]) -> list[tuple[int, int]]:
-    size = len(mask)
-    if size == 0 or not any(mask):
+def _cycle_candidates(
+    signal: list[float],
+    *,
+    min_cycle_seconds: int,
+    max_cycle_seconds: int,
+) -> list[dict[str, object]]:
+    if len(signal) < max(60, min_cycle_seconds * 3):
         return []
-    if all(mask):
-        return [(0, size)]
 
-    runs: list[tuple[int, int]] = []
-    start = None
-    for index, value in enumerate(mask):
-        if value and start is None:
-            start = index
-        elif not value and start is not None:
-            runs.append((start, index))
-            start = None
-    if start is not None:
-        runs.append((start, size))
+    try:
+        estimate = CycleEstimator(
+            min_period_seconds=float(min_cycle_seconds),
+            max_period_seconds=float(max_cycle_seconds),
+            peak_distance_seconds=10.0,
+            smoothing_sigma=1.2,
+            max_candidates=6,
+        ).estimate(
+            signal,
+            sampling_seconds=1.0,
+        )
+    except (RuntimeError, ValueError):
+        return []
 
-    if len(runs) >= 2 and runs[0][0] == 0 and runs[-1][1] == size:
-        first_start, first_end = runs[0]
-        last_start, last_end = runs[-1]
-        runs = [(last_start, first_end)] + runs[1:-1]
-    return runs
+    return [
+        {
+            "cycle_seconds": candidate.period_seconds,
+            "score": candidate.score,
+            "strength": candidate.strength,
+            "stability": candidate.stability,
+            "repetitions": candidate.repetitions,
+        }
+        for candidate in estimate.candidate_periods
+    ]
+
+
+def _cluster_cycle_candidates(
+    movement_candidates: dict[str, list[dict[str, object]]],
+    *,
+    tolerance_seconds: float = 3.0,
+) -> list[dict[str, object]]:
+    clusters: list[dict[str, object]] = []
+
+    for movement, candidates in movement_candidates.items():
+        for candidate in candidates:
+            period = float(candidate["cycle_seconds"])
+            weight = (
+                float(candidate["score"])
+                * min(
+                    1.0,
+                    float(candidate["repetitions"]) / 8.0,
+                )
+            )
+            compatible = [
+                cluster
+                for cluster in clusters
+                if abs(
+                    float(cluster["period_seconds"])
+                    - period
+                ) <= tolerance_seconds
+                and movement not in cluster["movements"]
+            ]
+            if compatible:
+                cluster = min(
+                    compatible,
+                    key=lambda item: abs(
+                        float(item["period_seconds"])
+                        - period
+                    ),
+                )
+            else:
+                cluster = {
+                    "period_seconds": period,
+                    "movements": set(),
+                    "entries": [],
+                }
+                clusters.append(cluster)
+
+            cluster["movements"].add(movement)
+            cluster["entries"].append(
+                {
+                    "movement": movement,
+                    "period_seconds": period,
+                    "score": float(candidate["score"]),
+                    "weight": weight,
+                    "repetitions": int(candidate["repetitions"]),
+                }
+            )
+
+            periods = [
+                float(entry["period_seconds"])
+                for entry in cluster["entries"]
+            ]
+            cluster["period_seconds"] = sum(periods) / len(periods)
+
+    normalized: list[dict[str, object]] = []
+    for cluster in clusters:
+        entries = cluster["entries"]
+        if not entries:
+            continue
+        weighted_score = sum(
+            float(entry["weight"])
+            for entry in entries
+        ) / len(entries)
+        mean_score = sum(
+            float(entry["score"])
+            for entry in entries
+        ) / len(entries)
+        mean_repetitions = sum(
+            int(entry["repetitions"])
+            for entry in entries
+        ) / len(entries)
+        normalized.append(
+            {
+                "cycle_seconds": round(
+                    float(cluster["period_seconds"]),
+                    2,
+                ),
+                "movement_count": len(
+                    cluster["movements"]
+                ),
+                "weighted_score": round(
+                    weighted_score,
+                    4,
+                ),
+                "mean_score": round(
+                    mean_score,
+                    4,
+                ),
+                "mean_repetitions": round(
+                    mean_repetitions,
+                    2,
+                ),
+                "movements": sorted(
+                    cluster["movements"]
+                ),
+            }
+        )
+
+    normalized.sort(
+        key=lambda item: (
+            -int(item["movement_count"]),
+            -float(item["weighted_score"]),
+            -float(item["mean_repetitions"]),
+            float(item["cycle_seconds"]),
+        )
+    )
+    return normalized
+
+
+def _phase_support(
+    seconds: list[int],
+    *,
+    start_second: int,
+    cycle_seconds: int,
+    total_cycles: int,
+) -> list[float]:
+    presence = [set() for _ in range(cycle_seconds)]
+    cycle_ids = {
+        (second - start_second) // cycle_seconds
+        for second in seconds
+        if 0 <= (second - start_second) // cycle_seconds < total_cycles
+    }
+    denominator = max(1, len(cycle_ids))
+
+    for second in seconds:
+        relative = second - start_second
+        cycle_id, phase = divmod(
+            relative,
+            cycle_seconds,
+        )
+        if 0 <= cycle_id < total_cycles:
+            presence[phase].add(cycle_id)
+
+    return [
+        len(cycle_presence) / denominator
+        for cycle_presence in presence
+    ]
 
 
 def _phase_windows(
@@ -292,28 +426,91 @@ def _phase_windows(
     threshold: float,
     min_duration_seconds: int = 3,
 ) -> list[tuple[float, float, float]]:
-    mask = [value >= threshold for value in phase_support]
-    intervals = _run_intervals(mask)
+    mask = [
+        value >= threshold
+        for value in phase_support
+    ]
     size = len(mask)
-    result: list[tuple[float, float, float]] = []
-    for start, end in intervals:
-        duration = (end - start) % size
-        if duration == 0:
-            duration = size
-        if duration < min_duration_seconds:
+    if size == 0 or not any(mask):
+        return []
+
+    windows: list[tuple[float, float, float]] = []
+    doubled = mask + mask
+
+    start = 0
+    while start < size:
+        if not doubled[start]:
+            start += 1
             continue
-        values = [
-            phase_support[index % size]
-            for index in range(start, start + duration)
-        ]
-        result.append(
-            (
-                float(start),
-                float((start + duration) % size),
-                float(sum(values) / len(values)),
-            )
+
+        end = start
+        while (
+            end < start + size
+            and doubled[end]
+        ):
+            end += 1
+
+        duration = min(
+            size,
+            end - start,
         )
-    return result
+        if duration >= min_duration_seconds:
+            phase_start = start % size
+            phase_end = (
+                start + duration
+            ) % size
+            support = sum(
+                phase_support[
+                    (start + offset) % size
+                ]
+                for offset in range(duration)
+            ) / duration
+            windows.append(
+                (
+                    float(phase_start),
+                    float(phase_end),
+                    float(support),
+                )
+            )
+
+        start = end
+
+    unique: list[tuple[float, float, float]] = []
+    seen: set[tuple[float, float]] = set()
+    for window in windows:
+        key = (
+            window[0],
+            window[1],
+        )
+        if key not in seen:
+            seen.add(key)
+            unique.append(window)
+    return unique
+
+
+def _activity_windows(
+    rows: list[dict[str, object]],
+    *,
+    start_second: int,
+    cycle_seconds: int,
+    total_cycles: int,
+    minimum_support: float = 0.50,
+) -> list[tuple[float, float, float]]:
+    moving_seconds = [
+        int(row["second"])
+        for row in rows
+        if int(row["moving_tracks"]) > 0
+    ]
+    return _phase_windows(
+        _phase_support(
+            moving_seconds,
+            start_second=start_second,
+            cycle_seconds=cycle_seconds,
+            total_cycles=total_cycles,
+        ),
+        threshold=minimum_support,
+        min_duration_seconds=4,
+    )
 
 
 def discover_movement_profiles(
@@ -324,255 +521,380 @@ def discover_movement_profiles(
     max_cycle_seconds: int = 180,
     min_event_cycles: int = 3,
 ) -> dict[str, object]:
-    """Discover recurring movement timing from RELEASE/CROSSING pulses.
+    """Discover recurring movement timing from full, dense signals.
 
-    This is a timing-profile layer only. It does not assign GREEN/RED and
-    does not convert vehicle motion into a lamp state.
+    Cycle candidates are estimated from full per-second RELEASE/CROSSING
+    signals rather than correlating only non-zero event pairs. Movement
+    consensus is used to suppress short-period aliases and harmonics.
+    This remains a timing/evidence layer, never a GREEN/RED classifier.
     """
     raw_rows = activity.get("rows", [])
     grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
     for raw_row in raw_rows:
-        movement = str(raw_row.get("movement", "")).strip()
+        movement = str(
+            raw_row.get("movement", "")
+        ).strip()
         if "->" in movement:
             grouped[movement].append(raw_row)
 
-    movement_candidates: dict[str, list[dict[str, object]]] = {}
+    movement_candidates: dict[
+        str,
+        list[dict[str, object]],
+    ] = {}
     for movement, rows in grouped.items():
-        signal = _movement_event_signal(rows)
-        if len(signal) < min_event_cycles:
-            movement_candidates[movement] = []
-            continue
-
-        max_lag = min(max_cycle_seconds, max(0, (max(signal) - min(signal)) // 2))
-        candidates: list[dict[str, object]] = []
-        for lag in range(min_cycle_seconds, max_lag + 1):
-            score, paired = _lag_score(signal, lag)
-            if paired >= 3 and score > 0.0:
-                candidates.append(
-                    {
-                        "cycle_seconds": lag,
-                        "score": round(score, 4),
-                        "paired_event_seconds": paired,
-                    }
-                )
-        candidates.sort(
-            key=lambda item: (
-                -float(item["score"]),
-                -int(item["paired_event_seconds"]),
-                int(item["cycle_seconds"]),
+        _start, signal = _movement_event_signal(rows)
+        movement_candidates[movement] = (
+            _cycle_candidates(
+                signal,
+                min_cycle_seconds=min_cycle_seconds,
+                max_cycle_seconds=max_cycle_seconds,
             )
+            if signal
+            else []
         )
-        movement_candidates[movement] = candidates[:5]
 
-    all_scores: dict[int, list[float]] = defaultdict(list)
-    for candidates in movement_candidates.values():
-        for candidate in candidates:
-            all_scores[int(candidate["cycle_seconds"])].append(
-                float(candidate["score"])
-            )
-    global_candidates = [
-        {
-            "cycle_seconds": cycle,
-            "movement_count": len(scores),
-            "mean_score": round(sum(scores) / len(scores), 4),
-        }
-        for cycle, scores in all_scores.items()
-    ]
-    global_candidates.sort(
-        key=lambda item: (
-            -int(item["movement_count"]),
-            -float(item["mean_score"]),
-            int(item["cycle_seconds"]),
-        )
+    global_candidates = _cluster_cycle_candidates(
+        movement_candidates,
     )
+
+    if not global_candidates:
+        _start, global_signal = _movement_event_signal(
+            [
+                row
+                for rows in grouped.values()
+                for row in rows
+            ]
+        )
+        fallback_candidates = _cycle_candidates(
+            global_signal,
+            min_cycle_seconds=min_cycle_seconds,
+            max_cycle_seconds=max_cycle_seconds,
+        )
+        global_candidates = [
+            {
+                "cycle_seconds": candidate["cycle_seconds"],
+                "movement_count": 1,
+                "weighted_score": candidate["score"],
+                "mean_score": candidate["score"],
+                "mean_repetitions": candidate["repetitions"],
+                "movements": ["__aggregate__"],
+            }
+            for candidate in fallback_candidates
+        ]
 
     selected_cycle = (
         float(cycle_seconds)
         if cycle_seconds is not None
         else (
-            float(global_candidates[0]["cycle_seconds"])
+            float(
+                global_candidates[0]["cycle_seconds"]
+            )
             if global_candidates
             else None
         )
     )
 
+    if selected_cycle is None:
+        return {
+            "schema_version": 2,
+            "meaning": (
+                "Recurring movement timing profiles derived from full-signal "
+                "autocorrelation. These are hypotheses about recurring flow "
+                "windows, not GREEN/RED lamp classifications."
+            ),
+            "selected_cycle_seconds": None,
+            "global_cycle_candidates": [],
+            "movement_profiles": [],
+        }
+
+    selected_cycle_int = max(
+        min_cycle_seconds,
+        min(
+            max_cycle_seconds,
+            int(round(selected_cycle)),
+        ),
+    )
+
+    all_event_seconds = [
+        int(row["second"])
+        for rows in grouped.values()
+        for row in rows
+        if (
+            int(row["release_count"]) > 0
+            or int(row["crossing_count"]) > 0
+        )
+    ]
+    if not all_event_seconds:
+        return {
+            "schema_version": 2,
+            "meaning": (
+                "Recurring movement timing profiles derived from full-signal "
+                "autocorrelation. These are hypotheses about recurring flow "
+                "windows, not GREEN/RED lamp classifications."
+            ),
+            "selected_cycle_seconds": float(
+                selected_cycle_int
+            ),
+            "global_cycle_candidates": global_candidates[:10],
+            "movement_profiles": [],
+        }
+
+    start_second = min(all_event_seconds)
+    end_second = max(all_event_seconds)
+    total_cycles = max(
+        1,
+        int(
+            (end_second - start_second)
+            // selected_cycle_int
+        )
+        + 1,
+    )
+
     profiles: list[dict[str, object]] = []
-    if selected_cycle is not None:
-        selected_cycle_int = int(round(selected_cycle))
-        start_second = min(
+    for movement, rows in sorted(
+        grouped.items()
+    ):
+        release_seconds = [
             int(row["second"])
-            for raw_rows in grouped.values()
-            for row in raw_rows
-        )
-        end_second = max(
+            for row in rows
+            if int(row["release_count"]) > 0
+        ]
+        crossing_seconds = [
             int(row["second"])
-            for raw_rows in grouped.values()
-            for row in raw_rows
+            for row in rows
+            if int(row["crossing_count"]) > 0
+        ]
+        event_seconds = sorted(
+            set(release_seconds)
+            | set(crossing_seconds)
         )
-        total_cycles = max(
+
+        observed_cycles = len({
+            (second - start_second) // selected_cycle_int
+            for second in event_seconds
+            if (
+                0
+                <= (second - start_second)
+                // selected_cycle_int
+                < total_cycles
+            )
+        })
+
+        phase_support = _phase_support(
+            event_seconds,
+            start_second=start_second,
+            cycle_seconds=selected_cycle_int,
+            total_cycles=total_cycles,
+        )
+        event_windows = _phase_windows(
+            phase_support,
+            threshold=0.35,
+        )
+        activity_windows = _activity_windows(
+            rows,
+            start_second=start_second,
+            cycle_seconds=selected_cycle_int,
+            total_cycles=total_cycles,
+        )
+
+        approach = movement.split(
+            "->",
             1,
-            int(math.floor((end_second - start_second + 1) / selected_cycle_int)),
+        )[0]
+        approach_rows = [
+            row
+            for other_movement, other_rows in grouped.items()
+            if other_movement.split(
+                "->",
+                1,
+            )[0] == approach
+            for row in other_rows
+        ]
+        approach_event_seconds = sorted({
+            int(row["second"])
+            for row in approach_rows
+            if (
+                int(row["release_count"]) > 0
+                or int(row["crossing_count"]) > 0
+            )
+        })
+        approach_support = _phase_support(
+            approach_event_seconds,
+            start_second=start_second,
+            cycle_seconds=selected_cycle_int,
+            total_cycles=total_cycles,
+        )
+        movement_mask = [
+            value >= 0.35
+            for value in phase_support
+        ]
+        approach_mask = [
+            value >= 0.35
+            for value in approach_support
+        ]
+        intersection = sum(
+            movement_value and approach_value
+            for movement_value, approach_value
+            in zip(
+                movement_mask,
+                approach_mask,
+            )
+        )
+        union = sum(
+            movement_value or approach_value
+            for movement_value, approach_value
+            in zip(
+                movement_mask,
+                approach_mask,
+            )
+        )
+        jaccard = (
+            intersection / union
+            if union
+            else 0.0
         )
 
-        for movement, rows in sorted(grouped.items()):
-            signal = _movement_event_signal(rows)
-            release_by_cycle: list[float] = []
-            crossing_by_cycle: list[float] = []
-            event_cycles: set[int] = set()
-
-            for second, value in sorted(signal.items()):
-                cycle_id = int((second - start_second) // selected_cycle_int)
-                if 0 <= cycle_id < total_cycles and value > 0.0:
-                    event_cycles.add(cycle_id)
-
-            for row in rows:
-                second = int(row["second"])
-                cycle_id = int((second - start_second) // selected_cycle_int)
-                if not 0 <= cycle_id < total_cycles:
-                    continue
-                phase = float((second - start_second) % selected_cycle_int)
-                if int(row["release_count"]) > 0:
-                    release_by_cycle.append(phase)
-                if int(row["crossing_count"]) > 0:
-                    crossing_by_cycle.append(phase)
-
-            observed_cycles = len(event_cycles)
-            phase_support = [0.0] * selected_cycle_int
-            cycle_presence = [set() for _ in range(selected_cycle_int)]
-            for second, value in signal.items():
-                if value <= 0.0:
-                    continue
-                phase = int((second - start_second) % selected_cycle_int)
-                cycle_id = int((second - start_second) // selected_cycle_int)
-                if 0 <= cycle_id < total_cycles:
-                    cycle_presence[phase].add(cycle_id)
-            if observed_cycles:
-                phase_support = [
-                    len(cycle_ids) / observed_cycles
-                    for cycle_ids in cycle_presence
-                ]
-
-            windows = _phase_windows(
-                phase_support,
-                threshold=0.35,
+        release_phases = [
+            float(
+                (second - start_second)
+                % selected_cycle_int
             )
+            for second in release_seconds
+        ]
+        crossing_phases = [
+            float(
+                (second - start_second)
+                % selected_cycle_int
+            )
+            for second in crossing_seconds
+        ]
+        release_median = _circular_median(
+            release_phases,
+            selected_cycle_int,
+        )
+        crossing_median = _circular_median(
+            crossing_phases,
+            selected_cycle_int,
+        )
+        release_repeatability = (
+            sum(
+                _circular_distance(
+                    value,
+                    release_median,
+                    selected_cycle_int,
+                ) <= 4.0
+                for value in release_phases
+            )
+            / len(release_phases)
+            if release_phases
+            else 0.0
+        )
+        crossing_repeatability = (
+            sum(
+                _circular_distance(
+                    value,
+                    crossing_median,
+                    selected_cycle_int,
+                ) <= 4.0
+                for value in crossing_phases
+            )
+            / len(crossing_phases)
+            if crossing_phases
+            else 0.0
+        )
 
-            approach = movement.split("->", 1)[0]
-            approach_mask = [False] * selected_cycle_int
-            approach_cycles: list[int] = []
-            for other_movement, other_rows in grouped.items():
-                if other_movement.split("->", 1)[0] != approach:
-                    continue
-                other_signal = _movement_event_signal(other_rows)
-                for second, value in other_signal.items():
-                    if value <= 0.0:
-                        continue
-                    phase = int((second - start_second) % selected_cycle_int)
-                    approach_mask[phase] = True
-                    approach_cycles.append(
-                        int((second - start_second) // selected_cycle_int)
-                    )
+        nearby_candidates = [
+            candidate
+            for candidate in movement_candidates.get(
+                movement,
+                [],
+            )
+            if abs(
+                float(candidate["cycle_seconds"])
+                - selected_cycle_int
+            ) <= 3.0
+        ]
 
-            movement_mask = [
-                value >= 0.35
-                for value in phase_support
-            ]
-            approach_support = [
-                0.0 for _ in range(selected_cycle_int)
-            ]
-            approach_cycle_ids = set(approach_cycles)
-            if approach_cycle_ids:
-                for phase in range(selected_cycle_int):
-                    phase_cycles = {
-                        int((second - start_second) // selected_cycle_int)
-                        for other_movement, other_rows in grouped.items()
-                        if other_movement.split("->", 1)[0] == approach
-                        for second, value in _movement_event_signal(other_rows).items()
-                        if value > 0.0
-                        and int((second - start_second) % selected_cycle_int) == phase
+        profiles.append(
+            {
+                "movement": movement,
+                "approach": approach,
+                "observed_event_cycles": observed_cycles,
+                "release_event_count": len(
+                    release_seconds
+                ),
+                "crossing_event_count": len(
+                    crossing_seconds
+                ),
+                "release_phase_median_s": round(
+                    release_median,
+                    2,
+                ),
+                "crossing_phase_median_s": round(
+                    crossing_median,
+                    2,
+                ),
+                "release_repeatability": round(
+                    release_repeatability,
+                    4,
+                ),
+                "crossing_repeatability": round(
+                    crossing_repeatability,
+                    4,
+                ),
+                "event_windows": [
+                    {
+                        "phase_start_s": round(
+                            window_start,
+                            2,
+                        ),
+                        "phase_end_s": round(
+                            window_end,
+                            2,
+                        ),
+                        "mean_cycle_support": round(
+                            support,
+                            4,
+                        ),
                     }
-                    approach_support[phase] = (
-                        len(phase_cycles) / max(1, len(approach_cycle_ids))
-                    )
-            approach_mask = [
-                value >= 0.35
-                for value in approach_support
-            ]
-            intersection = sum(
-                movement_value and approach_value
-                for movement_value, approach_value
-                in zip(movement_mask, approach_mask)
-            )
-            union = sum(
-                movement_value or approach_value
-                for movement_value, approach_value
-                in zip(movement_mask, approach_mask)
-            )
-            jaccard = intersection / union if union else 0.0
-
-            release_median = _circular_median(
-                release_by_cycle,
-                selected_cycle_int,
-            )
-            crossing_median = _circular_median(
-                crossing_by_cycle,
-                selected_cycle_int,
-            )
-            release_repeatability = (
-                sum(
-                    _circular_distance(
-                        value,
-                        release_median,
-                        selected_cycle_int,
-                    ) <= 4.0
-                    for value in release_by_cycle
-                )
-                / len(release_by_cycle)
-                if release_by_cycle
-                else 0.0
-            )
-            crossing_repeatability = (
-                sum(
-                    _circular_distance(
-                        value,
-                        crossing_median,
-                        selected_cycle_int,
-                    ) <= 4.0
-                    for value in crossing_by_cycle
-                )
-                / len(crossing_by_cycle)
-                if crossing_by_cycle
-                else 0.0
-            )
-
-            profiles.append(
-                {
-                    "movement": movement,
-                    "approach": approach,
-                    "observed_event_cycles": observed_cycles,
-                    "release_event_count": len(release_by_cycle),
-                    "crossing_event_count": len(crossing_by_cycle),
-                    "release_phase_median_s": round(release_median, 2),
-                    "crossing_phase_median_s": round(crossing_median, 2),
-                    "release_repeatability": round(release_repeatability, 4),
-                    "crossing_repeatability": round(crossing_repeatability, 4),
-                    "recurring_windows": [
-                        {
-                            "phase_start_s": round(start, 2),
-                            "phase_end_s": round(end, 2),
-                            "mean_cycle_support": round(support, 4),
-                        }
-                        for start, end, support in windows
-                    ],
-                    "movement_vs_approach_jaccard": round(jaccard, 4),
-                    "distinct_from_approach": bool(
-                        observed_cycles >= min_event_cycles
-                        and len(windows) > 0
-                        and jaccard < 0.60
-                    ),
-                    "top_cycle_candidates": movement_candidates.get(movement, []),
-                }
-            )
+                    for window_start, window_end, support
+                    in event_windows
+                ],
+                "activity_windows": [
+                    {
+                        "phase_start_s": round(
+                            window_start,
+                            2,
+                        ),
+                        "phase_end_s": round(
+                            window_end,
+                            2,
+                        ),
+                        "mean_cycle_support": round(
+                            support,
+                            4,
+                        ),
+                    }
+                    for window_start, window_end, support
+                    in activity_windows
+                ],
+                "movement_vs_approach_jaccard": round(
+                    jaccard,
+                    4,
+                ),
+                "distinct_from_approach": bool(
+                    observed_cycles >= min_event_cycles
+                    and bool(activity_windows)
+                    and jaccard < 0.60
+                ),
+                "movement_cycle_candidate_seconds": (
+                    nearby_candidates[0]["cycle_seconds"]
+                    if nearby_candidates
+                    else None
+                ),
+                "top_cycle_candidates": nearby_candidates[:5],
+            }
+        )
 
     profiles.sort(
         key=lambda item: (
@@ -582,17 +904,18 @@ def discover_movement_profiles(
         )
     )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "meaning": (
-            "Recurring movement timing profiles derived from RELEASE/CROSSING "
-            "evidence. These are hypotheses about recurring flow windows, not "
-            "GREEN/RED lamp classifications."
+            "Recurring movement timing profiles derived from full-signal "
+            "autocorrelation. These are hypotheses about recurring flow "
+            "windows, not GREEN/RED lamp classifications."
         ),
-        "selected_cycle_seconds": selected_cycle,
+        "selected_cycle_seconds": float(
+            selected_cycle_int
+        ),
         "global_cycle_candidates": global_candidates[:10],
         "movement_profiles": profiles,
     }
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(
