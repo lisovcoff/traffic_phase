@@ -569,6 +569,10 @@ def discover_three_state_cycle(
             "NS_duration_s": (
                 selected.period_s - selected.boundary_2_s
             ),
+            "movement_scores": {
+                movement: round(score, 4)
+                for movement, score in selected.movement_scores.items()
+            },
         })
 
     if not candidates:
