@@ -52,6 +52,7 @@ class SignalGroupRelationEvidence:
     right_movement: str
     relation: SignalGroupRelation
     approach: str
+    evidence: SignalGroupEvidence
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -59,6 +60,7 @@ class SignalGroupRelationEvidence:
             "right_movement": self.right_movement,
             "relation": self.relation.value,
             "approach": self.approach,
+            "evidence": self.evidence.value,
         }
 
 
@@ -143,6 +145,7 @@ class SignalGroupDiscovery:
                             if left.approach == right.approach
                             else f"{left.approach}|{right.approach}"
                         ),
+                        evidence=_relation_evidence(relation),
                     )
                 )
 
@@ -186,6 +189,14 @@ class SignalGroupDiscovery:
             relations=tuple(relations),
             insufficient_movements=insufficient,
         )
+
+
+def _relation_evidence(relation: SignalGroupRelation) -> SignalGroupEvidence:
+    if relation is SignalGroupRelation.EQUIVALENT:
+        return SignalGroupEvidence.SUPPORTED
+    if relation is SignalGroupRelation.INSUFFICIENT_EVIDENCE:
+        return SignalGroupEvidence.INSUFFICIENT_EVIDENCE
+    return SignalGroupEvidence.STRUCTURAL_HYPOTHESIS
 
 
 __all__ = [
