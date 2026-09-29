@@ -264,24 +264,40 @@ def compare_movement_signatures(
     ):
         return SignalGroupRelation.INSUFFICIENT_EVIDENCE
 
-    best_iou = 0.0
-    left_in_right = 0.0
-    right_in_left = 0.0
-    for first in left.active_intervals:
-        for second in right.active_intervals:
-            best_iou = max(best_iou, first.iou(second))
-            left_in_right = max(left_in_right, first.containment(second))
-            right_in_left = max(right_in_left, second.containment(first))
+    intersection, left_duration, right_duration = _interval_set_metrics(
+        left.active_intervals,
+        right.active_intervals,
+    )
+    union = left_duration + right_duration - intersection
+    set_iou = intersection / union if union > 0 else 0.0
+    left_in_right = intersection / left_duration if left_duration > 0 else 0.0
+    right_in_left = intersection / right_duration if right_duration > 0 else 0.0
 
-    if best_iou >= equivalence_iou:
+    if set_iou >= equivalence_iou:
         return SignalGroupRelation.EQUIVALENT
     if left_in_right >= containment:
         return SignalGroupRelation.CONTAINED
     if right_in_left >= containment:
         return SignalGroupRelation.CONTAINS
-    if best_iou > 0:
+    if intersection > 0:
         return SignalGroupRelation.PARTIAL_OVERLAP
     return SignalGroupRelation.DISJOINT
+
+
+def _interval_set_metrics(
+    left: Sequence[CircularInterval],
+    right: Sequence[CircularInterval],
+) -> tuple[float, float, float]:
+    """Compare disjoint circular interval sets without best-pair bias."""
+
+    intersection = sum(
+        first.intersection_length(second)
+        for first in left
+        for second in right
+    )
+    left_duration = sum(interval.duration for interval in left)
+    right_duration = sum(interval.duration for interval in right)
+    return intersection, left_duration, right_duration
 
 
 def _active_intervals(
