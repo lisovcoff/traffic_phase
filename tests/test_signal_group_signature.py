@@ -473,9 +473,13 @@ def test_signal_group_mapping_preserves_insufficient_movements_as_unmapped():
 
     assert mapping.movement_to_group == {"N->S": "N:SG1"}
     assert mapping.unmapped_movements == ("N->E",)
-    assert mapping.entries[1].status is SignalGroupMappingStatus.UNMAPPED
-    assert mapping.entries[1].evidence is SignalGroupEvidence.INSUFFICIENT_EVIDENCE
-    assert mapping.entries[1].confidence == 0.0
+    unmapped = next(
+        entry for entry in mapping.entries
+        if entry.movement_id == "N->E"
+    )
+    assert unmapped.status is SignalGroupMappingStatus.UNMAPPED
+    assert unmapped.evidence is SignalGroupEvidence.INSUFFICIENT_EVIDENCE
+    assert unmapped.confidence == 0.0
 
 
 def test_signal_group_mapping_is_deterministic_and_serializable():
