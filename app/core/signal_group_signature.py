@@ -101,6 +101,28 @@ class MovementPhaseSignature:
     repeatability: float
     boundary_stability: float
 
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "movement": self.movement,
+            "approach": self.approach,
+            "cycle_seconds": self.cycle_seconds,
+            "bin_seconds": self.bin_seconds,
+            "phase_presence": list(self.phase_presence),
+            "active_intervals": [
+                {
+                    "start": interval.start,
+                    "end": interval.end,
+                    "cycle_seconds": interval.cycle_seconds,
+                }
+                for interval in self.active_intervals
+            ],
+            "support_count": self.support_count,
+            "observed_cycle_count": self.observed_cycle_count,
+            "active_cycle_count": self.active_cycle_count,
+            "repeatability": self.repeatability,
+            "boundary_stability": self.boundary_stability,
+        }
+
     @property
     def support_ratio(self) -> float:
         if self.observed_cycle_count <= 0:

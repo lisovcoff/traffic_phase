@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Iterable
 
+from app.core.models import TrajectoryEvent
 from app.core.signal_group_discovery import (
+    SignalGroupDiscovery,
     SignalGroupDiscoveryResult,
     SignalGroupEvidence,
+)
+from app.core.signal_group_signature import (
+    MovementPhaseSignature,
+    build_movement_phase_signatures,
 )
 
 
@@ -38,6 +45,26 @@ class SignalGroupMappingEntry:
             "status": self.status.value,
             "evidence": self.evidence.value,
             "confidence": self.confidence,
+        }
+
+
+@dataclass(frozen=True)
+class SignalGroupModel:
+    """Complete Stage 2 temporal-to-logical signal-group model."""
+
+    cycle_seconds: float
+    origin_timestamp_ms: int
+    signatures: tuple[MovementPhaseSignature, ...]
+    discovery: SignalGroupDiscoveryResult
+    mapping: SignalGroupMapping
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "cycle_seconds": self.cycle_seconds,
+            "origin_timestamp_ms": self.origin_timestamp_ms,
+            "signatures": [signature.to_dict() for signature in self.signatures],
+            "discovery": self.discovery.to_dict(),
+            "mapping": self.mapping.to_dict(),
         }
 
 
@@ -137,6 +164,41 @@ def build_signal_group_mapping(
     return SignalGroupMapping(entries=tuple(entries))
 
 
+def build_signal_group_model(
+    events: Iterable[TrajectoryEvent],
+    *,
+    cycle_seconds: float,
+    origin_timestamp_ms: int,
+    bin_seconds: float = 1.0,
+    min_cycle_presence: float = 0.35,
+    dedupe_seconds: float = 2.0,
+    equivalence_iou: float = 0.60,
+    minimum_support_cycles: int = 3,
+) -> SignalGroupModel:
+    """Build signatures, logical groups, and the deterministic mapping."""
+
+    signatures = build_movement_phase_signatures(
+        tuple(events),
+        cycle_seconds=cycle_seconds,
+        origin_timestamp_ms=origin_timestamp_ms,
+        bin_seconds=bin_seconds,
+        min_cycle_presence=min_cycle_presence,
+        dedupe_seconds=dedupe_seconds,
+    )
+    discovery = SignalGroupDiscovery(
+        equivalence_iou=equivalence_iou,
+        minimum_support_cycles=minimum_support_cycles,
+    ).discover(signatures)
+    mapping = build_signal_group_mapping(discovery)
+    return SignalGroupModel(
+        cycle_seconds=float(cycle_seconds),
+        origin_timestamp_ms=int(origin_timestamp_ms),
+        signatures=signatures,
+        discovery=discovery,
+        mapping=mapping,
+    )
+
+
 def _movement_approach(movement_id: str) -> str | None:
     text = str(movement_id).strip()
     if "->" not in text:
@@ -146,8 +208,10 @@ def _movement_approach(movement_id: str) -> str | None:
 
 
 __all__ = [
+    "SignalGroupModel",
     "SignalGroupMapping",
     "SignalGroupMappingEntry",
     "SignalGroupMappingStatus",
     "build_signal_group_mapping",
+    "build_signal_group_model",
 ]

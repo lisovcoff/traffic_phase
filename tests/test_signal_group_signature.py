@@ -5,6 +5,7 @@ from app.core.signal_group_discovery import (
     SignalGroupDiscovery,
     SignalGroupEvidence,
 )
+from app.core.signal_group_mapping import build_signal_group_model
 from app.core.signal_group_signature import (
     CircularInterval,
     MovementPhaseSignature,
@@ -503,4 +504,76 @@ def test_signal_group_mapping_is_deterministic_and_serializable():
     payload = mapping.to_dict()
     assert payload["movement_to_group"]["N->S"] == "N:SG1"
     assert payload["group_to_movements"]["N:SG1"] == ["N->S", "N->W"]
+
+def test_signal_group_model_combines_signatures_discovery_and_mapping():
+    events = []
+    for cycle_index in range(8):
+        base = cycle_index * 100.0
+        events.extend(
+            (
+                _event(base + 20.0, "N", "N->S"),
+                _event(base + 21.0, "N", "N->W"),
+                _event(base + 60.0, "E", "E->N"),
+            )
+        )
+
+    model = build_signal_group_model(
+        events,
+        cycle_seconds=100.0,
+        origin_timestamp_ms=0,
+        bin_seconds=2.0,
+    )
+
+    assert model.cycle_seconds == 100.0
+    assert model.origin_timestamp_ms == 0
+    assert [item.movement for item in model.signatures] == [
+        "E->N",
+        "N->S",
+        "N->W",
+    ]
+    assert model.discovery.groups[0].movement_ids == ("E->N",)
+    assert model.discovery.groups[1].movement_ids == ("N->S", "N->W")
+    assert model.mapping.movement_to_group == {
+        "E->N": "E:SG1",
+        "N->S": "N:SG1",
+        "N->W": "N:SG1",
+    }
+    payload = model.to_dict()
+    assert payload["cycle_seconds"] == 100.0
+    assert payload["discovery"]["groups"][1]["movement_ids"] == [
+        "N->S",
+        "N->W",
+    ]
+    assert payload["mapping"]["movement_to_group"]["N->S"] == "N:SG1"
+
+
+def test_signal_group_model_keeps_sparse_movements_unmapped():
+    events = []
+    for cycle_index in range(8):
+        events.append(
+            _event(
+                cycle_index * 100.0 + 20.0,
+                "N",
+                "N->S",
+            )
+        )
+    for cycle_index in range(2):
+        events.append(
+            _event(
+                cycle_index * 100.0 + 35.0,
+                "N",
+                "N->E",
+            )
+        )
+
+    model = build_signal_group_model(
+        events,
+        cycle_seconds=100.0,
+        origin_timestamp_ms=0,
+        bin_seconds=2.0,
+    )
+
+    assert model.discovery.insufficient_movements == ("N->E",)
+    assert model.mapping.unmapped_movements == ("N->E",)
+    assert model.mapping.movement_to_group == {"N->S": "N:SG1"}
 
