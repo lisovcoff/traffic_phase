@@ -365,7 +365,7 @@ def _fit_period(
                 [boundary_1_s, arrow_duration, ns_duration],
                 dtype=float,
             )
-            duration_fractions = state_durations / float(period_s)
+            duration_fractions = (state_durations / float(period_s))[:, None]
             compactness = np.sum(
                 (state_captures - duration_fractions)
                 * state_totals[:, None],
