@@ -150,36 +150,56 @@ class SignalGroupDiscovery:
                 )
 
         groups: list[list[MovementPhaseSignature]] = []
-        for signature in usable:
-            assigned = False
-            for group in groups:
-                relation = compare_movement_signatures(
-                    signature,
-                    group[0],
-                    equivalence_iou=self.equivalence_iou,
-                    minimum_support_cycles=self.minimum_support_cycles,
-                )
-                if relation is SignalGroupRelation.EQUIVALENT:
-                    group.append(signature)
-                    assigned = True
-                    break
-            if not assigned:
-                groups.append([signature])
+        for approach in sorted({item.approach for item in usable}):
+            approach_signatures = tuple(
+                item for item in usable if item.approach == approach
+            )
+            approach_groups: list[list[MovementPhaseSignature]] = []
+            for signature in approach_signatures:
+                assigned = False
+                for group in approach_groups:
+                    relations_to_group = (
+                        compare_movement_signatures(
+                            signature,
+                            member,
+                            equivalence_iou=self.equivalence_iou,
+                            minimum_support_cycles=self.minimum_support_cycles,
+                        )
+                        for member in group
+                    )
+                    if all(
+                        relation is SignalGroupRelation.EQUIVALENT
+                        for relation in relations_to_group
+                    ):
+                        group.append(signature)
+                        assigned = True
+                        break
+                if not assigned:
+                    approach_groups.append([signature])
+            groups.extend(approach_groups)
 
         candidates: list[SignalGroupCandidate] = []
-        for index, group in enumerate(groups, start=1):
+        group_indices: dict[str, int] = {}
+        for group in groups:
             representative = group[0]
+            approach = representative.approach
+            group_indices[approach] = group_indices.get(approach, 0) + 1
             confidence = min(
                 min(item.repeatability for item in group),
                 min(item.boundary_stability for item in group),
             )
+            evidence = (
+                SignalGroupEvidence.SUPPORTED
+                if len(group) >= 2
+                else SignalGroupEvidence.STRUCTURAL_HYPOTHESIS
+            )
             candidates.append(
                 SignalGroupCandidate(
-                    group_id=f"{representative.approach}:SG{index}",
-                    approach=representative.approach,
+                    group_id=f"{approach}:SG{group_indices[approach]}",
+                    approach=approach,
                     intervals=representative.active_intervals,
                     movement_ids=tuple(item.movement for item in group),
-                    evidence=SignalGroupEvidence.SUPPORTED,
+                    evidence=evidence,
                     confidence=max(0.0, min(1.0, confidence)),
                 )
             )

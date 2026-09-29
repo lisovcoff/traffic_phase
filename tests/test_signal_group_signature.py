@@ -186,6 +186,50 @@ def test_sparse_movement_does_not_get_fabricated_active_interval():
     assert not signature.is_sufficient
 
 
+def test_grouping_requires_equivalence_with_every_group_member():
+    result = SignalGroupDiscovery().discover(
+        [
+            _signature("N->A", "N", 10.0, 40.0),
+            _signature("N->B", "N", 10.0, 40.0),
+            _signature("N->C", "N", 22.0, 52.0),
+        ]
+    )
+
+    assert len(result.groups) == 2
+    assert result.groups[0].movement_ids == ("N->A", "N->B")
+    assert result.groups[0].evidence is SignalGroupEvidence.SUPPORTED
+    assert result.groups[1].movement_ids == ("N->C",)
+    assert result.groups[1].evidence is SignalGroupEvidence.STRUCTURAL_HYPOTHESIS
+
+
+def test_singleton_logical_group_is_structural_hypothesis():
+    result = SignalGroupDiscovery().discover(
+        [_signature("N->S", "N", 10.0, 40.0)]
+    )
+
+    assert len(result.groups) == 1
+    assert result.groups[0].movement_ids == ("N->S",)
+    assert result.groups[0].evidence is SignalGroupEvidence.STRUCTURAL_HYPOTHESIS
+    assert result.groups[0].to_dict()["evidence"] == "structural_hypothesis"
+
+
+def test_group_numbering_is_approach_local_and_deterministic():
+    result = SignalGroupDiscovery().discover(
+        [
+            _signature("E->N", "E", 10.0, 30.0),
+            _signature("N->S", "N", 10.0, 30.0),
+            _signature("N->W", "N", 10.0, 30.0),
+            _signature("E->S", "E", 50.0, 70.0),
+        ]
+    )
+
+    assert [group.group_id for group in result.groups] == [
+        "E:SG1",
+        "E:SG2",
+        "N:SG1",
+    ]
+
+
 def test_identical_movements_share_one_logical_group():
     result = SignalGroupDiscovery().discover(
         [
@@ -197,6 +241,51 @@ def test_identical_movements_share_one_logical_group():
     assert len(result.groups) == 1
     assert result.groups[0].movement_ids == ("N->S", "N->W")
     assert result.groups[0].evidence is SignalGroupEvidence.SUPPORTED
+
+
+def test_relation_evidence_marks_equivalent_as_supported():
+    result = SignalGroupDiscovery().discover(
+        [
+            _signature("N->S", "N", 10.0, 40.0),
+            _signature("N->W", "N", 11.0, 41.0),
+        ]
+    )
+
+    assert len(result.relations) == 1
+    relation = result.relations[0]
+    assert relation.relation is SignalGroupRelation.EQUIVALENT
+    assert relation.evidence is SignalGroupEvidence.SUPPORTED
+    assert relation.to_dict()["evidence"] == "supported"
+
+
+def test_relation_evidence_marks_containment_as_structural_hypothesis():
+    result = SignalGroupDiscovery().discover(
+        [
+            _signature("N->E", "N", 20.0, 40.0),
+            _signature("N->S", "N", 10.0, 50.0),
+        ]
+    )
+
+    assert len(result.relations) == 1
+    relation = result.relations[0]
+    assert relation.relation is SignalGroupRelation.CONTAINED
+    assert relation.evidence is SignalGroupEvidence.STRUCTURAL_HYPOTHESIS
+    assert relation.to_dict()["evidence"] == "structural_hypothesis"
+
+
+def test_relation_evidence_marks_cross_approach_as_structural_hypothesis():
+    result = SignalGroupDiscovery().discover(
+        [
+            _signature("E->N", "E", 20.0, 40.0),
+            _signature("N->E", "N", 20.0, 40.0),
+        ]
+    )
+
+    assert len(result.relations) == 1
+    relation = result.relations[0]
+    assert relation.relation is SignalGroupRelation.CROSS_APPROACH
+    assert relation.evidence is SignalGroupEvidence.STRUCTURAL_HYPOTHESIS
+    assert relation.to_dict()["evidence"] == "structural_hypothesis"
 
 
 def test_physical_head_redundancy_stays_a_single_logical_group():
