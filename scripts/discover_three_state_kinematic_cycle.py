@@ -78,7 +78,10 @@ def _event_weights(event: TrajectoryEvent) -> tuple[float, float]:
     if event.event_type is EventType.RELEASE:
         return 1.0 * confidence, 0.0
     if event.event_type is EventType.CROSSING:
-        return 0.25 * confidence, 0.0
+        # Crossing is downstream of the actual signal transition because a
+        # vehicle needs time to discharge through the intersection.  Keep it
+        # as a weak sanity check, but do not let it stretch a green interval.
+        return 0.05 * confidence, 0.0
     if event.event_type is EventType.STOP:
         return 0.0, 0.25 * confidence
     return 0.0, 0.0
@@ -549,10 +552,10 @@ def discover_three_state_cycle(
             release_starts_s,
             period_s=period_s,
         )
-        # Periodicity is useful for narrowing the cycle candidate, but the
-        # phase/green fit must dominate because vehicle departure periodicity
-        # can reflect upstream platoons rather than the controller itself.
-        joint_score = 0.35 * periodicity + 0.65 * selected.score
+        # Periodicity is only a weak tie-breaker.  RELEASE timing can
+        # reflect platoon arrivals, so it must not overpower the direct
+        # phase-evidence fit.
+        joint_score = 0.15 * periodicity + 0.85 * selected.score
         candidates.append({
             "cycle_seconds": period_s,
             "origin_offset_s": selected.origin_offset_s,
