@@ -16,13 +16,18 @@ from app.core.reconstruction import extract_events_from_trajectories
 
 STATE_NAMES = ("EW", "N_ARROW", "NS")
 
-# User-validated standard signal states for this intersection:
-#   EW      : E->W and W->E
-#   N_ARROW : E->N and N->E; N->S may also continue
-#   NS      : N->S and S->N
+# Validated signal-state structure for this intersection:
 #
-# N->S is intentionally active in both N_ARROW and NS because the manual
-# annotation says that movement is present in both states.
+#   EW:
+#       E->W, W->E
+#
+#   N_ARROW:
+#       E->N, N->E, and N->S may continue
+#
+#   NS:
+#       S->N, N->S
+#
+# N->S is deliberately active in both N_ARROW and NS.
 MOVEMENT_ACTIVE_STATES = {
     "E->_W": frozenset({"EW"}),
     "W->_E": frozenset({"EW"}),
@@ -36,8 +41,9 @@ MOVEMENT_ACTIVE_STATES = {
 @dataclass(frozen=True)
 class Evidence:
     movement: str
-    phase: np.ndarray
-    weights: np.ndarray
+    activity: np.ndarray
+    stops: np.ndarray
+    total_weight: float
     event_count: int
 
 
@@ -48,26 +54,18 @@ class Fit:
     boundary_1_s: int
     boundary_2_s: int
     score: float
-    coverage: float
     movement_scores: dict[str, float]
 
 
-def _event_weight(event: TrajectoryEvent) -> float:
+def _event_weights(event: TrajectoryEvent) -> tuple[float, float]:
     confidence = max(0.0, min(1.0, float(event.confidence)))
     if event.event_type is EventType.RELEASE:
-        return 1.0 * confidence
+        return 1.0 * confidence, 0.0
     if event.event_type is EventType.CROSSING:
-        return 0.8 * confidence
+        return 0.8 * confidence, 0.0
     if event.event_type is EventType.STOP:
-        return 1.0 * confidence
-    return 0.0
-
-
-def _expected_active(stage: int, movement: str) -> bool:
-    states = MOVEMENT_ACTIVE_STATES.get(movement)
-    if states is None:
-        return False
-    return STATE_NAMES[stage] in states
+        return 0.0, 1.0 * confidence
+    return 0.0, 0.0
 
 
 def _phase_arrays(
@@ -75,7 +73,7 @@ def _phase_arrays(
     *,
     period_s: int,
     origin_ms: int,
-) -> tuple[list[Evidence], int]:
+) -> list[Evidence]:
     grouped: dict[str, list[TrajectoryEvent]] = defaultdict(list)
     for event in events:
         if event.movement in MOVEMENT_ACTIVE_STATES:
@@ -86,173 +84,191 @@ def _phase_arrays(
         if len(movement_events) < 4:
             continue
 
-        # Store signed evidence for each possible stage:
-        # positive when event timing agrees with that stage's active/inactive
-        # expectation, negative otherwise.
-        stage_phase = np.zeros((3, period_s), dtype=float)
+        activity = np.zeros(period_s, dtype=float)
+        stops = np.zeros(period_s, dtype=float)
         total_weight = 0.0
+        event_count = 0
 
         for event in movement_events:
-            weight = _event_weight(event)
+            activity_weight, stop_weight = _event_weights(event)
+            weight = activity_weight + stop_weight
             if weight <= 0.0:
                 continue
+
             phase = int(
                 math.floor(
                     ((event.timestamp_ms - origin_ms) / 1000.0) % period_s
                 )
             ) % period_s
+            activity[phase] += activity_weight
+            stops[phase] += stop_weight
             total_weight += weight
+            event_count += 1
 
-            for stage in range(3):
-                active = _expected_active(stage, movement)
-                agrees = (
-                    event.event_type is EventType.STOP
-                    and not active
-                ) or (
-                    event.event_type in {
-                        EventType.RELEASE,
-                        EventType.CROSSING,
-                    }
-                    and active
-                )
-                stage_phase[stage, phase] += (
-                    weight if agrees else -weight
-                )
-
-        if total_weight <= 0.0:
+        if total_weight <= 0.0 or event_count < 4:
             continue
 
-        # Keep the three stage channels separate until boundaries are scored.
         result.append(
             Evidence(
                 movement=movement,
-                phase=stage_phase,
-                weights=np.array([total_weight], dtype=float),
-                event_count=len(movement_events),
+                activity=activity,
+                stops=stops,
+                total_weight=total_weight,
+                event_count=event_count,
             )
         )
 
-    return result, sum(item.event_count for item in result)
+    return result
 
 
 def _prefix(values: np.ndarray) -> np.ndarray:
     return np.concatenate(([0.0], np.cumsum(values)))
 
 
-def _interval(prefix: np.ndarray, start: int, end: int) -> float:
-    return float(prefix[end] - prefix[start])
+def _interval(prefix: np.ndarray, start_s: int, end_s: int) -> float:
+    return float(prefix[end_s] - prefix[start_s])
+
+
+def _state_for_phase(
+    phase_s: int,
+    *,
+    period_s: int,
+    boundary_1_s: int,
+    boundary_2_s: int,
+) -> int:
+    if phase_s < boundary_1_s:
+        return 0
+    if phase_s < boundary_2_s:
+        return 1
+    return 2
+
+
+def _active_intervals(
+    movement: str,
+    *,
+    period_s: int,
+    boundary_1_s: int,
+    boundary_2_s: int,
+) -> tuple[tuple[int, int], ...]:
+    states = MOVEMENT_ACTIVE_STATES[movement]
+
+    intervals: list[tuple[int, int]] = []
+    for state_index, state_name in enumerate(STATE_NAMES):
+        if state_name not in states:
+            continue
+
+        if state_index == 0:
+            intervals.append((0, boundary_1_s))
+        elif state_index == 1:
+            intervals.append((boundary_1_s, boundary_2_s))
+        else:
+            intervals.append((boundary_2_s, period_s))
+
+    return tuple(intervals)
+
+
+def _sum_intervals(
+    prefix: np.ndarray,
+    intervals: tuple[tuple[int, int], ...],
+) -> float:
+    return sum(
+        _interval(prefix, start_s, end_s)
+        for start_s, end_s in intervals
+        if end_s > start_s
+    )
+
+
+def _movement_fit_score(
+    item: Evidence,
+    *,
+    period_s: int,
+    boundary_1_s: int,
+    boundary_2_s: int,
+) -> float:
+    activity_prefix = _prefix(item.activity)
+    stop_prefix = _prefix(item.stops)
+
+    active_intervals = _active_intervals(
+        item.movement,
+        period_s=period_s,
+        boundary_1_s=boundary_1_s,
+        boundary_2_s=boundary_2_s,
+    )
+
+    active_activity = _sum_intervals(activity_prefix, active_intervals)
+    active_stops = _sum_intervals(stop_prefix, active_intervals)
+
+    total_activity = float(np.sum(item.activity))
+    total_stops = float(np.sum(item.stops))
+
+    inactive_activity = total_activity - active_activity
+    inactive_stops = total_stops - active_stops
+
+    correct = active_activity + inactive_stops
+    incorrect = inactive_activity + active_stops
+
+    return float(
+        np.clip(
+            (correct - incorrect) / max(item.total_weight, 1e-9),
+            -1.0,
+            1.0,
+        )
+    )
 
 
 def _boundary_limits(period_s: int) -> tuple[int, int, int, int]:
     min_ew = max(15, int(round(period_s * 0.15)))
-    min_arrow = max(8, int(round(period_s * 0.08)))
+    min_arrow = max(10, int(round(period_s * 0.10)))
     min_ns = max(15, int(round(period_s * 0.15)))
     max_arrow = max(min_arrow, int(round(period_s * 0.40)))
     return min_ew, min_arrow, min_ns, max_arrow
 
 
 def _fit_period(
-    events: list[TrajectoryEvent],
+    evidence: list[Evidence],
     *,
     period_s: int,
-    origin_ms: int,
 ) -> Fit | None:
-    evidence, _ = _phase_arrays(
-        events,
-        period_s=period_s,
-        origin_ms=origin_ms,
-    )
     if not evidence:
         return None
 
     min_ew, min_arrow, min_ns, max_arrow = _boundary_limits(period_s)
-    prefixes = {
-        item.movement: [
-            _prefix(channel)
-            for channel in item.phase
-        ]
-        for item in evidence
-    }
+    total_weight = sum(math.sqrt(item.event_count) for item in evidence)
 
-    weight_sum = sum(float(item.weights[0]) for item in evidence)
     best: Fit | None = None
-
-    for boundary_1 in range(min_ew, period_s - min_arrow - min_ns + 1):
-        arrow_end_max = min(
+    for boundary_1_s in range(
+        min_ew,
+        period_s - min_arrow - min_ns + 1,
+    ):
+        boundary_2_max = min(
             period_s - min_ns,
-            boundary_1 + max_arrow,
+            boundary_1_s + max_arrow,
         )
-        for boundary_2 in range(
-            boundary_1 + min_arrow,
-            arrow_end_max + 1,
+        for boundary_2_s in range(
+            boundary_1_s + min_arrow,
+            boundary_2_max + 1,
         ):
-            movement_scores: dict[str, float] = {}
-
-            for item in evidence:
-                p_ew, p_arrow, p_ns = prefixes[item.movement]
-
-                # Each movement gets one score according to the state pattern
-                # declared above. N->S intentionally receives both arrow and NS
-                # evidence, so its best explanation is the sum of both intervals.
-                ew_score = _interval(p_ew, 0, boundary_1)
-                arrow_score = _interval(p_arrow, boundary_1, boundary_2)
-                ns_score = _interval(p_ns, boundary_2, period_s)
-
-                if item.movement in {"E->_W", "W->_E"}:
-                    raw = ew_score
-                elif item.movement in {"E->_N", "N->_E"}:
-                    raw = arrow_score
-                elif item.movement == "N->_S":
-                    raw = arrow_score + ns_score
-                elif item.movement == "S->_N":
-                    raw = ns_score
-                else:
-                    raw = 0.0
-
-                # Normalize to [-1, 1]. Total event weight also keeps sparse
-                # movements from dominating the objective.
-                movement_scores[item.movement] = float(
-                    np.clip(
-                        raw / max(float(item.weights[0]), 1e-9),
-                        -1.0,
-                        1.0,
-                    )
+            movement_scores = {
+                item.movement: _movement_fit_score(
+                    item,
+                    period_s=period_s,
+                    boundary_1_s=boundary_1_s,
+                    boundary_2_s=boundary_2_s,
                 )
+                for item in evidence
+            }
 
-            score = (
-                sum(
-                    movement_scores[item.movement]
-                    * math.sqrt(item.event_count)
-                    for item in evidence
-                )
-                / max(
-                    sum(math.sqrt(item.event_count) for item in evidence),
-                    1e-9,
-                )
-            )
-
-            # Penalize degenerate arrow windows while allowing real variation
-            # in green durations.
-            arrow_duration = boundary_2 - boundary_1
-            duration_penalty = (
-                0.08 * max(0.0, 15.0 - float(arrow_duration)) / 15.0
-            )
-            final_score = score - duration_penalty
+            score = sum(
+                movement_scores[item.movement] * math.sqrt(item.event_count)
+                for item in evidence
+            ) / max(total_weight, 1e-9)
 
             fit = Fit(
                 period_s=period_s,
                 origin_offset_s=0,
-                boundary_1_s=boundary_1,
-                boundary_2_s=boundary_2,
-                score=float(final_score),
-                coverage=float(
-                    (
-                        boundary_1
-                        + arrow_duration
-                        + (period_s - boundary_2)
-                    )
-                    / period_s
-                ),
+                boundary_1_s=boundary_1_s,
+                boundary_2_s=boundary_2_s,
+                score=float(score),
                 movement_scores=movement_scores,
             )
             if best is None or fit.score > best.score:
@@ -281,52 +297,45 @@ def discover_three_state_cycle(
     if not usable:
         raise ValueError("no usable canonical movement events")
 
-    # Align phase 0 to an EW-candidate event, then test a small origin window.
-    # This avoids assuming that the first RELEASE in the file is the cycle start.
-    ew_events = [
-        event for event in usable
-        if event.movement in {"E->_W", "W->_E"}
-        and event.event_type in {EventType.RELEASE, EventType.CROSSING}
-    ]
-    if not ew_events:
-        raise ValueError("no EW candidate release/crossing events")
+    anchor_ms = min(event.timestamp_ms for event in usable)
 
-    anchor_ms = min(event.timestamp_ms for event in ew_events)
     candidates: list[dict[str, object]] = []
-    fits: dict[tuple[int, int], Fit] = {}
+    selected_fits: dict[tuple[int, int], Fit] = {}
 
     for period_s in range(min_cycle_s, max_cycle_s + 1):
-        # Search phase origin in a deliberately small local window around the
-        # earliest EW kinematic evidence. The window is a search parameter, not
-        # a manual cycle value.
-        for origin_offset_s in range(-15, 16):
+        # Phase zero is unknown. Search one complete phase rotation rather
+        # than assuming that the first EW kinematic event is the cycle start.
+        for origin_offset_s in range(period_s):
             origin_ms = anchor_ms + origin_offset_s * 1000
-            fit = _fit_period(
+            evidence = _phase_arrays(
                 usable,
                 period_s=period_s,
                 origin_ms=origin_ms,
             )
+            fit = _fit_period(evidence, period_s=period_s)
             if fit is None:
                 continue
-            fit = Fit(
+
+            selected = Fit(
                 period_s=fit.period_s,
                 origin_offset_s=origin_offset_s,
                 boundary_1_s=fit.boundary_1_s,
                 boundary_2_s=fit.boundary_2_s,
                 score=fit.score,
-                coverage=fit.coverage,
                 movement_scores=fit.movement_scores,
             )
-            fits[(period_s, origin_offset_s)] = fit
+            selected_fits[(period_s, origin_offset_s)] = selected
             candidates.append({
                 "cycle_seconds": period_s,
                 "origin_offset_s": origin_offset_s,
-                "score": round(fit.score, 4),
-                "boundary_1_s": fit.boundary_1_s,
-                "boundary_2_s": fit.boundary_2_s,
-                "EW_duration_s": fit.boundary_1_s,
-                "N_ARROW_duration_s": fit.boundary_2_s - fit.boundary_1_s,
-                "NS_duration_s": period_s - fit.boundary_2_s,
+                "score": round(selected.score, 4),
+                "EW_duration_s": selected.boundary_1_s,
+                "N_ARROW_duration_s": (
+                    selected.boundary_2_s - selected.boundary_1_s
+                ),
+                "NS_duration_s": (
+                    selected.period_s - selected.boundary_2_s
+                ),
             })
 
     if not candidates:
@@ -339,20 +348,22 @@ def discover_three_state_cycle(
             abs(int(item["origin_offset_s"])),
         )
     )
+
     selected = candidates[0]
-    key = (
-        int(selected["cycle_seconds"]),
-        int(selected["origin_offset_s"]),
-    )
-    selected_fit = fits[key]
+    selected_fit = selected_fits[
+        (
+            int(selected["cycle_seconds"]),
+            int(selected["origin_offset_s"]),
+        )
+    ]
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "meaning": (
             "Research prototype for joint three-state cycle identification "
-            "from kinematic events using the manually validated movement "
-            "state structure. It is not controller telemetry and does not "
-            "classify traffic-light colors."
+            "from kinematic events using a validated movement-state structure. "
+            "It is not controller telemetry and does not classify traffic-light "
+            "colors."
         ),
         "state_structure": {
             "stage_1": "EW",
@@ -363,18 +374,21 @@ def discover_three_state_cycle(
                 for movement, states in MOVEMENT_ACTIVE_STATES.items()
             },
         },
+        "objective": (
+            "Score every STOP/RELEASE/CROSSING event against the expected "
+            "active/inactive state of its movement. Activity outside the "
+            "movement's allowed states and STOP inside them are penalties."
+        ),
         "selected_cycle_seconds": selected_fit.period_s,
         "origin_anchor_timestamp_ms": anchor_ms,
         "origin_offset_s": selected_fit.origin_offset_s,
         "selected_model": {
             "EW_duration_s": selected_fit.boundary_1_s,
             "N_ARROW_duration_s": (
-                selected_fit.boundary_2_s
-                - selected_fit.boundary_1_s
+                selected_fit.boundary_2_s - selected_fit.boundary_1_s
             ),
             "NS_duration_s": (
-                selected_fit.period_s
-                - selected_fit.boundary_2_s
+                selected_fit.period_s - selected_fit.boundary_2_s
             ),
             "score": round(selected_fit.score, 4),
             "movement_scores": {
@@ -389,8 +403,8 @@ def discover_three_state_cycle(
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Infer the EW -> N+arrow -> NS traffic-signal cycle from "
-            "canonical movement kinematics."
+            "Infer EW -> N+arrow -> NS using full movement-event agreement "
+            "rather than scoring only events inside active windows."
         )
     )
     parser.add_argument("path", type=Path, help="Trajectory JSON")
@@ -425,6 +439,7 @@ def main() -> int:
     model = result["selected_model"]
     print(
         "Three-state kinematic prototype: "
+        f"schema={result['schema_version']}, "
         f"selected={result['selected_cycle_seconds']}s, "
         f"EW={model['EW_duration_s']}s, "
         f"N+arrow={model['N_ARROW_duration_s']}s, "
