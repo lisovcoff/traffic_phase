@@ -67,6 +67,11 @@ class Fit:
 SIGNAL_REACTION_DELAY_S = 2.0
 GREEN_START_CLUSTER_GAP_S = 6.0
 
+# Penalize phase windows that are much longer than the interval in which
+# movement evidence is actually concentrated.  This prevents a candidate
+# from winning simply by making one green phase absorb a long empty tail.
+GREEN_UTILIZATION_WEIGHT = 0.18
+
 
 def _event_weights(event: TrajectoryEvent) -> tuple[float, float]:
     confidence = max(0.0, min(1.0, float(event.confidence)))
@@ -337,11 +342,38 @@ def _fit_period(
 
             active_activity = ew_sum + arrow_sum + ns_sum
             active_stops = ew_stop + arrow_stop + ns_stop
-            total_stops = float(
-                np.sum(state_stops)
-            )
+            total_stops = float(np.sum(state_stops))
             variable_score = active_activity + total_stops - active_stops
-            scores = 2.0 * variable_score / total_weight - 1.0
+            phase_scores = 2.0 * variable_score / total_weight - 1.0
+
+            # A long green interval is not evidence by itself.  Measure how
+            # concentrated the observed movement activity is inside each
+            # proposed state interval and penalize unused duration.  This is
+            # analogous to fitting green intervals to the observed departure
+            # distribution rather than allowing an arbitrarily long square
+            # wave to absorb sparse observations.
+            state_totals = np.array(
+                [float(np.sum(state_activity[index]))
+                 for index in range(len(STATE_NAMES))],
+                dtype=float,
+            )
+            state_captures = np.divide(
+                np.array([ew_sum, arrow_sum, ns_sum]),
+                np.maximum(state_totals[:, None], 1e-9),
+            )
+            state_durations = np.array(
+                [boundary_1_s, arrow_duration, ns_duration],
+                dtype=float,
+            )
+            duration_fractions = state_durations / float(period_s)
+            compactness = np.sum(
+                (state_captures - duration_fractions)
+                * state_totals[:, None],
+                axis=0,
+            ) / max(float(np.sum(state_totals)), 1e-9)
+
+            scores = phase_scores + GREEN_UTILIZATION_WEIGHT * compactness
+            scores = np.clip(scores, -1.0, 1.0)
             best_index = int(np.argmax(scores))
             score = float(scores[best_index])
 
@@ -517,7 +549,10 @@ def discover_three_state_cycle(
             release_starts_s,
             period_s=period_s,
         )
-        joint_score = 0.65 * periodicity + 0.35 * selected.score
+        # Periodicity is useful for narrowing the cycle candidate, but the
+        # phase/green fit must dominate because vehicle departure periodicity
+        # can reflect upstream platoons rather than the controller itself.
+        joint_score = 0.35 * periodicity + 0.65 * selected.score
         candidates.append({
             "cycle_seconds": period_s,
             "origin_offset_s": selected.origin_offset_s,
@@ -570,10 +605,10 @@ def discover_three_state_cycle(
             },
         },
         "objective": (
-            "Score RELEASE events as primary green-onset evidence and "
-            "CROSSING events as weaker supporting evidence against the "
-            "expected active/inactive state of each movement. STOP events "
-            "are excluded from the phase objective."
+            "Score RELEASE events as primary green-onset evidence, "
+            "CROSSING events as weaker supporting evidence, and STOP events "
+            "as weak negative evidence. Penalize green intervals that extend "
+            "well beyond the observed concentration of movement activity."
         ),
         "signal_reaction_delay_s": SIGNAL_REACTION_DELAY_S,
         "green_start_cluster_gap_s": GREEN_START_CLUSTER_GAP_S,
