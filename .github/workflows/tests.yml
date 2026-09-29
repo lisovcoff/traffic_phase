@@ -23,10 +23,9 @@ jobs:
   lenina-regression:
     name: Lenina regression
     runs-on: ubuntu-latest
-    # The large real-data fixture is intentionally kept outside normal source
-    # history. Once it is added under tests/fixtures/ via Git LFS, this job
-    # becomes an automatic regression gate.
-    if: hashFiles('tests/fixtures/lenina_video_sample_20mb.json') != ''
+    # The fixture is tracked with Git LFS. Do not use hashFiles() here:
+    # job-level conditions run before checkout, so the workspace file cannot
+    # be inspected at this point.
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +35,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
+      - name: Verify Lenina fixture
+        run: |
+          test -s tests/fixtures/lenina_video_sample_20mb.json
+          test "$(head -c 7 tests/fixtures/lenina_video_sample_20mb.json)" != "version"
       - name: Run Lenina kinematic regression
         run: |
           python -m scripts.ci_lenina_regression \
