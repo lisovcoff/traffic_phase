@@ -231,3 +231,24 @@ def test_visualization_stage_overlay_is_compact_and_movement_based():
     assert "function renderStage1" not in script
     assert "function renderStage2" not in script
 
+def test_visualization_stage_overlay_shows_current_green_movements():
+    from pathlib import Path
+
+    script = Path("scripts/visualize_trajectory_coordinates.py").read_text(
+        encoding="utf-8"
+    )
+
+    required = (
+        'Сейчас',
+        '"Зелёный: "',
+        "activePhase",
+        "active_approaches",
+        "signature.active_intervals",
+        "Не определено",
+    )
+    assert all(token in script for token in required)
+    assert "function renderStage1" not in script
+    assert "function renderStage2" not in script
+    assert 'id="stage1"' not in script
+    assert 'id="stage2"' not in script
+

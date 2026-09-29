@@ -186,7 +186,7 @@ HTML_TEMPLATE = r"""<!doctype html>
   .stats { margin-top:8px; font-size:13px; color:#444; }
   .canvas-wrap { position:relative; }
   .stage-overlay { position:absolute; top:12px; left:12px; z-index:5; padding:8px 11px; background:rgba(255,255,255,.94); border:1px solid #999; border-radius:7px; box-shadow:0 2px 8px rgba(0,0,0,.12); font-size:16px; font-weight:700; pointer-events:none; max-width:70%; }
-  .stage-overlay .stage-title { font-size:11px; font-weight:600; color:#666; margin-bottom:2px; }
+  .stage-overlay .stage-title { font-size:11px; font-weight:600; color:#666; margin-bottom:2px; text-transform:uppercase; }
   .stage-overlay .stage-movements { font-variant-numeric:tabular-nums; }
   label { font-size:13px; }
 </style>
@@ -216,13 +216,13 @@ HTML_TEMPLATE = r"""<!doctype html>
     <div class="canvas-wrap">
       <canvas id="view" width="1200" height="760"></canvas>
       <div class="stage-overlay" id="stageOverlay">
-        <div class="stage-title">Стадия</div>
-        <div class="stage-movements">—</div>
+        <div class="stage-title">Сейчас</div>
+        <div class="stage-movements">Не определено</div>
       </div>
     </div>
     <div class="stats" id="stats"></div>
     <pre class="stats" id="marks"></pre>
-    <div class="legend">Крупные N/S/E/W показывают усреднённое положение детекций с соответствующей зоной в исходном JSON. Под графиком отображается текущий результат Stage 1 и Stage 2 для той же отметки времени.</div>
+    <div class="legend">Слева сверху показано, для каких направлений текущая зелёная фаза восстановлена по траекториям.</div>
   </div>
 </div>
 
@@ -386,31 +386,63 @@ function containsPhase(start, end, phase, cycle) {
 }
 
 function renderStageOverlay(currentTimeMs) {
-  if (!stage2 && !stage1) {
-    stageOverlayMovementsEl.textContent = "не определена";
+  if (!stage1) {
+    stageOverlayMovementsEl.textContent = "Не определено";
     return;
   }
 
-  const anchor = (stage2 && stage2.origin_timestamp_ms) ||
-    (stage1 && stage1.origin_timestamp_ms) || START_MS;
-  const cycle = (stage2 && stage2.cycle_seconds) ||
-    (stage1 && stage1.cycle_seconds) || 1;
+  const anchor = stage1.origin_timestamp_ms || START_MS;
+  const cycle = Number(stage1.cycle_seconds) || 1;
   const cyclePosition = ((currentTimeMs - anchor) / 1000) % cycle;
   const normalized = (cyclePosition + cycle) % cycle;
 
-  const activeGroups = ((stage2 && stage2.groups) || []).filter(group =>
-    (group.intervals || []).some(interval =>
-      containsPhase(interval.start, interval.end, normalized, cycle)
+  const activePhase = (stage1.phases || []).find(phase =>
+    containsPhase(
+      phase.phase_start,
+      phase.phase_end,
+      normalized,
+      cycle,
     )
   );
 
+  if (!activePhase || !(activePhase.active_approaches || []).length) {
+    stageOverlayMovementsEl.textContent = "Не определено";
+    return;
+  }
+
+  const activeApproaches = new Set(activePhase.active_approaches);
   const movements = [...new Set(
-    activeGroups.flatMap(group => group.movement_ids || [])
+    ((stage2 && stage2.signatures) || [])
+      .filter(signature => {
+        if (!activeApproaches.has(signature.approach)) return false;
+        return (signature.active_intervals || []).some(interval =>
+          containsPhase(
+            interval.start,
+            interval.end,
+            normalized,
+            cycle,
+          )
+        );
+      })
+      .map(signature => signature.movement)
+      .filter(movement =>
+        typeof movement === "string" &&
+        movement.includes("->") &&
+        !movement.endsWith("->UNKNOWN")
+      )
   )].sort();
 
-  stageOverlayMovementsEl.textContent = movements.length
-    ? movements.join(", ")
-    : "не определена";
+  if (movements.length) {
+    stageOverlayMovementsEl.textContent =
+      "Зелёный: " + movements.join(", ");
+    return;
+  }
+
+  stageOverlayMovementsEl.textContent =
+    "Зелёный: " + [...activeApproaches]
+      .sort()
+      .map(approach => approach + "→*")
+      .join(", ");
 }
 
 function render() {
