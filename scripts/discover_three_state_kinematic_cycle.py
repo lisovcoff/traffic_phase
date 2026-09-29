@@ -74,6 +74,8 @@ def _event_weights(event: TrajectoryEvent) -> tuple[float, float]:
         return 1.0 * confidence, 0.0
     if event.event_type is EventType.CROSSING:
         return 0.25 * confidence, 0.0
+    if event.event_type is EventType.STOP:
+        return 0.0, 0.25 * confidence
     return 0.0, 0.0
 
 
@@ -275,15 +277,29 @@ def _fit_period(
     # vectorially.  This removes one full O(period) loop and most Python-level
     # work while preserving the same objective.
     state_activity = np.zeros((len(STATE_NAMES), period_s), dtype=float)
+    state_stops = np.zeros((len(STATE_NAMES), period_s), dtype=float)
 
     for item, movement_weight in zip(evidence, movement_weights):
-        coefficient = 2.0 * float(movement_weight) / max(item.total_weight, 1e-9)
-        for state_index, state_name in enumerate(STATE_NAMES):
-            if state_name in MOVEMENT_ACTIVE_STATES[item.movement]:
-                state_activity[state_index] += coefficient * item.activity
+        coefficient = float(movement_weight) / max(item.total_weight, 1e-9)
+        active_states = sorted(
+            STATE_NAMES.index(state_name)
+            for state_name in MOVEMENT_ACTIVE_STATES[item.movement]
+        )
+        # Every supported movement has a contiguous active-state span.  Using
+        # the span prevents N->S, which is active in N_ARROW and NS, from
+        # being counted twice at their shared boundary.
+        first_state = active_states[0]
+        last_state = active_states[-1]
+        for state_index in range(first_state, last_state + 1):
+            state_activity[state_index] += coefficient * item.activity
+            state_stops[state_index] += coefficient * item.stops
 
-    windows = [
+    activity_windows = [
         _circular_window_matrix(state_activity[state_index])
+        for state_index in range(len(STATE_NAMES))
+    ]
+    stop_windows = [
+        _circular_window_matrix(state_stops[state_index])
         for state_index in range(len(STATE_NAMES))
     ]
 
@@ -309,14 +325,23 @@ def _fit_period(
             # The precomputed circular-window matrices make each interval
             # lookup O(1).  np.take handles the modulo rotation without
             # allocating rolled arrays for every candidate.
-            ew_sum = windows[0][boundary_1_s, phase_positions]
+            ew_sum = activity_windows[0][boundary_1_s, phase_positions]
             arrow_starts = (phase_positions + boundary_1_s) % period_s
             ns_starts = (phase_positions + boundary_2_s) % period_s
-            arrow_sum = windows[1][arrow_duration, arrow_starts]
-            ns_sum = windows[2][ns_duration, ns_starts]
+            arrow_sum = activity_windows[1][arrow_duration, arrow_starts]
+            ns_sum = activity_windows[2][ns_duration, ns_starts]
 
-            variable_score = ew_sum + arrow_sum + ns_sum
-            scores = variable_score / total_weight - 1.0
+            ew_stop = stop_windows[0][boundary_1_s, phase_positions]
+            arrow_stop = stop_windows[1][arrow_duration, arrow_starts]
+            ns_stop = stop_windows[2][ns_duration, ns_starts]
+
+            active_activity = ew_sum + arrow_sum + ns_sum
+            active_stops = ew_stop + arrow_stop + ns_stop
+            total_stops = float(
+                np.sum(state_stops)
+            )
+            variable_score = active_activity + total_stops - active_stops
+            scores = 2.0 * variable_score / total_weight - 1.0
             best_index = int(np.argmax(scores))
             score = float(scores[best_index])
 
@@ -366,10 +391,19 @@ def _fit_period(
             activity_prefix,
             tuple(active_intervals),
         )
+        stop_prefix = _prefix(item.stops)
+        active_stops = _sum_intervals(
+            stop_prefix,
+            tuple(active_intervals),
+        )
         total_activity = float(np.sum(item.activity))
+        total_stops = float(np.sum(item.stops))
         movement_scores[item.movement] = float(
             np.clip(
-                (2.0 * active_activity - total_activity)
+                (
+                    2.0 * (active_activity + total_stops - active_stops)
+                    - (total_activity + total_stops)
+                )
                 / max(item.total_weight, 1e-9),
                 -1.0,
                 1.0,
