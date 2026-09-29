@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from app.core.event_cycle_estimator import estimate_event_cycle
+from app.core.event_phase_discovery import EventPhaseDiscovery
 from app.core.models import EventType, TrajectoryEvent
+from app.core.preprocessing import load_trajectory_file
+from app.core.reconstruction import extract_events_from_trajectories
 from app.core.signal_group_discovery import (
     SignalGroupDiscovery,
     SignalGroupEvidence,
@@ -576,4 +582,93 @@ def test_signal_group_model_keeps_sparse_movements_unmapped():
     assert model.discovery.insufficient_movements == ("N->E",)
     assert model.mapping.unmapped_movements == ("N->E",)
     assert model.mapping.movement_to_group == {"N->S": "N:SG1"}
+
+def test_support_window_recovers_jittered_phase_presence():
+    events = []
+    phases = (20.0, 24.0, 17.0, 22.0, 26.0, 19.0, 23.0, 21.0)
+    for cycle_index, phase in enumerate(phases):
+        events.append(
+            _event(
+                cycle_index * 100.0 + phase,
+                "N",
+                "N->S",
+            )
+        )
+
+    signatures = build_movement_phase_signatures(
+        events,
+        cycle_seconds=100.0,
+        origin_timestamp_ms=0,
+        bin_seconds=1.0,
+        support_window_seconds=5.5,
+    )
+
+    assert len(signatures) == 1
+    signature = signatures[0]
+    assert signature.active_intervals
+    assert any(interval.contains(20.0) for interval in signature.active_intervals)
+    assert signature.active_cycle_count == 8
+
+
+def test_support_window_rejects_invalid_values():
+    events = [_event(20.0, "N", "N->S")]
+
+    for value in (-1.0, float("inf"), 50.0):
+        try:
+            build_movement_phase_signatures(
+                events,
+                cycle_seconds=100.0,
+                support_window_seconds=value,
+            )
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("expected invalid support window to raise")
+
+
+def test_lenina_stage2_matches_manual_signal_marks():
+    trajectory_path = Path("tests/fixtures/lenina_video_sample_20mb.json")
+    manual_path = Path("tests/fixtures/lenina_manual_signal_marks.json")
+
+    trajectories = load_trajectory_file(trajectory_path)
+    events = extract_events_from_trajectories(trajectories)
+    cycle = estimate_event_cycle(events).estimate
+    phase_model = EventPhaseDiscovery(bin_seconds=2.0).discover(
+        events,
+        cycle_seconds=cycle.cycle_seconds,
+    )
+    signatures = build_movement_phase_signatures(
+        events,
+        cycle_seconds=cycle.cycle_seconds,
+        origin_timestamp_ms=phase_model.origin_timestamp_ms,
+        bin_seconds=1.0,
+        support_window_seconds=5.5,
+    )
+    by_movement = {signature.movement: signature for signature in signatures}
+
+    expected = {
+        "NS": {"N->_S", "S->_N"},
+        "N_ARROW": {"N->_S", "N->_E", "E->_N"},
+        "EW": {"E->_W", "W->_E"},
+    }
+    marks = json.loads(manual_path.read_text(encoding="utf-8"))["marks"]
+
+    exact = 0
+    for mark in marks:
+        position = (
+            (int(mark["timestamp_ms"]) - phase_model.origin_timestamp_ms)
+            / 1000.0
+        ) % cycle.cycle_seconds
+        predicted = {
+            movement
+            for movement, signature in by_movement.items()
+            if any(
+                interval.contains(position)
+                for interval in signature.active_intervals
+            )
+        }
+        if predicted == expected[mark["kind"]]:
+            exact += 1
+
+    assert exact >= 34
 

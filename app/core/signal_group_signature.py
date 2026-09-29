@@ -142,6 +142,7 @@ def build_movement_phase_signatures(
     bin_seconds: float = 1.0,
     min_cycle_presence: float = 0.35,
     dedupe_seconds: float = 2.0,
+    support_window_seconds: float = 5.5,
 ) -> tuple[MovementPhaseSignature, ...]:
     """Build conservative phase-folded signatures from RELEASE/CROSSING.
 
@@ -159,6 +160,11 @@ def build_movement_phase_signatures(
         raise ValueError("min_cycle_presence must be in (0, 1]")
     if dedupe_seconds < 0:
         raise ValueError("dedupe_seconds must be non-negative")
+    support_window = float(support_window_seconds)
+    if not isfinite(support_window) or support_window < 0:
+        raise ValueError("support_window_seconds must be non-negative and finite")
+    if support_window >= cycle / 2.0:
+        raise ValueError("support_window_seconds must be less than half the cycle")
 
     selected = [
         event
@@ -208,10 +214,13 @@ def build_movement_phase_signatures(
         all_phases: list[float] = []
 
         for cycle_index, phases in deduped.items():
-            occupied = {
-                min(bins - 1, int(phase / bin_width))
-                for phase in phases
-            }
+            occupied = _supported_bin_indices(
+                phases,
+                bins=bins,
+                bin_seconds=bin_width,
+                cycle_seconds=cycle,
+                support_window_seconds=support_window,
+            )
             occupied_by_cycle[cycle_index] = occupied
             for index in occupied:
                 presence_counts[index] += 1
@@ -320,6 +329,44 @@ def _interval_set_metrics(
     left_duration = sum(interval.duration for interval in left)
     right_duration = sum(interval.duration for interval in right)
     return intersection, left_duration, right_duration
+
+
+def _supported_bin_indices(
+    phases: Sequence[float],
+    *,
+    bins: int,
+    bin_seconds: float,
+    cycle_seconds: float,
+    support_window_seconds: float,
+) -> set[int]:
+    """Spread each event over a short circular support window.
+
+    RELEASE/CROSSING timestamps are noisy proxies for a signal's activation.
+    A small support window makes phase presence robust to a few seconds of
+    traffic-arrival jitter instead of requiring the same one-second bin in
+    many cycles.
+    """
+    if support_window_seconds <= 0:
+        return {
+            min(bins - 1, int(phase / bin_seconds))
+            for phase in phases
+        }
+
+    occupied: set[int] = set()
+    margin = float(support_window_seconds)
+    for phase in phases:
+        phase = float(phase) % cycle_seconds
+        for index in range(bins):
+            start = index * bin_seconds
+            end = min((index + 1) * bin_seconds, cycle_seconds)
+            center = (start + end) / 2.0
+            distance = min(
+                abs(center - phase),
+                cycle_seconds - abs(center - phase),
+            )
+            if distance <= margin + (end - start) / 2.0:
+                occupied.add(index)
+    return occupied
 
 
 def _active_intervals(
