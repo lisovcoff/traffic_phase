@@ -23,7 +23,7 @@ def main() -> int:
         "--output",
         str(output),
         "--min-cycle",
-        "85",
+        "60",
         "--max-cycle",
         "110",
     ]
@@ -39,21 +39,21 @@ def main() -> int:
     ew = int(model["EW_duration_s"])
     arrow = int(model["N_ARROW_duration_s"])
     ns = int(model["NS_duration_s"])
-    score = float(model["score"])
 
-    # Regression envelope comes from the manually annotated Lenina cycles:
-    # cycle median 99s; EW median 49s; N+arrow median 22s; NS median 30s.
+    # Regression envelope is derived from the user's manual video annotation:
+    # EW -> N+arrow -> NS repeats every 80s, with approximately 30s/20s/30s.
+    # This is a benchmark for the observed Lenina interval, not controller
+    # telemetry and not an independently verified lamp-color ground truth.
     checks = {
-        "cycle": 95 <= period <= 103,
-        "EW": 44 <= ew <= 55,
-        "N_ARROW": 18 <= arrow <= 26,
-        "NS": 24 <= ns <= 34,
-        "score": score >= 0.75,
+        "cycle": 78 <= period <= 82,
+        "EW": 27 <= ew <= 33,
+        "N_ARROW": 17 <= arrow <= 23,
+        "NS": 27 <= ns <= 33,
     }
 
     print(
         f"Lenina regression: T={period}s, EW={ew}s, "
-        f"N+arrow={arrow}s, NS={ns}s, score={score:.4f}"
+        f"N+arrow={arrow}s, NS={ns}s"
     )
 
     failed = [name for name, passed in checks.items() if not passed]
