@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 from pathlib import Path
+from collections import Counter
 
 import numpy as np
 
@@ -340,6 +341,8 @@ def test_v10_large_diverse_synthetic_matrix() -> None:
                             }
                         )
 
+    by_scenario = Counter(item["scenario"] for item in failures if "scenario" in item)
+    by_noise = Counter(str(item["noise"]) for item in failures if "noise" in item)
     report = {
         "total_cases": total,
         "passed_cases": total - len(failures),
@@ -351,6 +354,8 @@ def test_v10_large_diverse_synthetic_matrix() -> None:
         "scenario_count": len(_scenario_catalog()),
         "scenario_names": [name for name, _phases, _truth in _scenario_catalog()],
         "failure_examples": failures[:20],
+        "failures_by_scenario": dict(by_scenario),
+        "failures_by_noise": dict(by_noise),
     }
     report_path = Path("synthetic_v10_benchmark_report.json")
     report_path.write_text(
