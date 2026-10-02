@@ -189,10 +189,8 @@ def infer_physical_signal_plan(
     WEAK_PHASE_EVIDENCE_THRESHOLD = 0.03
     WEAK_PHASE_SELECTIVITY_RATIO = max(1.25, float(selectivity_ratio))
 
-    mapping: dict[str, str] = {}
     green_by_phase: dict[str, frozenset[str]] = {}
     confidence_by_phase: dict[str, float] = {}
-    used: defaultdict[str, int] = defaultdict(int)
 
     for phase in names:
         green: set[str] = set()
@@ -263,10 +261,6 @@ def infer_physical_signal_plan(
             )
 
         green_set = frozenset(sorted(green))
-        base = _semantic_name(green_set)
-        used[base] += 1
-        physical_name = base if used[base] == 1 else f"{base}_{used[base]}"
-        mapping[phase] = physical_name
         green_by_phase[phase] = green_set
         confidence_by_phase[phase] = (
             sum(evidence) / len(evidence) if evidence else 0.0
@@ -379,6 +373,18 @@ def infer_physical_signal_plan(
                     min(1.0, pair_selectivity / 2.0),
                 )
         green_by_phase[phase] = frozenset(sorted(green))
+
+    # Resolve physical names only after all weak-evidence rescue has completed.
+    # This keeps a phase with N/S straight + protected turns named NS_TURN
+    # rather than retaining a stale NS_THROUGH name from the initial pass.
+    mapping: dict[str, str] = {}
+    used: defaultdict[str, int] = defaultdict(int)
+    for phase in names:
+        base = _semantic_name(green_by_phase[phase])
+        used[base] += 1
+        mapping[phase] = (
+            base if used[base] == 1 else f"{base}_{used[base]}"
+        )
 
     phases = []
     for phase in names:
