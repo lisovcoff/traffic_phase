@@ -6,9 +6,8 @@ available.
 
 ## V9 direction-agnostic discovery
 
-V9 is the new research path in this repository. It does not require phase
-names, compass-direction semantics, a fixed number of phases, or manual labels
-as inputs to discovery.
+V9 is the discovery core. It does not require phase names, compass-direction
+semantics, a fixed number of phases, or manual labels as inputs to discovery.
 
 The pipeline is:
 
@@ -37,6 +36,8 @@ The pipeline is:
         +--> temporary phase-deviation diagnostics
         |
         +--> causal realtime tracker
+        |
+        +--> V10 physical signal semantics / visualization
 
 The V9 implementation lives under app/core/v9/.
 
@@ -48,35 +49,28 @@ Single JSON, ZIP archive, or directory of JSON files:
     python -m scripts.v9_phase_discovery path/to/archive.zip
     python -m scripts.v9_phase_discovery path/to/json_directory
 
-Optional post-hoc manual validation:
-
-    python -m scripts.v9_phase_discovery path/to/input.json --marks path/to/manual_marks.json
-
 The command writes:
 
     v9_output/phase_discovery_v9.json
 
-## Offline spatial visualization
+## Unified web visualization
 
-Create a self-contained browser visualization with a fixed N/S/E/W
-intersection, reconstructed signal heads, turn-arrow sections, and only the
-vehicle detections present in the input JSON:
+Start the application:
 
-    python -m scripts.v9_spatial_visualizer path/to/input.json --output v9_spatial.html
+    python -m uvicorn app.main:app --reload
 
-Open the generated HTML in a modern Chrome/Edge browser. The HTML contains the
-compressed trajectory detections and does not require the Python server after
-generation.
+Open:
 
-The physical signal-head mapping used by the visualizer is:
+    http://127.0.0.1:8000/visualization
 
-    N head: N->S main, N->E / N->W arrows
-    S head: S->N main, S->E / S->W arrows
-    E head: E->W main, E->N / E->S arrows
-    W head: W->E main, W->N / W->S arrows
+Upload a JSON or ZIP archive and press **Запустить анализ**. The server runs V9
+discovery, applies the V10 physical signal semantics when the model contains a
+physical plan, and opens the spatial visualization with reconstructed vehicle
+flows, signal heads, additional arrow sections, phase timeline, period and
+deviation diagnostics.
 
-V9 discovery itself remains direction-agnostic; this mapping is a visualization
-interpretation layer for the canonical four-approach intersection.
+The visualization is self-contained after the server generates it; the browser
+does not need direct access to the original archive.
 
 ## API
 
@@ -84,58 +78,10 @@ interpretation layer for the canonical four-approach intersection.
     POST /api/v1/v9/analyze
     POST /api/v1/v9/realtime
 
-Run the application:
+V9 realtime currently consumes timestamped anonymous movement events. It is
+causal and does not infer a specific cause for a sustained phase deviation.
 
-    python -m uvicorn app.main:app --reload
+## Validation
 
-The existing visualization and legacy production endpoints remain available.
-
-## Realtime concept
-
-Offline V9 analysis produces an intersection-specific baseline:
-
-    period
-    anonymous phase order
-    phase duration targets
-    stream activity by phase
-
-OnlinePhaseTracker then consumes only events that have already arrived. It
-estimates the current anonymous phase and a short-term schedule shift.
-
-A positive sustained shift is reported as a temporary phase extension/delay.
-A negative shift is reported as a temporary advance. The cause is intentionally
-not inferred.
-
-## Synthetic validation
-
-The V9 regression suite covers:
-
-- 2-, 3- and 4-phase unequal cycles;
-- missing events and a blocked stream;
-- timestamp jitter;
-- arbitrary stream names;
-- repository-normalized trajectory fields;
-- causal online tracking.
-
-Run:
-
-    python -m pytest -q tests/v9
-
-The broader synthetic benchmark is:
-
-    python -m scripts.v9_synthetic_benchmark
-
-It reports phase-count accuracy and boundary metrics for diverse generated
-scenarios. It is a research benchmark, not controller ground truth.
-
-## Existing repository
-
-The repository already contains a larger legacy/production stack for batch
-archive streaming, reconstruction, signal-state inference, realtime
-synchronization, anomaly handling and browser visualization. V9 is isolated
-from the explicit intersection-topology assumptions in that stack so the
-discovery algorithm can be tuned independently.
-
-See docs/v9_integration.md for the V9 architecture and validation plan.
-
-Large real traffic archives are kept outside the repository.
+The repository CI runs Python compilation, the full pytest suite, an end-to-end
+smoke test, and the Lenina regression fixture.
