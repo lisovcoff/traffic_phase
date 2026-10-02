@@ -286,7 +286,15 @@ def _discover_from_stream_views(
         if regime_detection is not None
         else 0.0
     )
-    schedule_base_ms = float(analysis_base_ms) + local_start_s * 1000.0
+    if (
+        regime_detection is not None
+        and recording_start_ms is not None
+    ):
+        # Regime windows are re-based by _slice_streams(), so local t=0 is
+        # exactly the selected window start in the original recording.
+        schedule_base_ms = float(recording_start_ms) + local_start_s * 1000.0
+    else:
+        schedule_base_ms = float(analysis_base_ms) + local_start_s * 1000.0
     period, period_info = infer_period(working_entry_streams)
     working_event_count = sum(len(ts) for ts in working_by_stream.values())
     phase_evidence, phase_evidence_method = _choose_phase_evidence(
@@ -359,6 +367,8 @@ def _discover_from_stream_views(
             for stream, times in sorted(by_stream.items())
         },
         "analysis_base_timestamp_ms": float(schedule_base_ms),
+        "event_base_timestamp_ms": float(analysis_base_ms),
+        "schedule_base_timestamp_ms": float(schedule_base_ms),
         "recording_start_timestamp_ms": (
             float(recording_start_ms)
             if recording_start_ms is not None
