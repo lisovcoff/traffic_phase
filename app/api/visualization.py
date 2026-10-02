@@ -158,11 +158,22 @@ async def visualization_analyze(
                 dt=dt_value,
             )
             projection = build_spatial_projection(tracks)
+            analysis_base_ms = float(result["analysis_base_timestamp_ms"])
+            recording_start_ms = result.get("recording_start_timestamp_ms")
+            display_base_ms = (
+                float(recording_start_ms)
+                if recording_start_ms is not None
+                else analysis_base_ms
+            )
+            time_offset_s = (analysis_base_ms - display_base_ms) / 1000.0
+            display_duration_s = float(result["recording_duration_s"]) + max(
+                0.0,
+                time_offset_s,
+            )
             compact = compact_trajectories(
                 tracks,
-                analysis_base_timestamp_ms=float(
-                    result["analysis_base_timestamp_ms"]
-                ),
+                analysis_base_timestamp_ms=analysis_base_ms,
+                display_base_timestamp_ms=display_base_ms,
                 projection=projection,
             )
 
@@ -174,6 +185,8 @@ async def visualization_analyze(
                 red_yellow_duration_seconds=red_yellow_value,
                 activity_threshold=activity_threshold_value,
                 physical_plan=result.get("physical_signal_plan"),
+                time_offset_s=time_offset_s,
+                display_duration_s=display_duration_s,
             )
             return HTMLResponse(content=html)
 

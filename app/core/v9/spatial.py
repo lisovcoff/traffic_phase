@@ -496,8 +496,14 @@ def compact_trajectories(
     *,
     analysis_base_timestamp_ms: float,
     projection: Mapping[str, Any],
+    display_base_timestamp_ms: float | None = None,
 ) -> list[list[Any]]:
     result: list[list[Any]] = []
+    display_base_ms = (
+        float(analysis_base_timestamp_ms)
+        if display_base_timestamp_ms is None
+        else float(display_base_timestamp_ms)
+    )
     for track in tracks:
         approach = norm_approach(track.get("zone_in"))
         target = norm_approach(track.get("zone_out"))
@@ -526,7 +532,7 @@ def compact_trajectories(
                 and np.isfinite(y)
             ):
                 continue
-            if millis < analysis_base_timestamp_ms:
+            if millis < display_base_ms:
                 continue
 
             px, py = apply_projection(projection, x, y)
@@ -537,7 +543,7 @@ def compact_trajectories(
                 continue
 
             detections.append([
-                round((millis - analysis_base_timestamp_ms) / 1000.0, 3),
+                round((millis - display_base_ms) / 1000.0, 3),
                 round(px, 6),
                 round(py, 6),
             ])

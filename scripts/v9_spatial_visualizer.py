@@ -144,12 +144,19 @@ const SIGNAL_MODEL = __SIGNAL_MODEL__;
 const PROJECTION = __PROJECTION__;
 const PACKED_DATA = "__PACKED_DATA__";
 const ANALYSIS_BASE_MS = Number(RESULT.analysis_base_timestamp_ms || 0);
-const RECORDING_DURATION = Number(RESULT.recording_duration_s || 0);
+const RECORDING_START_MS = Number(RESULT.recording_start_timestamp_ms || ANALYSIS_BASE_MS || 0);
+const PHYSICAL = __PHYSICAL__;
+const TIME_OFFSET_S = Number(PHYSICAL.time_offset_s || 0);
+const DISPLAY_BASE_MS = Number(
+  PHYSICAL.display_base_timestamp_ms || RECORDING_START_MS || ANALYSIS_BASE_MS || 0
+);
+const RECORDING_DURATION = Number(
+  PHYSICAL.display_duration_s || RESULT.recording_duration_s || 0
+);
 const ACTIVITY_THRESHOLD = Number(SIGNAL_MODEL.activity_threshold || 0.05);
 const YELLOW_S = __YELLOW__;
 const RED_YELLOW_S = __REDYELLOW__;
 const PHYSICAL_TOPOLOGY = __PHYSICAL_TOPOLOGY__;
-const PHYSICAL = __PHYSICAL__;
 
 let TRACKS = [];
 let currentTime = 0;
@@ -197,8 +204,11 @@ function phaseAt(t){
   if(!rows.length)return null;
 
   const period=Number(SIGNAL_MODEL.period_s || PHYSICAL.cycle_seconds || 0);
+  const cycleTime=PHYSICAL.enabled
+    ? Number(t) - TIME_OFFSET_S
+    : Number(t);
   const localTime=PHYSICAL.enabled && period>0
-    ? ((Number(t)%period)+period)%period
+    ? ((cycleTime%period)+period)%period
     : Number(t);
 
   for(let i=0;i<rows.length;i++){
@@ -388,8 +398,11 @@ function headInfo(approach,seg){
 
 function signalSnapshot(t){
   const period=Number(SIGNAL_MODEL.period_s || PHYSICAL.cycle_seconds || 0);
+  const cycleTime=PHYSICAL.enabled
+    ? Number(t) - TIME_OFFSET_S
+    : Number(t);
   tGlobal=PHYSICAL.enabled && period>0
-    ? ((Number(t)%period)+period)%period
+    ? ((cycleTime%period)+period)%period
     : Number(t);
   const seg=phaseAt(t);
   if(!seg)return {phase:null,phaseName:"UNKNOWN",cyclePosition:t,approaches:{}};
@@ -400,7 +413,9 @@ function signalSnapshot(t){
     phaseName:PHYSICAL.enabled
       ? String(seg.phase)
       : ((SIGNAL_MODEL.phase_names||[])[seg.phase] || ("PHASE_"+String.fromCharCode(65+seg.phase))),
-    cyclePosition:((t%Number(SIGNAL_MODEL.period_s))+Number(SIGNAL_MODEL.period_s))%Number(SIGNAL_MODEL.period_s),
+    cyclePosition:PHYSICAL.enabled && period>0
+      ? ((cycleTime%period)+period)%period
+      : ((t%Number(SIGNAL_MODEL.period_s))+Number(SIGNAL_MODEL.period_s))%Number(SIGNAL_MODEL.period_s),
     heads:heads
   };
 }
@@ -643,7 +658,7 @@ function render(){
   $("phase").textContent=snapshot.phaseName==="UNKNOWN"?"UNKNOWN":snapshot.phaseName.replace(/^PHASE_/,"");
   $("cycle").textContent=Number(snapshot.cyclePosition||0).toFixed(2)+" s";
   $("vehicles").textContent=String(vehicles.length);
-  $("timeLabel").textContent=new Date(ANALYSIS_BASE_MS+currentTime*1000).toLocaleString()+" · T+"+currentTime.toFixed(1)+" s";
+  $("timeLabel").textContent=new Date(DISPLAY_BASE_MS+currentTime*1000).toLocaleString()+" · T+"+currentTime.toFixed(1)+" s";
   $("anomaly").textContent=anomaly?"⚠ "+anomaly.type+" · "+Number(anomaly.delta_s).toFixed(1)+" s":"Нет";
   $("sceneBadge").textContent=(PHYSICAL.enabled?"V10 · физический план · ":"")+"N ↑ · S ↓ · W ← · E → · "+vehicles.length+" машин";
   $("sceneBadge").className="scene-badge"+(anomaly?" warning":"");
@@ -689,9 +704,9 @@ async function init(){
     $("eventCount").textContent=String(RESULT.event_count||0);
     $("period").textContent=Number(RESULT.schedule && RESULT.schedule.period_s || 0).toFixed(3)+" s";
     $("slider").max=String(RECORDING_DURATION);
-    $("axisStart").textContent="T+0.0 s · "+new Date(ANALYSIS_BASE_MS).toLocaleTimeString();
-    $("axisEnd").textContent="T+"+RECORDING_DURATION.toFixed(1)+" s · "+new Date(ANALYSIS_BASE_MS+RECORDING_DURATION*1000).toLocaleTimeString();
-    $("timelineEnd").textContent=new Date(ANALYSIS_BASE_MS+RECORDING_DURATION*1000).toLocaleTimeString();
+    $("axisStart").textContent="T+0.0 s · "+new Date(DISPLAY_BASE_MS).toLocaleTimeString();
+    $("axisEnd").textContent="T+"+RECORDING_DURATION.toFixed(1)+" s · "+new Date(DISPLAY_BASE_MS+RECORDING_DURATION*1000).toLocaleTimeString();
+    $("timelineEnd").textContent=new Date(DISPLAY_BASE_MS+RECORDING_DURATION*1000).toLocaleTimeString();
     renderPhases();renderPhaseTimeline();resizeCanvas();render();
   }catch(error){
     $("error").textContent=String(error.message||error);
@@ -932,6 +947,20 @@ def _physical_visual_model(
         }
         for spec in specs
     ]
+    analysis_base_ms = float(
+        result.get("analysis_base_timestamp_ms", 0.0) or 0.0
+    )
+    recording_start_value = result.get("recording_start_timestamp_ms")
+    recording_start_ms = (
+        float(recording_start_value)
+        if recording_start_value is not None
+        else analysis_base_ms
+    )
+    time_offset_s = (analysis_base_ms - recording_start_ms) / 1000.0
+    display_duration_s = float(
+        result.get("recording_duration_s", 0.0) or 0.0
+    ) + max(0.0, time_offset_s)
+
     return {
         "enabled": True,
         "mapping": mapping_payload,
@@ -939,14 +968,21 @@ def _physical_visual_model(
         "stages": stages,
         "phases": phases,
         "topology": topology,
+        "time_offset_s": round(time_offset_s, 6),
+        "display_base_timestamp_ms": recording_start_ms,
+        "display_duration_s": round(display_duration_s, 6),
     }
 
 
 def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
                 red_yellow_duration_seconds=2.0,activity_threshold=0.05,
-                physical_plan=None):
+                physical_plan=None,time_offset_s=None,display_duration_s=None):
     signal_model=build_signal_model(result,activity_threshold=activity_threshold)
     physical=_physical_visual_model(result,physical_plan)
+    if time_offset_s is not None:
+        physical["time_offset_s"] = float(time_offset_s)
+    if display_duration_s is not None:
+        physical["display_duration_s"] = float(display_duration_s)
     page=PAGE.replace("__RESULT__",_safe_json(result))
     page=page.replace("__SIGNAL_MODEL__",_safe_json(signal_model))
     page=page.replace("__PROJECTION__",_safe_json(projection))
@@ -986,9 +1022,21 @@ def main()->int:
         else None
     )
     projection=build_spatial_projection(tracks)
+    display_base_ms = (
+        float(result["recording_start_timestamp_ms"])
+        if result.get("recording_start_timestamp_ms") is not None
+        else float(result["analysis_base_timestamp_ms"])
+    )
+    analysis_base_ms = float(result["analysis_base_timestamp_ms"])
+    time_offset_s = (analysis_base_ms - display_base_ms) / 1000.0
+    display_duration_s = float(result["recording_duration_s"]) + max(
+        0.0,
+        time_offset_s,
+    )
     compact=compact_trajectories(
         tracks,
-        analysis_base_timestamp_ms=float(result["analysis_base_timestamp_ms"]),
+        analysis_base_timestamp_ms=analysis_base_ms,
+        display_base_timestamp_ms=display_base_ms,
         projection=projection,
     )
     html=render_html(
@@ -997,6 +1045,8 @@ def main()->int:
         red_yellow_duration_seconds=args.red_yellow,
         activity_threshold=args.activity_threshold,
         physical_plan=physical_plan,
+        time_offset_s=time_offset_s,
+        display_duration_s=display_duration_s,
     )
     args.output.write_text(html,encoding="utf-8")
     print("[V9] spatial offline visualization complete")

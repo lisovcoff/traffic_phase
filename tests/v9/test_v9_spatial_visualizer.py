@@ -31,6 +31,7 @@ def _result():
         "event_count": 4,
         "movement_stream_count": 4,
         "analysis_base_timestamp_ms": 1000.0,
+        "recording_start_timestamp_ms": 900.0,
         "recording_duration_s": 100.0,
         "schedule": {
             "period_s": 100.0,
@@ -276,3 +277,9 @@ def test_spatial_visualizer_uses_v10_physical_plan_for_signal_states():
     assert 'const rows=PHYSICAL.enabled' in html
     assert 'PHYSICAL.stages || []' in html
     assert 'String(row.name)' in html
+    assert '"time_offset_s":0.1' in html
+    assert '"display_base_timestamp_ms":900.0' in html
+    assert '"display_duration_s":100.1' in html
+    assert "const TIME_OFFSET_S = Number(PHYSICAL.time_offset_s || 0)" in html
+    assert "const DISPLAY_BASE_MS = Number(" in html
+
