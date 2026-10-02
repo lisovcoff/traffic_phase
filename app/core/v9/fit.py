@@ -372,6 +372,65 @@ def em_fit(
         ),
     }
 
+def _phase_support_metrics(
+    fit,
+    *,
+    activity_threshold: float = 0.08,
+    selectivity_ratio: float = 1.15,
+):
+    """Measure whether each fitted phase has distinct transport evidence.
+
+    This is intentionally topology-agnostic: it uses only the fitted
+    Bernoulli phase signatures. A phase with no stream that is both active
+    and selective relative to the other phases is not independently
+    identifiable and is treated as degenerate for phase-count selection.
+    """
+    probs = np.asarray(fit.get("probs"), dtype=float)
+    if probs.ndim != 2:
+        return {
+            "supported_phase_count": 0,
+            "unsupported_phase_count": int(fit.get("k", 0)),
+            "phase_support_by_phase": {},
+            "phase_contrast_by_phase": {},
+        }
+
+    k = int(probs.shape[0])
+    support_by_phase = {}
+    contrast_by_phase = {}
+    for phase in range(k):
+        current = probs[phase]
+        if k > 1:
+            others = np.delete(probs, phase, axis=0)
+            strongest_other = np.max(others, axis=0)
+            contrast = np.maximum(current - np.mean(others, axis=0), 0.0)
+        else:
+            strongest_other = np.zeros_like(current)
+            contrast = np.zeros_like(current)
+
+        supported = (
+            (current >= float(activity_threshold))
+            & (
+                current
+                >= float(selectivity_ratio)
+                * np.maximum(strongest_other, 0.001)
+            )
+        )
+        support_by_phase[str(phase)] = int(np.sum(supported))
+        contrast_by_phase[str(phase)] = float(
+            np.max(contrast) if contrast.size else 0.0
+        )
+
+    supported_phase_count = sum(
+        value > 0 for value in support_by_phase.values()
+    )
+    return {
+        "supported_phase_count": int(supported_phase_count),
+        "unsupported_phase_count": int(k - supported_phase_count),
+        "phase_support_by_phase": support_by_phase,
+        "phase_contrast_by_phase": contrast_by_phase,
+    }
+
+
 def candidate_metrics(fit, x_shape):
     n, s = x_shape
     p_count = fit['k'] * s
@@ -398,6 +457,7 @@ def candidate_metrics(fit, x_shape):
             float(np.mean(seg_lengths))
             if seg_lengths else 0.0
         ),
+        **_phase_support_metrics(fit),
     }
 
 def discover_phase_count(
@@ -469,14 +529,26 @@ def discover_phase_count(
             + candidate['recurrent_complexity_penalty']
         )
 
+    for candidate in candidates:
+        candidate["topology_cap_applied"] = topology_cap_applied
+        candidate["degenerate_phase_model"] = (
+            candidate.get("unsupported_phase_count", 0) > 0
+            and candidate["k"] > 2
+        )
+        candidate["phase_support_penalty"] = (
+            float("inf")
+            if candidate["degenerate_phase_model"]
+            else 0.0
+        )
+        if topology_cap_applied and candidate["k"] > 3:
+            candidate["selection_score"] = float("inf")
+        elif candidate["degenerate_phase_model"]:
+            candidate["selection_score"] = float("inf")
+
     selected = min(
         candidates,
         key=lambda candidate: candidate['selection_score'],
     )
-    for candidate in candidates:
-        candidate["topology_cap_applied"] = topology_cap_applied
-        if topology_cap_applied and candidate["k"] > 3:
-            candidate["selection_score"] = float("inf")
     return (
         int(selected['k']),
         candidates,

@@ -95,6 +95,14 @@ def summarize_offline(spec: DatasetSpec, path: Path) -> dict[str, object]:
             str(stream): int(count)
             for stream, count in stream_names.items()
         } if isinstance(stream_names, dict) else {},
+        "archive_stream_event_counts": {
+            str(stream): int(count)
+            for stream, count in (
+                result.get("archive_stream_event_counts", {})
+                if isinstance(result.get("archive_stream_event_counts", {}), dict)
+                else {}
+            ).items()
+        },
         "physical_signal_plan_enabled": physical_enabled,
         "physical_signal_plan_reason": (
             str(physical.get("reason", ""))
