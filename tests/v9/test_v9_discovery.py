@@ -71,6 +71,40 @@ def _tracks(
     return tracks
 
 
+
+def test_long_archive_phase_anchor_calibration_finds_mid_window_offset() -> None:
+    import numpy as np
+    from app.core.v9.model import _calibrate_phase_anchor
+
+    period = 100.0
+    baseline = [
+        [0.0, 60.0, 0],
+        [60.0, 100.0, 1],
+    ]
+    stream_names = ["E->W", "N->S"]
+    probs = np.asarray([
+        [0.90, 0.01],
+        [0.01, 0.90],
+    ])
+    phase_evidence = {
+        "E->W": [23.0 + cycle * period + 1.0 for cycle in range(20)],
+        "N->S": [23.0 + cycle * period + 99.0 for cycle in range(20)],
+    }
+
+    result = _calibrate_phase_anchor(
+        phase_evidence,
+        stream_names,
+        probs,
+        baseline,
+        period,
+        initial_anchor_s=0.0,
+    )
+
+    assert result["applied"] is True
+    assert 22.0 <= float(result["delta_s"]) <= 24.0
+    assert float(result["score_improvement"]) > 5.0
+
+
 def _assert_model(phases, **kwargs):
     result = discover_records(
         _tracks(phases, **kwargs)

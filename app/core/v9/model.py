@@ -222,6 +222,131 @@ def _choose_phase_evidence(by_stream, release_streams, event_count: int):
     return by_stream, "mixed_release_or_entry"
 
 
+
+def _calibrate_phase_anchor(
+    phase_evidence,
+    stream_names,
+    phase_probs,
+    baseline_segments,
+    period: float,
+    initial_anchor_s: float,
+    *,
+    min_improvement: float = 5.0,
+) -> dict[str, object]:
+    if not phase_evidence or period <= 0.0:
+        return {
+            "applied": False,
+            "method": "not_available",
+            "initial_anchor_s": float(initial_anchor_s),
+            "delta_s": 0.0,
+            "final_anchor_s": float(initial_anchor_s),
+        }
+
+    probs = np.asarray(phase_probs, dtype=float)
+    if probs.ndim != 2 or probs.shape[1] != len(stream_names):
+        return {
+            "applied": False,
+            "method": "invalid_phase_probability_shape",
+            "initial_anchor_s": float(initial_anchor_s),
+            "delta_s": 0.0,
+            "final_anchor_s": float(initial_anchor_s),
+        }
+
+    starts = np.asarray(
+        [float(row[0]) for row in baseline_segments],
+        dtype=float,
+    )
+    if starts.size == 0:
+        return {
+            "applied": False,
+            "method": "no_baseline_segments",
+            "initial_anchor_s": float(initial_anchor_s),
+            "delta_s": 0.0,
+            "final_anchor_s": float(initial_anchor_s),
+        }
+
+    stream_arrays = []
+    for index, stream in enumerate(stream_names):
+        values = np.asarray(phase_evidence.get(stream, ()), dtype=float)
+        values = values[np.isfinite(values)]
+        if values.size:
+            stream_arrays.append((index, values))
+
+    if not stream_arrays:
+        return {
+            "applied": False,
+            "method": "no_full_archive_phase_evidence",
+            "initial_anchor_s": float(initial_anchor_s),
+            "delta_s": 0.0,
+            "final_anchor_s": float(initial_anchor_s),
+        }
+
+    def score(delta_s: float) -> float:
+        anchor = float(initial_anchor_s) + float(delta_s)
+        total = 0.0
+        for index, values in stream_arrays:
+            positions = np.mod(values - anchor, float(period))
+            phase_index = np.searchsorted(
+                starts,
+                positions,
+                side="right",
+            ) - 1
+            phase_index = np.clip(
+                phase_index,
+                0,
+                probs.shape[0] - 1,
+            )
+            probabilities = np.clip(
+                probs[phase_index, index],
+                0.005,
+                0.995,
+            )
+            total += float(np.log(probabilities).sum())
+        return total
+
+    coarse_step = max(0.25, min(1.0, float(period) / 240.0))
+    coarse = np.arange(0.0, float(period), coarse_step, dtype=float)
+    coarse_scores = np.asarray(
+        [score(float(delta)) for delta in coarse],
+        dtype=float,
+    )
+    best_delta = float(coarse[int(np.argmax(coarse_scores))])
+
+    refine_step = 0.05
+    refined = np.arange(
+        max(0.0, best_delta - coarse_step),
+        min(float(period), best_delta + coarse_step + refine_step),
+        refine_step,
+        dtype=float,
+    )
+    refined_scores = np.asarray(
+        [score(float(delta)) for delta in refined],
+        dtype=float,
+    )
+    best_i = int(np.argmax(refined_scores))
+    calibrated_delta = float(refined[best_i])
+    initial_score = float(score(0.0))
+    best_score = float(refined_scores[best_i])
+    improvement = best_score - initial_score
+    applied = improvement >= float(min_improvement)
+
+    return {
+        "applied": bool(applied),
+        "method": "full_archive_phase_signature_anchor",
+        "initial_anchor_s": float(initial_anchor_s),
+        "delta_s": calibrated_delta if applied else 0.0,
+        "candidate_period_s": float(period),
+        "initial_score": initial_score,
+        "best_score": best_score,
+        "score_improvement": float(improvement),
+        "coarse_step_s": float(coarse_step),
+        "refine_step_s": float(refine_step),
+        "final_anchor_s": float(
+            initial_anchor_s + (calibrated_delta if applied else 0.0)
+        ),
+    }
+
+
 def _discover_from_stream_views(
     by_stream,
     entry_streams,
@@ -286,15 +411,13 @@ def _discover_from_stream_views(
         if regime_detection is not None
         else 0.0
     )
-    if (
-        regime_detection is not None
-        and recording_start_ms is not None
-    ):
-        # Regime windows are re-based by _slice_streams(), so local t=0 is
-        # exactly the selected window start in the original recording.
-        schedule_base_ms = float(recording_start_ms) + local_start_s * 1000.0
-    else:
-        schedule_base_ms = float(analysis_base_ms) + local_start_s * 1000.0
+    phase_anchor_calibration = {
+        "applied": False,
+        "method": "not_required",
+        "initial_anchor_s": float(local_start_s),
+        "delta_s": 0.0,
+        "final_anchor_s": float(local_start_s),
+    }
     period, period_info = infer_period(working_entry_streams)
     working_event_count = sum(len(ts) for ts in working_by_stream.values())
     phase_evidence, phase_evidence_method = _choose_phase_evidence(
@@ -336,6 +459,30 @@ def _discover_from_stream_views(
         baseline_segments,
         selected_k,
     )
+
+    if regime_detection is not None:
+        archive_phase_evidence = (
+            release_streams
+            if phase_evidence_method == "release_only"
+            else by_stream
+        )
+        phase_anchor_calibration = _calibrate_phase_anchor(
+            archive_phase_evidence,
+            names,
+            fit["probs"],
+            baseline_segments,
+            period,
+            local_start_s,
+        )
+        local_start_s += float(
+            phase_anchor_calibration.get("delta_s", 0.0)
+        )
+
+    schedule_base_ms = (
+        float(analysis_base_ms)
+        + local_start_s * 1000.0
+    )
+
 
     phase_durations = defaultdict(list)
     for a, b, z in raw_segments:
@@ -407,6 +554,7 @@ def _discover_from_stream_views(
                 "scope": "full_input",
             }
         ),
+        "phase_anchor_calibration": phase_anchor_calibration,
         "phase_evidence": {
             "source": phase_evidence_method,
             "release_event_count": int(
