@@ -403,12 +403,30 @@ def infer_physical_signal_plan(
         if confidence_by_phase
         else 0.0
     )
+    recording_start_value = result.get("recording_start_timestamp_ms")
+    analysis_base_value = result.get("analysis_base_timestamp_ms")
+    if recording_start_value is None and analysis_base_value is None:
+        recording_start_value = 0.0
+        analysis_base_value = 0.0
+    elif recording_start_value is None:
+        recording_start_value = analysis_base_value
+    elif analysis_base_value is None:
+        analysis_base_value = recording_start_value
+    try:
+        time_offset_s = (
+            float(analysis_base_value) - float(recording_start_value)
+        ) / 1000.0
+    except (TypeError, ValueError):
+        time_offset_s = 0.0
     return {
         "enabled": True,
         "auto_inferred": True,
         "model": "v10_automatic_physical_signal_plan",
         "cycle_seconds": period,
         "mapping": mapping,
+        "time_offset_s": round(float(time_offset_s), 6),
+        "recording_start_timestamp_ms": float(recording_start_value),
+        "analysis_base_timestamp_ms": float(analysis_base_value),
         "confidence": round(float(confidence), 4),
         "phases": phases,
         "stages": stages,

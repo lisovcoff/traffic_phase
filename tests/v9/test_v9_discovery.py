@@ -283,7 +283,7 @@ def test_v9_slice_streams_preserves_packed_array():
     assert list(result["A->B"]) == [0.0, 1.5, 3.0]
 
 
-def test_v9_ignores_non_car_records():
+def test_v9_includes_non_car_road_users_in_phase_evidence():
     tracks = _tracks(
         [
             (40.0, ["A->B", "B->A"]),
@@ -291,13 +291,19 @@ def test_v9_ignores_non_car_records():
         ],
         cycles=8,
     )
-    non_car = dict(tracks[0])
+    non_car = json.loads(json.dumps(tracks[0]))
     non_car["category_name"] = "bus"
-    tracks_with_noise = tracks + [non_car]
+    non_car["id"] = 10_000_001
+    non_car["millis"] += 250
+    for detection in non_car["detections"]:
+        detection["millis"] += 250
+    tracks_with_bus = tracks + [non_car]
+
     baseline = discover_records(tracks)
-    noisy = discover_records(tracks_with_noise)
-    assert noisy["trajectory_count"] == len(tracks_with_noise)
-    assert noisy["event_count"] == baseline["event_count"]
+    with_bus = discover_records(tracks_with_bus)
+
+    assert with_bus["trajectory_count"] == len(tracks_with_bus)
+    assert with_bus["event_count"] == baseline["event_count"] + 1
 
 
 def test_v9_canonical_four_leg_phase_cap():

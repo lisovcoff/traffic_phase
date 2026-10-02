@@ -1013,7 +1013,7 @@ def _physical_visual_model(
     time_offset_s = (analysis_base_ms - recording_start_ms) / 1000.0
     display_duration_s = float(
         result.get("recording_duration_s", 0.0) or 0.0
-    ) + max(0.0, time_offset_s)
+    )
 
     return {
         "enabled": True,

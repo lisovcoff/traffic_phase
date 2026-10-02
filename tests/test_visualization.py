@@ -18,8 +18,12 @@ def test_visualization_page_is_the_unified_v10_entrypoint():
     assert "V10 физическая семантика" in html
 
 
-def test_visualization_analyze_builds_v9_v10_spatial_html(monkeypatch):
+def test_visualization_analyze_builds_v9_v10_spatial_html(monkeypatch, tmp_path):
     calls = []
+    monkeypatch.setattr(
+        "app.api.visualization.LOG_ROOT",
+        tmp_path / "logs",
+    )
 
     tracks = [
         {
@@ -124,5 +128,13 @@ def test_visualization_analyze_builds_v9_v10_spatial_html(monkeypatch):
     assert ("compact", 1000.0, 1000.0) in calls
     render_call = next(item for item in calls if item[0] == "render")
     assert render_call[2]["physical_plan"]["enabled"] is True
+    assert render_call[2]["time_offset_s"] == 0.0
+    assert render_call[2]["display_duration_s"] == 10.0
+    run_dir = next((tmp_path / "logs").iterdir())
+    assert (run_dir / "v9_result.json").exists()
+    assert (run_dir / "physical_signal_plan_v10.json").exists()
+    assert (run_dir / "signal_timeline_0.1s.jsonl").exists()
+    assert (run_dir / "viewer.html").exists()
+    assert (run_dir / "manifest.json").exists()
     assert render_call[2]["time_offset_s"] == 0.0
     assert render_call[2]["display_duration_s"] == 10.0

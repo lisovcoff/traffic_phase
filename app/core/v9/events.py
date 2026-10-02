@@ -163,9 +163,6 @@ def _iter_source_records(path: Path):
 
 
 def _track_event_view(tr, ds=None):
-    category = tr.get("category_name")
-    if category is not None and str(category).strip().lower() != "car":
-        return None
     zin = norm_zone(tr.get("zone_in"))
     zout = norm_zone(tr.get("zone_out"))
     if ds is None:

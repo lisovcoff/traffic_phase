@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import json
+import re
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Any
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
@@ -18,6 +22,185 @@ from app.core.v9.v9_discovery import discover_records
 from scripts.v9_spatial_visualizer import render_html
 
 router = APIRouter(prefix="/visualization", tags=["visualization"])
+
+LOG_ROOT = Path(__file__).resolve().parents[2] / "logs"
+
+
+def _safe_run_name(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("._") or "input"
+
+
+def _write_visualization_logs(
+    *,
+    run_id: str,
+    input_name: str,
+    result: dict[str, Any],
+    physical_plan: dict[str, Any],
+    html: str,
+    request_params: dict[str, Any],
+) -> Path:
+    run_dir = LOG_ROOT / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    (run_dir / "request.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "input_name": input_name,
+                "parameters": request_params,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "v9_result.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    (run_dir / "physical_signal_plan_v10.json").write_text(
+        json.dumps(physical_plan, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    (run_dir / "viewer.html").write_text(html, encoding="utf-8")
+
+    period = float(
+        physical_plan.get(
+            "cycle_seconds",
+            result.get("schedule", {}).get("period_s", 0.0),
+        )
+        or 0.0
+    )
+    time_offset_s = float(physical_plan.get("time_offset_s", 0.0) or 0.0)
+    duration_s = float(result.get("recording_duration_s", 0.0) or 0.0)
+
+    stages = []
+    for index, stage in enumerate(physical_plan.get("stages", []) or []):
+        start = float(stage.get("phase_start", 0.0))
+        end = float(stage.get("phase_end", 0.0))
+        if end <= start:
+            continue
+        stage_heads = stage.get("heads", {}) or {}
+        stages.append(
+            {
+                "stage_id": int(stage.get("stage_id", index + 1)),
+                "name": str(stage.get("name", "")),
+                "phase_start": start,
+                "phase_end": end,
+                "source_phase": stage.get("source_phase"),
+                "active_movements": list(stage.get("active_movements", [])),
+                "heads": {
+                    approach: {
+                        "main": str(
+                            (stage_heads.get(approach, {}) or {}).get(
+                                "main",
+                                "RED",
+                            )
+                        ),
+                        "arrows": {
+                            str(movement): str(state)
+                            for movement, state in (
+                                (stage_heads.get(approach, {}) or {}).get(
+                                    "arrows",
+                                    {},
+                                )
+                                or {}
+                            ).items()
+                        },
+                    }
+                    for approach in ("N", "S", "E", "W")
+                },
+            }
+        )
+
+    with (run_dir / "signal_timeline_0.1s.jsonl").open(
+        "w",
+        encoding="utf-8",
+    ) as stream:
+        step = 0.1
+        t = 0.0
+        while t <= duration_s + 1e-9:
+            cycle = (
+                ((t - time_offset_s) % period + period) % period
+                if period > 0.0
+                else t - time_offset_s
+            )
+            active = next(
+                (
+                    item
+                    for item in stages
+                    if item["phase_start"] <= cycle < item["phase_end"]
+                ),
+                stages[0] if stages else None,
+            )
+            row = {
+                "video_time_s": round(t, 3),
+                "cycle_position_s": round(cycle, 6),
+                "phase": active["name"] if active else "UNKNOWN",
+                "source_phase": (
+                    active.get("source_phase") if active else None
+                ),
+                "active_movements": (
+                    active["active_movements"] if active else []
+                ),
+                "heads": (
+                    active["heads"]
+                    if active
+                    else {
+                        approach: {
+                            "main": "RED",
+                            "arrows": {},
+                        }
+                        for approach in ("N", "S", "E", "W")
+                    }
+                ),
+            }
+            stream.write(
+                json.dumps(
+                    row,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                + "\n"
+            )
+            t += step
+
+    manifest = {
+        "run_id": run_id,
+        "input_name": input_name,
+        "trajectory_count": result.get("trajectory_count"),
+        "event_count": result.get("event_count"),
+        "movement_stream_count": result.get("movement_stream_count"),
+        "phase_count": result.get("schedule", {}).get("phase_count"),
+        "period_s": period,
+        "recording_start_timestamp_ms": result.get(
+            "recording_start_timestamp_ms"
+        ),
+        "analysis_base_timestamp_ms": result.get(
+            "analysis_base_timestamp_ms"
+        ),
+        "time_offset_s": time_offset_s,
+        "recording_duration_s": duration_s,
+        "physical_enabled": bool(physical_plan.get("enabled")),
+        "physical_reason": physical_plan.get("reason"),
+        "mapping": physical_plan.get("mapping", {}),
+        "stages": stages,
+        "files": [
+            "request.json",
+            "v9_result.json",
+            "physical_signal_plan_v10.json",
+            "signal_timeline_0.1s.jsonl",
+            "viewer.html",
+            "manifest.json",
+        ],
+    }
+    (run_dir / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    return run_dir
+
 
 INDEX_HTML = """<!doctype html>
 <html lang="ru">
@@ -198,6 +381,31 @@ async def visualization_analyze(
                 },
             )
 
+            physical_plan = result.get("physical_signal_plan") or {
+                "enabled": False,
+                "reason": "physical_signal_plan missing from V9 result",
+            }
+            run_id = (
+                datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+                + "_"
+                + _safe_run_name(Path(file.filename).stem)
+            )
+
+            print(
+                "[V10 visualization]",
+                {
+                    "run_id": run_id,
+                    "phase_count": result.get("schedule", {}).get("phase_count"),
+                    "event_count": result.get("event_count"),
+                    "movement_stream_count": result.get("movement_stream_count"),
+                    "physical_enabled": physical_plan.get("enabled"),
+                    "physical_reason": physical_plan.get("reason"),
+                    "analysis_base_timestamp_ms": analysis_base_ms,
+                    "recording_start_timestamp_ms": display_base_ms,
+                    "time_offset_s": time_offset_s,
+                },
+            )
+
             html = render_html(
                 result,
                 projection,
@@ -209,7 +417,33 @@ async def visualization_analyze(
                 time_offset_s=time_offset_s,
                 display_duration_s=display_duration_s,
             )
-            return HTMLResponse(content=html)
+            run_dir = _write_visualization_logs(
+                run_id=run_id,
+                input_name=file.filename,
+                result=result,
+                physical_plan=physical_plan,
+                html=html,
+                request_params={
+                    "dt": dt_value,
+                    "yellow": yellow_value,
+                    "red_yellow": red_yellow_value,
+                    "activity_threshold": activity_threshold_value,
+                },
+            )
+            return HTMLResponse(
+                content=html.replace(
+                    "<h1>V9 — пространственная реконструкция перекрёстка</h1>",
+                    (
+                        "<h1>V9 — пространственная реконструкция перекрёстка</h1>"
+                        f"<p class='muted'>Run: {run_id} · logs: {run_dir}</p>"
+                    ),
+                    1,
+                ),
+                headers={
+                    "X-Traffic-Phase-Run-Id": run_id,
+                    "X-Traffic-Phase-Logs": str(run_dir),
+                },
+            )
 
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

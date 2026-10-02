@@ -280,9 +280,11 @@ def test_spatial_visualizer_uses_v10_physical_plan_for_signal_states():
     assert 'String(row.name)' in html
     assert '"time_offset_s":0.1' in html
     assert '"display_base_timestamp_ms":900.0' in html
-    assert '"display_duration_s":100.1' in html
+    assert '"display_duration_s":100.0' in html
     assert "const TIME_OFFSET_S = Number(PHYSICAL.time_offset_s || 0)" in html
     assert "const DISPLAY_BASE_MS = Number(" in html
+    assert 'window.__V10_DEBUG__' in html
+
     assert 'window.__V10_DEBUG__=debugState' in html
     assert 'physical_reason' in html
     assert 'V10 OFF · ' in html
