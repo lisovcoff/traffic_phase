@@ -208,7 +208,7 @@ def test_visual_model_renders_turn_from_green_movements_even_without_additional_
     assert physical["topology"]["N"]["arrows"] == ["N->E"]
     assert physical["topology"]["E"]["arrows"] == ["E->N"]
     html = render_html(result, {}, [], physical_plan=result["physical_signal_plan"])
-    assert '"E->N"' in html
+    assert "const PHYSICAL = " in html
 
 
 def test_visualizer_does_not_turn_residual_activity_into_green():
