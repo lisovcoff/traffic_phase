@@ -274,4 +274,5 @@ def test_spatial_visualizer_uses_v10_physical_plan_for_signal_states():
     assert 'const PHYSICAL = {"enabled":true' in html
     assert '"mapping":' in html
     assert 'const rows=PHYSICAL.enabled' in html
-    assert 'String(row[2])' in html
+    assert 'PHYSICAL.stages || []' in html
+    assert 'String(row.name)' in html
