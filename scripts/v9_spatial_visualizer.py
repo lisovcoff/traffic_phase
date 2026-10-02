@@ -586,7 +586,9 @@ function renderPhases(){
       ? String(phase)
       : ((SIGNAL_MODEL.phase_names||[])[phase] || ("PHASE_"+String.fromCharCode(65+phase)));
     const duration=document.createElement("span");
-    duration.textContent=(Number(row[1])-Number(row[0])).toFixed(1)+" s";
+    const startTime=PHYSICAL.enabled ? Number(row.phase_start) : Number(row[0]);
+    const endTime=PHYSICAL.enabled ? Number(row.phase_end) : Number(row[1]);
+    duration.textContent=(endTime-startTime).toFixed(1)+" s";
     card.append(name,duration);holder.appendChild(card);
   }
 }

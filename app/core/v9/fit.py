@@ -532,7 +532,7 @@ def discover_phase_count(
     for candidate in candidates:
         candidate["topology_cap_applied"] = topology_cap_applied
         candidate["degenerate_phase_model"] = (
-            candidate.get("unsupported_phase_count", 0) > 0
+            candidate.get("unsupported_phase_count", 0) > 1
             and candidate["k"] > 2
         )
         candidate["phase_support_penalty"] = (

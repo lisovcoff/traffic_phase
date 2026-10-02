@@ -368,7 +368,7 @@ def test_v9_candidate_metrics_detect_unsupported_phase() -> None:
     assert metrics["unsupported_phase_count"] == 1
 
 
-def test_v9_phase_selector_rejects_degenerate_extra_phase(monkeypatch) -> None:
+def test_v9_phase_selector_rejects_multiple_degenerate_extra_phases(monkeypatch) -> None:
     import numpy as np
     from app.core.v9 import fit as fit_module
 
@@ -385,7 +385,7 @@ def test_v9_phase_selector_rejects_degenerate_extra_phase(monkeypatch) -> None:
             probs = np.asarray(
                 [
                     [0.60, 0.03, 0.02],
-                    [0.03, 0.60, 0.02],
+                    [0.03, 0.02, 0.60],
                 ],
                 dtype=float,
             )
@@ -393,7 +393,7 @@ def test_v9_phase_selector_rejects_degenerate_extra_phase(monkeypatch) -> None:
             probs = np.asarray(
                 [
                     [0.60, 0.03, 0.02],
-                    [0.03, 0.60, 0.02],
+                    [0.03, 0.02, 0.02],
                     [0.02, 0.02, 0.02],
                 ],
                 dtype=float,
@@ -420,6 +420,86 @@ def test_v9_phase_selector_rejects_degenerate_extra_phase(monkeypatch) -> None:
         recording_end_s=150.0,
     )
     assert selected == 2
-    assert next(
+    candidate = next(
         item for item in candidates if item["k"] == 3
-    )["selection_score"] == float("inf")
+    )
+    assert candidate["unsupported_phase_count"] == 2
+    assert candidate["selection_score"] == float("inf")
+
+
+def test_v9_phase_selector_keeps_one_weak_phase_when_two_phases_have_support(
+    monkeypatch,
+) -> None:
+    import numpy as np
+    from app.core.v9 import fit as fit_module
+
+    def fake_em_fit(
+        x,
+        period,
+        k,
+        by_stream_global=None,
+        entry_streams=None,
+        dt=1.0,
+        iterations=3,
+    ):
+        if k == 2:
+            probs = np.asarray(
+                [
+                    [0.50, 0.03, 0.02],
+                    [0.03, 0.50, 0.02],
+                ],
+                dtype=float,
+            )
+            score = -100.0
+            segments = [
+                (0.0, 50.0, 0),
+                (50.0, 100.0, 1),
+            ]
+        else:
+            probs = np.asarray(
+                [
+                    [0.50, 0.03, 0.02],
+                    [0.03, 0.50, 0.02],
+                    [0.02, 0.02, 0.07],
+                ],
+                dtype=float,
+            )
+            score = -80.0
+            segments = [
+                (0.0, 33.0, 0),
+                (33.0, 66.0, 1),
+                (66.0, 100.0, 2),
+            ]
+        return {
+            "k": k,
+            "score": score,
+            "probs": probs,
+            "segments": segments,
+            "decoder_info": {},
+        }
+
+    monkeypatch.setattr(fit_module, "em_fit", fake_em_fit)
+    x = np.zeros((100, 3), dtype=float)
+    topology_streams = {
+        "N->S": [1.0],
+        "S->N": [2.0],
+        "E->W": [3.0],
+        "W->E": [4.0],
+    }
+    selected, candidates, _ = fit_module.discover_phase_count(
+        x,
+        topology_streams,
+        100.0,
+        kmin=2,
+        kmax=3,
+        recording_end_s=100.0,
+        topology_streams=topology_streams,
+    )
+    weak_candidate = next(
+        item for item in candidates if item["k"] == 3
+    )
+    assert weak_candidate["supported_phase_count"] == 2
+    assert weak_candidate["unsupported_phase_count"] == 1
+    assert selected == 3
+
+
