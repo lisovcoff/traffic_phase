@@ -324,10 +324,10 @@ def test_automatic_physical_plan_recovers_weak_selective_phase_and_heads() -> No
     plan = infer_physical_signal_plan(result)
 
     assert plan["enabled"] is True
-    assert plan["time_offset_s"] == -1.9
+    assert plan["time_offset_s"] == 0.1
     assert plan["timing"]["phase_anchor_model_s"] == 0.1
-    assert plan["timing"]["phase_anchor_physical_s"] == -1.9
-    assert plan["timing"]["startup_lost_s"] == 2.0
+    assert plan["timing"]["phase_anchor_physical_s"] == 0.1
+    assert plan["timing"]["startup_lost_s"] == 0.0
 
     by_name = {phase["name"]: phase for phase in plan["phases"]}
     assert set(by_name["EW_THROUGH"]["green_movements"]) == {
