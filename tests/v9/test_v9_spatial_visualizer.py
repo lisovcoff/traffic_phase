@@ -175,6 +175,42 @@ def test_physical_head_mapping_infers_only_supported_reciprocal_turn_sections():
     assert "function drawArrowSection" in html
 
 
+def test_visual_model_renders_turn_from_green_movements_even_without_additional_field():
+    result = _result()
+    result["physical_signal_plan"] = {
+        "enabled": True,
+        "cycle_seconds": 100.0,
+        "auto_inferred": True,
+        "mapping": {"PHASE_A": "NS_TURN", "PHASE_B": "EW_THROUGH"},
+        "confidence": 0.9,
+        "stages": [
+            {
+                "stage_id": 1,
+                "name": "NS_TURN",
+                "phase_start": 0.0,
+                "phase_end": 50.0,
+                "active_movements": ["N->S", "N->E", "E->N"],
+                # Deliberately omit additional_movements: visualization must
+                # still expose N->E and E->N as physical arrow sections.
+            },
+            {
+                "stage_id": 2,
+                "name": "EW_THROUGH",
+                "phase_start": 50.0,
+                "phase_end": 100.0,
+                "active_movements": ["E->W", "W->E"],
+            },
+        ],
+    }
+
+    physical = _physical_visual_model(result, result["physical_signal_plan"])
+
+    assert physical["topology"]["N"]["arrows"] == ["N->E"]
+    assert physical["topology"]["E"]["arrows"] == ["E->N"]
+    html = render_html(result, {}, [], physical_plan=result["physical_signal_plan"])
+    assert '"E":{"main":"E->W","arrows":["E->N"]}' in html
+
+
 def test_visualizer_does_not_turn_residual_activity_into_green():
     result = _result()
     html = render_html(
