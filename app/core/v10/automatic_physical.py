@@ -588,9 +588,7 @@ def infer_physical_signal_plan(
         model_anchor_s = 0.0
 
     try:
-        physical_anchor_s = (
-            model_anchor_s - float(startup_lost_s)
-        )
+        physical_anchor_s = model_anchor_s
     except (TypeError, ValueError):
         physical_anchor_s = model_anchor_s
 

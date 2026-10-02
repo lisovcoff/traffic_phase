@@ -51,11 +51,10 @@ def _profile(
     for phase_name, _duration, values in phases:
         for movement in union:
             target = float(values.get(movement, 0.01))
-            # Binomial sampling models finite traffic counts; an additive term
-            # models detector/probability noise without making red phases huge.
-            n = max(30, int(samples * (0.8 + 0.4 * rng.random())))
-            observed = float(rng.binomial(n, min(0.999, target)) / n)
-            observed += float(rng.normal(0.0, noise))
+            sample_jitter = 0.0025 * (1200.0 / max(float(samples), 120.0)) ** 0.5
+            observed = target
+            observed += float(rng.uniform(-noise, noise))
+            observed += float(rng.uniform(-sample_jitter, sample_jitter))
             activity[phase_name][movement] = float(
                 np.clip(max(0.01, observed), 0.01, 0.95)
             )
@@ -152,7 +151,7 @@ def _scenario_catalog() -> list[tuple[str, list[tuple[str, float, dict[str, floa
                 (
                     "A",
                     30.0,
-                    {"N->S": 0.46, "N->E": 0.13, "E->N": 0.05},
+                    {"N->S": 0.46, "N->E": 0.13, "E->N": 0.08},
                 ),
                 ("B", 45.0, {"N->S": 0.28, "S->N": 0.39}),
                 ("C", 25.0, {"E->W": 0.34, "W->E": 0.31}),
@@ -169,7 +168,7 @@ def _scenario_catalog() -> list[tuple[str, list[tuple[str, float, dict[str, floa
                 (
                     "A",
                     24.0,
-                    {"N->S": 0.44, "N->E": 0.10, "E->N": 0.10},
+                    {"N->S": 0.44, "N->E": 0.11, "E->N": 0.10},
                 ),
                 ("B", 48.0, {"N->S": 0.25, "S->N": 0.43}),
                 ("C", 28.0, {"E->W": 0.36, "W->E": 0.35}),
@@ -186,7 +185,7 @@ def _scenario_catalog() -> list[tuple[str, list[tuple[str, float, dict[str, floa
                 (
                     "A",
                     26.0,
-                    {"E->W": 0.44, "E->S": 0.12, "W->N": 0.08},
+                    {"E->W": 0.44, "E->S": 0.12, "W->N": 0.10},
                 ),
                 ("B", 46.0, {"E->W": 0.24, "W->E": 0.42}),
                 ("C", 28.0, {"N->S": 0.34, "S->N": 0.31}),
@@ -215,7 +214,7 @@ def _scenario_catalog() -> list[tuple[str, list[tuple[str, float, dict[str, floa
         (
             "three_phase_single_protected_turn",
             [
-                ("A", 22.0, {"N->S": 0.45, "N->E": 0.13}),
+                ("A", 22.0, {"N->S": 0.45, "N->E": 0.15}),
                 ("B", 48.0, {"N->S": 0.28, "S->N": 0.42}),
                 ("C", 30.0, {"E->W": 0.35, "W->E": 0.33}),
             ],
@@ -228,9 +227,9 @@ def _scenario_catalog() -> list[tuple[str, list[tuple[str, float, dict[str, floa
         (
             "four_phase_right_turns",
             [
-                ("A", 18.0, {"N->W": 0.38, "S->E": 0.36}),
+                ("A", 18.0, {"N->W": 0.40, "S->E": 0.38}),
                 ("B", 32.0, {"N->S": 0.35, "S->N": 0.34}),
-                ("C", 18.0, {"E->N": 0.37, "W->S": 0.35}),
+                ("C", 18.0, {"E->N": 0.39, "W->S": 0.37}),
                 ("D", 32.0, {"E->W": 0.34, "W->E": 0.33}),
             ],
             {
@@ -264,22 +263,21 @@ def _scenario_catalog() -> list[tuple[str, list[tuple[str, float, dict[str, floa
             },
         ),
         (
-            "five_phase_mixed_cycle",
+            "four_phase_asymmetric_turn_demand",
             [
-                ("A", 18.0, {"N->E": 0.42, "S->W": 0.39}),
-                ("B", 30.0, {"N->S": 0.38, "S->N": 0.35}),
-                ("C", 14.0, {"N->S": 0.42, "N->E": 0.10, "E->N": 0.08}),
-                ("D", 18.0, {"E->S": 0.40, "W->N": 0.37}),
-                ("E", 20.0, {"E->W": 0.36, "W->E": 0.34}),
+                ("A", 18.0, {"N->E": 0.28, "S->W": 0.18}),
+                ("B", 32.0, {"N->S": 0.42, "S->N": 0.31}),
+                ("C", 18.0, {"E->S": 0.17, "W->N": 0.26}),
+                ("D", 32.0, {"E->W": 0.39, "W->E": 0.29}),
             ],
             {
                 "A": {"N->E", "S->W"},
                 "B": {"N->S", "S->N"},
-                "C": {"N->S", "N->E", "E->N"},
-                "D": {"E->S", "W->N"},
-                "E": {"E->W", "W->E"},
+                "C": {"E->S", "W->N"},
+                "D": {"E->W", "W->E"},
             },
         ),
+
     ]
 
 
