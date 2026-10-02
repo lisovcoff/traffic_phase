@@ -277,9 +277,9 @@ def infer_physical_signal_plan(
     TURN_CANDIDATE_EVIDENCE_THRESHOLD = 0.03
     TURN_CANDIDATE_SELECTIVITY_RATIO = max(1.25, float(selectivity_ratio))
     PROTECTED_TURN_MIN_AXIS = max(0.08, float(activity_threshold))
-    PROTECTED_TURN_MAX_GROUP_RATIO = 0.75
+    PROTECTED_TURN_MAX_GROUP_RATIO = 0.90
     PROTECTED_TURN_SINGLE_MIN = 0.10
-    PROTECTED_TURN_ONLY_MIN = 0.18
+    PROTECTED_TURN_ONLY_MIN = 0.12
 
     for phase in names:
         green = set(green_by_phase[phase])
