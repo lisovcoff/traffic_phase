@@ -270,11 +270,10 @@ def infer_physical_signal_plan(
             sum(evidence) / len(evidence) if evidence else 0.0
         )
 
-    # Turn inference is intentionally phase-level. A traffic stream being
-    # phase-selective is not enough to prove a protected signal section:
-    # permissive turns can be phase-selective too. A physical turn phase must
-    # therefore contain a coherent multi-source turn group that remains a
-    # secondary component of a dominant through axis.
+    # Turn inference is intentionally conservative. A phase-selective turn
+    # can be permissive traffic, so V10 requires V9 to expose a distinct
+    # phase and then validates the whole turn group rather than individual
+    # movements.
     TURN_CANDIDATE_EVIDENCE_THRESHOLD = 0.03
     TURN_CANDIDATE_SELECTIVITY_RATIO = max(1.25, float(selectivity_ratio))
     PROTECTED_TURN_MIN_AXIS = max(0.08, float(activity_threshold))
@@ -310,6 +309,12 @@ def infer_physical_signal_plan(
         phase: str,
         candidates: Sequence[str],
     ) -> bool:
+        # A physical protected section must correspond to a distinct V9 phase.
+        # With only two anonymous phase states, V10 cannot distinguish a
+        # permissive turn from a protected arrow using activity alone.
+        if len(names) < 3:
+            return False
+
         turns = sorted(set(candidates))
         if not turns:
             return False
@@ -322,7 +327,6 @@ def infer_physical_signal_plan(
             movement.split("->", 1)[0]
             for movement in turns
         }
-
         straight_strengths = {
             "NS": sum(
                 float(activity[phase].get(item, 0.0))
@@ -336,20 +340,22 @@ def infer_physical_signal_plan(
         dominant_axis_strength = max(straight_strengths.values(), default=0.0)
         turn_strength = sum(probabilities.values())
 
-        # A normal through phase may contain two or more permissive turns, but
-        # those turns should not dominate its actual straight signal group.
+        # A protected turn group is a secondary, coherent component of a
+        # dominant through phase and must involve at least two source
+        # approaches. This rejects permissive turn mixtures on two-phase
+        # intersections and noisy same-approach turns.
         if (
             len(turns) >= 2
             and len(source_set) >= 2
             and dominant_axis_strength >= PROTECTED_TURN_MIN_AXIS
             and turn_strength
-            <= PROTECTED_TURN_MAX_GROUP_RATIO
-            * dominant_axis_strength
+            <= PROTECTED_TURN_MAX_GROUP_RATIO * dominant_axis_strength
         ):
             return True
 
-        # A single high-volume protected turn is admissible only when it is a
-        # small, clearly phase-specific component of a dominant through axis.
+        # A single protected turn is accepted only when it is strong enough
+        # to stand above detector noise and remains a minority of the phase's
+        # dominant through traffic.
         if (
             len(turns) == 1
             and probabilities[turns[0]] >= PROTECTED_TURN_SINGLE_MIN
@@ -359,8 +365,8 @@ def infer_physical_signal_plan(
         ):
             return True
 
-        # Dedicated turn-only phases have no straight stream to compare
-        # against. Require a strong pair from distinct source approaches.
+        # Turn-only protected phases have no straight stream to compare
+        # against. Require a substantial pair from different approaches.
         if (
             dominant_axis_strength < PROTECTED_TURN_MIN_AXIS
             and len(turns) >= 2
@@ -380,9 +386,12 @@ def infer_physical_signal_plan(
             for movement in green
             if not _is_straight(movement)
         ]
-        protected = set(turns) if turn_phase_is_protected(phase, turns) else set()
+        protected = (
+            set(turns)
+            if turn_phase_is_protected(phase, turns)
+            else set()
+        )
         suppressed = sorted(set(turns) - protected)
-
         if suppressed:
             green.difference_update(suppressed)
         suppressed_turn_movements_by_phase[phase] = suppressed
@@ -414,14 +423,14 @@ def infer_physical_signal_plan(
                     straight_candidates.append((probability, movement))
             if straight_candidates:
                 best_probability = max(
-                    probability for probability, _movement in straight_candidates
+                    probability
+                    for probability, _movement in straight_candidates
                 )
                 green.update(
                     movement
                     for probability, movement in straight_candidates
                     if probability >= 0.75 * best_probability
                 )
-
         green_by_phase[phase] = frozenset(sorted(green))
 
     straight_by_axis = {

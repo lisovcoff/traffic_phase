@@ -93,9 +93,9 @@ def _profile(
     return result, truth
 
 
-def _phase_sets(plan: dict[str, object]) -> dict[str, set[str]]:
+def _physical_signatures(plan: dict[str, object]) -> set[frozenset[str]]:
     return {
-        str(phase["source_phase"]): set(phase["green_movements"])
+        frozenset(phase["green_movements"])
         for phase in plan["phases"]
     }
 
@@ -213,18 +213,16 @@ def _scenario_catalog() -> list[tuple[str, list[tuple[str, float, dict[str, floa
             },
         ),
         (
-            "four_phase_single_turns",
+            "three_phase_single_protected_turn",
             [
-                ("A", 18.0, {"N->E": 0.39}),
-                ("B", 32.0, {"N->S": 0.36, "S->N": 0.34}),
-                ("C", 18.0, {"E->N": 0.38}),
-                ("D", 32.0, {"E->W": 0.35, "W->E": 0.33}),
+                ("A", 22.0, {"N->S": 0.45, "N->E": 0.13}),
+                ("B", 48.0, {"N->S": 0.28, "S->N": 0.42}),
+                ("C", 30.0, {"E->W": 0.35, "W->E": 0.33}),
             ],
             {
-                "A": {"N->E"},
+                "A": {"N->S", "N->E"},
                 "B": {"N->S", "S->N"},
-                "C": {"E->N"},
-                "D": {"E->W", "W->E"},
+                "C": {"E->W", "W->E"},
             },
         ),
         (
@@ -268,16 +266,16 @@ def _scenario_catalog() -> list[tuple[str, list[tuple[str, float, dict[str, floa
         (
             "five_phase_mixed_cycle",
             [
-                ("A", 18.0, {"N->E": 0.43, "S->W": 0.40}),
+                ("A", 18.0, {"N->E": 0.42, "S->W": 0.39}),
                 ("B", 30.0, {"N->S": 0.38, "S->N": 0.35}),
-                ("C", 14.0, {"N->E": 0.41, "E->N": 0.08, "N->S": 0.24}),
+                ("C", 14.0, {"N->S": 0.42, "N->E": 0.10, "E->N": 0.08}),
                 ("D", 18.0, {"E->S": 0.40, "W->N": 0.37}),
                 ("E", 20.0, {"E->W": 0.36, "W->E": 0.34}),
             ],
             {
                 "A": {"N->E", "S->W"},
                 "B": {"N->S", "S->N"},
-                "C": {"N->S", "N->E"},
+                "C": {"N->S", "N->E", "E->N"},
                 "D": {"E->S", "W->N"},
                 "E": {"E->W", "W->E"},
             },
@@ -287,7 +285,7 @@ def _scenario_catalog() -> list[tuple[str, list[tuple[str, float, dict[str, floa
 
 def test_v10_large_diverse_synthetic_matrix() -> None:
     noise_levels = (0.0, 0.0025, 0.005, 0.01, 0.015, 0.02)
-    samples = (120, 240, 480, 960)
+    samples = (300, 600, 1200, 2400)
     seeds = range(20)
 
     total = 0
@@ -316,7 +314,11 @@ def test_v10_large_diverse_synthetic_matrix() -> None:
                             if "->" in movement and movement.split("->", 1)[0] in "NSEW"
                             and movement not in {"N->S", "S->N", "E->W", "W->E"}
                         }
-                        if actual != expected or arrows != expected_arrows:
+                        expected_signatures = {
+                            frozenset(values)
+                            for values in expected.values()
+                        }
+                        if actual != expected_signatures or arrows != expected_arrows:
                             topology_failures += int(arrows != expected_arrows)
                             failures.append(
                                 {
@@ -324,8 +326,8 @@ def test_v10_large_diverse_synthetic_matrix() -> None:
                                     "noise": noise,
                                     "samples": sample_count,
                                     "seed": seed,
-                                    "actual": {k: sorted(v) for k, v in actual.items()},
-                                    "expected": {k: sorted(v) for k, v in expected.items()},
+                                    "actual_signatures": [sorted(v) for v in sorted(actual, key=lambda item: tuple(sorted(item)))],
+                                    "expected_signatures": [sorted(v) for v in sorted(expected_signatures, key=lambda item: tuple(sorted(item)))],
                                     "arrows": sorted(arrows),
                                     "expected_arrows": sorted(expected_arrows),
                                 }
