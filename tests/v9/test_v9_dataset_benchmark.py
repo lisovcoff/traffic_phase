@@ -25,3 +25,15 @@ def test_compare_pairs_uses_reference_and_anomaly_rows() -> None:
     assert len(pairs) == 3
     assert all(item["phase_count_changed"] is False for item in pairs)
     assert all(item["stream_jaccard"] == 1.0 for item in pairs)
+
+
+def test_stream_flow_rates_prefer_full_archive_counts() -> None:
+    from scripts.v9_dataset_benchmark import _stream_flow_rates
+
+    row = {
+        "recording_duration_s": 7200.0,
+        "stream_event_counts": {"E->W": 10},
+        "archive_stream_event_counts": {"E->W": 1000},
+    }
+    rates = _stream_flow_rates(row)
+    assert rates["E->W"] == 500.0

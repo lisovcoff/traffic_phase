@@ -7,6 +7,7 @@ from pathlib import Path
 import zipfile
 
 from app.core.v9.events import load_event_streams
+from app.core.v9.fit import candidate_metrics
 from app.core.v9.v9_discovery import OnlinePhaseTracker, discover_path, discover_records
 
 
@@ -340,3 +341,83 @@ def test_v9_detects_local_regime_on_long_input():
     result = discover_records(tracks_120 + rebased)
     assert result["regime_detection"]["method"] == "hourly_local_period_consensus"
     assert result["regime_detection"]["selected_window_event_count"] > 0
+
+
+def test_v9_candidate_metrics_detect_unsupported_phase() -> None:
+    import numpy as np
+
+    fit = {
+        "k": 3,
+        "score": -100.0,
+        "segments": [
+            (0.0, 50.0, 0),
+            (50.0, 100.0, 1),
+            (100.0, 150.0, 2),
+        ],
+        "probs": np.asarray(
+            [
+                [0.60, 0.03, 0.02],
+                [0.03, 0.60, 0.02],
+                [0.08, 0.08, 0.08],
+            ],
+            dtype=float,
+        ),
+    }
+    metrics = candidate_metrics(fit, (150, 3))
+    assert metrics["supported_phase_count"] == 2
+    assert metrics["unsupported_phase_count"] == 1
+
+
+def test_v9_phase_selector_rejects_degenerate_extra_phase(monkeypatch) -> None:
+    import numpy as np
+    from app.core.v9 import fit as fit_module
+
+    def fake_em_fit(
+        x,
+        period,
+        k,
+        by_stream_global=None,
+        entry_streams=None,
+        dt=1.0,
+        iterations=3,
+    ):
+        if k == 2:
+            probs = np.asarray(
+                [
+                    [0.60, 0.03, 0.02],
+                    [0.03, 0.60, 0.02],
+                ],
+                dtype=float,
+            )
+        else:
+            probs = np.asarray(
+                [
+                    [0.60, 0.03, 0.02],
+                    [0.03, 0.60, 0.02],
+                    [0.08, 0.08, 0.08],
+                ],
+                dtype=float,
+            )
+        return {
+            "k": k,
+            "score": -110.0 if k == 2 else -100.0,
+            "probs": probs,
+            "segments": [
+                (0.0, 50.0, 0),
+                (50.0, 100.0, 1),
+            ] + ([(100.0, 150.0, 2)] if k == 3 else []),
+            "decoder_info": {},
+        }
+
+    monkeypatch.setattr(fit_module, "em_fit", fake_em_fit)
+    x = np.zeros((150, 3), dtype=float)
+    selected, candidates, _ = fit_module.discover_phase_count(
+        x,
+        {"a": [1.0], "b": [2.0], "c": [3.0]},
+        150.0,
+        kmin=2,
+        kmax=3,
+        recording_end_s=150.0,
+    )
+    assert selected == 2
+    assert next(item for item in candidates if item["k"] == 3)["selection_score"] == float("inf")
