@@ -7,7 +7,7 @@ APPROACHES = frozenset({"N", "S", "E", "W"})
 OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
 DEFAULT_ACTIVITY_THRESHOLD = 0.08
 DEFAULT_SELECTIVITY_RATIO = 1.15
-DEFAULT_STARTUP_LOST_S = 2.0
+DEFAULT_STARTUP_LOST_S = 0.0
 
 
 def _canonical_movement(value: Any) -> str | None:
@@ -270,20 +270,18 @@ def infer_physical_signal_plan(
             sum(evidence) / len(evidence) if evidence else 0.0
         )
 
-    # Turns use a lower candidate threshold than through movements, but
-    # become physical only when V9 exposes an actual protected/isolated phase
-    # pattern. Traffic that merely leaks during an ordinary through phase stays
-    # permissive and does not create a hardware arrow.
+    # Turn inference is intentionally phase-level. A traffic stream being
+    # phase-selective is not enough to prove a protected signal section:
+    # permissive turns can be phase-selective too. A physical turn phase must
+    # therefore contain a coherent multi-source turn group that remains a
+    # secondary component of a dominant through axis.
     TURN_CANDIDATE_EVIDENCE_THRESHOLD = 0.03
     TURN_CANDIDATE_SELECTIVITY_RATIO = max(1.25, float(selectivity_ratio))
-    PROTECTED_TURN_MIN_MAIN = max(0.08, float(activity_threshold))
-    PROTECTED_TURN_CLOSED_THRESHOLD = min(
-        0.03,
-        max(0.005, 0.5 * float(activity_threshold)),
-    )
-    PROTECTED_TURN_STRONG_PAIR = 0.20
+    PROTECTED_TURN_MIN_AXIS = max(0.08, float(activity_threshold))
+    PROTECTED_TURN_MAX_GROUP_RATIO = 0.75
+    PROTECTED_TURN_SINGLE_MIN = 0.10
+    PROTECTED_TURN_ONLY_MIN = 0.18
 
-    # Admit weak, phase-selective turn evidence before structural filtering.
     for phase in names:
         green = set(green_by_phase[phase])
         for movement in movements:
@@ -302,120 +300,75 @@ def infer_physical_signal_plan(
             )
             if (
                 probability
-                >= TURN_CANDIDATE_SELECTIVITY_RATIO * max(other_peak, 0.001)
+                >= TURN_CANDIDATE_SELECTIVITY_RATIO
+                * max(other_peak, 0.001)
             ):
                 green.add(movement)
         green_by_phase[phase] = frozenset(sorted(green))
 
-    PROTECTED_TURN_MAIN_RATIO = 2.0
-
-    PROTECTED_TURN_MAIN_RATIO = 2.0
-
-    def protected_turn_isolated(
-        phase: str,
-        movement: str,
-    ) -> bool:
-        """Check phase contrast against the opposing through stream."""
-        source, _target = movement.split("->", 1)
-        opposing_through = f"{OPPOSITE[source]}->{source}"
-        if (
-            float(activity[phase].get(opposing_through, 0.0))
-            > PROTECTED_TURN_CLOSED_THRESHOLD
-        ):
-            return False
-        return any(
-            other_phase != phase
-            and float(
-                activity[other_phase].get(
-                    opposing_through,
-                    0.0,
-                )
-            )
-            >= PROTECTED_TURN_MIN_MAIN
-            and float(
-                activity[other_phase].get(
-                    movement,
-                    0.0,
-                )
-            )
-            <= PROTECTED_TURN_CLOSED_THRESHOLD
-            for other_phase in names
-        )
-
-    def protected_turn_seed(
-        phase: str,
-        movement: str,
-    ) -> bool:
-        """Find a protected turn with a strong same-approach seed."""
-        probability = float(activity[phase].get(movement, 0.0))
-        if probability < TURN_CANDIDATE_EVIDENCE_THRESHOLD:
-            return False
-
-        source, _target = movement.split("->", 1)
-        source_main = f"{source}->{OPPOSITE[source]}"
-        source_main_probability = float(
-            activity[phase].get(source_main, 0.0)
-        )
-        if (
-            source_main_probability < PROTECTED_TURN_MIN_MAIN
-            or source_main_probability
-            < PROTECTED_TURN_MAIN_RATIO * probability
-        ):
-            return False
-
-        return protected_turn_isolated(phase, movement)
-
-    def protected_turn_group(
+    def turn_phase_is_protected(
         phase: str,
         candidates: Sequence[str],
     ) -> bool:
-        candidate_set = set(candidates)
+        turns = sorted(set(candidates))
+        if not turns:
+            return False
 
-        # A strong protected seed can promote its reciprocal turn. This avoids
-        # requiring equal traffic volumes on the two turn streams.
-        if any(
-            protected_turn_seed(phase, movement)
-            for movement in candidate_set
+        probabilities = {
+            movement: float(activity[phase].get(movement, 0.0))
+            for movement in turns
+        }
+        source_set = {
+            movement.split("->", 1)[0]
+            for movement in turns
+        }
+
+        straight_strengths = {
+            "NS": sum(
+                float(activity[phase].get(item, 0.0))
+                for item in ("N->S", "S->N")
+            ),
+            "EW": sum(
+                float(activity[phase].get(item, 0.0))
+                for item in ("E->W", "W->E")
+            ),
+        }
+        dominant_axis_strength = max(straight_strengths.values(), default=0.0)
+        turn_strength = sum(probabilities.values())
+
+        # A normal through phase may contain two or more permissive turns, but
+        # those turns should not dominate its actual straight signal group.
+        if (
+            len(turns) >= 2
+            and len(source_set) >= 2
+            and dominant_axis_strength >= PROTECTED_TURN_MIN_AXIS
+            and turn_strength
+            <= PROTECTED_TURN_MAX_GROUP_RATIO
+            * dominant_axis_strength
         ):
             return True
 
-        # When both reciprocal turns are substantial, phase isolation itself
-        # is strong evidence even if neither turn has a 2x source-main ratio.
-        for movement in candidate_set:
-            source, target = movement.split("->", 1)
-            reverse = f"{target}->{source}"
-            if movement >= reverse or reverse not in candidate_set:
-                continue
-            if (
-                float(activity[phase].get(movement, 0.0))
-                >= PROTECTED_TURN_STRONG_PAIR
-                and float(activity[phase].get(reverse, 0.0))
-                >= PROTECTED_TURN_STRONG_PAIR
-                and (
-                    protected_turn_isolated(phase, movement)
-                    or protected_turn_isolated(phase, reverse)
-                )
-            ):
-                return True
+        # A single high-volume protected turn is admissible only when it is a
+        # small, clearly phase-specific component of a dominant through axis.
+        if (
+            len(turns) == 1
+            and probabilities[turns[0]] >= PROTECTED_TURN_SINGLE_MIN
+            and dominant_axis_strength >= PROTECTED_TURN_MIN_AXIS
+            and probabilities[turns[0]]
+            <= 0.50 * dominant_axis_strength
+        ):
+            return True
 
-        # Dedicated turn-only phases do not contain a straight movement.
-        # Require two strong turns from opposite approaches.
-        strong_turns = [
-            movement
-            for movement in candidate_set
-            if float(activity[phase].get(movement, 0.0))
-            >= PROTECTED_TURN_STRONG_PAIR
-        ]
-        if len(strong_turns) >= 2:
-            source_set = {
-                movement.split("->", 1)[0]
-                for movement in strong_turns
-            }
-            if any(
-                OPPOSITE[source] in source_set
-                for source in source_set
-            ):
-                return True
+        # Dedicated turn-only phases have no straight stream to compare
+        # against. Require a strong pair from distinct source approaches.
+        if (
+            dominant_axis_strength < PROTECTED_TURN_MIN_AXIS
+            and len(turns) >= 2
+            and len(source_set) >= 2
+            and min(probabilities.values(), default=0.0)
+            >= PROTECTED_TURN_ONLY_MIN
+        ):
+            return True
 
         return False
 
@@ -427,11 +380,9 @@ def infer_physical_signal_plan(
             for movement in green
             if not _is_straight(movement)
         ]
-        protected: set[str] = set()
-        if turns and protected_turn_group(phase, turns):
-            protected.update(turns)
-
+        protected = set(turns) if turn_phase_is_protected(phase, turns) else set()
         suppressed = sorted(set(turns) - protected)
+
         if suppressed:
             green.difference_update(suppressed)
         suppressed_turn_movements_by_phase[phase] = suppressed
@@ -460,13 +411,10 @@ def infer_physical_signal_plan(
                     >= max(1.25, float(selectivity_ratio))
                     * max(other_peak, 0.001)
                 ):
-                    straight_candidates.append(
-                        (probability, movement)
-                    )
+                    straight_candidates.append((probability, movement))
             if straight_candidates:
                 best_probability = max(
-                    probability
-                    for probability, _movement in straight_candidates
+                    probability for probability, _movement in straight_candidates
                 )
                 green.update(
                     movement
@@ -690,7 +638,7 @@ def infer_physical_signal_plan(
             "protected_turn_min_main_probability": PROTECTED_TURN_MIN_MAIN,
             "protected_turn_closed_threshold": PROTECTED_TURN_CLOSED_THRESHOLD,
             "protected_turn_main_ratio": PROTECTED_TURN_MAIN_RATIO,
-            "protected_turn_strong_pair": PROTECTED_TURN_STRONG_PAIR,
+            "protected_turn_max_group_ratio": PROTECTED_TURN_MAX_GROUP_RATIO,\n            "protected_turn_single_min": PROTECTED_TURN_SINGLE_MIN,\n            "protected_turn_only_min": PROTECTED_TURN_ONLY_MIN,
             "startup_lost_s": float(startup_lost_s),
             "suppressed_turn_movements_by_phase": {
                 key: value
