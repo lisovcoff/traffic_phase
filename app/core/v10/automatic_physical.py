@@ -288,9 +288,9 @@ def infer_physical_signal_plan(
             if max(
                 activity[phase].get(movement, 0.0)
                 for phase in names
-            ) >= float(activity_threshold)
+            ) >= WEAK_PHASE_EVIDENCE_THRESHOLD
         }
-        if len(observed) != 2:
+        if not observed:
             continue
         for phase in names:
             green = set(green_by_phase[phase])
