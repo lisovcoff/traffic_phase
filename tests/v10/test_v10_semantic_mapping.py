@@ -206,6 +206,98 @@ def test_automatic_physical_plan_preserves_shared_straight_movement() -> None:
     ]
 
 
+def test_automatic_physical_plan_restores_shared_ns_straight_when_v9_splits_it() -> None:
+    # Reproduces the visual failure: V9 attributes S->N to the NS-through
+    # phase while N->S is strongest in the separate NS-turn phase. The
+    # physical NS-through signal must still open both straight approaches.
+    names = ["PHASE_A", "PHASE_B", "PHASE_C"]
+    result = {
+        "schedule": {
+            "phase_names": names,
+            "phase_count": 3,
+            "period_s": 79.9,
+            "baseline_duration_targets_s": {
+                "PHASE_A": 8.8,
+                "PHASE_B": 50.1,
+                "PHASE_C": 21.0,
+            },
+            "baseline_segments": [
+                [0.0, 8.8, 0],
+                [8.8, 58.9, 1],
+                [58.9, 79.9, 2],
+            ],
+            "stream_activity_by_phase": [
+                {
+                    "stream": "N->S",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.02,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.24,
+                    },
+                },
+                {
+                    "stream": "S->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.53,
+                        "PHASE_B": 0.05,
+                        "PHASE_C": 0.02,
+                    },
+                },
+                {
+                    "stream": "E->W",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.16,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "W->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.18,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "N->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.11,
+                    },
+                },
+                {
+                    "stream": "E->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.09,
+                    },
+                },
+            ],
+        }
+    }
+
+    plan = infer_physical_signal_plan(result)
+    by_name = {phase["name"]: phase for phase in plan["phases"]}
+
+    assert plan["mapping"] == {
+        "PHASE_A": "NS_THROUGH",
+        "PHASE_B": "EW_THROUGH",
+        "PHASE_C": "NS_TURN",
+    }
+    assert set(by_name["NS_THROUGH"]["green_movements"]) == {
+        "N->S",
+        "S->N",
+    }
+    assert set(by_name["NS_TURN"]["green_movements"]) == {
+        "N->S",
+        "N->E",
+        "E->N",
+    }
+
+
 def test_automatic_physical_plan_handles_turn_only_four_phase_catalog() -> None:
     names = ["PHASE_A", "PHASE_B", "PHASE_C", "PHASE_D"]
     physical = [
