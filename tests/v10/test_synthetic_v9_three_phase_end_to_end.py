@@ -223,5 +223,5 @@ def test_sixty_minute_three_phase_pipeline_from_truth_to_renderer() -> None:
         physical_plan=physical,
     )
     assert "const PHYSICAL = " in html
-    assert '"N->E"' in html
-    assert '"E->N"' in html
+    assert '"N-\\u003eE"' in html
+    assert '"E-\\u003eN"' in html
