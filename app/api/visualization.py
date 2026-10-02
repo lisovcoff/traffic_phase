@@ -133,6 +133,13 @@ async def visualization_analyze(
             detail="Only JSON and ZIP inputs are supported",
         )
 
+    dt_value = float(getattr(dt, "default", dt))
+    yellow_value = float(getattr(yellow, "default", yellow))
+    red_yellow_value = float(getattr(red_yellow, "default", red_yellow))
+    activity_threshold_value = float(
+        getattr(activity_threshold, "default", activity_threshold)
+    )
+
     try:
         with TemporaryDirectory(prefix="traffic_phase_visualization_") as tmp:
             source_path = Path(tmp) / Path(file.filename).name
@@ -148,7 +155,7 @@ async def visualization_analyze(
             result = discover_records(
                 tracks,
                 input_name=str(source_path),
-                dt=dt,
+                dt=dt_value,
             )
             projection = build_spatial_projection(tracks)
             compact = compact_trajectories(
@@ -163,9 +170,9 @@ async def visualization_analyze(
                 result,
                 projection,
                 compact,
-                yellow_duration_seconds=yellow,
-                red_yellow_duration_seconds=red_yellow,
-                activity_threshold=activity_threshold,
+                yellow_duration_seconds=yellow_value,
+                red_yellow_duration_seconds=red_yellow_value,
+                activity_threshold=activity_threshold_value,
                 physical_plan=result.get("physical_signal_plan"),
             )
             return HTMLResponse(content=html)
