@@ -319,8 +319,8 @@ def test_automatic_physical_plan_recovers_weak_reciprocal_turn():
                     "stream": "N->S",
                     "event_probability_by_phase": {
                         "PHASE_A": 0.01,
-                        "PHASE_B": 0.01,
-                        "PHASE_C": 0.24,
+                        "PHASE_B": 0.24,
+                        "PHASE_C": 0.01,
                     },
                 },
                 {
@@ -334,16 +334,16 @@ def test_automatic_physical_plan_recovers_weak_reciprocal_turn():
                 {
                     "stream": "E->W",
                     "event_probability_by_phase": {
-                        "PHASE_A": 0.01,
-                        "PHASE_B": 0.16,
+                        "PHASE_A": 0.16,
+                        "PHASE_B": 0.01,
                         "PHASE_C": 0.01,
                     },
                 },
                 {
                     "stream": "W->E",
                     "event_probability_by_phase": {
-                        "PHASE_A": 0.01,
-                        "PHASE_B": 0.18,
+                        "PHASE_A": 0.18,
+                        "PHASE_B": 0.01,
                         "PHASE_C": 0.01,
                     },
                 },
@@ -374,6 +374,7 @@ def test_automatic_physical_plan_recovers_weak_reciprocal_turn():
     assert set(by_name["NS_TURN"]["green_movements"]) == {
         "N->E",
         "E->N",
+        "N->S",
     }
     assert set(by_name["NS_TURN"]["additional_movements"]) == {
         "N->E",
