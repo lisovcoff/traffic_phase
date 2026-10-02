@@ -114,6 +114,7 @@ def _lenina_physical_result():
         "event_count": 100,
         "movement_stream_count": 7,
         "analysis_base_timestamp_ms": 1000.0,
+        "recording_start_timestamp_ms": 900.0,
         "recording_duration_s": 100.0,
         "schedule": {
             "period_s": 99.84281321021679,

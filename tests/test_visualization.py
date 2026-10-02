@@ -72,8 +72,20 @@ def test_visualization_analyze_builds_v9_v10_spatial_html(monkeypatch):
         calls.append(("projection", len(records)))
         return {"anchors": {"N": [0.5, 0.9]}}
 
-    def fake_compact(records, *, analysis_base_timestamp_ms, projection):
-        calls.append(("compact", analysis_base_timestamp_ms))
+    def fake_compact(
+        records,
+        *,
+        analysis_base_timestamp_ms,
+        display_base_timestamp_ms,
+        projection,
+    ):
+        calls.append(
+            (
+                "compact",
+                analysis_base_timestamp_ms,
+                display_base_timestamp_ms,
+            )
+        )
         return [[1, "N", "N->S", [[0.0, 0.5, 0.9], [1.0, 0.5, 0.8]]]]
 
     def fake_render_html(result_arg, projection_arg, compact_arg, **kwargs):
@@ -109,6 +121,8 @@ def test_visualization_analyze_builds_v9_v10_spatial_html(monkeypatch):
     assert calls[0] == ("load_source", ".json")
     assert ("discover_records", 1, 1.0) in calls
     assert ("projection", 1) in calls
-    assert ("compact", 1000.0) in calls
+    assert ("compact", 1000.0, 1000.0) in calls
     render_call = next(item for item in calls if item[0] == "render")
     assert render_call[2]["physical_plan"]["enabled"] is True
+    assert render_call[2]["time_offset_s"] == 0.0
+    assert render_call[2]["display_duration_s"] == 10.0
