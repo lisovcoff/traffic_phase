@@ -1,0 +1,845 @@
+from __future__ import annotations
+
+import argparse
+import base64
+import gzip
+import json
+from pathlib import Path
+from typing import Any
+
+from app.core.v10.semantic_mapping import (
+    build_phase_specs_from_signal_plan_dict,
+    map_v9_to_physical,
+    normalized_segments,
+)
+from app.core.v9.events import load_source
+from app.core.v9.signal_renderer import (
+    DEFAULT_ACTIVITY_THRESHOLD,
+    DEFAULT_RED_YELLOW_DURATION_SECONDS,
+    DEFAULT_YELLOW_DURATION_SECONDS,
+    build_signal_model,
+)
+from app.core.v9.spatial import build_spatial_projection, compact_trajectories
+from app.core.v9.v9_discovery import discover_records
+
+
+PAGE = r"""<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V9 — пространственная реконструкция перекрёстка</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+--bg:#0d1015;--panel:#171b22;--panel2:#10141a;--line:#303743;--text:#edf2f7;
+--muted:#8f9aaa;--green:#49d17d;--yellow:#f2cc5c;--red:#ef6576;--orange:#f29d5c;--blue:#63a4ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text)}
+main{max-width:1250px;margin:auto;padding:18px}
+h1,h2,h3{margin:0}p{line-height:1.4}.muted{color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
+.toolbar,.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:8px}
+.stat{background:var(--panel2);border-radius:10px;padding:10px}
+.stat span{display:block;color:var(--muted);font-size:10px}
+.stat strong{display:block;margin-top:4px;font-size:17px}
+button,select,input{font:inherit}
+button{border:0;border-radius:8px;padding:8px 12px;cursor:pointer;background:#2a3039;color:var(--text)}
+button.primary{background:#f0f3f7;color:#111}
+button:disabled{opacity:.45;cursor:default}
+input[type=range]{width:100%}
+.layout{display:grid;grid-template-columns:minmax(560px,1fr) 320px;gap:12px}
+.canvas-wrap{position:relative;background:#0b0e13;border-radius:12px;overflow:hidden}
+#scene{display:block;width:100%;aspect-ratio:1/1}
+.scene-badge{position:absolute;left:12px;top:12px;background:rgba(13,16,21,.82);border:1px solid #39414d;border-radius:9px;padding:7px 9px;font-size:12px}
+.scene-badge.warning{border-color:#8d6b2f}
+.side h3{font-size:15px;margin-bottom:8px}
+.phase-card{display:flex;justify-content:space-between;gap:8px;padding:9px;background:var(--panel2);border-radius:9px;margin-top:7px}
+.phase-card strong{font-size:13px}.phase-card span{color:var(--muted);font-size:11px}
+.legend{display:grid;gap:7px;color:var(--muted);font-size:11px}
+.legend-row{display:flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%}
+.dot.green{background:var(--green)}.dot.yellow{background:var(--yellow)}.dot.red{background:var(--red)}.dot.car{background:var(--blue)}
+.notice{border-left:3px solid var(--blue);font-size:12px}
+.timeline{height:36px;background:var(--panel2);border-radius:8px;position:relative;overflow:hidden}
+.timeline-segment{position:absolute;top:4px;bottom:4px;border-radius:4px;border:1px solid #566170;cursor:pointer}
+.phase-0{background:#38534a}.phase-1{background:#4d445b}.phase-2{background:#5a4b3b}
+.phase-3{background:#3f4f63}.phase-4{background:#5a3f50}.phase-other{background:#4b5563}
+.axis{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-top:4px}
+@media(max-width:950px){.layout{grid-template-columns:1fr}.stats{grid-template-columns:repeat(4,minmax(110px,1fr))}}
+@media(max-width:600px){main{padding:10px}.stats{grid-template-columns:repeat(2,minmax(110px,1fr))}.panel{padding:11px}}
+</style>
+</head>
+<body>
+<main>
+<h1>V9 — пространственная реконструкция перекрёстка</h1>
+<p class="muted">N — сверху · S — снизу · E — справа · W — слева. Транспорт отображается только по detections исходного JSON.</p>
+
+<section class="panel toolbar">
+<button class="primary" id="play">▶ Воспроизвести</button>
+<button id="pause">⏸ Пауза</button>
+<button id="reset">↺ В начало</button>
+<label>Скорость
+<select id="speed">
+<option value="0.5">x0.5</option><option value="1" selected>x1</option>
+<option value="2">x2</option><option value="5">x5</option>
+<option value="20">x20</option><option value="100">x100</option>
+</select></label>
+<strong id="timeLabel">—</strong>
+</section>
+
+<section class="panel">
+<input id="slider" type="range" min="0" max="1" step="0.1" value="0">
+<div class="axis"><span id="axisStart">—</span><span id="axisEnd">—</span></div>
+</section>
+
+<section class="stats">
+<div class="stat"><span>Фаза</span><strong id="phase">—</strong></div>
+<div class="stat"><span>Позиция цикла</span><strong id="cycle">—</strong></div>
+<div class="stat"><span>Машины в кадре</span><strong id="vehicles">—</strong></div>
+<div class="stat"><span>Период</span><strong id="period">—</strong></div>
+<div class="stat"><span>Траектории</span><strong id="trajectoryCount">—</strong></div>
+<div class="stat"><span>События</span><strong id="eventCount">—</strong></div>
+<div class="stat"><span>Отклонение</span><strong id="anomaly">—</strong></div>
+</section>
+
+<section class="layout">
+<div class="canvas-wrap panel">
+<canvas id="scene"></canvas>
+<div id="sceneBadge" class="scene-badge">Загрузка данных…</div>
+</div>
+
+<aside class="panel side">
+<h3>Состояние светофоров</h3>
+<div id="signalList"></div>
+
+<div class="panel notice">
+<strong>Семантика:</strong> <span id="semanticText">зелёный/красный — реконструкция V9 по активности потоков.
+Жёлтый и красный+жёлтый — модельные переходы, а не прямое чтение контроллера.</span>
+</div>
+
+<h3 style="margin-top:14px">Фазы цикла</h3>
+<div id="phaseList"></div>
+
+<h3 style="margin-top:14px">Легенда</h3>
+<div class="legend">
+<div class="legend-row"><span class="dot green"></span> Зелёный</div>
+<div class="legend-row"><span class="dot yellow"></span> Жёлтый</div>
+<div class="legend-row"><span class="dot red"></span> Красный</div>
+<div class="legend-row"><span class="dot car"></span> Точка транспорта из JSON</div>
+</div>
+<p id="error"></p>
+</aside>
+</section>
+
+<section class="panel">
+<div class="timeline" id="phaseTimeline"></div>
+<div class="axis"><span>Начало анализа V9</span><span id="timelineEnd">—</span></div>
+</section>
+</main>
+
+<script>
+const RESULT = __RESULT__;
+const SIGNAL_MODEL = __SIGNAL_MODEL__;
+const PROJECTION = __PROJECTION__;
+const PACKED_DATA = "__PACKED_DATA__";
+const ANALYSIS_BASE_MS = Number(RESULT.analysis_base_timestamp_ms || 0);
+const RECORDING_DURATION = Number(RESULT.recording_duration_s || 0);
+const ACTIVITY_THRESHOLD = Number(SIGNAL_MODEL.activity_threshold || 0.05);
+const YELLOW_S = __YELLOW__;
+const RED_YELLOW_S = __REDYELLOW__;
+const PHYSICAL_TOPOLOGY = __PHYSICAL_TOPOLOGY__;
+const PHYSICAL = __PHYSICAL__;
+
+let TRACKS = [];
+let currentTime = 0;
+let timer = null;
+let tGlobal = 0;
+let canvasScale = 1;
+
+const APPROACHES = ["N","S","E","W"];
+const APPROACH_LABELS = {N:"Север",S:"Юг",E:"Восток",W:"Запад"};
+// Physical signal topology is inferred from recurring movement-phase evidence.
+// A head always controls its incoming approach; only supported dedicated turn
+// movements are rendered as additional physical sections.
+const HEAD_SECTIONS = PHYSICAL.enabled ? PHYSICAL.topology : PHYSICAL_TOPOLOGY;
+const ACTIVE_APPROACHES = (
+  PROJECTION && PROJECTION.anchors &&
+  Object.keys(PROJECTION.anchors).length
+)
+  ? APPROACHES.filter(function(approach){
+      return Object.prototype.hasOwnProperty.call(PROJECTION.anchors, approach);
+    })
+  : APPROACHES;
+const LIGHT_POS = {
+  N:{x:0.565,y:0.305}, S:{x:0.435,y:0.695},
+  E:{x:0.695,y:0.565}, W:{x:0.305,y:0.435}
+};
+
+function $(id){return document.getElementById(id)}
+
+async function unpackData(){
+  const binary=Uint8Array.from(atob(PACKED_DATA),function(c){return c.charCodeAt(0)});
+  if(typeof DecompressionStream==="undefined"){
+    throw new Error("Браузер не поддерживает DecompressionStream. Используйте современный Chrome или Edge.");
+  }
+  const stream=new Blob([binary]).stream().pipeThrough(new DecompressionStream("gzip"));
+  const bytes=new Uint8Array(await new Response(stream).arrayBuffer());
+  return JSON.parse(new TextDecoder("utf-8").decode(bytes));
+}
+
+function phaseAt(t){
+  const rows=PHYSICAL.enabled
+    ? (PHYSICAL.segments || [])
+    : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
+  if(!rows.length)return null;
+
+  // V10 physical segments describe one cycle and must repeat for the
+  // whole recording. Vehicle detections use recording-relative time, so
+  // resolve the signal state in the same cycle-local time domain.
+  const period=Number(SIGNAL_MODEL.period_s || PHYSICAL.cycle_seconds || 0);
+  const localTime=PHYSICAL.enabled && period>0
+    ? ((Number(t)%period)+period)%period
+    : Number(t);
+
+  for(let i=0;i<rows.length;i++){
+    if(localTime>=Number(rows[i][0]) && localTime<Number(rows[i][1])){
+      return {
+        index:i,
+        start:Number(rows[i][0]),
+        end:Number(rows[i][1]),
+        phase:PHYSICAL.enabled ? String(rows[i][2]) : Number(rows[i][2])
+      };
+    }
+  }
+
+  // Exact cycle boundary: select the first phase of the next cycle.
+  if(PHYSICAL.enabled){
+    const row=rows[0];
+    return {
+      index:0,
+      start:Number(row[0]),
+      end:Number(row[1]),
+      phase:String(row[2])
+    };
+  }
+
+  const row=rows[rows.length-1];
+  return {
+    index:rows.length-1,
+    start:Number(row[0]),
+    end:Number(row[1]),
+    phase:Number(row[2])
+  };
+}
+
+function adjacentPhase(index,direction){
+  const rows=PHYSICAL.enabled
+    ? (PHYSICAL.segments || [])
+    : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
+  if(!rows.length)return null;
+  const j=((index+direction)%rows.length+rows.length)%rows.length;
+  return PHYSICAL.enabled ? String(rows[j][2]) : Number(rows[j][2]);
+}
+
+function probability(movement,phase){
+  const map=(SIGNAL_MODEL.activity||{})[movement]||{};
+  return Number(map[String(phase)] == null ? (map[phase] || 0) : map[String(phase)]);
+}
+
+function movementState(movement,seg){
+  const distanceFromStart=Math.max(0,tGlobal-seg.start);
+  const distanceToEnd=Math.max(0,seg.end-tGlobal);
+
+  if(PHYSICAL.enabled){
+    const findPhase=function(name){
+      return (PHYSICAL.phases||[]).find(function(item){return item.name===String(name)}) || null;
+    };
+    const currentPhase=findPhase(seg.phase);
+    const previousPhase=findPhase(adjacentPhase(seg.index,-1));
+    const nextPhase=findPhase(adjacentPhase(seg.index,1));
+    const currentGreen=!!currentPhase && currentPhase.green_movements.includes(movement);
+    const previousGreen=!!previousPhase && previousPhase.green_movements.includes(movement);
+    const nextGreen=!!nextPhase && nextPhase.green_movements.includes(movement);
+    let state=currentGreen ? "GREEN" : "RED";
+    if(currentGreen && !nextGreen && distanceToEnd>0 && distanceToEnd<=YELLOW_S){
+      state="YELLOW";
+    }else if(currentGreen && !previousGreen && distanceFromStart>=0 && distanceFromStart<RED_YELLOW_S){
+      state="RED_YELLOW";
+    }
+    return {
+      movement:movement,
+      state:state,
+      probability:currentGreen ? 1 : 0,
+      peak:1,
+      dominant_ratio:currentGreen ? 1 : 0,
+      transition:state==="YELLOW"||state==="RED_YELLOW",
+      source:"V10_PHYSICAL_PLAN"
+    };
+  }
+
+  const current=probability(movement,seg.phase);
+  const phaseValues=(SIGNAL_MODEL.activity||{})[movement]||{};
+  const values=Object.values(phaseValues).map(Number).filter(Number.isFinite);
+  const peak=values.length ? Math.max(...values) : 0;
+  const dominantRatio=peak>0 ? current/peak : 0;
+  // Residual activity in another phase must not make a physical signal green.
+  const currentGreen=current>=ACTIVITY_THRESHOLD && dominantRatio>=0.70;
+  const previousPhase=adjacentPhase(seg.index,-1);
+  const nextPhase=adjacentPhase(seg.index,1);
+  const previous=probability(movement,previousPhase);
+  const next=probability(movement,nextPhase);
+  const previousDominant=previous>=ACTIVITY_THRESHOLD &&
+    (peak>0 ? previous/peak>=0.70 : false);
+  const nextDominant=next>=ACTIVITY_THRESHOLD &&
+    (peak>0 ? next/peak>=0.70 : false);
+  let state=currentGreen ? "GREEN" : "RED";
+  if(currentGreen && !nextDominant && distanceToEnd>0 && distanceToEnd<=YELLOW_S){
+    state="YELLOW";
+  }else if(currentGreen && !previousDominant && distanceFromStart>=0 && distanceFromStart<RED_YELLOW_S){
+    state="RED_YELLOW";
+  }
+  return {
+    movement:movement,
+    state:state,
+    probability:current,
+    peak:peak,
+    dominant_ratio:dominantRatio,
+    transition:state==="YELLOW"||state==="RED_YELLOW",
+    source:"INFERRED_MODEL"
+  };
+}
+
+function headInfo(approach,seg){
+  const sections=HEAD_SECTIONS[approach];
+  const main=movementState(sections.main,seg);
+  const arrows=sections.arrows.map(function(movement){return movementState(movement,seg)});
+  return {main:main,arrows:arrows};
+}
+
+function signalSnapshot(t){
+  const period=Number(SIGNAL_MODEL.period_s || PHYSICAL.cycle_seconds || 0);
+  tGlobal=PHYSICAL.enabled && period>0
+    ? ((Number(t)%period)+period)%period
+    : Number(t);
+  const seg=phaseAt(t);
+  if(!seg)return {phase:null,phaseName:"UNKNOWN",cyclePosition:t,approaches:{}};
+  const heads={};
+  for(const approach of ACTIVE_APPROACHES)heads[approach]=headInfo(approach,seg);
+  return {
+    phase:seg.phase,
+    phaseName:PHYSICAL.enabled
+      ? String(seg.phase)
+      : ((SIGNAL_MODEL.phase_names||[])[seg.phase] || ("PHASE_"+String.fromCharCode(65+seg.phase))),
+    cyclePosition:((t%Number(SIGNAL_MODEL.period_s))+Number(SIGNAL_MODEL.period_s))%Number(SIGNAL_MODEL.period_s),
+    heads:heads
+  };
+}
+
+function binarySearchDetections(detections,t){
+  if(!detections.length || t<Number(detections[0][0]) || t>Number(detections[detections.length-1][0]))return -1;
+  let lo=0,hi=detections.length-1;
+  while(lo<=hi){
+    const mid=(lo+hi)>>1;
+    if(Number(detections[mid][0])<=t)lo=mid+1;
+    else hi=mid-1;
+  }
+  return Math.max(0,Math.min(detections.length-2,lo-1));
+}
+
+function vehicleAt(track,t){
+  const detections=track[3];
+  const index=binarySearchDetections(detections,t);
+  if(index<0)return null;
+  const a=detections[index];
+  const b=detections[Math.min(index+1,detections.length-1)];
+  const ta=Number(a[0]),tb=Number(b[0]);
+  const factor=tb>ta ? Math.max(0,Math.min(1,(t-ta)/(tb-ta))) : 0;
+  return {
+    x:Number(a[1])+(Number(b[1])-Number(a[1]))*factor,
+    y:Number(a[2])+(Number(b[2])-Number(a[2]))*factor,
+    angle:Math.atan2(Number(b[2])-Number(a[2]),Number(b[1])-Number(a[1]))
+  };
+}
+
+function activeVehicles(t){
+  const result=[];
+  for(const track of TRACKS){
+    const pos=vehicleAt(track,t);
+    if(!pos)continue;
+    if(pos.x<-0.08 || pos.x>1.08 || pos.y<-0.08 || pos.y>1.08)continue;
+    result.push({track:track,pos:pos});
+  }
+  return result;
+}
+
+function drawRoad(ctx,w,h){
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle="#222831";ctx.fillRect(0,0,w,h);
+
+  const roadL=0.32*w,roadR=0.68*w,roadT=0.32*h,roadB=0.68*h;
+  ctx.fillStyle="#3a4049";
+  ctx.fillRect(roadL,0,roadR-roadL,h);
+  ctx.fillRect(0,roadT,w,roadB-roadT);
+  ctx.fillStyle="#262c34";
+  ctx.fillRect(roadL,roadT,roadR-roadL,roadB-roadT);
+
+  ctx.strokeStyle="#e0b83f";
+  ctx.lineWidth=Math.max(1,1.5*canvasScale);
+  ctx.setLineDash([12*canvasScale,10*canvasScale]);
+  ctx.beginPath();
+  ctx.moveTo(w*.5,0);ctx.lineTo(w*.5,roadT);
+  ctx.moveTo(w*.5,roadB);ctx.lineTo(w*.5,h);
+  ctx.moveTo(0,h*.5);ctx.lineTo(roadL,h*.5);
+  ctx.moveTo(roadR,h*.5);ctx.lineTo(w,h*.5);
+  ctx.stroke();ctx.setLineDash([]);
+
+  ctx.strokeStyle="#f3f5f7";ctx.lineWidth=Math.max(2,2.4*canvasScale);
+  ctx.beginPath();
+  ctx.moveTo(roadL,roadT);ctx.lineTo(w*.44,roadT);
+  ctx.moveTo(w*.56,roadT);ctx.lineTo(roadR,roadT);
+  ctx.moveTo(roadL,roadB);ctx.lineTo(w*.44,roadB);
+  ctx.moveTo(w*.56,roadB);ctx.lineTo(roadR,roadB);
+  ctx.moveTo(roadL,h*.44);ctx.lineTo(roadL,h*.56);
+  ctx.moveTo(roadR,h*.44);ctx.lineTo(roadR,h*.56);
+  ctx.stroke();
+
+  ctx.fillStyle="#c9cfd8";
+  ctx.font="700 "+(14*canvasScale)+"px Inter,system-ui";
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText("N",w*.5,18*canvasScale);
+  ctx.fillText("S",w*.5,h-18*canvasScale);
+  ctx.fillText("W",18*canvasScale,h*.5);
+  ctx.fillText("E",w-18*canvasScale,h*.5);
+}
+
+function lampColor(state,which){
+  if(state==="GREEN")return which==="GREEN"?"#49d17d":"#252a31";
+  if(state==="YELLOW")return which==="YELLOW"?"#f2cc5c":"#252a31";
+  if(state==="RED")return which==="RED"?"#ef6576":"#252a31";
+  if(state==="RED_YELLOW"){
+    return which==="RED" ? "#ef6576" : which==="YELLOW" ? "#f2cc5c" : "#252a31";
+  }
+  return "#252a31";
+}
+
+function drawArrowSection(ctx,x,y,state,arrow,w,h){
+  const px=x*w,py=y*h;
+  const bodyW=34*canvasScale,bodyH=26*canvasScale;
+  const left=px-bodyW/2,top=py-bodyH/2;
+  ctx.fillStyle="#171b22";ctx.strokeStyle="#47505d";ctx.lineWidth=1.2*canvasScale;
+  ctx.beginPath();ctx.roundRect(left,top,bodyW,bodyH,5*canvasScale);ctx.fill();ctx.stroke();
+
+  const arrowGlyph=arrow.endsWith("N")?"↑":arrow.endsWith("S")?"↓":arrow.endsWith("E")?"→":"←";
+  ctx.fillStyle=state==="GREEN"?"#49d17d":state==="YELLOW"?"#f2cc5c":"#252a31";
+  ctx.font="800 "+(17*canvasScale)+"px Inter,system-ui";
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(arrowGlyph,px,py+1*canvasScale);
+}
+
+function drawLight(ctx,x,y,head,approach,w,h){
+  const px=x*w,py=y*h;
+  const bodyW=34*canvasScale,bodyH=96*canvasScale;
+  const left=px-bodyW/2,top=py-bodyH/2;
+
+  ctx.fillStyle="#171b22";ctx.strokeStyle="#47505d";ctx.lineWidth=1.5*canvasScale;
+  ctx.beginPath();ctx.roundRect(left,top,bodyW,bodyH,7*canvasScale);ctx.fill();ctx.stroke();
+
+  const lamps=[
+    {y:top+20*canvasScale,c:"RED"},
+    {y:top+48*canvasScale,c:"YELLOW"},
+    {y:top+76*canvasScale,c:"GREEN"}
+  ];
+  for(const item of lamps){
+    ctx.beginPath();ctx.arc(px,item.y,9*canvasScale,0,Math.PI*2);
+    ctx.fillStyle=lampColor(head.main.state,item.c);ctx.fill();ctx.strokeStyle="#697586";ctx.stroke();
+  }
+
+  ctx.fillStyle="#edf2f7";ctx.font="700 "+(11*canvasScale)+"px Inter,system-ui";
+  ctx.textAlign="center";ctx.textBaseline="bottom";ctx.fillText(approach,px,top-5*canvasScale);
+
+  head.arrows.forEach(function(section,index){
+    // Keep additional sections adjacent to the main head in normalized canvas coordinates.
+    const offsetX=(index+1)*30/w;
+    const offsetY=27/h;
+    drawArrowSection(ctx,x+offsetX,y+offsetY,section.state,section.movement,w,h);
+  });
+}
+
+function drawVehicle(ctx,vehicle,w,h){
+  const pos=vehicle.pos;
+  const x=pos.x*w,y=pos.y*h,r=4.5*canvasScale;
+  ctx.save();ctx.translate(x,y);ctx.rotate(pos.angle);
+  ctx.fillStyle="#63a4ff";ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle="#dce8ff";ctx.lineWidth=Math.max(1,1.2*canvasScale);
+  ctx.beginPath();ctx.moveTo(r,0);ctx.lineTo(r+4*canvasScale,0);ctx.stroke();
+  ctx.restore();
+}
+
+function anomalyAt(t){
+  const deviations=RESULT.anomaly_detection && RESULT.anomaly_detection.temporary_phase_deviations || [];
+  for(const item of deviations){
+    if(t>=Number(item.start_s)&&t<Number(item.end_s))return item;
+  }
+  return null;
+}
+
+function renderSignalList(snapshot){
+  const holder=$("signalList");holder.innerHTML="";
+  for(const approach of ACTIVE_APPROACHES){
+    const head=snapshot.heads[approach] || {main:{state:"UNKNOWN",probability:0},arrows:[]};
+    const row=document.createElement("div");row.className="phase-card";
+    const left=document.createElement("strong");left.textContent=APPROACH_LABELS[approach];
+    const right=document.createElement("span");
+    const arrowText=head.arrows.map(function(item){
+      return "доп. "+item.movement+" "+item.state;
+    }).join(" · ");
+    right.textContent="основной "+head.main.state+(PHYSICAL.enabled?"":" · P="+Number(head.main.probability||0).toFixed(3))+(arrowText?" · "+arrowText:"");
+    right.style.color=head.main.state==="GREEN"?"var(--green)":head.main.state==="YELLOW"?"var(--yellow)":head.main.state==="RED_YELLOW"?"var(--orange)":"var(--red)";
+    row.append(left,right);holder.appendChild(row);
+  }
+}
+
+function renderPhases(){
+  const holder=$("phaseList");holder.innerHTML="";
+  const rows=PHYSICAL.enabled
+    ? (PHYSICAL.segments || [])
+    : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
+  const seen={};
+  for(const row of rows){
+    const phase=PHYSICAL.enabled ? String(row[2]) : Number(row[2]);
+    const key=String(phase);
+    if(seen[key])continue;
+    seen[key]=true;
+    const card=document.createElement("div");card.className="phase-card";
+    const name=document.createElement("strong");
+    name.textContent=PHYSICAL.enabled
+      ? String(phase)
+      : ((SIGNAL_MODEL.phase_names||[])[phase] || ("PHASE_"+String.fromCharCode(65+phase)));
+    const duration=document.createElement("span");
+    duration.textContent=(Number(row[1])-Number(row[0])).toFixed(1)+" s";
+    card.append(name,duration);holder.appendChild(card);
+  }
+}
+
+function renderPhaseTimeline(){
+  const holder=$("phaseTimeline");holder.innerHTML="";
+  const rows=PHYSICAL.enabled
+    ? (PHYSICAL.segments || [])
+    : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
+  for(const row of rows){
+    const phase=PHYSICAL.enabled ? String(row[2]) : Number(row[2]);
+    const element=document.createElement("button");element.type="button";
+    element.className="timeline-segment "+(PHYSICAL.enabled ? "phase-other" : (phase<5?"phase-"+phase:"phase-other"));
+    element.style.left=(100*Number(row[0])/RECORDING_DURATION)+"%";
+    element.style.width=Math.max(0.08,100*(Number(row[1])-Number(row[0]))/RECORDING_DURATION)+"%";
+    const label=PHYSICAL.enabled
+      ? String(phase)
+      : ((SIGNAL_MODEL.phase_names||[])[phase]||phase);
+    element.title="Фаза "+label+" · "+Number(row[0]).toFixed(1)+"–"+Number(row[1]).toFixed(1)+" s";
+    element.addEventListener("click",function(){setCurrentTime(Number(row[0]))});
+    holder.appendChild(element);
+  }
+}
+
+function resizeCanvas(){
+  const canvas=$("scene"),rect=canvas.getBoundingClientRect();
+  canvasScale=window.devicePixelRatio||1;
+  canvas.width=Math.max(1,Math.round(rect.width*canvasScale));
+  canvas.height=Math.max(1,Math.round(rect.height*canvasScale));
+  render();
+}
+window.addEventListener("resize",resizeCanvas);
+
+function render(){
+  tGlobal=currentTime;
+  const snapshot=signalSnapshot(currentTime);
+  const vehicles=activeVehicles(currentTime);
+  const canvas=$("scene"),ctx=canvas.getContext("2d");
+  drawRoad(ctx,canvas.width,canvas.height);
+  for(const vehicle of vehicles)drawVehicle(ctx,vehicle,canvas.width,canvas.height);
+  for(const approach of ACTIVE_APPROACHES){
+    const head=snapshot.heads[approach] || {main:{state:"UNKNOWN"},arrows:[]};
+    drawLight(ctx,LIGHT_POS[approach].x,LIGHT_POS[approach].y,head,approach,canvas.width,canvas.height);
+  }
+
+  const anomaly=anomalyAt(currentTime);
+  $("phase").textContent=snapshot.phaseName==="UNKNOWN"?"UNKNOWN":snapshot.phaseName.replace(/^PHASE_/,"");
+  $("cycle").textContent=Number(snapshot.cyclePosition||0).toFixed(2)+" s";
+  $("vehicles").textContent=String(vehicles.length);
+  $("timeLabel").textContent=new Date(ANALYSIS_BASE_MS+currentTime*1000).toLocaleString()+" · T+"+currentTime.toFixed(1)+" s";
+  $("anomaly").textContent=anomaly?"⚠ "+anomaly.type+" · "+Number(anomaly.delta_s).toFixed(1)+" s":"Нет";
+  $("sceneBadge").textContent=(PHYSICAL.enabled?"V10 · физический план · ":"")+"N ↑ · S ↓ · W ← · E → · "+vehicles.length+" машин";
+  $("sceneBadge").className="scene-badge"+(anomaly?" warning":"");
+  $("semanticText").textContent=PHYSICAL.enabled
+    ? "зелёный/красный — по V10 physical phase mapping и заданному плану сигналов. Жёлтый и красный+жёлтый — модельные переходы."
+    : "зелёный/красный — реконструкция V9 по активности потоков. Жёлтый и красный+жёлтый — модельные переходы, а не прямое чтение контроллера.";
+  renderSignalList(snapshot);
+  $("slider").value=String(currentTime);
+}
+
+function setCurrentTime(value){
+  currentTime=Math.max(0,Math.min(RECORDING_DURATION,Number(value)||0));
+  render();
+}
+
+function play(){
+  stop();
+  let previous=performance.now();
+  function frame(now){
+    const delta=Math.min(.25,(now-previous)/1000);previous=now;
+    const speed=Number($("speed").value)||1;
+    setCurrentTime(currentTime+delta*speed);
+    if(currentTime>=RECORDING_DURATION){stop();return}
+    timer=requestAnimationFrame(frame);
+  }
+  timer=requestAnimationFrame(frame);
+}
+
+function stop(){
+  if(timer){cancelAnimationFrame(timer);timer=null}
+}
+
+$("play").addEventListener("click",play);
+$("pause").addEventListener("click",stop);
+$("reset").addEventListener("click",function(){stop();setCurrentTime(0)});
+$("slider").addEventListener("input",function(e){setCurrentTime(e.target.value)});
+$("speed").addEventListener("change",function(){if(timer)play()});
+
+async function init(){
+  try{
+    TRACKS=await unpackData();
+    $("trajectoryCount").textContent=String(RESULT.trajectory_count||0);
+    $("eventCount").textContent=String(RESULT.event_count||0);
+    $("period").textContent=Number(RESULT.schedule && RESULT.schedule.period_s || 0).toFixed(3)+" s";
+    $("slider").max=String(RECORDING_DURATION);
+    $("axisStart").textContent="T+0.0 s · "+new Date(ANALYSIS_BASE_MS).toLocaleTimeString();
+    $("axisEnd").textContent="T+"+RECORDING_DURATION.toFixed(1)+" s · "+new Date(ANALYSIS_BASE_MS+RECORDING_DURATION*1000).toLocaleTimeString();
+    $("timelineEnd").textContent=new Date(ANALYSIS_BASE_MS+RECORDING_DURATION*1000).toLocaleTimeString();
+    renderPhases();renderPhaseTimeline();resizeCanvas();render();
+  }catch(error){
+    $("error").textContent=String(error.message||error);
+    $("sceneBadge").textContent="Ошибка загрузки данных";
+  }
+}
+init();
+</script>
+</body>
+</html>
+"""
+
+
+def _safe_json(value: object) -> str:
+    return (
+        json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
+
+
+def _pack_data(trajectories: list[list[Any]]) -> str:
+    raw=json.dumps(trajectories,ensure_ascii=False,separators=(",",":")).encode("utf-8")
+    return base64.b64encode(gzip.compress(raw,compresslevel=6)).decode("ascii")
+
+
+def _phase_activity(result: dict[str, Any]) -> dict[str, dict[int, float]]:
+    activity: dict[str, dict[int, float]] = {}
+    rows = result.get("schedule", {}).get("stream_activity_by_phase", [])
+    phase_names = result.get("schedule", {}).get("phase_names", [])
+    for row in rows:
+        movement = str(row.get("stream", ""))
+        values = row.get("event_probability_by_phase", {})
+        if not movement or not isinstance(values, dict):
+            continue
+        phase_map: dict[int, float] = {}
+        for key, value in values.items():
+            try:
+                phase = phase_names.index(key) if key in phase_names else int(key)
+                phase_map[int(phase)] = float(value)
+            except (ValueError, TypeError):
+                continue
+        if phase_map:
+            activity[movement] = phase_map
+    return activity
+
+
+def infer_physical_signal_topology(result: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Infer which approaches need physical additional arrow sections.
+
+    Straight movements are always the main signal. A turn becomes a physical
+    additional section only when there is repeated material evidence for a
+    reciprocal turn pair sharing the same dominant phase. This prevents weak
+    residual streams such as W->S from becoming fabricated hardware.
+    """
+    approaches = ("N", "S", "E", "W")
+    topology = {
+        approach: {
+            "main": f"{approach}->{ {'N':'S','S':'N','E':'W','W':'E'}[approach] }",
+            "arrows": [],
+        }
+        for approach in approaches
+    }
+    activity = _phase_activity(result)
+    candidates: dict[str, tuple[float, int]] = {}
+    for movement, phase_values in activity.items():
+        if "->" not in movement:
+            continue
+        source, target = movement.split("->", 1)
+        if source not in approaches or target not in approaches or source == target:
+            continue
+        # Straight-through movement is already the main signal of this
+        # approach. It must never be represented as an additional arrow
+        # section, even when its reciprocal movement has strong evidence.
+        main_target = {"N": "S", "S": "N", "E": "W", "W": "E"}[source]
+        if target == main_target:
+            continue
+        peak_phase, peak_value = max(phase_values.items(), key=lambda item: item[1])
+        # 0.08 rejects the Lenina W->S residual (0.0759), while retaining
+        # N->E (0.1093) and E->N (0.0948).
+        if peak_value >= 0.08:
+            candidates[movement] = (float(peak_value), int(peak_phase))
+
+    for movement, (peak_value, peak_phase) in candidates.items():
+        source, target = movement.split("->", 1)
+        reverse = f"{target}->{source}"
+        if reverse not in candidates:
+            continue
+        if candidates[reverse][1] != peak_phase:
+            continue
+        topology[source]["arrows"].append(movement)
+
+    for approach in approaches:
+        topology[approach]["arrows"].sort()
+    return topology
+
+
+def _physical_visual_model(
+    result: dict[str, Any],
+    physical_plan: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if physical_plan is None:
+        physical_plan = result.get("physical_signal_plan")
+    if not isinstance(physical_plan, dict) or not physical_plan.get("enabled"):
+        return {"enabled": False, "phases": [], "segments": [], "topology": {}}
+
+    specs = build_phase_specs_from_signal_plan_dict(physical_plan)
+    if physical_plan.get("auto_inferred") and isinstance(physical_plan.get("mapping"), dict):
+        mapping = physical_plan["mapping"]
+        mapping_payload = {
+            "mapping": mapping,
+            "confidence": physical_plan.get("confidence", 0.0),
+            "scores": {},
+        }
+    else:
+        resolved = map_v9_to_physical(result, specs)
+        mapping = resolved.mapping
+        mapping_payload = resolved.to_dict()
+    segments = normalized_segments(result, mapping)
+
+    topology = {
+        approach: {
+            "main": f"{approach}->{ {'N':'S','S':'N','E':'W','W':'E'}[approach] }",
+            "arrows": [],
+        }
+        for approach in ("N", "S", "E", "W")
+    }
+    for spec in specs:
+        for movement in spec.additional_movements:
+            if "->" not in movement:
+                continue
+            approach, target = movement.split("->", 1)
+            if approach in topology and target in {"N", "S", "E", "W"}:
+                topology[approach]["arrows"].append(movement)
+    for approach in topology:
+        topology[approach]["arrows"] = sorted(set(topology[approach]["arrows"]))
+
+    phases = [
+        {
+            "name": spec.name,
+            "green_movements": sorted(spec.green_movements),
+            "additional_movements": sorted(spec.additional_movements),
+            "duration_s": spec.duration_s,
+        }
+        for spec in specs
+    ]
+    return {
+        "enabled": True,
+        "mapping": mapping_payload,
+        "segments": segments,
+        "phases": phases,
+        "topology": topology,
+    }
+
+
+def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
+                red_yellow_duration_seconds=2.0,activity_threshold=0.05,
+                physical_plan=None):
+    signal_model=build_signal_model(result,activity_threshold=activity_threshold)
+    physical=_physical_visual_model(result,physical_plan)
+    page=PAGE.replace("__RESULT__",_safe_json(result))
+    page=page.replace("__SIGNAL_MODEL__",_safe_json(signal_model))
+    page=page.replace("__PROJECTION__",_safe_json(projection))
+    page=page.replace("__PACKED_DATA__",_pack_data(trajectories))
+    page=page.replace("__YELLOW__",str(float(yellow_duration_seconds)))
+    page=page.replace("__REDYELLOW__",str(float(red_yellow_duration_seconds)))
+    page=page.replace("__PHYSICAL_TOPOLOGY__",_safe_json(infer_physical_signal_topology(result)))
+    page=page.replace("__PHYSICAL__",_safe_json(physical))
+    return page
+
+
+def main()->int:
+    parser=argparse.ArgumentParser(description="Create V9 spatial offline visualization.")
+    parser.add_argument("input",type=Path)
+    parser.add_argument("--output",type=Path,default=Path("v9_spatial.html"))
+    parser.add_argument("--dt",type=float,default=1.0)
+    parser.add_argument("--yellow",type=float,default=DEFAULT_YELLOW_DURATION_SECONDS)
+    parser.add_argument("--red-yellow",type=float,default=DEFAULT_RED_YELLOW_DURATION_SECONDS)
+    parser.add_argument("--activity-threshold",type=float,default=DEFAULT_ACTIVITY_THRESHOLD)
+    parser.add_argument(
+        "--physical-plan",
+        type=Path,
+        default=None,
+        help="JSON physical signal plan/catalog consumed by V10 semantics",
+    )
+    args=parser.parse_args()
+
+    if args.dt<=0:raise SystemExit("--dt must be positive")
+    if args.yellow<0 or args.red_yellow<0:raise SystemExit("transition durations must be non-negative")
+    if not 0<=args.activity_threshold<=1:raise SystemExit("--activity-threshold must be in [0,1]")
+
+    tracks,_source_files=load_source(args.input)
+    result=discover_records(tracks,input_name=str(args.input),dt=args.dt)
+    physical_plan = (
+        json.loads(args.physical_plan.read_text(encoding="utf-8"))
+        if args.physical_plan is not None
+        else None
+    )
+    projection=build_spatial_projection(tracks)
+    compact=compact_trajectories(
+        tracks,
+        analysis_base_timestamp_ms=float(result["analysis_base_timestamp_ms"]),
+        projection=projection,
+    )
+    html=render_html(
+        result,projection,compact,
+        yellow_duration_seconds=args.yellow,
+        red_yellow_duration_seconds=args.red_yellow,
+        activity_threshold=args.activity_threshold,
+        physical_plan=physical_plan,
+    )
+    args.output.write_text(html,encoding="utf-8")
+    print("[V9] spatial offline visualization complete")
+    print("  input:",args.input)
+    print("  output:",args.output)
+    print("  phases:",result["phase_model_selection"]["selected_phase_count"])
+    print("  period_s:",round(float(result["period_inference"]["period_s"]),3))
+    print("  trajectories:",result["trajectory_count"])
+    print("  rendered_trajectories:",len(compact))
+    print("  html_size_mb:",round(len(html.encode("utf-8"))/1024/1024,2))
+    print("  projection:",projection["method"])
+    return 0
+
+
+if __name__=="__main__":
+    raise SystemExit(main())

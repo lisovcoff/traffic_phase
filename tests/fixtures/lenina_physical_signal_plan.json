@@ -1,0 +1,45 @@
+{
+  "cycle_seconds": 99.84281321021679,
+  "stages": [
+    {
+      "stage_id": 1,
+      "name": "C",
+      "phase_start": 0,
+      "phase_end": 21,
+      "active_movements": [
+        "E->W",
+        "W->E",
+        "W->N"
+      ],
+      "additional_movements": [
+        "W->N"
+      ]
+    },
+    {
+      "stage_id": 2,
+      "name": "A",
+      "phase_start": 21,
+      "phase_end": 52,
+      "active_movements": [
+        "N->S",
+        "N->E",
+        "E->N"
+      ],
+      "additional_movements": [
+        "N->E",
+        "E->N"
+      ]
+    },
+    {
+      "stage_id": 3,
+      "name": "B",
+      "phase_start": 52,
+      "phase_end": 99.84281321021679,
+      "active_movements": [
+        "N->S",
+        "S->N"
+      ],
+      "additional_movements": []
+    }
+  ]
+}
