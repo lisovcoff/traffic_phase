@@ -635,10 +635,10 @@ def infer_physical_signal_plan(
             },
             "turn_candidate_evidence_threshold": TURN_CANDIDATE_EVIDENCE_THRESHOLD,
             "turn_candidate_selectivity_ratio": TURN_CANDIDATE_SELECTIVITY_RATIO,
-            "protected_turn_min_main_probability": PROTECTED_TURN_MIN_MAIN,
-            "protected_turn_closed_threshold": PROTECTED_TURN_CLOSED_THRESHOLD,
-            "protected_turn_main_ratio": PROTECTED_TURN_MAIN_RATIO,
-            "protected_turn_max_group_ratio": PROTECTED_TURN_MAX_GROUP_RATIO,\n            "protected_turn_single_min": PROTECTED_TURN_SINGLE_MIN,\n            "protected_turn_only_min": PROTECTED_TURN_ONLY_MIN,
+            "protected_turn_min_axis_probability": PROTECTED_TURN_MIN_AXIS,
+            "protected_turn_max_group_ratio": PROTECTED_TURN_MAX_GROUP_RATIO,
+            "protected_turn_single_min": PROTECTED_TURN_SINGLE_MIN,
+            "protected_turn_only_min": PROTECTED_TURN_ONLY_MIN,
             "startup_lost_s": float(startup_lost_s),
             "suppressed_turn_movements_by_phase": {
                 key: value
