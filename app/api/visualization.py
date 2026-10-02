@@ -1,1140 +1,176 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+import shutil
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
+
+from app.core.v9.events import load_source
+from app.core.v9.signal_renderer import (
+    DEFAULT_ACTIVITY_THRESHOLD,
+    DEFAULT_RED_YELLOW_DURATION_SECONDS,
+    DEFAULT_YELLOW_DURATION_SECONDS,
+)
+from app.core.v9.spatial import build_spatial_projection, compact_trajectories
+from app.core.v9.v9_discovery import discover_records
+from scripts.v9_spatial_visualizer import render_html
 
 router = APIRouter(prefix="/visualization", tags=["visualization"])
 
-
-@router.get("", response_class=HTMLResponse)
-def visualization_page() -> str:
-    return r"""
-<!doctype html>
+INDEX_HTML = """<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Состояние фаз светофора</title>
+<title>V10 — визуализация Traffic Phase</title>
 <style>
 :root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
-*{box-sizing:border-box}body{margin:0;background:#0d1015;color:#edf2f7}
-main{max-width:1050px;margin:auto;padding:24px}.muted{color:#98a2b3}.hidden{display:none!important}
-.panel{background:#171b22;border:1px solid #2c333d;border-radius:14px;padding:16px;margin-top:14px}
-.toolbar,.controls,.stats,.modebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.modebar{margin-top:18px}.mode-btn{background:#242a33;color:#eef}.mode-btn.active{background:#f0f3f7;color:#111}
-button,select,input{font:inherit}button{border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
-button.primary{background:#f0f3f7;color:#111}button.secondary{background:#2a3039;color:#eef}
+*{box-sizing:border-box}
+body{margin:0;background:#0d1015;color:#edf2f7}
+main{max-width:1100px;margin:auto;padding:32px 20px}
+.panel{background:#171b22;border:1px solid #303743;border-radius:16px;padding:20px}
+h1{margin:0 0 8px;font-size:30px}
+p{line-height:1.5}.muted{color:#98a2b3}
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:20px}
+input[type=file]{max-width:100%;padding:10px;border:1px solid #343b46;border-radius:9px;background:#10141a;color:#edf2f7}
+button{font:inherit;border:0;border-radius:9px;padding:10px 16px;cursor:pointer}
+button.primary{background:#f0f3f7;color:#111}
 button:disabled{opacity:.45;cursor:default}
-select{background:#11151b;color:#eef;border:1px solid #343b46;border-radius:8px;padding:8px}
-.stat{min-width:135px;flex:1;background:#10141a;border-radius:10px;padding:10px}
-.stat span{display:block;color:#8f9aaa;font-size:12px}.stat strong{display:block;margin-top:4px;font-size:18px}
-.operator-alert{border:1px solid #ef6576;background:#241519;color:#fff1f3;border-radius:14px;padding:14px 16px;margin-top:14px;display:flex;gap:12px;flex-direction:column}
-.operator-alert.recovery{border-color:#f2cc5c;background:#262116}
-.operator-alert.override{border-color:#8fb7ff;background:#151c28}
-.operator-alert.insufficient{border-color:#a7afba;background:#1b1f25}
-.operator-grid{display:grid;grid-template-columns:repeat(6,minmax(145px,1fr));gap:10px;margin-top:14px}
-.operator-card{background:#10141a;border:1px solid #2f3741;border-radius:12px;padding:12px;min-width:0}
-.operator-card.large{grid-column:span 2}.operator-card span{display:block;color:#8f9aaa;font-size:11px;letter-spacing:.04em}
-.operator-card strong{display:block;margin-top:5px;font-size:17px;overflow-wrap:anywhere}.operator-card small{display:block;margin-top:5px;color:#7f8a99;line-height:1.35}
-.operator-card.low-confidence{border-color:#f2cc5c}.operator-card.unknown-card{border-color:#ef6576;background:#21171b}.operator-card.recovery-card{border-color:#f2cc5c}
-.operator-section-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.operator-badge{padding:5px 9px;border-radius:999px;background:#242a33;font-size:11px}.operator-badge.unknown{border:1px solid #ef6576;letter-spacing:.06em}.operator-badge.override{border:1px solid #8fb7ff}
-.operator-detail-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin:12px 0}.operator-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
-.operator-item{background:#10141a;border-radius:9px;border:1px solid #303743;padding:9px;font-size:12px}.operator-item.unknown{border-color:#ef6576;color:#fff1f3}.operator-item.template{border-style:dashed}
-#batchSlider{width:100%}.timelinebar{position:relative;display:flex;height:34px;border-radius:8px;overflow:hidden;background:#11151b;margin:10px 0}
-.player-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
-.player-jumps{display:flex;gap:8px;flex-wrap:wrap}
-.player-readout{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin:12px 0}
-.player-readout>div,.detail-card{background:#10141a;border-radius:10px;padding:10px}
-.player-readout span,.detail-card span{display:block;color:#8f9aaa;font-size:11px}
-.player-readout strong,.detail-card strong{display:block;margin-top:4px}
-.timeline-axis{display:flex;justify-content:space-between;color:#7f8a99;font-size:10px;margin-top:4px}
-.timeline-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;color:#98a2b3;font-size:11px}
-.timeline-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:#536170}
-.timeline-legend .legend-movement{background:#6b6578}.timeline-legend .legend-unknown{background:#343943}.timeline-legend .legend-transition{background:#8b7450}.timeline-legend .legend-extension{background:#596d87}.timeline-legend .legend-anomaly{background:#875d66}
-.timeline-lanes{display:grid;grid-template-columns:82px 1fr;gap:6px 10px;margin-top:12px}
-.timeline-lane-label{color:#8f9aaa;font-size:11px;align-self:center}
-.timeline-lane{min-height:26px;position:relative;border-radius:6px;background:#10141a;overflow:hidden}
-.timeline-segment{position:absolute;top:3px;bottom:3px;border-radius:4px;min-width:2px;background:#596777;cursor:pointer}
-.timeline-segment.phase{background:#495d55}.timeline-segment.movement{background:#665c72}
-.timeline-segment.unknown{background:#343943;border:1px dashed #8f98a5}.timeline-segment.transition{background:#8b7450}
-.timeline-segment.extension{background:#596d87;border:1px dashed #b4c1d0}.timeline-segment.anomaly{background:#875d66}
-.timeline-segment.active{outline:2px solid #eef2f7;outline-offset:-2px}
-.player-detail .detail-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.player-detail h4{margin:0 0 8px}.detail-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin:12px 0}
-.detail-columns{display:grid;grid-template-columns:1fr 1fr;gap:14px}.detail-list{display:grid;gap:6px}
-.detail-item{background:#10141a;border-radius:8px;padding:8px;font-size:12px}
-.batch-player button:disabled{opacity:.35}
-@media(max-width:900px){.player-readout,.detail-grid{grid-template-columns:1fr 1fr}.detail-columns{grid-template-columns:1fr}}
-@media(max-width:640px){.player-readout,.detail-grid{grid-template-columns:1fr}.timeline-lanes{grid-template-columns:1fr}.timeline-lane-label{margin-top:6px}}
-.segment{min-width:2px;border-right:1px solid #11151b}.segment.ns{background:#314b40}.segment.ew{background:#4b3e31}.segment.unknown{background:#343943}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.signal-renderer{--signal-gap:12px;display:grid;gap:var(--signal-gap);grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
-.signal-approach{background:#10141a;border:1px solid #343b46;border-radius:14px;padding:12px}
-.signal-approach-title{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:10px}
-.signal-head{background:#171b22;border:1px solid #3a424e;border-radius:11px;padding:10px;margin-top:8px}
-.signal-head.additional{border-style:dashed}
-.signal-head-title{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:13px;font-weight:700}
-.signal-section{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;margin-top:8px;padding:9px;border-radius:9px;border:1px solid #303743}
-.signal-section.source-modelled{border-style:dashed;background:#1b1a17}
-.signal-section.source-observed{border-style:solid}
-.signal-lamps{display:flex;gap:4px;align-items:center}
-.signal-lamp{width:16px;height:16px;border-radius:50%;border:1px solid #697586;background:#252a31;opacity:.18}
-.signal-lamp.on{opacity:1;box-shadow:0 0 10px currentColor}
-.signal-lamp.red.on{color:#ef6576;background:#ef6576}.signal-lamp.yellow.on{color:#f2cc5c;background:#f2cc5c}.signal-lamp.green.on{color:#49d17d;background:#49d17d}
-.signal-lamp.arrow{width:24px;height:24px;border-radius:5px;font-size:15px;display:grid;place-items:center;background:transparent;opacity:.9}
-.signal-meta{min-width:0}.signal-state{font-weight:800;font-size:14px}.signal-state.unknown{padding:2px 6px;border:1px solid #ef6576;border-radius:5px;letter-spacing:.06em}
-.signal-movement{font-size:12px;color:#98a2b3;overflow-wrap:anywhere}.signal-source{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#aeb7c5;margin-top:4px}
-.signal-confidence{font-size:10px;color:#7f8a99;margin-top:2px}
-.signal-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#98a2b3}
-.signal-legend .observed::before{content:'●';margin-right:4px}.signal-legend .modelled::before{content:'◌';margin-right:4px}
-.state-GREEN{color:#49d17d}.state-YELLOW{color:#f2cc5c}.state-RED{color:#ef6576}.state-RED_YELLOW{color:#f29d5c}.state-UNKNOWN{color:#a7afba}.state-MIXED{color:#8fb7ff}
-.axis{display:grid;grid-template-columns:1fr 1fr;gap:10px}.axis-card{background:#10141a;border-radius:10px;padding:12px;text-align:center}
-.phase-list{display:flex;gap:8px;flex-wrap:wrap}.phase-chip{background:#242a33;border-radius:999px;padding:7px 10px;font-size:12px}
-.notice{line-height:1.45}.error{color:#ef8794}.ok{color:#49d17d}.warmup{color:#f2cc5c}
-.progress{height:8px;background:#10141a;border-radius:99px;overflow:hidden;margin-top:10px}.progress>div{height:100%;background:#697586;width:0%}
-.small{font-size:13px}
-@media(max-width:760px){.grid{grid-template-columns:1fr}}
-
-.signal-overview{margin-top:14px;padding:18px;border-color:#3a4350;background:#151a22}
-.signal-overview-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
-.signal-overview-heading h2{margin:0 0 5px;font-size:20px}
-.signal-overview-heading p{margin:0;max-width:760px;line-height:1.45}
-.signal-hero-meta{font-size:12px;font-weight:700;padding:8px 11px;border:1px solid #384353;border-radius:9px;background:#0f141b;color:#dce4ee}
-.signal-renderer{grid-template-columns:repeat(4,minmax(170px,1fr));gap:12px;margin-top:16px}
-.signal-approach{padding:14px;text-align:center;background:#10151c;border-color:#3a4350;min-height:180px}
-.signal-approach-title{margin-bottom:8px}
-.signal-approach-title strong{font-size:18px}
-.signal-approach-title .muted{font-size:11px}
-.signal-head{padding:10px;margin-top:6px}
-.signal-head-title{justify-content:center;font-size:12px;color:#aeb8c6}
-.signal-section{display:flex;justify-content:center;align-items:center;gap:14px;padding:11px;margin-top:8px}
-.signal-lamps{flex-direction:column;gap:7px}
-.signal-lamp{width:24px;height:24px;opacity:.2}
-.signal-state{font-size:16px;letter-spacing:.02em}
-.signal-state.state-GREEN{color:#49d17d}
-.signal-state.state-YELLOW{color:#f2cc5c}
-.signal-state.state-RED{color:#ef6576}
-.signal-state.state-RED_YELLOW{color:#f29d5c}
-.signal-state.state-UNKNOWN{color:#a7afba}
-.signal-movement{font-size:11px;line-height:1.35}
-.signal-source{font-size:9px;margin-top:5px}
-.signal-confidence{font-size:10px;margin-top:3px}
-@media(max-width:800px){.signal-renderer{grid-template-columns:repeat(2,minmax(160px,1fr))}}
-
-.signal-overview.compact{padding:15px;margin:12px 0 14px}
-.signal-overview.compact .signal-overview-heading h2{font-size:18px}
-.signal-overview.compact .signal-approach{min-height:150px;padding:12px}
-.signal-overview.compact .signal-lamp{width:22px;height:22px}
-.signal-overview.compact .signal-section{padding:9px;margin-top:6px}
-.signal-overview.compact .signal-state{font-size:15px}
-.signal-overview.compact .signal-legend{margin-top:8px;font-size:10px}
-@media(max-width:520px){.signal-renderer{grid-template-columns:1fr}.signal-section{justify-content:flex-start}}
+.status{margin-top:14px;min-height:22px}
+#viewer{display:none;width:100%;height:calc(100vh - 180px);min-height:700px;border:1px solid #303743;border-radius:14px;background:#0d1015;margin-top:18px}
+.note{margin-top:16px;font-size:13px}
 </style>
 </head>
 <body>
 <main>
-<h1>Состояние фаз светофора</h1>
-<p class="muted">Состояние светофора восстанавливается по траекториям транспорта. Прямых данных контроллера нет.</p>
-
-<div class="modebar">
-  <button id="modeBatch" class="mode-btn active">Пакетный анализ</button>
-  <button id="modeRealtime" class="mode-btn">Имитация реального времени</button>
+<section class="panel">
+<h1>V10 — Traffic Phase</h1>
+<p class="muted">
+Единый офлайн-анализ: JSON/ZIP → V9 discovery → V10 физическая семантика →
+пространственная реконструкция машин и светофоров.
+</p>
+<form id="form">
+<div class="toolbar">
+<input id="file" name="file" type="file" accept=".json,.zip,application/json,application/zip" required>
+<button class="primary" id="submit" type="submit">Запустить анализ</button>
 </div>
-
-
-<section id="batchMode">
-  <div class="panel toolbar">
-    <input id="batchFile" type="file" accept=".json,.zip,application/json,application/zip">
-    <button id="batchAnalyze" class="primary" disabled>Анализировать архив</button>
-    <span id="batchStatus" class="muted">Выберите JSON или ZIP.</span>
-  </div>
-
-    <div class="panel stats">
-      <div class="stat"><span>Обработано JSON-файлов</span><strong id="batchProcessedMembers">0 / 0</strong></div>
-      <div class="stat"><span>Траектории</span><strong id="batchProcessedTrajectories">0</strong></div>
-      <div class="stat"><span>События</span><strong id="batchProcessedEvents">0</strong></div>
-      <div class="stat"><span>Текущая сессия</span><strong id="batchCurrentSession">—</strong></div>
-      <div class="stat"><span>Время обработки</span><strong id="batchElapsed">0.0 s</strong></div>
-    </div>
-
-  <div id="batchSessionRow" class="panel hidden">
-    <label for="batchSessionSelect">Сегмент анализа:</label>
-    <select id="batchSessionSelect"></select>
-  </div>
-
-  <div id="batchViewer" class="hidden">
-    <div class="panel stats">
-      <div class="stat"><span>Длина цикла</span><strong id="batchCycle">—</strong></div>
-      <div class="stat"><span>Уверенность модели</span><strong id="batchCycleConfidence">—</strong></div>
-      <div class="stat"><span>Текущая фаза</span><strong id="batchPhase">UNKNOWN</strong></div>
-      <div class="stat"><span>Активные движения</span><strong id="batchActiveMovements">—</strong></div>
-      <div class="stat"><span>Уверенность фазы</span><strong id="batchPhaseConfidence">—</strong></div>
-      <div class="stat"><span>Траектории / события</span><strong id="batchCounts">—</strong></div>
-      <div class="stat"><span>Определённость</span><strong id="batchQuality">—</strong></div>
-      <div class="stat"><span>Покрытие модели</span><strong id="batchCoverage">—</strong></div>
-      <div class="stat"><span>Не определено</span><strong id="batchUnknown">—</strong></div>
-      <div class="stat"><span>Не определено по направлениям</span><strong id="batchUnknownByApproach">—</strong></div>
-      <div class="stat"><span>Источник модели</span><strong id="batchUnresolved">—</strong></div>
-      <div class="stat"><span>Шаблон realtime</span><strong id="batchTemplateUsability">—</strong></div>
-    </div>
-
-    <details class="panel">
-      <summary><strong>Диагностика</strong> · реконструкция, объединение режимов и технические показатели</summary>
-      <div class="stats" style="margin-top:12px">
-        <div class="stat"><span>Качество локальной модели</span><strong id="batchLocalQuality">—</strong></div>
-        <div class="stat"><span>Покрытие</span><strong id="batchLocalCoverage">—</strong></div>
-        <div class="stat"><span>Семейство режима</span><strong id="batchRegimeFamily">—</strong></div>
-        <div class="stat"><span>Общая реконструкция</span><strong id="batchPooled">—</strong></div>
-        <div class="stat"><span>Предложенные границы</span><strong id="batchRecovery">—</strong></div>
-        <div class="stat"><span>Диагностика разрывов</span><strong id="batchGapSemantics">—</strong></div>
-        <div class="stat"><span>Причина неопределённости</span><strong id="batchUnknownCause">—</strong></div>
-      </div>
-    </details>
-
-    <div class="panel batch-player">
-      <div class="player-toolbar">
-        <div class="controls">
-          <button id="batchPlay" class="primary">Воспроизвести</button>
-          <button id="batchPause" class="secondary">Пауза</button>
-          <label for="batchSpeed">Скорость</label>
-          <select id="batchSpeed">
-            <option value="0.5">x0.5</option>
-            <option value="1" selected>x1</option>
-            <option value="2">x2</option>
-            <option value="4">x4</option>
-            <option value="10">x10</option>
-            <option value="50">MAX</option>
-          </select>
-          <strong id="batchTimeLabel">—</strong>
-        </div>
-        <div class="player-jumps">
-          <button id="batchPrevPhase" class="secondary">Предыдущая фаза</button>
-          <button id="batchNextPhase" class="secondary">Следующая фаза</button>
-          <button id="batchNextUnknown" class="secondary">Следующая неопределённость</button>
-          <button id="batchNextExtension" class="secondary">Следующее продление</button>
-          <button id="batchNextAnomaly" class="secondary">Следующая аномалия</button>
-        </div>
-      </div>
-      <div id="batchSignalStateView" class="signal-overview compact hidden">
-        <div class="signal-overview-heading">
-          <div>
-            <h2>Состояние светофора</h2>
-            <p id="batchSignalHint" class="muted small">Состояние восстановлено по траекториям транспорта. Это модельный результат, а не прямое чтение контроллера.</p>
-          </div>
-          <div id="batchSignalHeroMeta" class="signal-hero-meta">Ожидание</div>
-        </div>
-        <div id="signalRenderer" class="signal-renderer"></div>
-        <div class="signal-legend">
-          <span><i class="legend-phase"></i> Фаза</span>
-          <span><i class="legend-movement"></i> Движение</span>
-          <span><i class="legend-unknown"></i> Не определено</span>
-          <span><i class="legend-transition"></i> Переход</span>
-          <span class="muted small">Цвет сигнала — результат модельной реконструкции.</span>
-        </div>
-      </div>
-
-      <div class="player-readout">
-        <div><span>Точное время</span><strong id="batchExactTimestamp">—</strong></div>
-        <div><span>Позиция в цикле</span><strong id="batchCyclePosition">—</strong></div>
-        <div><span>Границы фаз</span><strong id="batchBoundaryReadout">—</strong></div>
-        <div><span>Состояние</span><strong id="batchTimelineStatus">—</strong></div>
-      </div>
-      <input id="batchSlider" type="range" min="0" max="0" value="0" step="1" aria-label="Batch reconstruction timeline">
-      <div id="phaseTimeline" class="timelinebar player-track phase-track" title="Backend reconstruction timeline"></div>
-      <div class="timeline-axis" id="batchTimelineAxis"></div>
-      <div class="timeline-legend">
-        <span><i class="legend-phase"></i> phase</span>
-        <span><i class="legend-movement"></i> movement</span>
-        <span><i class="legend-unknown"></i> UNKNOWN</span>
-        <span><i class="legend-transition"></i> transition</span>
-        <span><i class="legend-extension"></i> extension</span>
-        <span><i class="legend-anomaly"></i> anomaly</span>
-      </div>
-      <div class="timeline-lanes">
-        <div class="timeline-lane-label">Movements</div>
-        <div id="movementTimeline" class="timeline-lane"></div>
-        <div class="timeline-lane-label">States</div>
-        <div id="stateTimeline" class="timeline-lane"></div>
-      </div>
-    </div>
-    <div class="panel player-detail">
-      <div class="detail-heading">
-        <div><h3>Выбранная точка реконструкции</h3><span id="batchPointLabel" class="muted small">—</span></div>
-        <span id="batchPlayerAdaptive" class="badge">—</span>
-      </div>
-      <div class="detail-grid">
-        <div class="detail-card"><span>Состояния сигналов</span><strong id="batchSignalState">—</strong></div>
-        <div class="detail-card"><span>Фаза</span><strong id="batchPlayerPhase">UNKNOWN</strong></div>
-        <div class="detail-card"><span>Уверенность</span><strong id="batchPlayerConfidence">0.00</strong></div>
-        <div class="detail-card"><span>Причина неопределённости</span><strong id="batchUnknownReason">—</strong></div>
-      </div>
-      <div class="detail-columns">
-        <div><h4>Состояния направлений</h4><div id="batchMovementStates" class="detail-list"></div></div>
-        <div><h4>Основание</h4><div id="batchEvidence" class="detail-list"></div></div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h3>Итоговая модель фаз</h3>
-      <div id="batchPhaseList" class="phase-list"></div>
-      <div class="muted small" style="margin-top:10px">Только интервалы, подтверждённые данными, считаются достоверной частью модели. Непокрытые интервалы не заполняются догадками.</div>
-      <details style="margin-top:12px">
-        <summary>Расширенная диагностика направлений и разрывов</summary>
-        <div id="batchMovementList" class="phase-list" style="margin-top:10px"></div>
-        <div class="muted small" style="margin-top:10px">Эта диагностика объясняет спорные гипотезы и не заполняет пробелы основной модели фаз.</div>
-      </details>
-    </div>
-  </div>
+</form>
+<div id="status" class="status muted">Выберите JSON или ZIP-архив.</div>
+<div class="note muted">
+Результат строится сервером и открывается внутри страницы. Состояния зелёный/красный
+восстанавливаются по транспортным потокам и физическому плану; жёлтый и
+красный+жёлтый — модельные переходы. Прямых данных контроллера нет.
+</div>
 </section>
-
-<section id="realtimeMode" class="hidden">
-  <div class="panel toolbar">
-    <input id="realtimeFile" type="file" accept=".json,.zip,application/json,application/zip">
-    <button id="realtimeStart" class="primary" disabled>Запустить</button>
-    <button id="realtimePlay" class="secondary" disabled>Воспроизвести</button>
-    <button id="realtimePause" class="secondary" disabled>Пауза</button>
-    <button id="realtimeStep" class="secondary" disabled>Step</button>
-    <button id="realtimeReset" class="secondary" disabled>Reset</button>
-    <label for="realtimeSpeed">Speed</label>
-    <select id="realtimeSpeed">
-      <option value="1">x1</option>
-      <option value="5">x5</option>
-      <option value="20" selected>x20</option>
-      <option value="1000">MAX</option>
-    </select>
-  </div>
-
-  <div class="panel notice">
-    <strong>Шаблон для запуска realtime:</strong> <span id="templateStatus" class="muted">Run Batch on a reference archive first.</span><br>
-    <span class="muted small">Realtime inference is causal. The browser renders backend snapshots and never infers phase or signal state.</span>
-  </div>
-
-  <div id="realtimeViewer" class="hidden">
-    <div id="realtimeOperatorAlert" class="operator-alert hidden">
-      <strong id="realtimeOperatorAlertTitle">UNKNOWN</strong>
-      <span id="realtimeOperatorAlertText">Текущее состояние сигнала не подтверждено.</span>
-    </div>
-
-    <div class="operator-grid primary">
-      <div class="operator-card large"><span>ТЕКУЩЕЕ ВРЕМЯ</span><strong id="realtimeTime">—</strong><small id="realtimeTimestampMs">—</small></div>
-      <div class="operator-card"><span>СИНХРОНИЗАЦИЯ</span><strong id="realtimeSync">WARMUP</strong><small id="realtimeSyncDetail">—</small></div>
-      <div class="operator-card"><span>ТЕКУЩАЯ ФАЗА</span><strong id="realtimePhase">UNKNOWN</strong><small id="realtimePhaseBasis">—</small></div>
-      <div id="realtimeConfidenceCard" class="operator-card"><span>УВЕРЕННОСТЬ</span><strong id="realtimeConfidence">0.00</strong><small id="realtimeConfidenceDetail">—</small></div>
-    </div>
-
-    <div id="realtimeSignalStateView" class="signal-overview compact hidden">
-      <div class="signal-overview-heading">
-        <div>
-          <h2>Состояние светофора</h2>
-          <p id="realtimeSignalHint" class="muted small">Текущее состояние восстанавливается по уже поступившим событиям realtime.</p>
-        </div>
-        <div id="realtimeSignalHeroMeta" class="signal-hero-meta">Ожидание realtime</div>
-      </div>
-      <div id="realtimeSignalRenderer" class="signal-renderer"></div>
-      <div class="signal-legend">
-        <span><i class="legend-phase"></i> Фаза</span>
-        <span><i class="legend-movement"></i> Движение</span>
-        <span><i class="legend-unknown"></i> Не определено</span>
-        <span><i class="legend-transition"></i> Переход</span>
-        <span class="muted small">В realtime состояние подтверждается по текущим наблюдаемым событиям.</span>
-      </div>
-    </div>
-
-    <div class="operator-grid">
-      <div id="realtimeObservabilityCard" class="operator-card"><span>НАБЛЮДАЕМОСТЬ</span><strong id="realtimeObservability">INSUFFICIENT_DATA</strong><small id="realtimeObservabilityDetail">—</small></div>
-      <div id="realtimeUnknownCard" class="operator-card unknown-card"><span>ПРИЧИНА НЕОПРЕДЕЛЁННОСТИ</span><strong id="realtimeUnknownReason">—</strong><small id="realtimeUnknownRate">—</small></div>
-      <div class="operator-card"><span>СОВМЕСТИМОСТЬ ШАБЛОНА</span><strong id="realtimeCompatibility">CHECKING</strong><small id="realtimeCompatibilityDetail">—</small></div>
-      <div class="operator-card"><span>РЕЖИМ АДАПТАЦИИ</span><strong id="realtimeAdaptive">NORMAL</strong><small id="realtimeAdaptiveDetail">—</small></div>
-      <div class="operator-card"><span>ПРОДЛЕНИЕ ФАЗЫ</span><strong id="realtimeExtension">INACTIVE</strong><small id="realtimeExtensionDetail">—</small></div>
-      <div class="operator-card"><span>ДЛИТЕЛЬНОСТЬ ПРОДЛЕНИЯ</span><strong id="realtimeExtensionDuration">0.0 s</strong><small id="realtimeExtensionCount">0 evidence event(s)</small></div>
-    </div>
-
-    <div class="panel">
-      <div class="operator-section-heading">
-        <div><h3>Текущее эффективное состояние</h3><span class="muted small">Состояние, которое backend использует для отображения.</span></div>
-        <span id="realtimeLiveStateBadge" class="operator-badge unknown">UNKNOWN / UNCONFIRMED</span>
-      </div>
-      <div class="operator-detail-grid">
-        <div class="detail-card"><span>Текущая ось</span><strong id="realtimeEffectiveAxis">—</strong></div>
-        <div class="detail-card"><span>Ось шаблона</span><strong id="realtimeTemplateAxis">—</strong></div>
-        <div class="detail-card"><span>Отклонение от шаблона</span><strong id="realtimeDeviation">—</strong></div>
-        <div class="detail-card"><span>Причина адаптации</span><strong id="realtimeAdaptiveReason">—</strong></div>
-      </div>
-      <div id="realtimeEffectiveMovements" class="operator-list"></div>
-    </div>
-
-    <div class="panel">
-      <div class="operator-section-heading">
-        <div><h3>Состояние шаблона</h3><span class="muted small">Историческая модель для начальной синхронизации realtime.</span></div>
-        <span id="realtimeTemplateBadge" class="operator-badge">MODEL</span>
-      </div>
-      <div id="realtimeTemplateStates" class="operator-list"></div>
-    </div>
-
-    <div class="panel">
-      <div class="controls">
-        <span id="realtimeProgressText" class="muted">0%</span>
-        <span id="realtimeSource" class="muted">—</span>
-      </div>
-      <div class="progress"><div id="realtimeProgressBar"></div></div>
-    </div>
-
-    <div class="panel stats">
-      <div class="stat"><span>События синхронизации</span><strong id="syncEvidence">0</strong></div>
-      <div class="stat"><span>События в буфере</span><strong id="bufferEvents">0</strong></div>
-      <div class="stat"><span>Передано траекторий</span><strong id="emittedTrajectories">0</strong></div>
-      <div class="stat"><span>Передано событий</span><strong id="emittedEvents">0</strong></div>
-      <div class="stat"><span>Осталось траекторий</span><strong id="remainingTrajectories">0</strong></div>
-    </div>
-  </div>
-</section>
-
-
-<script>
-const $=id=>document.getElementById(id);
-let mode='batch';
-let batchAnalysis=null,batchSession=null,batchIndex=0,batchTimer=null,batchSpeed=1;
-let realtimeId=null,realtimeSnapshot=null,realtimeTimer=null;
-
-function setMode(next){
-  mode=next;
-  $('batchMode').classList.toggle('hidden',next!=='batch');
-  $('realtimeMode').classList.toggle('hidden',next!=='realtime');
-  $('modeBatch').classList.toggle('active',next==='batch');
-  $('modeRealtime').classList.toggle('active',next==='realtime');
-  stopBatch();
-  stopRealtime();
-  if(next==='batch'&&batchSession)renderBatchPoint();
-  else if(next==='realtime'&&realtimeSnapshot)renderRealtimeSnapshot(realtimeSnapshot);
-  else {
-    $('batchSignalStateView').classList.add('hidden');
-    $('realtimeSignalStateView').classList.add('hidden');
-  }
-}
-$('modeBatch').addEventListener('click',()=>setMode('batch'));
-$('modeRealtime').addEventListener('click',()=>setMode('realtime'));
-
-$('batchFile').addEventListener('change',()=>{$('batchAnalyze').disabled=!$('batchFile').files.length});
-$('batchAnalyze').addEventListener('click',analyzeBatch);
-$('batchSessionSelect').addEventListener('change',()=>openBatchSession(Number($('batchSessionSelect').value)));
-$('batchSlider').addEventListener('input',()=>{batchIndex=Number($('batchSlider').value);renderBatchPoint()});
-$('batchPlay').addEventListener('click',playBatch);
-$('batchPause').addEventListener('click',stopBatch);
-$('batchSpeed').addEventListener('change',()=>{batchSpeed=Number($('batchSpeed').value)||1});
-$('batchPrevPhase').addEventListener('click',()=>jumpBatch('previous_phase'));
-$('batchNextPhase').addEventListener('click',()=>jumpBatch('next_phase'));
-$('batchNextUnknown').addEventListener('click',()=>jumpBatch('next_unknown'));
-$('batchNextExtension').addEventListener('click',()=>jumpBatch('next_extension'));
-$('batchNextAnomaly').addEventListener('click',()=>jumpBatch('next_anomaly'));
-
-$('realtimeFile').addEventListener('change',updateRealtimeStart);
-$('realtimeStart').addEventListener('click',startRealtime);
-$('realtimePlay').addEventListener('click',playRealtime);
-$('realtimePause').addEventListener('click',stopRealtime);
-$('realtimeStep').addEventListener('click',()=>stepRealtime(1));
-$('realtimeReset').addEventListener('click',resetRealtime);
-$('realtimeSpeed').addEventListener('change',()=>{if(realtimeSnapshot)renderRealtimeSnapshot(realtimeSnapshot)});
-
-function renderBatchProgress(){
-  const progress=(batchAnalysis&&batchAnalysis.progress)||{};
-  $('batchProcessedMembers').textContent=(progress.processed_members||0)+' / '+(progress.total_members||0);
-  $('batchProcessedTrajectories').textContent=String(progress.trajectories||0);
-  $('batchProcessedEvents').textContent=String(progress.events||0);
-  $('batchCurrentSession').textContent=progress.current_session==null?'—':String(progress.current_session);
-  $('batchElapsed').textContent=Number(progress.elapsed_seconds||0).toFixed(1)+' s';
-}
-
-async function analyzeBatch(){
-  stopBatch();
-  const file=$('batchFile').files[0];
-  if(!file)return;
-  $('batchStatus').textContent='Идёт анализ…';
-  const form=new FormData();form.append('file',file);
-  try{
-    const response=await fetch('/api/v1/phase/analyze',{method:'POST',body:form});
-    if(!response.ok)throw new Error(await response.text());
-    batchAnalysis=await response.json();
-    renderBatchProgress();
-    const sessions=batchAnalysis.sessions||[];
-    if(!sessions.length)throw new Error('No sessions returned by backend');
-    const select=$('batchSessionSelect');select.innerHTML='';
-    sessions.forEach((item,i)=>{
-      const option=document.createElement('option');
-      option.value=String(i);
-      const determination=item.determination||{};
-      const template=item.realtime_template_usability||{};
-      option.textContent='Segment '+item.session_id+' · physical '+item.physical_session_index+' · regime '+item.regime_index+'/'+item.regime_count+' · '+(determination.status||'UNABLE_TO_DETERMINE')+' · RT '+(template.status||'NOT_USABLE')+' · '+item.duration_s.toFixed(1)+' s';
-      select.appendChild(option);
-    });
-    $('batchSessionRow').classList.toggle('hidden',sessions.length===1);
-    $('batchStatus').textContent='Загружен '+batchAnalysis.source.filename+': '+sessions.length+' сегмент(а) анализа, '+(batchAnalysis.source.regime_family_count||0)+' семейство(а) режима.';
-    openBatchSession(0);
-  }catch(error){
-    $('batchViewer').classList.add('hidden');
-    $('batchSessionRow').classList.add('hidden');
-    $('batchStatus').textContent='Ошибка: '+error.message;
-  }
-}
-
-function openBatchSession(i){
-  stopBatch();batchIndex=0;batchSession=batchAnalysis.sessions[i];
-  $('batchViewer').classList.remove('hidden');
-  $('batchSessionSelect').value=String(i);
-
-  const determination=batchSession.determination||{};
-  const effectiveModel=batchSession.effective_phase_model||{};
-  const localModel=batchSession.phase_model||{};
-  const localCycle=batchSession.cycle;
-  const template=batchSession.realtime_template_usability||{};
-
-  const cycleSeconds=effectiveModel.cycle_seconds==null
-    ?(localCycle?localCycle.estimated_cycle:null)
-    :Number(effectiveModel.cycle_seconds);
-  $('batchCycle').textContent=cycleSeconds==null?'—':Number(cycleSeconds).toFixed(1)+' s';
-  $('batchCycleConfidence').textContent=determination.confidence==null?'—':Number(determination.confidence).toFixed(2);
-  $('batchCounts').textContent=batchSession.trajectory_count+' / '+batchSession.event_count;
-
-  const unable=determination.unable_to_determine_fraction;
-  const determined=determination.determined_fraction;
-  $('batchUnknown').textContent=unable==null?'—':(Number(unable)*100).toFixed(2)+'%';
-  $('batchCoverage').textContent=determined==null?'—':(Number(determined)*100).toFixed(1)+'%';
-
-  const effectiveUnknown=batchSession.effective_unknown_metrics||{};
-  const byApproach=effectiveUnknown.per_approach_rate||{};
-  $('batchUnknownByApproach').textContent=['N','S','E','W'].map(a=>a+' '+(byApproach[a]==null?'—':(Number(byApproach[a])*100).toFixed(1)+'%')).join(' · ');
-
-  const status=determination.status||'UNABLE_TO_DETERMINE';
-  $('batchQuality').textContent=ruStatus(status);
-  $('batchQuality').className=status==='AVAILABLE'?'ok':(status==='UNABLE_TO_DETERMINE'?'error':'warmup');
-  $('batchUnresolved').textContent=determination.source||'—';
-
-  $('batchTemplateUsability').textContent=ruStatus(template.status||'NOT_USABLE')+' · '+(template.source||'—')+(template.usable?'':' · только Batch');
-  $('batchTemplateUsability').className=template.usable?'ok':'warmup';
-
-  const localQuality=batchSession.model_quality||'UNKNOWN';
-  const localReasons=batchSession.quality_reasons||[];
-  $('batchLocalQuality').textContent=ruStatus(localQuality)+(localReasons.length?(' · '+localReasons.join(', ')):'');
-  $('batchLocalQuality').className=localQuality==='GOOD'?'ok':(localQuality==='INSUFFICIENT'?'error':'warmup');
-  $('batchLocalCoverage').textContent=localModel.cycle_coverage==null?'—':(Number(localModel.cycle_coverage)*100).toFixed(1)+'%';
-
-  const suggested=Number(localModel.boundary_suggested_fraction||0);
-  const recoveryItems=localModel.boundary_recoveries||[];
-  $('batchRecovery').textContent=(suggested*100).toFixed(1)+'% suggested · not applied'+(recoveryItems.length?(' · '+recoveryItems.map(item=>item.axis+' '+Number(item.phase_start).toFixed(1)+'–'+Number(item.phase_end).toFixed(1)+'s').join(', ')):'');
-
-  const localUnknown=batchSession.unknown_metrics||{};
-  const reasonRate=localUnknown.reason_rate||{};
-  const localGaps=batchSession.uncovered_cycle_intervals||[];
-  const reasons=Object.entries(reasonRate).map(([reason,rate])=>reason+' '+(Number(rate)*100).toFixed(1)+'%');
-  const gapText=localGaps.length?(' · gaps '+localGaps.map(g=>Number(g.start_s).toFixed(1)+'–'+Number(g.end_s).toFixed(1)+'s').join(', ')):'';
-  $('batchUnknownCause').textContent=(reasons.length?reasons.join(' · '):'none')+gapText;
-
-  const gapMetrics=batchSession.gap_metrics||{};
-  $('batchGapSemantics').textContent='clearance '+(Number(gapMetrics.clearance_candidate_rate||0)*100).toFixed(1)+'% · transition ambiguous '+(Number(gapMetrics.transition_ambiguous_rate||0)*100).toFixed(1)+'% · unresolved stage '+(Number(gapMetrics.unresolved_stage_rate||0)*100).toFixed(1)+'% · unobserved '+(Number(gapMetrics.unobserved_rate||0)*100).toFixed(1)+'%';
-
-  const family=currentRegimeFamily();
-  $('batchRegimeFamily').textContent=family?(family.family_id+' · '+family.member_count+' member(s) · '+family.model_quality+' · vote '+(Number(family.consensus_coverage||0)*100).toFixed(1)+'%'):'—';
-  $('batchPooled').textContent=family?(family.pooling_status+' · '+(family.pooled_event_count||0)+' events · '+(family.pooled_cycle_count||0)+' cycles · coverage '+(family.pooled_coverage==null?'—':(Number(family.pooled_coverage)*100).toFixed(1)+'%')+' · quality '+(family.pooled_model_quality||'—')+' · movement candidates '+(family.pooled_movement_candidate_count||0)+' / stages '+(family.pooled_movement_stage_count||0)):'—';
-
-  const timeline=(batchSession.player&&batchSession.player.timeline)||batchSession.timeline||[];
-  batchSpeed=Number($('batchSpeed').value)||1;
-  $('batchSlider').max=String(Math.max(0,timeline.length-1));
-  $('batchSlider').value='0';
-  $('batchSlider').disabled=timeline.length===0;
-  $('batchPlay').disabled=timeline.length<2;
-  $('batchPause').disabled=timeline.length<2;
-  const nav=(batchSession.player&&batchSession.player.navigation)||{};
-  $('batchPrevPhase').disabled=!Array.isArray(nav.phase_starts)||nav.phase_starts.length===0;
-  $('batchNextPhase').disabled=!Array.isArray(nav.phase_starts)||nav.phase_starts.length===0;
-  $('batchNextUnknown').disabled=!Array.isArray(nav.unknown)||nav.unknown.length===0;
-  $('batchNextExtension').disabled=!Array.isArray(nav.extensions)||nav.extensions.length===0;
-  $('batchNextAnomaly').disabled=!Array.isArray(nav.anomalies)||nav.anomalies.length===0;
-  buildBatchPhaseModel();
-  buildBatchTimeline();
-  updateTemplateStatus();
-  renderBatchPoint();
-}
-function buildBatchPhaseModel(){
-  const holder=$('batchPhaseList');holder.innerHTML='';
-  const movementHolder=$('batchMovementList');movementHolder.innerHTML='';
-  const model=batchSession.effective_phase_model||{};
-  const localModel=batchSession.phase_model||{};
-  const phases=model.phases||[];
-  if(!phases.length){holder.textContent='Unable to determine a supported phase model';movementHolder.textContent='No diagnostics available.';return}
-  phases.forEach(p=>{
-    const chip=document.createElement('span');chip.className='phase-chip';
-    chip.textContent='Phase '+p.phase_id+': '+p.active_approaches.join('/')+' · '+p.phase_start+'–'+p.phase_end+'s · conf '+p.confidence.toFixed(2);
-    holder.appendChild(chip);
-  });
-  const movementStages=model.movement_stages||[];
-  movementStages.forEach(stage=>{
-    const chip=document.createElement('span');chip.className='phase-chip';
-    chip.textContent='Movement '+stage.movement+' · '+stage.phase_start+'–'+stage.phase_end+'s · conf '+stage.confidence.toFixed(2);
-    movementHolder.appendChild(chip);
-  });
-  const movementDecisions=localModel.movement_stage_decisions||[];
-  movementDecisions.forEach(item=>{
-    const chip=document.createElement('span');chip.className='phase-chip';
-    const residual=item.residual_start==null?'no residual':('residual '+Number(item.residual_start).toFixed(1)+'–'+Number(item.residual_end).toFixed(1)+'s · rep '+Number(item.residual_repeatability||0).toFixed(2)+' · stab '+Number(item.residual_stability||0).toFixed(2)+' · conflict '+(Number(item.conflicting_event_ratio||0)*100).toFixed(0)+'%');
-    chip.textContent='Decision '+item.movement+' · '+(item.promoted?'PROMOTE':'REJECT')+' · '+residual+' · '+item.reason;
-    movementHolder.appendChild(chip);
-  });
-  const gapProbes=(batchSession.gap_semantics||[]).flatMap(gap=>(gap.movement_evidence||[]).map(item=>({gap,item})));
-  gapProbes.forEach(({gap,item})=>{
-    const chip=document.createElement('span');chip.className='phase-chip';
-    chip.textContent='Gap '+Number(gap.start_s).toFixed(1)+'–'+Number(gap.end_s).toFixed(1)+'s · '+gap.kind+' · '+item.movement+' candidate · conf '+Number(item.confidence||0).toFixed(2);
-    movementHolder.appendChild(chip);
-  });
-  const family=currentRegimeFamily();
-  const pooled=family&&family.pooled_phase_model?family.pooled_phase_model:null;
-  const pooledStages=pooled?(pooled.movement_stages||[]):[];
-  const pooledCandidates=pooled?(pooled.distinct_movement_candidates||[]):[];
-  const pooledDecisions=pooled?(pooled.movement_stage_decisions||[]):[];
-  pooledStages.forEach(stage=>{
-    const chip=document.createElement('span');chip.className='phase-chip';
-    chip.textContent='Pooled movement '+stage.movement+' · '+stage.phase_start+'–'+stage.phase_end+'s · conf '+Number(stage.confidence||0).toFixed(2);
-    movementHolder.appendChild(chip);
-  });
-  pooledCandidates.forEach(item=>{
-    const chip=document.createElement('span');chip.className='phase-chip';
-    chip.textContent='Pooled candidate '+item.movement+' · '+item.phase_start+'–'+item.phase_end+'s · score '+Number(item.score||0).toFixed(2);
-    movementHolder.appendChild(chip);
-  });
-  pooledDecisions.forEach(item=>{
-    const chip=document.createElement('span');chip.className='phase-chip';
-    const residual=item.residual_start==null?'no residual':('residual '+Number(item.residual_start).toFixed(1)+'–'+Number(item.residual_end).toFixed(1)+'s · rep '+Number(item.residual_repeatability||0).toFixed(2)+' · stab '+Number(item.residual_stability||0).toFixed(2)+' · conflict '+(Number(item.conflicting_event_ratio||0)*100).toFixed(0)+'%');
-    chip.textContent='Pooled decision '+item.movement+' · '+(item.promoted?'PROMOTE':'REJECT')+' · '+residual+' · '+item.reason;
-    movementHolder.appendChild(chip);
-  });
-  if(!movementStages.length&&!movementDecisions.length&&!gapProbes.length&&!pooledStages.length&&!pooledCandidates.length&&!pooledDecisions.length)movementHolder.textContent='No movement-specific signal groups inferred.';
-}
-
-function playerTimeline(){
-  return (batchSession&&batchSession.player&&batchSession.player.timeline)
-    || (batchSession&&batchSession.timeline)
-    || [];
-}
-function batchPlayerEndTimestamp(index){
-  const timeline=playerTimeline();
-  if(!timeline.length)return null;
-  const next=timeline[index+1];
-  if(next&&Number.isFinite(Number(next.timestamp_ms)))return Number(next.timestamp_ms);
-  return batchSession&&batchSession.end_timestamp_ms!=null?Number(batchSession.end_timestamp_ms):Number(timeline[index].timestamp_ms);
-}
-function percentForTimestamp(timestamp){
-  if(!batchSession)return 0;
-  const start=Number(batchSession.start_timestamp_ms);
-  const end=Number(batchSession.end_timestamp_ms);
-  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)return 0;
-  return Math.max(0,Math.min(100,((Number(timestamp)-start)/(end-start))*100));
-}
-function addTimelineSegment(holder,{start_ms,end_ms,kind,label,index}){
-  const start=Number(start_ms),end=Number(end_ms);
-  const left=percentForTimestamp(start);
-  const width=Math.max(0.35,percentForTimestamp(Math.max(start,end))-left);
-  const seg=document.createElement('button');
-  seg.type='button';seg.dataset.index=String(index);
-  seg.className='timeline-segment '+kind+(index===batchIndex?' active':'');
-  seg.style.left=left+'%';seg.style.width=width+'%';
-  seg.title=label||'';seg.setAttribute('aria-label',label||kind);
-  seg.addEventListener('click',()=>selectBatchIndex(index));
-  holder.appendChild(seg);
-}
-function buildBatchTimeline(){
-  const bar=$('phaseTimeline'),movement=$('movementTimeline'),states=$('stateTimeline');
-  bar.innerHTML='';movement.innerHTML='';states.innerHTML='';
-  const timeline=playerTimeline();
-  if(!timeline.length){
-    bar.innerHTML='<div class="segment unknown" style="width:100%"></div>';
-    $('batchTimelineAxis').innerHTML='';
-    return;
-  }
-  timeline.forEach((point,index)=>{
-    const start=Number(point.timestamp_ms),end=batchPlayerEndTimestamp(index)||start;
-    const phase=point.phase_id==null?'НЕ ОПРЕДЕЛЕНО':('Фаза '+point.phase_id);
-    addTimelineSegment(bar,{start_ms:start,end_ms:end,kind:point.phase_id==null?'unknown':'phase',
-      label:new Date(start).toISOString()+' · '+phase+' · cycle '+Number(point.cycle_position_s||0).toFixed(1)+'s',index});
-    const stateLabel=Object.entries(point.states||{}).map(([approach,state])=>approach+':'+state).join(' · ');
-    addTimelineSegment(states,{start_ms:start,end_ms:end,kind:point.transition?'transition':(point.unknown_reason?'unknown':'phase'),
-      label:stateLabel||'UNKNOWN',index});
-  });
-  const player=batchSession.player||{};
-  (player.movement_intervals||[]).forEach(interval=>{
-    const start=Number(interval.start_timestamp_ms),end=Number(interval.end_timestamp_ms);
-    const label='Movement '+interval.movement+' · '+Number(interval.cycle_start_s||0).toFixed(1)+'–'+Number(interval.cycle_end_s||0).toFixed(1)+'s';
-    addTimelineSegment(movement,{start_ms:start,end_ms:end,kind:'movement',label,index:nearestBatchIndex(start)});
-  });
-  (player.unknown_intervals||[]).forEach(interval=>addTimelineSegment(bar,{
-    start_ms:Number(interval.start_timestamp_ms),end_ms:Number(interval.end_timestamp_ms),kind:'unknown',
-    label:'UNKNOWN · '+(interval.reason||'unknown'),index:nearestBatchIndex(Number(interval.start_timestamp_ms))}));
-  (player.transition_intervals||[]).forEach(interval=>addTimelineSegment(bar,{
-    start_ms:Number(interval.start_timestamp_ms),end_ms:Number(interval.end_timestamp_ms),kind:'transition',
-    label:'Transition interval',index:nearestBatchIndex(Number(interval.start_timestamp_ms))}));
-  (player.phase_extension_intervals||[]).forEach(interval=>addTimelineSegment(bar,{
-    start_ms:Number(interval.start_timestamp_ms),end_ms:Number(interval.end_timestamp_ms),kind:'extension',
-    label:'Phase extension',index:nearestBatchIndex(Number(interval.start_timestamp_ms))}));
-  (player.anomaly_intervals||[]).forEach(interval=>{
-    addTimelineSegment(bar,{
-      start_ms:Number(interval.start_timestamp_ms),end_ms:Number(interval.end_timestamp_ms),kind:'anomaly',
-      label:'Anomaly · '+(interval.kind||'unknown'),index:nearestBatchIndex(Number(interval.start_timestamp_ms))
-    });
-  });
-  const axis=$('batchTimelineAxis');
-  axis.innerHTML='<span>'+new Date(Number(timeline[0].timestamp_ms)).toLocaleTimeString()+'</span><span>'+new Date(Number(timeline[timeline.length-1].timestamp_ms)).toLocaleTimeString()+'</span>';
-}
-function syncBatchTimelineActive(){
-  document.querySelectorAll('#phaseTimeline .timeline-segment,#movementTimeline .timeline-segment,#stateTimeline .timeline-segment').forEach(seg=>{
-    seg.classList.toggle('active',Number(seg.dataset.index)===batchIndex);
-  });
-}
-function nearestBatchIndex(timestamp){
-  const timeline=playerTimeline();
-  if(!timeline.length)return 0;
-  let best=0,bestDistance=Infinity;
-  timeline.forEach((point,index)=>{
-    const distance=Math.abs(Number(point.timestamp_ms)-Number(timestamp));
-    if(distance<bestDistance){best=index;bestDistance=distance}
-  });
-  return best;
-}
-function selectBatchIndex(index){
-  const timeline=playerTimeline();
-  if(!timeline.length)return;
-  batchIndex=Math.max(0,Math.min(timeline.length-1,Number(index)));
-  renderBatchPoint();
-  syncBatchTimelineActive();
-}
-function renderBatchDetailList(holder,items,emptyText){
-  holder.innerHTML='';
-  if(!items.length){
-    const empty=document.createElement('div');empty.className='muted small';empty.textContent=emptyText;holder.appendChild(empty);return;
-  }
-  items.forEach(item=>{const row=document.createElement('div');row.className='detail-item';row.textContent=item;holder.appendChild(row)});
-}
-function renderBatchPoint(){
-  if(mode!=='batch'||!batchSession)return;
-  const timeline=playerTimeline();
-  $('batchSignalStateView').classList.remove('hidden');
-  $('batchSignalHint').textContent='Состояние восстановлено по траекториям транспорта. Это модельный результат, а не прямое чтение контроллера.';
-  if(!timeline.length){
-    $('batchPhase').textContent='UNKNOWN';$('batchActiveMovements').textContent='—';$('batchPhaseConfidence').textContent='0.00';
-    $('batchTimeLabel').textContent='No timeline: insufficient reconstruction data';
-    $('batchExactTimestamp').textContent='—';$('batchCyclePosition').textContent='—';$('batchBoundaryReadout').textContent='—';$('batchTimelineStatus').textContent='No backend timeline';
-    $('batchSignalState').textContent='UNKNOWN';$('batchPlayerPhase').textContent='UNKNOWN';$('batchPlayerConfidence').textContent='0.00';$('batchUnknownReason').textContent='insufficient_reconstruction_data';
-    $('batchPlayerAdaptive').textContent=(batchSession.player&&batchSession.player.adaptive_mode)||'BATCH_RECONSTRUCTION';
-    renderSignalRenderer(batchSession.signal_renderer||null,'signalRenderer'); $('batchSignalHeroMeta').textContent='Нет временной шкалы'; return;
-  }
-  const point=timeline[Math.min(batchIndex,timeline.length-1)];
-  const player=batchSession.player||{};
-  const exactDate=new Date(Number(point.timestamp_ms));
-  const states=point.states||{};
-  const stateText=Object.entries(states).map(([approach,state])=>ruApproach(approach)+' · '+ruSignalState(state)).join(' · ')||'НЕ ОПРЕДЕЛЕНО';
-  const phase=point.phase_id==null?'UNKNOWN':('Phase '+point.phase_id);
-  const movements=point.movement_states||point.active_movements||[];
-  const movementLabels=movements.map(item=>item.movement+' · '+(item.state||'UNKNOWN')+' · conf '+Number(item.confidence||0).toFixed(2));
-  const evidence=point.evidence||{};
-  const evidenceLabels=[
-    'phase support '+Number(evidence.phase_supporting_event_count||0),
-    'phase contradictory '+Number(evidence.phase_contradictory_event_count||0),
-    'movement support '+Number(evidence.movement_supporting_event_count||0)
-  ];
-  const boundaries=player.phase_boundaries||[];
-  const cyclePosition=Number(point.cycle_position_s||0);
-  let boundaryReadout='—';
-  if(boundaries.length){
-    const exact=boundaries.find(item=>Math.abs(Number(item.cycle_position_s||0)-cyclePosition)<0.6);
-    const nearest=[...boundaries].sort((a,b)=>Math.abs(Number(a.cycle_position_s||0)-cyclePosition)-Math.abs(Number(b.cycle_position_s||0)-cyclePosition))[0];
-    if(exact)boundaryReadout='P'+exact.phase_id+' boundary @ '+Number(exact.cycle_position_s||0).toFixed(1)+'s';
-    else if(nearest)boundaryReadout='nearest P'+nearest.phase_id+' @ '+Number(nearest.cycle_position_s||0).toFixed(1)+'s';
-  }
-  $('batchSlider').value=String(batchIndex);
-  $('batchTimeLabel').textContent=exactDate.toLocaleString()+' · '+Number(point.offset_s||0).toFixed(1)+' s';
-  $('batchExactTimestamp').textContent=exactDate.toISOString()+' · '+exactDate.toLocaleTimeString();
-  $('batchPointLabel').textContent='Point '+(batchIndex+1)+' / '+timeline.length+' · '+Number(point.timestamp_ms);
-  $('batchCyclePosition').textContent=cyclePosition.toFixed(3)+' s';
-  $('batchBoundaryReadout').textContent=boundaryReadout;
-  $('batchTimelineStatus').textContent=(point.transition?'МОДЕЛЬНЫЙ ПЕРЕХОД · ':'')+(point.unknown_reason?'НЕ ОПРЕДЕЛЕНО · '+point.unknown_reason:'ОПРЕДЕЛЕНО ПО МОДЕЛИ');
-  $('batchPhase').textContent=phase+(point.transition?' · переход':'');
-  $('batchActiveMovements').textContent=movements.length?movements.map(item=>item.movement).join(', '):'—';
-  $('batchPhaseConfidence').textContent=Number(point.confidence||0).toFixed(2);
-  $('batchSignalState').textContent=stateText;
-  $('batchPlayerPhase').textContent=phase;
-  $('batchPlayerConfidence').textContent=Number(point.confidence||0).toFixed(2);
-  $('batchUnknownReason').textContent=point.unknown_reason||'Нет: состояние выведено из модели фазы';
-  $('batchPlayerAdaptive').textContent='МОДЕЛЬНЫЙ ПРОСМОТР';
-  renderBatchDetailList($('batchMovementStates'),movementLabels,'Для этого момента нет активных движений.');
-  renderBatchDetailList($('batchEvidence'),evidenceLabels.concat([
-    'signal source '+(point.signal_source||'backend reconstruction'),
-    'snapshot timestamp '+Number(point.timestamp_ms)
-  ]),'Backend не вернул дополнительные сведения.');
-  renderSignalRenderer(point.signal_renderer||batchSession.signal_renderer||null,'signalRenderer'); $('batchSignalHeroMeta').textContent=phase+' · позиция '+cyclePosition.toFixed(1)+' с · модельная реконструкция';
-  syncBatchTimelineActive();
-}
-function playBatch(){
-  stopBatch();
-  const timeline=playerTimeline();
-  if(timeline.length<2)return;
-  if(batchIndex>=timeline.length-1)batchIndex=0;
-  const advance=()=>{
-    if(batchIndex>=timeline.length-1){stopBatch();return}
-    const current=timeline[batchIndex],next=timeline[batchIndex+1];
-    const delay=Math.max(25,Math.min(5000,(Number(next.timestamp_ms)-Number(current.timestamp_ms))/Math.max(0.1,batchSpeed)));
-    batchTimer=setTimeout(()=>{batchIndex++;renderBatchPoint();if(batchTimer)advance()},delay);
-  };
-  advance();
-}
-function stopBatch(){if(batchTimer){clearTimeout(batchTimer);batchTimer=null}}
-function jumpBatch(kind){
-  const nav=(batchSession&&batchSession.player&&batchSession.player.navigation)||{};
-  const key=kind==='previous_phase'||kind==='next_phase'?'phase_starts':kind==='next_unknown'?'unknown':kind==='next_extension'?'extensions':'anomalies';
-  const points=Array.isArray(nav[key])?nav[key]:[];
-  if(!points.length)return;
-  let target;
-  if(kind==='previous_phase'){target=[...points].reverse().find(index=>index<batchIndex);if(target==null)target=points[points.length-1]}
-  else {target=points.find(index=>index>batchIndex);if(target==null)target=points[0]}
-  selectBatchIndex(target);
-}
-function currentRegimeFamily(){
-  if(!batchAnalysis||!batchSession||!batchSession.regime_family_id)return null;
-  return (batchAnalysis.regime_families||[]).find(item=>item.family_id===batchSession.regime_family_id)||null;
-}
-function effectiveTemplate(){
-  if(!batchSession||batchSession.status!=='ok')return null;
-  const template=batchSession.realtime_template_usability||{};
-  const model=batchSession.realtime_phase_model;
-  if(!template.usable||!model||!model.phases||!model.phases.length)return null;
-  return {model,source:template.source||'realtime template',status:template.status||'USABLE'};
-}
-function usableTemplate(){
-  return Boolean(effectiveTemplate());
-}
-function updateTemplateStatus(){
-  const template=effectiveTemplate();
-  if(template){
-    $('templateStatus').textContent=template.status+' · '+template.source+' · coverage '+(Number(template.model.cycle_coverage||0)*100).toFixed(1)+'% · cycle '+Number(template.model.cycle_seconds).toFixed(1)+' s';
-    $('templateStatus').className=template.status==='USABLE'?'ok':'warmup';
-  }else{
-    $('templateStatus').textContent=batchSession?'Impossible to determine a usable recurring phase model from the available traffic evidence.':'Run Batch on a reference archive first.';
-    $('templateStatus').className='muted';
-  }
-  updateRealtimeStart();
-}
-function updateRealtimeStart(){
-  $('realtimeStart').disabled=!$('realtimeFile').files.length||!usableTemplate();
-}
-
-async function startRealtime(){
-  stopRealtime();
-  if(!usableTemplate())return;
-  const file=$('realtimeFile').files[0];
-  if(!file)return;
-  if(realtimeId)await deleteRealtimeSilently();
-  const form=new FormData();
-  form.append('file',file);
-  const template=effectiveTemplate();
-  if(!template)return;
-  form.append('phase_model',JSON.stringify(template.model));
-  form.append('speed',$('realtimeSpeed').value);
-  try{
-    const response=await fetch('/api/v1/realtime/simulations/start',{method:'POST',body:form});
-    if(!response.ok)throw new Error(await response.text());
-    realtimeSnapshot=await response.json();
-    realtimeId=realtimeSnapshot.simulation_id;
-    $('realtimeViewer').classList.remove('hidden');
-    $('realtimePlay').disabled=false;
-    $('realtimePause').disabled=false;
-    $('realtimeStep').disabled=false;
-    $('realtimeReset').disabled=false;
-    renderRealtimeSnapshot(realtimeSnapshot);
-  }catch(error){
-    $('realtimeViewer').classList.remove('hidden');
-    $('realtimeSource').textContent='Error: '+error.message;
-  }
-}
-
-async function stepRealtime(elapsedSeconds){
-  if(!realtimeId)return;
-  const speed=$('realtimeSpeed').value;
-  const url='/api/v1/realtime/simulations/'+encodeURIComponent(realtimeId)+'/step?elapsed_seconds='+elapsedSeconds+'&speed='+speed;
-  const response=await fetch(url,{method:'POST'});
-  if(!response.ok){stopRealtime();throw new Error(await response.text())}
-  realtimeSnapshot=await response.json();
-  renderRealtimeSnapshot(realtimeSnapshot);
-  if(realtimeSnapshot.finished)stopRealtime();
-}
-
-function playRealtime(){
-  stopRealtime();
-  if(!realtimeId)return;
-  realtimeTimer=setInterval(async()=>{
-    try{await stepRealtime(0.5)}catch(error){$('realtimeSource').textContent='Error: '+error.message}
-  },500);
-}
-function stopRealtime(){if(realtimeTimer){clearInterval(realtimeTimer);realtimeTimer=null}}
-
-async function resetRealtime(){
-  stopRealtime();
-  if(!realtimeId)return;
-  const response=await fetch('/api/v1/realtime/simulations/'+encodeURIComponent(realtimeId)+'/reset',{method:'POST'});
-  if(!response.ok)return;
-  realtimeSnapshot=await response.json();
-  renderRealtimeSnapshot(realtimeSnapshot);
-}
-
-async function deleteRealtimeSilently(){
-  stopRealtime();
-  if(!realtimeId)return;
-  try{await fetch('/api/v1/realtime/simulations/'+encodeURIComponent(realtimeId),{method:'DELETE'})}catch(_error){}
-  realtimeId=null;realtimeSnapshot=null;
-}
-
-function realtimeUnknownReason(snapshot){
-  const reasons=Object.values(snapshot.unknown_reasons||{}).filter(Boolean);
-  if(reasons.length)return [...new Set(reasons)].join(', ');
-  return snapshot.diagnostic_reason||'—';
-}
-function realtimeDeterminationStatus(snapshot){
-  return snapshot.determination_status
-    ||(snapshot.observability&&snapshot.observability.determination_status)
-    ||'INSUFFICIENT_DATA';
-}
-function realtimeObservabilityLevel(snapshot){
-  return (snapshot.traffic_observability&&snapshot.traffic_observability.level)
-    ||(snapshot.observability&&snapshot.observability.traffic_observability&&snapshot.observability.traffic_observability.level)
-    ||'INSUFFICIENT_DATA';
-}
-function renderOperatorList(holder,items,template){
-  holder.innerHTML='';
-  if(!items.length){
-    const empty=document.createElement('div');empty.className='muted small';empty.textContent='No backend state returned.';holder.appendChild(empty);return;
-  }
-  items.forEach(item=>{
-    const row=document.createElement('div');
-    row.className='operator-item'+(template?' template':'')+(item.unknown?' unknown':'');
-    row.textContent=item.text;
-    holder.appendChild(row);
-  });
-}
-function renderTemplateStateList(snapshot){
-  const states=snapshot.template_signal_states||{};
-  renderOperatorList(
-    $('realtimeTemplateStates'),
-    Object.entries(states).map(([approach,state])=>({
-      text:approach+' · '+state,
-      unknown:state==='UNKNOWN'
-    })),
-    true
-  );
-}
-function renderEffectiveMovementList(snapshot){
-  const movementStates=snapshot.effective_movement_states||{};
-  const fallback=snapshot.active_movements||[];
-  const items=Object.entries(movementStates).map(([movement,details])=>({
-    text:movement+' · '+(details.effective_state||'UNKNOWN')+' · conf '+Number(details.confidence||0).toFixed(2)+(details.reason?' · '+details.reason:''),
-    unknown:details.effective_state==='UNKNOWN'
-  }));
-  renderOperatorList(
-    $('realtimeEffectiveMovements'),
-    items.length?items:fallback.map(item=>({
-      text:item.movement+' · '+(item.state||'UNKNOWN'),
-      unknown:(item.state||'UNKNOWN')==='UNKNOWN'
-    })),
-    false
-  );
-}
-function renderRealtimeOperatorAlert(snapshot,status,adaptiveMode,confidence){
-  const alert=$('realtimeOperatorAlert');
-  alert.className='operator-alert';
-  if(status==='INSUFFICIENT_DATA'){
-    alert.classList.add('insufficient');
-    $('realtimeOperatorAlertTitle').textContent='INSUFFICIENT DATA';
-    $('realtimeOperatorAlertText').textContent='Недостаточно данных от транспорта для подтверждения состояния сигнала. Фаза не считается подтверждённой.';
-  }else if(adaptiveMode==='RECOVERY'){
-    alert.classList.add('recovery');
-    $('realtimeOperatorAlertTitle').textContent='RECOVERY · PHASE NOT CONFIRMED';
-    $('realtimeOperatorAlertText').textContent='Backend выполняет повторную синхронизацию после отклонения от шаблона. Текущая фаза и состояние сигнала пока не подтверждены.';
-  }else if(adaptiveMode==='LIVE_OVERRIDE'){
-    alert.classList.add('override');
-    $('realtimeOperatorAlertTitle').textContent='LIVE OVERRIDE · TEMPLATE DEVIATION';
-    $('realtimeOperatorAlertText').textContent='Текущее состояние отличается от исторического шаблона: шаблон '+(snapshot.template_expected_axis||'—')+', live '+(snapshot.effective_axis||'—')+'.';
-  }else if(status!=='KNOWN'||confidence<0.20){
-    alert.classList.add('unknown');
-    $('realtimeOperatorAlertTitle').textContent='LOW УВЕРЕННОСТЬ · STATE NOT FULLY CONFIRMED';
-    $('realtimeOperatorAlertText').textContent='Backend вернул снимок с низкой уверенностью. Текущее состояние сигнала считается неопределённым.';
-  }else{
-    alert.classList.add('hidden');
-  }
-}
-function renderRealtimeSnapshot(snapshot){
-  if(mode!=='realtime')return;
-  $('realtimeSignalStateView').classList.remove('hidden');
-
-  const adaptiveMode=snapshot.adaptive_mode||'NORMAL';
-  const status=realtimeDeterminationStatus(snapshot);
-  const observabilityLevel=realtimeObservabilityLevel(snapshot);
-  const confidence=Number(snapshot.confidence||0);
-  const compatibility=snapshot.template_compatibility||'CHECKING';
-  const reason=realtimeUnknownReason(snapshot);
-  const extensionDuration=Number(snapshot.phase_extension_duration_seconds||0);
-  const phaseConfirmed=status==='KNOWN'&&adaptiveMode!=='RECOVERY';
-  $('realtimeSignalHeroMeta').textContent=(snapshot.phase_id==null?'Фаза не определена':'Фаза '+snapshot.phase_id)+' · realtime · '+(adaptiveMode==='LIVE_OVERRIDE'?'отклонение от шаблона':'потоковая реконструкция');
-
-  renderRealtimeOperatorAlert(snapshot,status,adaptiveMode,confidence);
-
-  const date=new Date(Number(snapshot.timestamp_ms||snapshot.simulated_timestamp_ms));
-  $('realtimeTime').textContent=date.toLocaleString();
-  $('realtimeTimestampMs').textContent='backend timestamp '+Number(snapshot.timestamp_ms||snapshot.simulated_timestamp_ms);
-  $('realtimeSync').textContent=ruStatus(snapshot.synchronization_status||'WARMUP');
-  $('realtimeSyncDetail').textContent='offset '+(snapshot.phase_offset_s==null?'—':Number(snapshot.phase_offset_s).toFixed(2)+' s')+' · match '+(Number(snapshot.synchronization_match_ratio||0)*100).toFixed(0)+'%';
-
-  $('realtimePhase').textContent=adaptiveMode==='RECOVERY'
-    ?'UNKNOWN · RECOVERY'
-    :status==='KNOWN'
-      ?(snapshot.phase_id==null?'UNKNOWN':'Phase '+snapshot.phase_id)
-      :(snapshot.phase_id==null?'UNKNOWN':'Phase '+snapshot.phase_id+' · UNCERTAIN');
-  $('realtimePhaseBasis').textContent=adaptiveMode==='LIVE_OVERRIDE'
-    ?'template '+(snapshot.template_expected_axis||'—')+' · live '+(snapshot.effective_axis||'—')
-    :(phaseConfirmed?'backend snapshot · confirmed by observability':'backend snapshot · not confirmed');
-
-  $('realtimeConfidence').textContent=confidence.toFixed(2);
-  $('realtimeConfidenceDetail').textContent='phase '+Number(snapshot.phase_confidence||0).toFixed(2)+' · traffic '+Number(snapshot.traffic_evidence_confidence||0).toFixed(2)+' · adaptive '+Number(snapshot.adaptive_confidence||0).toFixed(2);
-  $('realtimeConfidenceCard').classList.toggle('low-confidence',status!=='KNOWN'||confidence<0.50);
-
-  $('realtimeObservability').textContent=ruStatus(observabilityLevel)+' · '+ruStatus(status);
-  const trafficObs=snapshot.traffic_observability||{};
-  $('realtimeObservabilityDetail').textContent='evidence density '+Number(trafficObs.evidence_density||0).toFixed(2)+' · determined '+(Number(trafficObs.determined_rate||0)*100).toFixed(0)+'%';
-  const unknownRate=trafficObs.unknown_rate;
-  $('realtimeUnknownReason').textContent=status==='KNOWN'?'NONE':reason;
-  $('realtimeUnknownRate').textContent='UNKNOWN rate '+(unknownRate==null?'—':(Number(unknownRate)*100).toFixed(1)+'%')+' · longest '+(trafficObs.longest_unknown_interval_seconds==null?'—':Number(trafficObs.longest_unknown_interval_seconds).toFixed(1)+' s');
-  $('realtimeUnknownCard').classList.toggle('unknown-card',status!=='KNOWN');
-
-  $('realtimeCompatibility').textContent=ruStatus(compatibility);
-  $('realtimeCompatibilityDetail').textContent='match '+(Number(snapshot.synchronization_match_ratio||0)*100).toFixed(0)+'% · deviation '+(snapshot.template_deviation_seconds==null?'—':Number(snapshot.template_deviation_seconds).toFixed(1)+' s');
-
-  $('realtimeAdaptive').textContent=ruStatus(adaptiveMode);
-  $('realtimeAdaptiveDetail').textContent=snapshot.adaptive_reason||'No adaptive deviation active';
-
-  $('realtimeExtension').textContent=ruStatus(extensionDuration>0?'ACTIVE':'INACTIVE');
-  $('realtimeExtensionDetail').textContent=(snapshot.phase_extension_event_count||0)+' evidence event(s) · peak '+Number(snapshot.phase_extension_peak_duration_seconds||0).toFixed(1)+' s';
-  $('realtimeExtensionDuration').textContent=extensionDuration.toFixed(1)+' s';
-  $('realtimeExtensionCount').textContent=(snapshot.phase_extension_event_count||0)+' evidence event(s)';
-
-  $('realtimeEffectiveAxis').textContent=snapshot.effective_axis||'—';
-  $('realtimeTemplateAxis').textContent=snapshot.template_expected_axis||'—';
-  $('realtimeDeviation').textContent=snapshot.template_deviation_seconds==null?'—':Number(snapshot.template_deviation_seconds).toFixed(2)+' s';
-  $('realtimeAdaptiveReason').textContent=snapshot.adaptive_reason||'—';
-
-  const liveBadge=$('realtimeLiveStateBadge');
-  const effectiveUnknown=status!=='KNOWN'||adaptiveMode==='RECOVERY'||confidence<0.20;
-  liveBadge.textContent=effectiveUnknown?'НЕ ОПРЕДЕЛЕНО / НЕ ПОДТВЕРЖДЕНО':'ТЕКУЩЕЕ СОСТОЯНИЕ';
-  liveBadge.className='operator-badge '+(effectiveUnknown?'unknown':(adaptiveMode==='LIVE_OVERRIDE'?'override':''));
-
-  renderEffectiveMovementList(snapshot);
-  renderTemplateStateList(snapshot);
-
-  $('realtimeTemplateBadge').textContent=adaptiveMode==='LIVE_OVERRIDE'?'ОТКЛОНЕНИЕ':(compatibility==='COMPATIBLE'?'СОВМЕСТИМ':'МОДЕЛЬ');
-  $('realtimeTemplateBadge').className='operator-badge '+(adaptiveMode==='LIVE_OVERRIDE'?'override':'');
-
-  const progress=Math.round(Number(snapshot.progress||0)*1000)/10;
-  $('realtimeProgressText').textContent=progress.toFixed(1)+'% · '+(snapshot.finished?'finished':'running');
-  $('realtimeProgressBar').style.width=progress+'%';
-  const source=snapshot.source||{};
-  $('realtimeSource').textContent=(source.filename||'—')+' · '+Number(source.trajectory_count||0)+' trajectories';
-
-  $('syncEvidence').textContent=String(snapshot.synchronization_evidence_count||0);
-  $('bufferEvents').textContent=String(snapshot.buffer_event_count||0);
-  $('emittedTrajectories').textContent=String((snapshot.evidence_summary&&snapshot.evidence_summary.emitted_trajectory_count)||0);
-  $('emittedEvents').textContent=String((snapshot.evidence_summary&&snapshot.evidence_summary.emitted_event_count)||0);
-  $('remainingTrajectories').textContent=String((snapshot.evidence_summary&&snapshot.evidence_summary.remaining_trajectory_count)||0);
-
-  $('realtimeSignalHint').textContent='Текущее состояние восстанавливается по уже поступившим событиям realtime. Браузер не вычисляет фазу самостоятельно.';
-  renderSignalRenderer(snapshot.signal_renderer||null,'realtimeSignalRenderer');
-}
-const RU_APPROACHES={N:'Север',S:'Юг',E:'Восток',W:'Запад'};
-const RU_STATES={GREEN:'ЗЕЛЁНЫЙ',YELLOW:'ЖЁЛТЫЙ',RED:'КРАСНЫЙ',RED_YELLOW:'КРАСНЫЙ + ЖЁЛТЫЙ',OFF:'ВЫКЛЮЧЕН',UNKNOWN:'НЕ ОПРЕДЕЛЕНО',MIXED:'СМЕШАННЫЙ'};
-const RU_SOURCES={OBSERVED_EVIDENCE:'ПО НАБЛЮДАЕМЫМ СОБЫТИЯМ',MODELLED_TRANSITION:'МОДЕЛЬНЫЙ ПЕРЕХОД',INFERRED_MODEL:'ПО МОДЕЛИ',UNKNOWN:'НЕ ОПРЕДЕЛЕНО'};
-const RU_STATUS={AVAILABLE:'ДОСТУПНО',PARTIAL:'ЧАСТИЧНО',UNABLE_TO_DETERMINE:'НЕ ОПРЕДЕЛЕНО',USABLE:'ГОТОВ',NOT_USABLE:'НЕ ГОТОВ',GOOD:'ХОРОШЕЕ',INSUFFICIENT:'НЕДОСТАТОЧНО',WARMUP:'РАЗОГРЕВ',SYNCHRONIZED:'СИНХРОНИЗИРОВАНО',INCOMPATIBLE:'НЕСОВМЕСТИМ',COMPATIBLE:'СОВМЕСТИМ',CHECKING:'ПРОВЕРКА',NORMAL:'НОРМАЛЬНЫЙ',RECOVERY:'ВОССТАНОВЛЕНИЕ',LIVE_OVERRIDE:'ОТКЛОНЕНИЕ ОТ ШАБЛОНА',ACTIVE:'АКТИВНО',INACTIVE:'НЕАКТИВНО',KNOWN:'ОПРЕДЕЛЕНО',UNKNOWN:'НЕ ОПРЕДЕЛЕНО',INSUFFICIENT_DATA:'НЕДОСТАТОЧНО ДАННЫХ'};
-function ruApproach(value){return RU_APPROACHES[String(value)]||String(value||'—')}
-function ruSignalState(value){return RU_STATES[String(value)]||String(value||'НЕ ОПРЕДЕЛЕНО')}
-function ruSignalSource(value){return RU_SOURCES[String(value)]||String(value||'—')}
-function ruStatus(value){return RU_STATUS[String(value)]||String(value||'—')}
-function ruMovement(value){
-  const match=String(value||'').match(/^([NSEW])->_?([NSEW])$/);
-  return match?ruApproach(match[1])+' → '+ruApproach(match[2]):String(value||'—');
-}
-function renderSignalRenderer(data,targetId='signalRenderer'){
-  const holder=$(targetId);
-  holder.innerHTML='';
-  if(!data||!Array.isArray(data.heads)){
-    const empty=document.createElement('div');
-    empty.className='muted small';
-    empty.textContent='Нет данных для отображения сигналов.';
-    holder.appendChild(empty);
-    return;
-  }
-  holder.dataset.approachCount=String((data.approaches||[]).length);
-  (data.approaches||[]).forEach(approach=>{
-    const card=document.createElement('div');
-    card.className='signal-approach';
-    const title=document.createElement('div');
-    title.className='signal-approach-title';
-    const name=document.createElement('strong');
-    name.textContent=ruApproach(approach);
-    const heads=data.heads.filter(head=>head.approach===approach);
-    const count=document.createElement('span');
-    count.className='muted small';
-    count.textContent=heads.length+' head'+(heads.length===1?'':'s');
-    title.append(name,count);card.appendChild(title);
-    heads.forEach(head=>{
-      const headEl=document.createElement('div');
-      headEl.className='signal-head '+(head.kind==='additional'?'additional':'');
-      const headTitle=document.createElement('div');
-      headTitle.className='signal-head-title';
-      headTitle.textContent=head.id+(head.kind==='additional'?' · дополнительный':' · основной');
-      headEl.appendChild(headTitle);
-      (head.sections||[]).forEach(section=>{
-        const row=document.createElement('div');
-        row.className='signal-section '+(section.source==='MODELLED_TRANSITION'||section.source==='INFERRED_MODEL'?'source-modelled':'source-observed');
-        const lamps=document.createElement('div');
-        lamps.className='signal-lamps';
-        ['RED','YELLOW','GREEN'].forEach(color=>{
-          const lamp=document.createElement('span');
-          lamp.className='signal-lamp '+color.toLowerCase()+(section.state===color?' on':'');
-          lamps.appendChild(lamp);
-        });
-        (section.arrows||[]).forEach(arrow=>{
-          const arrowEl=document.createElement('span');
-          arrowEl.className='signal-lamp arrow';
-          arrowEl.textContent=arrow==='left'?'←':arrow==='right'?'→':arrow==='straight'?'↑':arrow==='uturn'?'↶':'•';
-          arrowEl.style.opacity=section.state==='UNKNOWN'?'0.35':'1';
-          lamps.appendChild(arrowEl);
-        });
-        const meta=document.createElement('div');meta.className='signal-meta';
-        const state=document.createElement('div');
-        state.className='signal-state '+(section.state==='UNKNOWN'?'unknown ':'')+'state-'+section.state;
-        state.textContent=ruSignalState(section.state);
-        const movement=document.createElement('div');movement.className='signal-movement';
-        movement.textContent=ruMovement(section.movement);
-        const source=document.createElement('div');source.className='signal-source';
-        source.textContent=ruSignalSource(section.source);
-        const conf=document.createElement('div');conf.className='signal-confidence';
-        conf.textContent='confidence '+Number(section.confidence||0).toFixed(2);
-        meta.append(state,movement,source,conf);row.append(lamps,meta);headEl.appendChild(row);
-      });
-      card.appendChild(headEl);
-    });
-    holder.appendChild(card);
-  });
-}
-function setState(id,label,state){
-  const el=$(id);const value=state||'UNKNOWN';
-  el.className=el.className.replace(/state-[A-Z_]+/g,'').trim()+' state-'+value;
-  el.textContent=label?(label+' · '+value):value;
-}
-
-window.addEventListener('beforeunload',()=>{if(realtimeId)fetch('/api/v1/realtime/simulations/'+encodeURIComponent(realtimeId),{method:'DELETE',keepalive:true}).catch(()=>{})});
-updateTemplateStatus();
-</script>
+<iframe id="viewer" title="V10 visualization"></iframe>
 </main>
+<script>
+const form=document.getElementById("form");
+const file=document.getElementById("file");
+const submit=document.getElementById("submit");
+const status=document.getElementById("status");
+const viewer=document.getElementById("viewer");
+
+form.addEventListener("submit",async function(event){
+  event.preventDefault();
+  if(!file.files.length)return;
+  submit.disabled=true;
+  status.textContent="V10 анализирует архив…";
+  viewer.style.display="none";
+  try{
+    const body=new FormData();
+    body.append("file",file.files[0]);
+    const response=await fetch("/visualization/analyze",{method:"POST",body});
+    const html=await response.text();
+    if(!response.ok)throw new Error(html || ("HTTP "+response.status));
+    viewer.srcdoc=html;
+    viewer.style.display="block";
+    status.textContent="Готово. V10 визуализация построена.";
+    viewer.scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(error){
+    status.textContent="Ошибка: "+String(error.message||error);
+  }finally{
+    submit.disabled=false;
+  }
+});
+</script>
 </body>
-</html>
-"""
+</html>"""
+
+
+@router.get("", response_class=HTMLResponse)
+def visualization_page() -> str:
+    return INDEX_HTML
+
+
+@router.post("/analyze", response_class=HTMLResponse)
+async def visualization_analyze(
+    file: UploadFile = File(...),
+    dt: float = Form(default=1.0, gt=0.0),
+    yellow: float = Form(
+        default=DEFAULT_YELLOW_DURATION_SECONDS,
+        ge=0.0,
+    ),
+    red_yellow: float = Form(
+        default=DEFAULT_RED_YELLOW_DURATION_SECONDS,
+        ge=0.0,
+    ),
+    activity_threshold: float = Form(
+        default=DEFAULT_ACTIVITY_THRESHOLD,
+        ge=0.0,
+        le=1.0,
+    ),
+) -> HTMLResponse:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+
+    lowered = file.filename.lower()
+    if not lowered.endswith((".json", ".zip")):
+        raise HTTPException(
+            status_code=400,
+            detail="Only JSON and ZIP inputs are supported",
+        )
+
+    try:
+        with TemporaryDirectory(prefix="traffic_phase_visualization_") as tmp:
+            source_path = Path(tmp) / Path(file.filename).name
+            await file.seek(0)
+            with source_path.open("wb") as sink:
+                shutil.copyfileobj(
+                    file.file,
+                    sink,
+                    length=1024 * 1024,
+                )
+
+            tracks, _source_files = load_source(source_path)
+            result = discover_records(
+                tracks,
+                input_name=str(source_path),
+                dt=dt,
+            )
+            projection = build_spatial_projection(tracks)
+            compact = compact_trajectories(
+                tracks,
+                analysis_base_timestamp_ms=float(
+                    result["analysis_base_timestamp_ms"]
+                ),
+                projection=projection,
+            )
+
+            html = render_html(
+                result,
+                projection,
+                compact,
+                yellow_duration_seconds=yellow,
+                red_yellow_duration_seconds=red_yellow,
+                activity_threshold=activity_threshold,
+                physical_plan=result.get("physical_signal_plan"),
+            )
+            return HTMLResponse(content=html)
+
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

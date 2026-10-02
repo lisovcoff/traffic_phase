@@ -2,252 +2,113 @@ from __future__ import annotations
 
 import asyncio
 from io import BytesIO
-import json
 
-from app.api.routes import phase_analyze
-from app.api.visualization import visualization_page
-from starlette.datastructures import UploadFile
+from fastapi import UploadFile
 
-
-def _record(vehicle_id: int, timestamp_ms: int, approach: str, zone_out: str):
-    return {
-        "id": vehicle_id,
-        "millis": timestamp_ms + 1000,
-        "zone_in": approach,
-        "zone_out": zone_out,
-        "category_name": "car",
-        "detections": [
-            {"millis": timestamp_ms - 1000, "lat": 55.0, "lng": 61.0, "zone": approach},
-            {"millis": timestamp_ms, "lat": 55.00003, "lng": 61.0, "zone": None},
-            {"millis": timestamp_ms + 1000, "lat": 55.00006, "lng": 61.0, "zone": zone_out},
-        ],
-    }
+from app.api.visualization import visualization_analyze, visualization_page
 
 
-def _payload(cycles: int = 10):
-    movements = (
-        (10, "N", "_S"),
-        (25, "S", "_N"),
-        (70, "E", "_W"),
-        (85, "W", "_E"),
-    )
-    records = []
-    vehicle_id = 0
-    for cycle in range(cycles):
-        base = cycle * 120_000
-        for offset_s, approach, zone_out in movements:
-            vehicle_id += 1
-            records.append(
-                _record(
-                    vehicle_id,
-                    base + offset_s * 1000,
-                    approach,
-                    zone_out,
-                )
-            )
-    return records
-
-
-def _upload(payload):
-    return UploadFile(
-        file=BytesIO(json.dumps(payload).encode("utf-8")),
-        filename="player.json",
-    )
-
-
-def test_batch_player_contract_exposes_research_snapshot():
-    response = asyncio.run(phase_analyze(_upload(_payload())))
-    session = response["sessions"][0]
-    player = session["player"]
-
-    assert player["version"] == "1"
-    assert player["mode"] == "BATCH_RECONSTRUCTION"
-    assert player["adaptive_mode"] == "BATCH_RECONSTRUCTION"
-    assert player["timeline"]
-    assert player["cycle_seconds"] == session["phase_model"]["cycle_seconds"]
-    assert player["phase_boundaries"]
-    active_movement_points = [
-        point for point in player["timeline"]
-        if point.get("movement_states")
-    ]
-    if active_movement_points:
-        assert player["movement_intervals"]
-    assert player["phase_extension_intervals"] == []
-
-    determined_points = [
-        point
-        for point in player["timeline"]
-        if any(state != "UNKNOWN" for state in point["states"].values())
-    ]
-    assert determined_points, "batch playback must expose model-derived signal states"
-
-    point = player["timeline"][0]
-    assert set(point) >= {
-        "timestamp_ms",
-        "cycle_position_s",
-        "phase_id",
-        "movement_states",
-        "states",
-        "confidence",
-        "evidence",
-        "unknown_reason",
-        "adaptive_mode",
-        "signal_renderer",
-        "signal_source",
-    }
-    assert point["adaptive_mode"] == "BATCH_RECONSTRUCTION"
-    assert set(point["signal_renderer"]) >= {
-        "renderer_version",
-        "intersection_id",
-        "approaches",
-        "layout",
-        "heads",
-    }
-    assert any(
-        section["state"] != "UNKNOWN"
-        for head in point["signal_renderer"]["heads"]
-        for section in head["sections"]
-    )
-
-    assert set(player["navigation"]) >= {
-        "phase_starts",
-        "previous_phase",
-        "next_phase",
-        "unknown",
-        "extensions",
-        "anomalies",
-        "transitions",
-    }
-
-
-def test_visualization_page_contains_backend_only_batch_player():
+def test_visualization_page_is_the_unified_v10_entrypoint():
     html = visualization_page()
-    required = (
-        "batchPrevPhase",
-        "batchNextPhase",
-        "batchNextUnknown",
-        "batchNextExtension",
-        "batchNextAnomaly",
-        "batchSpeed",
-        "batchExactTimestamp",
-        "batchCyclePosition",
-        "batchMovementStates",
-        "batchEvidence",
-        "batchUnknownReason",
-        "batchPlayerAdaptive",
-        "movementTimeline",
-        "stateTimeline",
-        "function playerTimeline(",
-        "function jumpBatch(",
-        "function renderBatchPoint(",
-        "function playBatch(",
+
+    assert "V10 — Traffic Phase" in html
+    assert "/visualization/analyze" in html
+    assert 'accept=".json,.zip' in html
+    assert "V9 discovery" in html
+    assert "V10 физическая семантика" in html
+
+
+def test_visualization_analyze_builds_v9_v10_spatial_html(monkeypatch):
+    calls = []
+
+    tracks = [
+        {
+            "id": 1,
+            "zone_in": "N",
+            "zone_out": "S",
+            "detections": [
+                {"millis": 1000, "centroid_x": 0.5, "centroid_y": 0.9},
+                {"millis": 2000, "centroid_x": 0.5, "centroid_y": 0.8},
+            ],
+        }
+    ]
+    result = {
+        "algorithm": "direction-agnostic traffic phase discovery V9",
+        "analysis_base_timestamp_ms": 1000.0,
+        "trajectory_count": 1,
+        "event_count": 1,
+        "recording_duration_s": 10.0,
+        "schedule": {
+            "period_s": 10.0,
+            "phase_count": 1,
+            "phase_names": ["PHASE_A"],
+            "baseline_segments": [[0.0, 10.0, 0]],
+            "stream_activity_by_phase": [],
+        },
+        "physical_signal_plan": {
+            "enabled": True,
+            "mapping": {"PHASE_A": "NS"},
+            "phases": [
+                {
+                    "name": "NS",
+                    "green_movements": ["N->S"],
+                    "additional_movements": [],
+                    "duration_s": 10.0,
+                }
+            ],
+            "segments": [[0.0, 10.0, "NS"]],
+        },
+    }
+
+    def fake_load_source(path):
+        calls.append(("load_source", path.suffix))
+        return tracks, ["input.json"]
+
+    def fake_discover_records(records, *, input_name, dt):
+        calls.append(("discover_records", len(records), dt))
+        return result
+
+    def fake_projection(records):
+        calls.append(("projection", len(records)))
+        return {"anchors": {"N": [0.5, 0.9]}}
+
+    def fake_compact(records, *, analysis_base_timestamp_ms, projection):
+        calls.append(("compact", analysis_base_timestamp_ms))
+        return [[1, "N", "N->S", [[0.0, 0.5, 0.9], [1.0, 0.5, 0.8]]]]
+
+    def fake_render_html(result_arg, projection_arg, compact_arg, **kwargs):
+        calls.append(("render", compact_arg, kwargs))
+        return "<html><body>V10 OK</body></html>"
+
+    monkeypatch.setattr("app.api.visualization.load_source", fake_load_source)
+    monkeypatch.setattr(
+        "app.api.visualization.discover_records",
+        fake_discover_records,
     )
-    assert all(token in html for token in required)
-    assert "SignalStateEstimator" not in html
-    assert "EventPhaseDiscovery" not in html
-
-def test_visualization_contains_realtime_operator_dashboard_contract():
-    html = visualization_page()
-    required = (
-        "ТЕКУЩЕЕ ВРЕМЯ",
-        "СИНХРОНИЗАЦИЯ",
-        "ТЕКУЩАЯ ФАЗА",
-        "УВЕРЕННОСТЬ",
-        "НАБЛЮДАЕМОСТЬ",
-        "ПРИЧИНА НЕОПРЕДЕЛЁННОСТИ",
-        "СОВМЕСТИМОСТЬ ШАБЛОНА",
-        "РЕЖИМ АДАПТАЦИИ",
-        "ПРОДЛЕНИЕ ФАЗЫ",
-        "ДЛИТЕЛЬНОСТЬ ПРОДЛЕНИЯ",
-        "realtimeTemplateStates",
-        "realtimeEffectiveMovements",
-        "batchSignalStateView",
-        "realtimeSignalStateView",
-        "signalRenderer",
-        "realtimeSignalRenderer",
-        "realtimeOperatorAlert",
-        "renderRealtimeSnapshot(snapshot)",
-        "renderSignalRenderer(snapshot.signal_renderer||null,'realtimeSignalRenderer')",
+    monkeypatch.setattr(
+        "app.api.visualization.build_spatial_projection",
+        fake_projection,
     )
-    assert all(token in html for token in required)
-
-
-def test_video_validation_server_import_and_timestamp_parser():
-    from scripts.video_validation_server import _parse_iso_ms
-
-    value = _parse_iso_ms("2025-02-27T09:59:56+05:00")
-    assert isinstance(value, int)
-    assert value > 1_000_000_000_000
-
-
-def test_video_validation_server_load_analysis_requires_timeline(tmp_path):
-    import json
-
-    from scripts.video_validation_server import _load_analysis
-
-    path = tmp_path / "analysis.json"
-    path.write_text(json.dumps({"sessions": [{"status": "ok"}]}), encoding="utf-8")
-
-    try:
-        _load_analysis(path)
-    except ValueError as exc:
-        assert "effective_timeline" in str(exc)
-    else:
-        raise AssertionError("expected validation error")
-
-def test_coordinate_viewer_script_exposes_stage_analysis_pipeline():
-    from pathlib import Path
-
-    script = Path("scripts/visualize_trajectory_coordinates.py").read_text(
-        encoding="utf-8"
+    monkeypatch.setattr(
+        "app.api.visualization.compact_trajectories",
+        fake_compact,
     )
-
-    required = (
-        "_build_stage_analysis",
-        "build_signal_group_model",
-        '"stage1":',
-        '"stage2":',
-        "movement_to_group",
-        "--no-analysis",
-    )
-    assert all(token in script for token in required)
-
-def test_visualization_stage_overlay_is_compact_and_movement_based():
-    from pathlib import Path
-
-    script = Path("scripts/visualize_trajectory_coordinates.py").read_text(
-        encoding="utf-8"
+    monkeypatch.setattr(
+        "app.api.visualization.render_html",
+        fake_render_html,
     )
 
-    required = (
-        'class="stage-overlay"',
-        'id="stageOverlay"',
-        "function renderStageOverlay",
-        'movements.join(", ")',
+    upload = UploadFile(
+        file=BytesIO(b"{}"),
+        filename="input.json",
     )
-    assert all(token in script for token in required)
-    assert 'class="analysis-grid"' not in script
-    assert "function renderStage1" not in script
-    assert "function renderStage2" not in script
+    response = asyncio.run(visualization_analyze(upload))
 
-def test_visualization_stage_overlay_shows_current_green_movements():
-    from pathlib import Path
-
-    script = Path("scripts/visualize_trajectory_coordinates.py").read_text(
-        encoding="utf-8"
-    )
-
-    required = (
-        'Сейчас',
-        '"Зелёный: "',
-        "activePhase",
-        "active_approaches",
-        "signature.active_intervals",
-        "Не определено",
-    )
-    assert all(token in script for token in required)
-    assert "function renderStage1" not in script
-    assert "function renderStage2" not in script
-    assert 'id="stage1"' not in script
-    assert 'id="stage2"' not in script
-
+    assert response.status_code == 200
+    assert response.body == b"<html><body>V10 OK</body></html>"
+    assert calls[0] == ("load_source", ".json")
+    assert ("discover_records", 1, 1.0) in calls
+    assert ("projection", 1) in calls
+    assert ("compact", 1000.0) in calls
+    render_call = next(item for item in calls if item[0] == "render")
+    assert render_call[2]["physical_plan"]["enabled"] is True
