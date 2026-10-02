@@ -305,7 +305,7 @@ def test_v10_large_diverse_synthetic_matrix() -> None:
                     )
                     try:
                         plan = infer_physical_signal_plan(result)
-                        actual = _phase_sets(plan)
+                        actual = _physical_signatures(plan)
                         arrows = _topology_arrows(plan)
                         expected_arrows = {
                             movement
