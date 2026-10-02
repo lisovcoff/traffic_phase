@@ -10,8 +10,11 @@ def test_debug_synthetic_v9_physical() -> None:
         input_name="debug_synthetic",
         dt=1.0,
     )
-    print("DEBUG_PHASES", result["schedule"]["phase_names"])
-    print("DEBUG_ACTIVITY", result["schedule"]["stream_activity_by_phase"])
-    print("DEBUG_SEGMENTS", result["schedule"]["baseline_segments"])
-    print("DEBUG_MAPPING", _phase_by_signature(result))
-    print("DEBUG_PHYSICAL", result["physical_signal_plan"])
+    summary = {
+        "phase_names": result["schedule"]["phase_names"],
+        "activity": result["schedule"]["stream_activity_by_phase"],
+        "segments": result["schedule"]["baseline_segments"],
+        "mapping": _phase_by_signature(result),
+        "physical": result["physical_signal_plan"],
+    }
+    raise AssertionError(summary)
