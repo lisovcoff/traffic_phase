@@ -186,6 +186,9 @@ def infer_physical_signal_plan(
     if not movements:
         raise ValueError("no canonical N/S/E/W movement evidence")
 
+    WEAK_PHASE_EVIDENCE_THRESHOLD = 0.03
+    WEAK_PHASE_SELECTIVITY_RATIO = max(1.25, float(selectivity_ratio))
+
     mapping: dict[str, str] = {}
     green_by_phase: dict[str, frozenset[str]] = {}
     confidence_by_phase: dict[str, float] = {}
@@ -213,6 +216,47 @@ def infer_physical_signal_plan(
                         ),
                     )
                 )
+        if not green:
+            candidates: list[tuple[float, float, str]] = []
+            for movement in movements:
+                values = [
+                    float(activity[item].get(movement, 0.0))
+                    for item in names
+                ]
+                probability = float(activity[phase].get(movement, 0.0))
+                other_peak = max(
+                    (
+                        value
+                        for item, value in zip(names, values)
+                        if item != phase
+                    ),
+                    default=0.0,
+                )
+                if (
+                    probability >= WEAK_PHASE_EVIDENCE_THRESHOLD
+                    and probability >= WEAK_PHASE_SELECTIVITY_RATIO
+                    * max(other_peak, 0.001)
+                ):
+                    candidates.append(
+                        (
+                            probability,
+                            probability / max(other_peak, 0.001),
+                            movement,
+                        )
+                    )
+            if candidates:
+                best_probability = max(item[0] for item in candidates)
+                for probability, _ratio, movement in candidates:
+                    if probability >= 0.75 * best_probability:
+                        green.add(movement)
+                        evidence.append(
+                            min(
+                                1.0,
+                                probability
+                                / max(best_probability, 0.001),
+                            )
+                        )
+
         if not green:
             raise ValueError(
                 f"phase {phase!r} has no supported physical green movements"
@@ -285,47 +329,54 @@ def infer_physical_signal_plan(
         green_by_phase[phase] = frozenset(sorted(green))
 
     # Reciprocal protected turns can have asymmetric traffic volume.
-    # Do not drop the weaker direction solely because it falls below the
-    # physical activity threshold when its reverse turn is strongly supported
-    # in the same V9 phase and the weaker stream is itself phase-selective.
-    rescue_threshold = max(0.04, 0.5 * float(activity_threshold))
+    # Recover a weak turn pair when both directions are clearly selective for
+    # the same phase, even when one or both are below the absolute threshold.
+    rescue_threshold = max(0.03, 0.5 * float(activity_threshold))
     for phase in names:
         green = set(green_by_phase[phase])
         for movement in movements:
-            if _is_straight(movement) or movement in green:
+            if _is_straight(movement):
                 continue
             source, target = movement.split("->", 1)
             reverse = f"{target}->{source}"
-            if reverse not in green:
+            if reverse in green:
+                candidate_movements = (movement,)
+            elif reverse in movements:
+                candidate_movements = (movement, reverse)
+            else:
                 continue
 
-            values = {
-                item: float(activity[item].get(movement, 0.0))
-                for item in names
-            }
-            probability = values[phase]
-            other_peak = max(
-                (value for item, value in values.items() if item != phase),
-                default=0.0,
-            )
-            own_peak_phase = max(values, key=values.get)
-            if (
-                probability >= rescue_threshold
-                and own_peak_phase == phase
-                and probability >= float(selectivity_ratio) * max(other_peak, 0.001)
-            ):
-                green.add(movement)
-                evidence = max(
-                    0.0,
-                    min(
-                        1.0,
-                        (probability - other_peak)
-                        / max(probability - other_peak, 0.001),
-                    ),
+            pair_ok = True
+            pair_selectivity = 0.0
+            for candidate in candidate_movements:
+                values = {
+                    item: float(activity[item].get(candidate, 0.0))
+                    for item in names
+                }
+                probability = values[phase]
+                other_peak = max(
+                    (value for item, value in values.items() if item != phase),
+                    default=0.0,
                 )
+                own_peak_phase = max(values, key=values.get)
+                if (
+                    probability < rescue_threshold
+                    or own_peak_phase != phase
+                    or probability
+                    < WEAK_PHASE_SELECTIVITY_RATIO * max(other_peak, 0.001)
+                ):
+                    pair_ok = False
+                    break
+                pair_selectivity = max(
+                    pair_selectivity,
+                    probability / max(other_peak, 0.001),
+                )
+
+            if pair_ok:
+                green.update(candidate_movements)
                 confidence_by_phase[phase] = max(
                     confidence_by_phase.get(phase, 0.0),
-                    float(evidence),
+                    min(1.0, pair_selectivity / 2.0),
                 )
         green_by_phase[phase] = frozenset(sorted(green))
 

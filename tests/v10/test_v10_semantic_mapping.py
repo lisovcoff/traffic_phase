@@ -169,6 +169,103 @@ def test_signal_plan_dict_becomes_physical_catalog() -> None:
     assert specs[1].green_movements == frozenset({"E->W", "W->E"})
 
 
+def test_automatic_physical_plan_recovers_weak_selective_phase_and_heads() -> None:
+    result = {
+        "analysis_base_timestamp_ms": 1100.0,
+        "recording_start_timestamp_ms": 1000.0,
+        "schedule": {
+            "phase_names": ["PHASE_A", "PHASE_B", "PHASE_C"],
+            "phase_count": 3,
+            "period_s": 100.0,
+            "baseline_duration_targets_s": {
+                "PHASE_A": 20.0,
+                "PHASE_B": 30.0,
+                "PHASE_C": 50.0,
+            },
+            "baseline_segments": [
+                [0.0, 20.0, 2],
+                [20.0, 50.0, 0],
+                [50.0, 100.0, 1],
+            ],
+            "stream_activity_by_phase": [
+                {
+                    "stream": "E->W",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.037,
+                    },
+                },
+                {
+                    "stream": "W->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "N->S",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.173,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "N->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.059,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "E->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.031,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "S->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.255,
+                        "PHASE_C": 0.01,
+                    },
+                },
+            ],
+        },
+    }
+
+    plan = infer_physical_signal_plan(result)
+
+    assert plan["enabled"] is True
+    assert plan["time_offset_s"] == 0.1
+
+    by_name = {phase["name"]: phase for phase in plan["phases"]}
+    assert set(by_name["EW_THROUGH"]["green_movements"]) == {
+        "E->W",
+        "W->E",
+    }
+    assert set(by_name["NS_TURN"]["green_movements"]) == {
+        "N->S",
+        "N->E",
+        "E->N",
+    }
+
+    ew_heads = by_name["EW_THROUGH"]["heads"]
+    assert ew_heads["E"]["main"] == "GREEN"
+    assert ew_heads["W"]["main"] == "GREEN"
+
+    turn_heads = by_name["NS_TURN"]["heads"]
+    assert turn_heads["N"]["main"] == "GREEN"
+    assert turn_heads["N"]["arrows"]["N->E"] == "GREEN"
+    assert turn_heads["E"]["arrows"]["E->N"] == "GREEN"
+
+
 def test_automatic_physical_plan_preserves_shared_straight_movement() -> None:
     result = _lenina_result((0, 1, 2))
     plan = infer_physical_signal_plan(result)
