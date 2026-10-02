@@ -7,6 +7,7 @@ APPROACHES = frozenset({"N", "S", "E", "W"})
 OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
 DEFAULT_ACTIVITY_THRESHOLD = 0.08
 DEFAULT_SELECTIVITY_RATIO = 1.15
+DEFAULT_STARTUP_LOST_S = 2.0
 
 
 def _canonical_movement(value: Any) -> str | None:
@@ -160,6 +161,7 @@ def infer_physical_signal_plan(
     *,
     activity_threshold: float = DEFAULT_ACTIVITY_THRESHOLD,
     selectivity_ratio: float = DEFAULT_SELECTIVITY_RATIO,
+    startup_lost_s: float = DEFAULT_STARTUP_LOST_S,
 ) -> dict[str, Any]:
     """Infer physical movement groups from V9 phase signatures.
 
@@ -171,6 +173,8 @@ def infer_physical_signal_plan(
         raise ValueError("activity_threshold must be in [0, 1]")
     if float(selectivity_ratio) < 1.0:
         raise ValueError("selectivity_ratio must be >= 1")
+    if float(startup_lost_s) < 0.0:
+        raise ValueError("startup_lost_s must be >= 0")
 
     schedule = result.get("schedule")
     if not isinstance(schedule, Mapping):
@@ -266,8 +270,100 @@ def infer_physical_signal_plan(
             sum(evidence) / len(evidence) if evidence else 0.0
         )
 
+    # Turns use a lower candidate threshold than through movements, but
+    # become physical only when V9 exposes an actual protected/isolated phase
+    # pattern. Traffic that merely leaks during an ordinary through phase stays
+    # permissive and does not create a hardware arrow.
+    TURN_CANDIDATE_EVIDENCE_THRESHOLD = 0.03
+    TURN_CANDIDATE_SELECTIVITY_RATIO = max(1.25, float(selectivity_ratio))
+    PROTECTED_TURN_MIN_MAIN = max(0.08, float(activity_threshold))
+    PROTECTED_TURN_CLOSED_THRESHOLD = min(
+        0.03,
+        max(0.005, 0.5 * float(activity_threshold)),
+    )
+    PROTECTED_TURN_STRONG_PAIR = 0.20
+
+    # Admit weak, phase-selective turn evidence before structural filtering.
+    for phase in names:
+        green = set(green_by_phase[phase])
+        for movement in movements:
+            if _is_straight(movement):
+                continue
+            probability = float(activity[phase].get(movement, 0.0))
+            if probability < TURN_CANDIDATE_EVIDENCE_THRESHOLD:
+                continue
+            other_peak = max(
+                (
+                    float(activity[item].get(movement, 0.0))
+                    for item in names
+                    if item != phase
+                ),
+                default=0.0,
+            )
+            if (
+                probability
+                >= TURN_CANDIDATE_SELECTIVITY_RATIO * max(other_peak, 0.001)
+            ):
+                green.add(movement)
+        green_by_phase[phase] = frozenset(sorted(green))
+
     PROTECTED_TURN_MAIN_RATIO = 2.0
-    PROTECTED_TURN_PAIR_SUPPORT = 0.20
+
+    PROTECTED_TURN_MAIN_RATIO = 2.0
+
+    def protected_turn_isolated(
+        phase: str,
+        movement: str,
+    ) -> bool:
+        """Check phase contrast against the opposing through stream."""
+        source, _target = movement.split("->", 1)
+        opposing_through = f"{OPPOSITE[source]}->{source}"
+        if (
+            float(activity[phase].get(opposing_through, 0.0))
+            > PROTECTED_TURN_CLOSED_THRESHOLD
+        ):
+            return False
+        return any(
+            other_phase != phase
+            and float(
+                activity[other_phase].get(
+                    opposing_through,
+                    0.0,
+                )
+            )
+            >= PROTECTED_TURN_MIN_MAIN
+            and float(
+                activity[other_phase].get(
+                    movement,
+                    0.0,
+                )
+            )
+            <= PROTECTED_TURN_CLOSED_THRESHOLD
+            for other_phase in names
+        )
+
+    def protected_turn_seed(
+        phase: str,
+        movement: str,
+    ) -> bool:
+        """Find a protected turn with a strong same-approach seed."""
+        probability = float(activity[phase].get(movement, 0.0))
+        if probability < TURN_CANDIDATE_EVIDENCE_THRESHOLD:
+            return False
+
+        source, _target = movement.split("->", 1)
+        source_main = f"{source}->{OPPOSITE[source]}"
+        source_main_probability = float(
+            activity[phase].get(source_main, 0.0)
+        )
+        if (
+            source_main_probability < PROTECTED_TURN_MIN_MAIN
+            or source_main_probability
+            < PROTECTED_TURN_MAIN_RATIO * probability
+        ):
+            return False
+
+        return protected_turn_isolated(phase, movement)
 
     def protected_turn_group(
         phase: str,
@@ -275,50 +371,49 @@ def infer_physical_signal_plan(
     ) -> bool:
         candidate_set = set(candidates)
 
-        strong_turns = [
-            movement
+        # A strong protected seed can promote its reciprocal turn. This avoids
+        # requiring equal traffic volumes on the two turn streams.
+        if any(
+            protected_turn_seed(phase, movement)
             for movement in candidate_set
-            if activity[phase].get(movement, 0.0)
-            >= PROTECTED_TURN_PAIR_SUPPORT
-        ]
-        if len(strong_turns) >= 2:
-            sources = {
-                movement.split("->", 1)[0]
-                for movement in strong_turns
-            }
-            if sources <= {"N", "S"} or sources <= {"E", "W"}:
-                return True
+        ):
+            return True
 
+        # When both reciprocal turns are substantial, phase isolation itself
+        # is strong evidence even if neither turn has a 2x source-main ratio.
         for movement in candidate_set:
             source, target = movement.split("->", 1)
             reverse = f"{target}->{source}"
+            if movement >= reverse or reverse not in candidate_set:
+                continue
             if (
-                reverse in candidate_set
-                and activity[phase].get(movement, 0.0)
-                >= PROTECTED_TURN_PAIR_SUPPORT
-                and activity[phase].get(reverse, 0.0)
-                >= PROTECTED_TURN_PAIR_SUPPORT
+                float(activity[phase].get(movement, 0.0))
+                >= PROTECTED_TURN_STRONG_PAIR
+                and float(activity[phase].get(reverse, 0.0))
+                >= PROTECTED_TURN_STRONG_PAIR
+                and (
+                    protected_turn_isolated(phase, movement)
+                    or protected_turn_isolated(phase, reverse)
+                )
             ):
                 return True
 
-        for source in {
-            item.split("->", 1)[0]
-            for item in candidate_set
-        }:
-            straight = f"{source}->{OPPOSITE[source]}"
-            turn_probabilities = [
-                activity[phase].get(item, 0.0)
-                for item in candidate_set
-                if item.startswith(f"{source}->")
-            ]
-            if not turn_probabilities:
-                continue
-            strongest_turn = max(turn_probabilities)
-            main_probability = activity[phase].get(straight, 0.0)
-            if (
-                strongest_turn >= float(activity_threshold) * 0.5
-                and main_probability
-                >= PROTECTED_TURN_MAIN_RATIO * strongest_turn
+        # Dedicated turn-only phases do not contain a straight movement.
+        # Require two strong turns from opposite approaches.
+        strong_turns = [
+            movement
+            for movement in candidate_set
+            if float(activity[phase].get(movement, 0.0))
+            >= PROTECTED_TURN_STRONG_PAIR
+        ]
+        if len(strong_turns) >= 2:
+            source_set = {
+                movement.split("->", 1)[0]
+                for movement in strong_turns
+            }
+            if any(
+                OPPOSITE[source] in source_set
+                for source in source_set
             ):
                 return True
 
@@ -335,23 +430,6 @@ def infer_physical_signal_plan(
         protected: set[str] = set()
         if turns and protected_turn_group(phase, turns):
             protected.update(turns)
-
-        by_source: defaultdict[str, list[str]] = defaultdict(list)
-        for movement in turns:
-            by_source[movement.split("->", 1)[0]].append(movement)
-
-        for source_candidates in by_source.values():
-            if protected_turn_group(phase, source_candidates):
-                protected.update(source_candidates)
-
-        for movement in turns:
-            source, target = movement.split("->", 1)
-            reverse = f"{target}->{source}"
-            if reverse in turns and protected_turn_group(
-                phase,
-                (movement, reverse),
-            ):
-                protected.update((movement, reverse))
 
         suppressed = sorted(set(turns) - protected)
         if suppressed:
@@ -396,50 +474,6 @@ def infer_physical_signal_plan(
                     if probability >= 0.75 * best_probability
                 )
 
-        green_by_phase[phase] = frozenset(sorted(green))
-
-    # A weak reciprocal turn is only restored when it also satisfies the same
-    # protected-turn criterion. Permissive traffic cannot create a physical
-    # arrow by itself.
-    for phase in names:
-        green = set(green_by_phase[phase])
-        for movement in movements:
-            if _is_straight(movement):
-                continue
-            source, target = movement.split("->", 1)
-            reverse = f"{target}->{source}"
-            if reverse not in movements:
-                continue
-            candidate_movements = (movement, reverse)
-            pair_ok = True
-            for candidate in candidate_movements:
-                values = {
-                    item: float(activity[item].get(candidate, 0.0))
-                    for item in names
-                }
-                probability = values[phase]
-                other_peak = max(
-                    (
-                        value
-                        for item, value in values.items()
-                        if item != phase
-                    ),
-                    default=0.0,
-                )
-                if (
-                    probability < 0.03
-                    or max(values.values(), default=0.0) != probability
-                    or probability
-                    < max(1.25, float(selectivity_ratio))
-                    * max(other_peak, 0.001)
-                ):
-                    pair_ok = False
-                    break
-            if pair_ok and protected_turn_group(
-                phase,
-                candidate_movements,
-            ):
-                green.update(candidate_movements)
         green_by_phase[phase] = frozenset(sorted(green))
 
     straight_by_axis = {
@@ -581,6 +615,7 @@ def infer_physical_signal_plan(
     )
     recording_start_value = result.get("recording_start_timestamp_ms")
     analysis_base_value = result.get("analysis_base_timestamp_ms")
+    event_base_value = result.get("event_base_timestamp_ms")
     if recording_start_value is None and analysis_base_value is None:
         recording_start_value = 0.0
         analysis_base_value = 0.0
@@ -589,20 +624,56 @@ def infer_physical_signal_plan(
     elif analysis_base_value is None:
         analysis_base_value = recording_start_value
     try:
-        time_offset_s = (
+        model_anchor_s = (
             float(analysis_base_value) - float(recording_start_value)
         ) / 1000.0
     except (TypeError, ValueError):
-        time_offset_s = 0.0
+        model_anchor_s = 0.0
+
+    try:
+        physical_anchor_s = (
+            model_anchor_s - float(startup_lost_s)
+        )
+    except (TypeError, ValueError):
+        physical_anchor_s = model_anchor_s
+
+    regime = result.get("regime_detection")
+    slice_start_s = 0.0
+    if isinstance(regime, Mapping):
+        try:
+            slice_start_s = float(
+                regime.get("selected_window_start_s", 0.0)
+            )
+        except (TypeError, ValueError):
+            slice_start_s = 0.0
+
+    try:
+        event_base_offset_s = (
+            float(event_base_value) - float(recording_start_value)
+        ) / 1000.0
+    except (TypeError, ValueError):
+        event_base_offset_s = None
+
     return {
         "enabled": True,
         "auto_inferred": True,
         "model": "v10_automatic_physical_signal_plan",
         "cycle_seconds": period,
         "mapping": mapping,
-        "time_offset_s": round(float(time_offset_s), 6),
+        "time_offset_s": round(float(physical_anchor_s), 6),
         "recording_start_timestamp_ms": float(recording_start_value),
         "analysis_base_timestamp_ms": float(analysis_base_value),
+        "timing": {
+            "phase_anchor_model_s": round(float(model_anchor_s), 6),
+            "phase_anchor_physical_s": round(float(physical_anchor_s), 6),
+            "startup_lost_s": round(float(startup_lost_s), 6),
+            "slice_start_s": round(float(slice_start_s), 6),
+            "event_base_offset_s": (
+                round(float(event_base_offset_s), 6)
+                if event_base_offset_s is not None
+                else None
+            ),
+        },
         "confidence": round(float(confidence), 4),
         "phases": phases,
         "stages": stages,
@@ -614,8 +685,13 @@ def infer_physical_signal_plan(
                 key: round(float(value), 4)
                 for key, value in confidence_by_phase.items()
             },
+            "turn_candidate_evidence_threshold": TURN_CANDIDATE_EVIDENCE_THRESHOLD,
+            "turn_candidate_selectivity_ratio": TURN_CANDIDATE_SELECTIVITY_RATIO,
+            "protected_turn_min_main_probability": PROTECTED_TURN_MIN_MAIN,
+            "protected_turn_closed_threshold": PROTECTED_TURN_CLOSED_THRESHOLD,
             "protected_turn_main_ratio": PROTECTED_TURN_MAIN_RATIO,
-            "protected_turn_pair_support": PROTECTED_TURN_PAIR_SUPPORT,
+            "protected_turn_strong_pair": PROTECTED_TURN_STRONG_PAIR,
+            "startup_lost_s": float(startup_lost_s),
             "suppressed_turn_movements_by_phase": {
                 key: value
                 for key, value in suppressed_turn_movements_by_phase.items()
@@ -630,5 +706,6 @@ def infer_physical_signal_plan(
 __all__ = [
     "DEFAULT_ACTIVITY_THRESHOLD",
     "DEFAULT_SELECTIVITY_RATIO",
+    "DEFAULT_STARTUP_LOST_S",
     "infer_physical_signal_plan",
 ]
