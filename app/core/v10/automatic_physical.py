@@ -202,6 +202,62 @@ def infer_physical_signal_plan(
             sum(evidence) / len(evidence) if evidence else 0.0
         )
 
+    # V9 can under-attribute a shared straight stream when a turn phase
+    # separates one direction from the ordinary through phase. Physical
+    # signal semantics are about the signal head at the incoming approach,
+    # so a canonical through phase on an axis must keep both observed
+    # straight movements together.
+    straight_by_axis = {
+        "NS": ("N->S", "S->N"),
+        "EW": ("E->W", "W->E"),
+    }
+    for axis, straight_movements in straight_by_axis.items():
+        observed = {
+            movement
+            for movement in straight_movements
+            if max(
+                activity[phase].get(movement, 0.0)
+                for phase in names
+            ) >= float(activity_threshold)
+        }
+        if len(observed) != 2:
+            continue
+        for phase in names:
+            green = set(green_by_phase[phase])
+            if _semantic_name(frozenset(green)) != f"{axis}_THROUGH":
+                continue
+            green.update(straight_movements)
+            green_by_phase[phase] = frozenset(sorted(green))
+
+    # When a turn phase is the strongest observed phase for a straight stream
+    # from the same incoming approach, retain that main section in the turn
+    # phase even when its per-phase probability falls just below the physical
+    # threshold. Do not do this for the destination approach of a reciprocal
+    # turn pair: its turn remains an arrow-only section.
+    for phase in names:
+        green = set(green_by_phase[phase])
+        turn_sources = {
+            movement.split("->", 1)[0]
+            for movement in green
+            if not _is_straight(movement)
+        }
+        for source in turn_sources:
+            straight = f"{source}->{OPPOSITE[source]}"
+            peak = max(
+                activity[item].get(straight, 0.0)
+                for item in names
+            )
+            probability = activity[phase].get(straight, 0.0)
+            if (
+                peak >= float(activity_threshold)
+                and probability >= max(
+                    0.5 * float(activity_threshold),
+                    0.75 * peak,
+                )
+            ):
+                green.add(straight)
+        green_by_phase[phase] = frozenset(sorted(green))
+
     phases = []
     for phase in names:
         green = green_by_phase[phase]
