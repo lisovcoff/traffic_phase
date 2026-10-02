@@ -266,39 +266,141 @@ def infer_physical_signal_plan(
             sum(evidence) / len(evidence) if evidence else 0.0
         )
 
-    # When a turn phase is the strongest observed phase for a straight stream
-    # from the same incoming approach, retain that main section in the turn
-    # phase even when its per-phase probability falls just below the physical
-    # threshold. Do not do this for the destination approach of a reciprocal
-    # turn pair: its turn remains an arrow-only section.
+    PROTECTED_TURN_MAIN_RATIO = 2.0
+    PROTECTED_TURN_PAIR_SUPPORT = 0.20
+
+    def protected_turn_group(
+        phase: str,
+        candidates: Sequence[str],
+    ) -> bool:
+        candidate_set = set(candidates)
+
+        strong_turns = [
+            movement
+            for movement in candidate_set
+            if activity[phase].get(movement, 0.0)
+            >= PROTECTED_TURN_PAIR_SUPPORT
+        ]
+        if len(strong_turns) >= 2:
+            sources = {
+                movement.split("->", 1)[0]
+                for movement in strong_turns
+            }
+            if sources <= {"N", "S"} or sources <= {"E", "W"}:
+                return True
+
+        for movement in candidate_set:
+            source, target = movement.split("->", 1)
+            reverse = f"{target}->{source}"
+            if (
+                reverse in candidate_set
+                and activity[phase].get(movement, 0.0)
+                >= PROTECTED_TURN_PAIR_SUPPORT
+                and activity[phase].get(reverse, 0.0)
+                >= PROTECTED_TURN_PAIR_SUPPORT
+            ):
+                return True
+
+        for source in {
+            item.split("->", 1)[0]
+            for item in candidate_set
+        }:
+            straight = f"{source}->{OPPOSITE[source]}"
+            turn_probabilities = [
+                activity[phase].get(item, 0.0)
+                for item in candidate_set
+                if item.startswith(f"{source}->")
+            ]
+            if not turn_probabilities:
+                continue
+            strongest_turn = max(turn_probabilities)
+            main_probability = activity[phase].get(straight, 0.0)
+            if (
+                strongest_turn >= float(activity_threshold) * 0.5
+                and main_probability
+                >= PROTECTED_TURN_MAIN_RATIO * strongest_turn
+            ):
+                return True
+
+        return False
+
+    suppressed_turn_movements_by_phase: dict[str, list[str]] = {}
     for phase in names:
         green = set(green_by_phase[phase])
-        turn_sources = {
-            movement.split("->", 1)[0]
+        turns = [
+            movement
             for movement in green
             if not _is_straight(movement)
-        }
-        for source in turn_sources:
-            straight = f"{source}->{OPPOSITE[source]}"
-            peak = max(
-                activity[item].get(straight, 0.0)
-                for item in names
-            )
-            probability = activity[phase].get(straight, 0.0)
-            if (
-                peak >= float(activity_threshold)
-                and probability >= max(
-                    0.5 * float(activity_threshold),
-                    0.75 * peak,
-                )
+        ]
+        protected: set[str] = set()
+        if turns and protected_turn_group(phase, turns):
+            protected.update(turns)
+
+        by_source: defaultdict[str, list[str]] = defaultdict(list)
+        for movement in turns:
+            by_source[movement.split("->", 1)[0]].append(movement)
+
+        for source_candidates in by_source.values():
+            if protected_turn_group(phase, source_candidates):
+                protected.update(source_candidates)
+
+        for movement in turns:
+            source, target = movement.split("->", 1)
+            reverse = f"{target}->{source}"
+            if reverse in turns and protected_turn_group(
+                phase,
+                (movement, reverse),
             ):
-                green.add(straight)
+                protected.update((movement, reverse))
+
+        suppressed = sorted(set(turns) - protected)
+        if suppressed:
+            green.difference_update(suppressed)
+        suppressed_turn_movements_by_phase[phase] = suppressed
+
+        if not green:
+            straight_candidates = []
+            for movement in movements:
+                if not _is_straight(movement):
+                    continue
+                values = [
+                    float(activity[item].get(movement, 0.0))
+                    for item in names
+                ]
+                probability = float(activity[phase].get(movement, 0.0))
+                other_peak = max(
+                    (
+                        value
+                        for item, value in zip(names, values)
+                        if item != phase
+                    ),
+                    default=0.0,
+                )
+                if (
+                    probability >= 0.03
+                    and probability
+                    >= max(1.25, float(selectivity_ratio))
+                    * max(other_peak, 0.001)
+                ):
+                    straight_candidates.append(
+                        (probability, movement)
+                    )
+            if straight_candidates:
+                best_probability = max(
+                    probability
+                    for probability, _movement in straight_candidates
+                )
+                green.update(
+                    movement
+                    for probability, movement in straight_candidates
+                    if probability >= 0.75 * best_probability
+                )
+
         green_by_phase[phase] = frozenset(sorted(green))
 
-    # Reciprocal protected turns can have asymmetric traffic volume.
-    # Recover a weak turn pair when both directions are clearly selective for
-    # the same phase, even when one or both are below the absolute threshold.
-    rescue_threshold = WEAK_PHASE_EVIDENCE_THRESHOLD
+    # A weak reciprocal turn is only restored when it also satisfies the same
+    # protected-turn criterion. Permissive traffic cannot create a physical
+    # arrow by itself.
     for phase in names:
         green = set(green_by_phase[phase])
         for movement in movements:
@@ -306,15 +408,10 @@ def infer_physical_signal_plan(
                 continue
             source, target = movement.split("->", 1)
             reverse = f"{target}->{source}"
-            if reverse in green:
-                candidate_movements = (movement,)
-            elif reverse in movements:
-                candidate_movements = (movement, reverse)
-            else:
+            if reverse not in movements:
                 continue
-
+            candidate_movements = (movement, reverse)
             pair_ok = True
-            pair_selectivity = 0.0
             for candidate in candidate_movements:
                 values = {
                     item: float(activity[item].get(candidate, 0.0))
@@ -322,36 +419,29 @@ def infer_physical_signal_plan(
                 }
                 probability = values[phase]
                 other_peak = max(
-                    (value for item, value in values.items() if item != phase),
+                    (
+                        value
+                        for item, value in values.items()
+                        if item != phase
+                    ),
                     default=0.0,
                 )
-                own_peak_phase = max(values, key=values.get)
                 if (
-                    probability < rescue_threshold
-                    or own_peak_phase != phase
+                    probability < 0.03
+                    or max(values.values(), default=0.0) != probability
                     or probability
-                    < WEAK_PHASE_SELECTIVITY_RATIO * max(other_peak, 0.001)
+                    < max(1.25, float(selectivity_ratio))
+                    * max(other_peak, 0.001)
                 ):
                     pair_ok = False
                     break
-                pair_selectivity = max(
-                    pair_selectivity,
-                    probability / max(other_peak, 0.001),
-                )
-
-            if pair_ok:
+            if pair_ok and protected_turn_group(
+                phase,
+                candidate_movements,
+            ):
                 green.update(candidate_movements)
-                confidence_by_phase[phase] = max(
-                    confidence_by_phase.get(phase, 0.0),
-                    min(1.0, pair_selectivity / 2.0),
-                )
         green_by_phase[phase] = frozenset(sorted(green))
 
-    # V9 can under-attribute a shared straight stream when a turn phase
-    # separates one direction from the ordinary through phase. Physical
-    # signal semantics are about the signal head at the incoming approach,
-    # so a canonical through phase on an axis must keep both observed
-    # straight movements together.
     straight_by_axis = {
         "NS": ("N->S", "S->N"),
         "EW": ("E->W", "W->E"),
@@ -363,7 +453,7 @@ def infer_physical_signal_plan(
             if max(
                 activity[phase].get(movement, 0.0)
                 for phase in names
-            ) >= WEAK_PHASE_EVIDENCE_THRESHOLD
+            ) >= 0.03
         }
         if not observed:
             continue
@@ -379,22 +469,35 @@ def infer_physical_signal_plan(
     # rather than retaining a stale NS_THROUGH name from the initial pass.
     mapping: dict[str, str] = {}
     used: defaultdict[str, int] = defaultdict(int)
+    signature_names: dict[tuple[str, ...], str] = {}
     for phase in names:
+        signature = tuple(sorted(green_by_phase[phase]))
+        if signature in signature_names:
+            mapping[phase] = signature_names[signature]
+            continue
         base = _semantic_name(green_by_phase[phase])
         used[base] += 1
-        mapping[phase] = (
+        physical_name = (
             base if used[base] == 1 else f"{base}_{used[base]}"
         )
+        signature_names[signature] = physical_name
+        mapping[phase] = physical_name
 
     phases = []
+    emitted_names: set[str] = set()
+
     for phase in names:
         green = green_by_phase[phase]
         additional = frozenset(
             item for item in green if not _is_straight(item)
         )
+        physical_name = mapping[phase]
+        if physical_name in emitted_names:
+            continue
+        emitted_names.add(physical_name)
         phases.append(
             {
-                "name": mapping[phase],
+                "name": physical_name,
                 "green_movements": sorted(green),
                 "additional_movements": sorted(additional),
                 "duration_s": round(
@@ -438,6 +541,22 @@ def infer_physical_signal_plan(
                     "heads": _head_states(spec["green_movements"]),
                 }
             )
+
+    merged_stages: list[dict[str, Any]] = []
+    for stage in stages:
+        if (
+            merged_stages
+            and merged_stages[-1]["name"] == stage["name"]
+            and merged_stages[-1]["heads"] == stage["heads"]
+            and merged_stages[-1]["active_movements"]
+            == stage["active_movements"]
+        ):
+            merged_stages[-1]["phase_end"] = stage["phase_end"]
+        else:
+            merged_stages.append(stage)
+    stages = merged_stages
+    for index, stage in enumerate(stages, start=1):
+        stage["stage_id"] = index
 
     topology = {
         approach: {
@@ -495,6 +614,13 @@ def infer_physical_signal_plan(
                 key: round(float(value), 4)
                 for key, value in confidence_by_phase.items()
             },
+            "protected_turn_main_ratio": PROTECTED_TURN_MAIN_RATIO,
+            "protected_turn_pair_support": PROTECTED_TURN_PAIR_SUPPORT,
+            "suppressed_turn_movements_by_phase": {
+                key: value
+                for key, value in suppressed_turn_movements_by_phase.items()
+            },
+            "physical_phase_count": len(phases),
             "source": "V9 stream_activity_by_phase",
             "unobserved_movements_are_not_invented": True,
         },

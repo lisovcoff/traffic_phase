@@ -85,3 +85,21 @@ causal and does not infer a specific cause for a sustained phase deviation.
 
 The repository CI runs Python compilation, the full pytest suite, an end-to-end
 smoke test, and the Lenina regression fixture.
+
+
+## Known-good Lenina–Sverdlovsky baseline
+
+Reference baseline:
+
+    commit: df544b18e844c17059cfa678237e70885c3a8cac
+    input: 17_2025_2_19_10.json
+    V9: 2735 trajectories / 2728 events / 9 streams / 3 phases
+    period: 99.842813 s
+
+This is the reference regression point for Lenina–Sverdlovsky. Physical-signal
+changes must preserve its NS protected-turn signature and its EW/NS through
+signals.
+
+For every web analysis the server writes a complete run trace under
+logs/<run_id>/, including the V9 result, V10 physical plan, 0.1-second signal
+timeline, manifest, and generated HTML viewer.

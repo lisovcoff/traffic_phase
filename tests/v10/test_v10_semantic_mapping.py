@@ -169,6 +169,87 @@ def test_signal_plan_dict_becomes_physical_catalog() -> None:
     assert specs[1].green_movements == frozenset({"E->W", "W->E"})
 
 
+
+def _two_phase_27_02_profile() -> dict[str, object]:
+    return {
+        "schedule": {
+            "phase_names": ["PHASE_A", "PHASE_B", "PHASE_C"],
+            "phase_count": 3,
+            "period_s": 99.94684405367033,
+            "baseline_duration_targets_s": {
+                "PHASE_A": 50.37978731678868,
+                "PHASE_B": 20.3512590382049,
+                "PHASE_C": 29.215797698676624,
+            },
+            "baseline_segments": [
+                [0.0, 8.469354696672433, 2],
+                [8.469354696672433, 58.84914201346116, 0],
+                [58.84914201346116, 79.200401051666, 1],
+                [79.200401051666, 99.94684405367033, 2],
+            ],
+            "stream_activity_by_phase": [
+                {"stream": "S->N", "event_probability_by_phase": {"PHASE_A": 0.01, "PHASE_B": 0.01, "PHASE_C": 0.33070501685142517}},
+                {"stream": "E->W", "event_probability_by_phase": {"PHASE_A": 0.13586054742336273, "PHASE_B": 0.01, "PHASE_C": 0.01}},
+                {"stream": "N->S", "event_probability_by_phase": {"PHASE_A": 0.01, "PHASE_B": 0.1608635038137436, "PHASE_C": 0.01}},
+                {"stream": "N->E", "event_probability_by_phase": {"PHASE_A": 0.01, "PHASE_B": 0.10376044362783432, "PHASE_C": 0.01}},
+                {"stream": "E->N", "event_probability_by_phase": {"PHASE_A": 0.01, "PHASE_B": 0.07172702252864838, "PHASE_C": 0.01}},
+                {"stream": "W->E", "event_probability_by_phase": {"PHASE_A": 0.01, "PHASE_B": 0.01, "PHASE_C": 0.01}},
+            ],
+        }
+    }
+
+
+def _two_phase_05_10_profile() -> dict[str, object]:
+    return {
+        "schedule": {
+            "phase_names": ["PHASE_A", "PHASE_B", "PHASE_C"],
+            "phase_count": 3,
+            "period_s": 99.87838859459997,
+            "baseline_duration_targets_s": {
+                "PHASE_A": 32.4002925493908,
+                "PHASE_B": 33.334452446835485,
+                "PHASE_C": 34.14364359837367,
+            },
+            "baseline_segments": [
+                [0.0, 24.847770271250585, 0],
+                [24.847770271250585, 58.18222271808613, 1],
+                [58.18222271808613, 92.32586631645977, 2],
+            ],
+            "stream_activity_by_phase": [
+                {"stream": "W->E", "event_probability_by_phase": {"PHASE_A": 0.29194915294647217, "PHASE_B": 0.034583333879709244, "PHASE_C": 0.01}},
+                {"stream": "N->S", "event_probability_by_phase": {"PHASE_A": 0.01, "PHASE_B": 0.01, "PHASE_C": 0.13788869976997375}},
+                {"stream": "E->W", "event_probability_by_phase": {"PHASE_A": 0.0478813573718071, "PHASE_B": 0.06791666895151138, "PHASE_C": 0.01}},
+                {"stream": "E->S", "event_probability_by_phase": {"PHASE_A": 0.012288135476410389, "PHASE_B": 0.094583332538604, "PHASE_C": 0.01}},
+                {"stream": "S->N", "event_probability_by_phase": {"PHASE_A": 0.01, "PHASE_B": 0.01, "PHASE_C": 0.01}},
+            ],
+        }
+    }
+
+
+def test_automatic_physical_plan_keeps_two_phase_27_02_as_ns_ew() -> None:
+    plan = infer_physical_signal_plan(_two_phase_27_02_profile())
+    assert plan["inference"]["physical_phase_count"] == 2
+    assert plan["mapping"] == {
+        "PHASE_A": "EW_THROUGH",
+        "PHASE_B": "NS_THROUGH",
+        "PHASE_C": "NS_THROUGH",
+    }
+    assert plan["topology"]["E"]["arrows"] == []
+    assert all(not phase["additional_movements"] for phase in plan["phases"])
+
+
+def test_automatic_physical_plan_keeps_two_phase_05_10_as_ns_ew() -> None:
+    plan = infer_physical_signal_plan(_two_phase_05_10_profile())
+    assert plan["inference"]["physical_phase_count"] == 2
+    assert plan["mapping"] == {
+        "PHASE_A": "EW_THROUGH",
+        "PHASE_B": "EW_THROUGH",
+        "PHASE_C": "NS_THROUGH",
+    }
+    assert plan["topology"]["E"]["arrows"] == []
+    assert all(not phase["additional_movements"] for phase in plan["phases"])
+
+
 def test_automatic_physical_plan_recovers_weak_selective_phase_and_heads() -> None:
     result = {
         "analysis_base_timestamp_ms": 1100.0,
