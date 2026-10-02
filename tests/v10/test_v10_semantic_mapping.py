@@ -298,6 +298,90 @@ def test_automatic_physical_plan_restores_shared_ns_straight_when_v9_splits_it()
     }
 
 
+def test_automatic_physical_plan_recovers_weak_reciprocal_turn():
+    result = {
+        "schedule": {
+            "phase_names": ["PHASE_A", "PHASE_B", "PHASE_C"],
+            "phase_count": 3,
+            "period_s": 120.0,
+            "baseline_duration_targets_s": {
+                "PHASE_A": 50.0,
+                "PHASE_B": 25.0,
+                "PHASE_C": 45.0,
+            },
+            "baseline_segments": [
+                [0.0, 50.0, 0],
+                [50.0, 75.0, 1],
+                [75.0, 120.0, 2],
+            ],
+            "stream_activity_by_phase": [
+                {
+                    "stream": "N->S",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.24,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "S->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.53,
+                    },
+                },
+                {
+                    "stream": "E->W",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.16,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "W->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.18,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "N->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.12,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "E->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.06,
+                        "PHASE_C": 0.01,
+                    },
+                },
+            ],
+        }
+    }
+
+    plan = infer_physical_signal_plan(result)
+    by_name = {phase["name"]: phase for phase in plan["phases"]}
+
+    assert plan["mapping"]["PHASE_B"] == "NS_TURN"
+    assert set(by_name["NS_TURN"]["green_movements"]) == {
+        "N->E",
+        "E->N",
+        "N->S",
+    }
+    assert set(by_name["NS_TURN"]["additional_movements"]) == {
+        "N->E",
+        "E->N",
+    }
+
+
 def test_automatic_physical_plan_handles_turn_only_four_phase_catalog() -> None:
     names = ["PHASE_A", "PHASE_B", "PHASE_C", "PHASE_D"]
     physical = [

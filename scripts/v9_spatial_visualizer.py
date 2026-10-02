@@ -745,11 +745,21 @@ def _physical_visual_model(
         for approach in ("N", "S", "E", "W")
     }
     for spec in specs:
-        for movement in spec.additional_movements:
+        # The visual topology must not depend solely on the optional
+        # additional_movements field. Some V10 plans can carry a turn in
+        # green_movements while the derived additional list is incomplete.
+        # Any non-straight green movement is therefore rendered as a physical
+        # arrow section on its incoming approach.
+        for movement in spec.green_movements:
             if "->" not in movement:
                 continue
             approach, target = movement.split("->", 1)
-            if approach in topology and target in {"N", "S", "E", "W"}:
+            main_target = {"N": "S", "S": "N", "E": "W", "W": "E"}.get(approach)
+            if (
+                approach in topology
+                and target in {"N", "S", "E", "W"}
+                and target != main_target
+            ):
                 topology[approach]["arrows"].append(movement)
     for approach in topology:
         topology[approach]["arrows"] = sorted(set(topology[approach]["arrows"]))

@@ -258,6 +258,51 @@ def infer_physical_signal_plan(
                 green.add(straight)
         green_by_phase[phase] = frozenset(sorted(green))
 
+    # Reciprocal protected turns can have asymmetric traffic volume.
+    # Do not drop the weaker direction solely because it falls below the
+    # physical activity threshold when its reverse turn is strongly supported
+    # in the same V9 phase and the weaker stream is itself phase-selective.
+    rescue_threshold = max(0.04, 0.5 * float(activity_threshold))
+    for phase in names:
+        green = set(green_by_phase[phase])
+        for movement in movements:
+            if _is_straight(movement) or movement in green:
+                continue
+            source, target = movement.split("->", 1)
+            reverse = f"{target}->{source}"
+            if reverse not in green:
+                continue
+
+            values = {
+                item: float(activity[item].get(movement, 0.0))
+                for item in names
+            }
+            probability = values[phase]
+            other_peak = max(
+                (value for item, value in values.items() if item != phase),
+                default=0.0,
+            )
+            own_peak_phase = max(values, key=values.get)
+            if (
+                probability >= rescue_threshold
+                and own_peak_phase == phase
+                and probability >= float(selectivity_ratio) * max(other_peak, 0.001)
+            ):
+                green.add(movement)
+                evidence = max(
+                    0.0,
+                    min(
+                        1.0,
+                        (probability - other_peak)
+                        / max(probability - other_peak, 0.001),
+                    ),
+                )
+                confidence_by_phase[phase] = max(
+                    confidence_by_phase.get(phase, 0.0),
+                    float(evidence),
+                )
+        green_by_phase[phase] = frozenset(sorted(green))
+
     phases = []
     for phase in names:
         green = green_by_phase[phase]
