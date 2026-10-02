@@ -163,14 +163,16 @@ const APPROACH_LABELS = {N:"Север",S:"Юг",E:"Восток",W:"Запад"
 // A head always controls its incoming approach; only supported dedicated turn
 // movements are rendered as additional physical sections.
 const HEAD_SECTIONS = PHYSICAL.enabled ? PHYSICAL.topology : PHYSICAL_TOPOLOGY;
-const ACTIVE_APPROACHES = (
-  PROJECTION && PROJECTION.anchors &&
-  Object.keys(PROJECTION.anchors).length
-)
-  ? APPROACHES.filter(function(approach){
-      return Object.prototype.hasOwnProperty.call(PROJECTION.anchors, approach);
-    })
-  : APPROACHES;
+const ACTIVE_APPROACHES = PHYSICAL.enabled
+  ? APPROACHES
+  : (
+      PROJECTION && PROJECTION.anchors &&
+      Object.keys(PROJECTION.anchors).length
+    )
+    ? APPROACHES.filter(function(approach){
+        return Object.prototype.hasOwnProperty.call(PROJECTION.anchors, approach);
+      })
+    : APPROACHES;
 const LIGHT_POS = {
   N:{x:0.565,y:0.305}, S:{x:0.435,y:0.695},
   E:{x:0.695,y:0.565}, W:{x:0.305,y:0.435}
@@ -190,37 +192,43 @@ async function unpackData(){
 
 function phaseAt(t){
   const rows=PHYSICAL.enabled
-    ? (PHYSICAL.segments || [])
+    ? (PHYSICAL.stages || [])
     : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
   if(!rows.length)return null;
 
-  // V10 physical segments describe one cycle and must repeat for the
-  // whole recording. Vehicle detections use recording-relative time, so
-  // resolve the signal state in the same cycle-local time domain.
   const period=Number(SIGNAL_MODEL.period_s || PHYSICAL.cycle_seconds || 0);
   const localTime=PHYSICAL.enabled && period>0
     ? ((Number(t)%period)+period)%period
     : Number(t);
 
   for(let i=0;i<rows.length;i++){
-    if(localTime>=Number(rows[i][0]) && localTime<Number(rows[i][1])){
+    const start=PHYSICAL.enabled
+      ? Number(rows[i].phase_start)
+      : Number(rows[i][0]);
+    const end=PHYSICAL.enabled
+      ? Number(rows[i].phase_end)
+      : Number(rows[i][1]);
+    if(localTime>=start && localTime<end){
       return {
         index:i,
-        start:Number(rows[i][0]),
-        end:Number(rows[i][1]),
-        phase:PHYSICAL.enabled ? String(rows[i][2]) : Number(rows[i][2])
+        start:start,
+        end:end,
+        phase:PHYSICAL.enabled
+          ? String(rows[i].name)
+          : Number(rows[i][2]),
+        heads:PHYSICAL.enabled ? (rows[i].heads || {}) : null
       };
     }
   }
 
-  // Exact cycle boundary: select the first phase of the next cycle.
   if(PHYSICAL.enabled){
     const row=rows[0];
     return {
       index:0,
-      start:Number(row[0]),
-      end:Number(row[1]),
-      phase:String(row[2])
+      start:Number(row.phase_start),
+      end:Number(row.phase_end),
+      phase:String(row.name),
+      heads:row.heads || {}
     };
   }
 
@@ -229,17 +237,18 @@ function phaseAt(t){
     index:rows.length-1,
     start:Number(row[0]),
     end:Number(row[1]),
-    phase:Number(row[2])
+    phase:Number(row[2]),
+    heads:null
   };
 }
 
 function adjacentPhase(index,direction){
   const rows=PHYSICAL.enabled
-    ? (PHYSICAL.segments || [])
+    ? (PHYSICAL.stages || [])
     : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
   if(!rows.length)return null;
   const j=((index+direction)%rows.length+rows.length)%rows.length;
-  return PHYSICAL.enabled ? String(rows[j][2]) : Number(rows[j][2]);
+  return PHYSICAL.enabled ? rows[j] : Number(rows[j][2]);
 }
 
 function probability(movement,phase){
@@ -247,33 +256,91 @@ function probability(movement,phase){
   return Number(map[String(phase)] == null ? (map[phase] || 0) : map[String(phase)]);
 }
 
+function physicalSectionState(section,previousSection,nextSection,distanceFromStart,distanceToEnd){
+  const currentState=section==="GREEN" ? "GREEN" : "RED";
+  let state=currentState;
+  const previousGreen=previousSection==="GREEN";
+  const nextGreen=nextSection==="GREEN";
+  if(currentState==="GREEN" && !nextGreen && distanceToEnd>0 && distanceToEnd<=YELLOW_S){
+    state="YELLOW";
+  }else if(currentState==="GREEN" && !previousGreen && distanceFromStart>=0 && distanceFromStart<RED_YELLOW_S){
+    state="RED_YELLOW";
+  }
+  return state;
+}
+
+function physicalHeadInfo(approach,seg){
+  const current=(seg.heads||{})[approach] || {main:"RED",arrows:{}};
+  const previous=adjacentPhase(seg.index,-1);
+  const next=adjacentPhase(seg.index,1);
+  const previousHead=previous && previous.heads
+    ? (previous.heads[approach] || {main:"RED",arrows:{}})
+    : {main:"RED",arrows:{}};
+  const nextHead=next && next.heads
+    ? (next.heads[approach] || {main:"RED",arrows:{}})
+    : {main:"RED",arrows:{}};
+
+  const distanceFromStart=Math.max(0,tGlobal-seg.start);
+  const distanceToEnd=Math.max(0,seg.end-tGlobal);
+
+  const main=physicalSectionState(
+    String(current.main || "RED"),
+    String(previousHead.main || "RED"),
+    String(nextHead.main || "RED"),
+    distanceFromStart,
+    distanceToEnd
+  );
+
+  const currentArrows=current.arrows || {};
+  const previousArrows=previousHead.arrows || {};
+  const nextArrows=nextHead.arrows || {};
+  const arrows=Object.keys(currentArrows).sort().map(function(movement){
+    const state=physicalSectionState(
+      String(currentArrows[movement] || "RED"),
+      String(previousArrows[movement] || "RED"),
+      String(nextArrows[movement] || "RED"),
+      distanceFromStart,
+      distanceToEnd
+    );
+    return {
+      movement:movement,
+      state:state,
+      probability:state==="RED" ? 0 : 1,
+      peak:1,
+      dominant_ratio:state==="RED" ? 0 : 1,
+      transition:state==="YELLOW" || state==="RED_YELLOW",
+      source:"V10_PHYSICAL_PLAN"
+    };
+  });
+
+  return {
+    main:{
+      movement:HEAD_SECTIONS[approach].main,
+      state:main,
+      probability:main==="RED" ? 0 : 1,
+      peak:1,
+      dominant_ratio:main==="RED" ? 0 : 1,
+      transition:main==="YELLOW" || main==="RED_YELLOW",
+      source:"V10_PHYSICAL_PLAN"
+    },
+    arrows:arrows
+  };
+}
+
 function movementState(movement,seg){
   const distanceFromStart=Math.max(0,tGlobal-seg.start);
   const distanceToEnd=Math.max(0,seg.end-tGlobal);
 
   if(PHYSICAL.enabled){
-    const findPhase=function(name){
-      return (PHYSICAL.phases||[]).find(function(item){return item.name===String(name)}) || null;
-    };
-    const currentPhase=findPhase(seg.phase);
-    const previousPhase=findPhase(adjacentPhase(seg.index,-1));
-    const nextPhase=findPhase(adjacentPhase(seg.index,1));
-    const currentGreen=!!currentPhase && currentPhase.green_movements.includes(movement);
-    const previousGreen=!!previousPhase && previousPhase.green_movements.includes(movement);
-    const nextGreen=!!nextPhase && nextPhase.green_movements.includes(movement);
-    let state=currentGreen ? "GREEN" : "RED";
-    if(currentGreen && !nextGreen && distanceToEnd>0 && distanceToEnd<=YELLOW_S){
-      state="YELLOW";
-    }else if(currentGreen && !previousGreen && distanceFromStart>=0 && distanceFromStart<RED_YELLOW_S){
-      state="RED_YELLOW";
-    }
+    // Kept only for compatibility with callers outside the V10 snapshot path.
+    const currentPhase=(PHYSICAL.phases||[]).find(function(item){return item.name===String(seg.phase)}) || null;
     return {
       movement:movement,
-      state:state,
-      probability:currentGreen ? 1 : 0,
+      state:currentPhase && currentPhase.green_movements.includes(movement) ? "GREEN" : "RED",
+      probability:currentPhase && currentPhase.green_movements.includes(movement) ? 1 : 0,
       peak:1,
-      dominant_ratio:currentGreen ? 1 : 0,
-      transition:state==="YELLOW"||state==="RED_YELLOW",
+      dominant_ratio:currentPhase && currentPhase.green_movements.includes(movement) ? 1 : 0,
+      transition:false,
       source:"V10_PHYSICAL_PLAN"
     };
   }
@@ -283,7 +350,6 @@ function movementState(movement,seg){
   const values=Object.values(phaseValues).map(Number).filter(Number.isFinite);
   const peak=values.length ? Math.max(...values) : 0;
   const dominantRatio=peak>0 ? current/peak : 0;
-  // Residual activity in another phase must not make a physical signal green.
   const currentGreen=current>=ACTIVITY_THRESHOLD && dominantRatio>=0.70;
   const previousPhase=adjacentPhase(seg.index,-1);
   const nextPhase=adjacentPhase(seg.index,1);
@@ -311,6 +377,9 @@ function movementState(movement,seg){
 }
 
 function headInfo(approach,seg){
+  if(PHYSICAL.enabled){
+    return physicalHeadInfo(approach,seg);
+  }
   const sections=HEAD_SECTIONS[approach];
   const main=movementState(sections.main,seg);
   const arrows=sections.arrows.map(function(movement){return movementState(movement,seg)});
@@ -503,11 +572,11 @@ function renderSignalList(snapshot){
 function renderPhases(){
   const holder=$("phaseList");holder.innerHTML="";
   const rows=PHYSICAL.enabled
-    ? (PHYSICAL.segments || [])
+    ? (PHYSICAL.stages || [])
     : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
   const seen={};
   for(const row of rows){
-    const phase=PHYSICAL.enabled ? String(row[2]) : Number(row[2]);
+    const phase=PHYSICAL.enabled ? String(row.name) : Number(row[2]);
     const key=String(phase);
     if(seen[key])continue;
     seen[key]=true;
@@ -525,19 +594,24 @@ function renderPhases(){
 function renderPhaseTimeline(){
   const holder=$("phaseTimeline");holder.innerHTML="";
   const rows=PHYSICAL.enabled
-    ? (PHYSICAL.segments || [])
+    ? (PHYSICAL.stages || [])
     : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
   for(const row of rows){
-    const phase=PHYSICAL.enabled ? String(row[2]) : Number(row[2]);
+    const phase=PHYSICAL.enabled ? String(row.name) : Number(row[2]);
     const element=document.createElement("button");element.type="button";
     element.className="timeline-segment "+(PHYSICAL.enabled ? "phase-other" : (phase<5?"phase-"+phase:"phase-other"));
-    element.style.left=(100*Number(row[0])/RECORDING_DURATION)+"%";
-    element.style.width=Math.max(0.08,100*(Number(row[1])-Number(row[0]))/RECORDING_DURATION)+"%";
+    const start=PHYSICAL.enabled ? Number(row.phase_start) : Number(row[0]);
+    const end=PHYSICAL.enabled ? Number(row.phase_end) : Number(row[1]);
+    const timelineDuration=PHYSICAL.enabled
+      ? Number(PHYSICAL.cycle_seconds || SIGNAL_MODEL.period_s || RECORDING_DURATION)
+      : RECORDING_DURATION;
+    element.style.left=(100*start/timelineDuration)+"%";
+    element.style.width=Math.max(0.08,100*(end-start)/timelineDuration)+"%";
     const label=PHYSICAL.enabled
       ? String(phase)
       : ((SIGNAL_MODEL.phase_names||[])[phase]||phase);
-    element.title="Фаза "+label+" · "+Number(row[0]).toFixed(1)+"–"+Number(row[1]).toFixed(1)+" s";
-    element.addEventListener("click",function(){setCurrentTime(Number(row[0]))});
+    element.title="Фаза "+label+" · "+start.toFixed(1)+"–"+end.toFixed(1)+" s";
+    element.addEventListener("click",function(){setCurrentTime(start)});
     holder.appendChild(element);
   }
 }
@@ -714,6 +788,29 @@ def infer_physical_signal_topology(result: dict[str, Any]) -> dict[str, dict[str
     return topology
 
 
+def _head_states_from_movements(movements: list[str] | tuple[str, ...] | set[str]) -> dict[str, dict[str, Any]]:
+    """Normalize one V10 stage into explicit physical head states."""
+    green = {str(item).strip() for item in movements if str(item).strip()}
+    opposite = {"N": "S", "S": "N", "E": "W", "W": "E"}
+    result: dict[str, dict[str, Any]] = {}
+    for approach in ("N", "S", "E", "W"):
+        main = f"{approach}->{opposite[approach]}"
+        arrows = sorted(
+            movement
+            for movement in green
+            if movement.startswith(f"{approach}->")
+            and movement != main
+        )
+        result[approach] = {
+            "main": "GREEN" if main in green else "RED",
+            "arrows": {
+                movement: "GREEN"
+                for movement in arrows
+            },
+        }
+    return result
+
+
 def _physical_visual_model(
     result: dict[str, Any],
     physical_plan: dict[str, Any] | None,
@@ -735,7 +832,67 @@ def _physical_visual_model(
         resolved = map_v9_to_physical(result, specs)
         mapping = resolved.mapping
         mapping_payload = resolved.to_dict()
-    segments = normalized_segments(result, mapping)
+    # V10 stages are already in cycle-local coordinates and carry the
+    # authoritative head states. Do not rebuild them from V9 baseline rows at
+    # render time; that duplicated mapping was the source of state divergence.
+    stages: list[dict[str, Any]] = []
+    raw_stages = physical_plan.get("stages", ())
+    if isinstance(raw_stages, (list, tuple)):
+        for raw in raw_stages:
+            if not isinstance(raw, dict):
+                continue
+            try:
+                start = float(raw.get("phase_start", 0.0))
+                end = float(raw.get("phase_end", 0.0))
+            except (TypeError, ValueError):
+                continue
+            if end <= start:
+                continue
+            active_movements = [
+                str(item).strip()
+                for item in raw.get("active_movements", ())
+                if str(item).strip()
+            ]
+            heads = raw.get("heads")
+            if not isinstance(heads, dict):
+                heads = _head_states_from_movements(active_movements)
+            stages.append({
+                "stage_id": int(raw.get("stage_id", len(stages) + 1)),
+                "name": str(raw.get("name", "")),
+                "phase_start": start,
+                "phase_end": end,
+                "active_movements": active_movements,
+                "additional_movements": [
+                    str(item).strip()
+                    for item in raw.get("additional_movements", ())
+                    if str(item).strip()
+                ],
+                "source_phase": raw.get("source_phase"),
+                "heads": heads,
+            })
+
+    if stages:
+        segments = [
+            [stage["phase_start"], stage["phase_end"], stage["name"]]
+            for stage in stages
+        ]
+    else:
+        segments = normalized_segments(result, mapping)
+        by_name_spec = {spec.name: spec for spec in specs}
+        for index, (start, end, name) in enumerate(segments, start=1):
+            spec = by_name_spec.get(str(name))
+            active_movements = sorted(spec.green_movements) if spec else []
+            additional_movements = sorted(spec.additional_movements) if spec else []
+            stages.append({
+                "stage_id": index,
+                "name": str(name),
+                "phase_start": float(start),
+                "phase_end": float(end),
+                "active_movements": active_movements,
+                "additional_movements": additional_movements,
+                "source_phase": None,
+                "heads": _head_states_from_movements(active_movements),
+            })
 
     topology = {
         approach: {
@@ -777,6 +934,7 @@ def _physical_visual_model(
         "enabled": True,
         "mapping": mapping_payload,
         "segments": segments,
+        "stages": stages,
         "phases": phases,
         "topology": topology,
     }

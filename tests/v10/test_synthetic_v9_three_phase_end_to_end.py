@@ -194,6 +194,16 @@ def test_sixty_minute_three_phase_pipeline_from_truth_to_renderer() -> None:
 
     visual = _physical_visual_model(result, physical)
     assert visual["topology"] == physical["topology"]
+    for stage in physical["stages"]:
+        heads = stage["heads"]
+        assert set(heads) == {"N", "S", "E", "W"}
+        for approach in ("N", "S", "E", "W"):
+            assert set(heads[approach]) == {"main", "arrows"}
+            assert all(
+                state == "GREEN"
+                for state in heads[approach]["arrows"].values()
+            )
+
 
     ew = _head_states(physical, 10.0)
     ns = _head_states(physical, 45.0)
@@ -225,3 +235,5 @@ def test_sixty_minute_three_phase_pipeline_from_truth_to_renderer() -> None:
     assert "const PHYSICAL = " in html
     assert '"N-\\u003eE"' in html
     assert '"E-\\u003eN"' in html
+    assert 'const ACTIVE_APPROACHES = PHYSICAL.enabled' in html
+    assert '"heads":{"N":{"main":"RED"' in html

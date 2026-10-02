@@ -129,6 +129,32 @@ def _baseline_order(
     return order
 
 
+def _head_states(green: frozenset[str]) -> dict[str, dict[str, Any]]:
+    """Build authoritative physical signal states for every approach.
+
+    The renderer consumes these states directly. A missing traffic stream must
+    therefore remain RED instead of changing the state of its reciprocal head.
+    """
+    states: dict[str, dict[str, Any]] = {}
+    opposite = {"N": "S", "S": "N", "E": "W", "W": "E"}
+    for approach in ("N", "S", "E", "W"):
+        main = f"{approach}->{opposite[approach]}"
+        arrows = sorted(
+            movement
+            for movement in green
+            if movement.startswith(f"{approach}->")
+            and movement != main
+        )
+        states[approach] = {
+            "main": "GREEN" if main in green else "RED",
+            "arrows": {
+                movement: "GREEN"
+                for movement in arrows
+            },
+        }
+    return states
+
+
 def infer_physical_signal_plan(
     result: Mapping[str, Any],
     *,
@@ -324,6 +350,7 @@ def infer_physical_signal_plan(
                     6,
                 ),
                 "source_phase": phase,
+                "heads": _head_states(green),
             }
         )
 
@@ -351,6 +378,7 @@ def infer_physical_signal_plan(
                     "active_movements": list(spec["green_movements"]),
                     "additional_movements": list(spec["additional_movements"]),
                     "source_phase": phase,
+                    "heads": _head_states(spec["green_movements"]),
                 }
             )
 
