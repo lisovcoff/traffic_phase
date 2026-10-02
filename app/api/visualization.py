@@ -177,6 +177,27 @@ async def visualization_analyze(
                 projection=projection,
             )
 
+            physical_plan = result.get("physical_signal_plan")
+            print(
+                "[V10 visualization]",
+                {
+                    "phase_count": result.get("schedule", {}).get("phase_count"),
+                    "physical_enabled": (
+                        physical_plan.get("enabled")
+                        if isinstance(physical_plan, dict)
+                        else False
+                    ),
+                    "physical_reason": (
+                        physical_plan.get("reason", "")
+                        if isinstance(physical_plan, dict)
+                        else "missing"
+                    ),
+                    "analysis_base_timestamp_ms": analysis_base_ms,
+                    "recording_start_timestamp_ms": display_base_ms,
+                    "time_offset_s": time_offset_s,
+                },
+            )
+
             html = render_html(
                 result,
                 projection,
@@ -184,7 +205,7 @@ async def visualization_analyze(
                 yellow_duration_seconds=yellow_value,
                 red_yellow_duration_seconds=red_yellow_value,
                 activity_threshold=activity_threshold_value,
-                physical_plan=result.get("physical_signal_plan"),
+                physical_plan=physical_plan,
                 time_offset_s=time_offset_s,
                 display_duration_s=display_duration_s,
             )

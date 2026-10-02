@@ -129,6 +129,7 @@ input[type=range]{width:100%}
 <div class="legend-row"><span class="dot car"></span> Точка транспорта из JSON</div>
 </div>
 <p id="error"></p>
+<details style="margin-top:14px"><summary style="cursor:pointer">Диагностика V10</summary><pre id="v10Debug" class="muted" style="margin-top:8px;font:11px ui-monospace,monospace;white-space:pre-wrap"></pre></details>
 </aside>
 </section>
 
@@ -646,6 +647,46 @@ function render(){
   tGlobal=currentTime;
   const snapshot=signalSnapshot(currentTime);
   const vehicles=activeVehicles(currentTime);
+
+  const debugHeads={};
+  for(const approach of APPROACHES){
+    const head=snapshot.heads[approach] || {main:{state:"UNKNOWN"},arrows:[]};
+    debugHeads[approach]={
+      main:String(head.main && head.main.state || "UNKNOWN"),
+      arrows:(head.arrows||[]).map(function(item){
+        return String(item.movement)+"="+String(item.state);
+      })
+    };
+  }
+  const stage=(PHYSICAL.stages||[]).find(function(row){
+    const start=Number(row.phase_start),end=Number(row.phase_end);
+    return snapshot.cyclePosition>=start && snapshot.cyclePosition<end;
+  }) || null;
+  const debugState={
+    renderer:"V10_spatial_visualizer",
+    physical_enabled:Boolean(PHYSICAL.enabled),
+    physical_reason:String(PHYSICAL.reason || ""),
+    current_time_s:Number(currentTime.toFixed(3)),
+    cycle_position_s:Number((snapshot.cyclePosition||0).toFixed(3)),
+    phase:String(snapshot.phaseName||"UNKNOWN"),
+    active_movements:stage ? (stage.active_movements||[]) : [],
+    heads:debugHeads,
+    active_vehicle_count:vehicles.length,
+    timebase:{
+      recording_start_ms:RECORDING_START_MS,
+      analysis_base_ms:ANALYSIS_BASE_MS,
+      offset_s:TIME_OFFSET_S,
+      display_base_ms:DISPLAY_BASE_MS
+    }
+  };
+  window.__V10_DEBUG__=debugState;
+  const debugNode=$("v10Debug");
+  if(debugNode)debugNode.textContent=JSON.stringify(debugState,null,2);
+  if(Boolean(PHYSICAL.enabled)){
+    console.info("[V10_RENDER]",debugState);
+  }else{
+    console.warn("[V10_RENDER_DISABLED]",debugState);
+  }
   const canvas=$("scene"),ctx=canvas.getContext("2d");
   drawRoad(ctx,canvas.width,canvas.height);
   for(const vehicle of vehicles)drawVehicle(ctx,vehicle,canvas.width,canvas.height);
@@ -660,11 +701,14 @@ function render(){
   $("vehicles").textContent=String(vehicles.length);
   $("timeLabel").textContent=new Date(DISPLAY_BASE_MS+currentTime*1000).toLocaleString()+" · T+"+currentTime.toFixed(1)+" s";
   $("anomaly").textContent=anomaly?"⚠ "+anomaly.type+" · "+Number(anomaly.delta_s).toFixed(1)+" s":"Нет";
-  $("sceneBadge").textContent=(PHYSICAL.enabled?"V10 · физический план · ":"")+"N ↑ · S ↓ · W ← · E → · "+vehicles.length+" машин";
+  $("sceneBadge").textContent=(PHYSICAL.enabled
+    ? "V10 · физический план · "
+    : "V10 OFF · "+String(PHYSICAL.reason || "physical plan unavailable")+" · ")
+    +"N ↑ · S ↓ · W ← · E → · "+vehicles.length+" машин";
   $("sceneBadge").className="scene-badge"+(anomaly?" warning":"");
   $("semanticText").textContent=PHYSICAL.enabled
     ? "зелёный/красный — по V10 physical phase mapping и заданному плану сигналов. Жёлтый и красный+жёлтый — модельные переходы."
-    : "зелёный/красный — реконструкция V9 по активности потоков. Жёлтый и красный+жёлтый — модельные переходы, а не прямое чтение контроллера.";
+    : "V10 physical plan ОТКЛЮЧЁН: "+String(PHYSICAL.reason || "причина не передана")+". Сейчас отображается fallback V9, а не физические головы.";
   renderSignalList(snapshot);
   $("slider").value=String(currentTime);
 }
@@ -835,7 +879,17 @@ def _physical_visual_model(
     if physical_plan is None:
         physical_plan = result.get("physical_signal_plan")
     if not isinstance(physical_plan, dict) or not physical_plan.get("enabled"):
-        return {"enabled": False, "phases": [], "segments": [], "topology": {}}
+        return {
+            "enabled": False,
+            "phases": [],
+            "segments": [],
+            "topology": {},
+            "reason": (
+                str(physical_plan.get("reason", "physical plan unavailable"))
+                if isinstance(physical_plan, dict)
+                else "physical plan unavailable"
+            ),
+        }
 
     specs = build_phase_specs_from_signal_plan_dict(physical_plan)
     if physical_plan.get("auto_inferred") and isinstance(physical_plan.get("mapping"), dict):
