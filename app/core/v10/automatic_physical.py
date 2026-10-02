@@ -266,33 +266,6 @@ def infer_physical_signal_plan(
             sum(evidence) / len(evidence) if evidence else 0.0
         )
 
-    # V9 can under-attribute a shared straight stream when a turn phase
-    # separates one direction from the ordinary through phase. Physical
-    # signal semantics are about the signal head at the incoming approach,
-    # so a canonical through phase on an axis must keep both observed
-    # straight movements together.
-    straight_by_axis = {
-        "NS": ("N->S", "S->N"),
-        "EW": ("E->W", "W->E"),
-    }
-    for axis, straight_movements in straight_by_axis.items():
-        observed = {
-            movement
-            for movement in straight_movements
-            if max(
-                activity[phase].get(movement, 0.0)
-                for phase in names
-            ) >= WEAK_PHASE_EVIDENCE_THRESHOLD
-        }
-        if not observed:
-            continue
-        for phase in names:
-            green = set(green_by_phase[phase])
-            if _semantic_name(frozenset(green)) != f"{axis}_THROUGH":
-                continue
-            green.update(straight_movements)
-            green_by_phase[phase] = frozenset(sorted(green))
-
     # When a turn phase is the strongest observed phase for a straight stream
     # from the same incoming approach, retain that main section in the turn
     # phase even when its per-phase probability falls just below the physical
@@ -373,6 +346,33 @@ def infer_physical_signal_plan(
                     min(1.0, pair_selectivity / 2.0),
                 )
         green_by_phase[phase] = frozenset(sorted(green))
+
+    # V9 can under-attribute a shared straight stream when a turn phase
+    # separates one direction from the ordinary through phase. Physical
+    # signal semantics are about the signal head at the incoming approach,
+    # so a canonical through phase on an axis must keep both observed
+    # straight movements together.
+    straight_by_axis = {
+        "NS": ("N->S", "S->N"),
+        "EW": ("E->W", "W->E"),
+    }
+    for axis, straight_movements in straight_by_axis.items():
+        observed = {
+            movement
+            for movement in straight_movements
+            if max(
+                activity[phase].get(movement, 0.0)
+                for phase in names
+            ) >= WEAK_PHASE_EVIDENCE_THRESHOLD
+        }
+        if not observed:
+            continue
+        for phase in names:
+            green = set(green_by_phase[phase])
+            if _semantic_name(frozenset(green)) != f"{axis}_THROUGH":
+                continue
+            green.update(straight_movements)
+            green_by_phase[phase] = frozenset(sorted(green))
 
     # Resolve physical names only after all weak-evidence rescue has completed.
     # This keeps a phase with N/S straight + protected turns named NS_TURN
