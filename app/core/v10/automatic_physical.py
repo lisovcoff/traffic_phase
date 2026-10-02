@@ -325,7 +325,7 @@ def infer_physical_signal_plan(
     # Reciprocal protected turns can have asymmetric traffic volume.
     # Recover a weak turn pair when both directions are clearly selective for
     # the same phase, even when one or both are below the absolute threshold.
-    rescue_threshold = max(0.03, 0.5 * float(activity_threshold))
+    rescue_threshold = WEAK_PHASE_EVIDENCE_THRESHOLD
     for phase in names:
         green = set(green_by_phase[phase])
         for movement in movements:
