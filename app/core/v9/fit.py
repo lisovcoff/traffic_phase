@@ -825,6 +825,25 @@ def evaluate_phase_redundancy(
             )
         )
 
+        merged_labels = np.where(
+            (labels3 == a) | (labels3 == b),
+            0,
+            1,
+        ).astype(np.int16)
+        merged_probs = fit_bernoulli_templates(
+            x,
+            merged_labels,
+            2,
+        )
+        merge_loss = max(
+            0.0,
+            ll3 - _pointwise_loglik(
+                x,
+                merged_probs,
+                merged_labels,
+            ),
+        ) / max(cycle_count, 1.0)
+
         rows.append(
             {
                 **features,
@@ -854,51 +873,7 @@ def evaluate_phase_redundancy(
                 "pair_has_unsupported_phase": bool(
                     unsupported
                 ),
-                "merge_loss_per_cycle": float(
-                    max(
-                        0.0,
-                        ll3
-                        - _pointwise_loglik(
-                            x,
-                            fit_bernoulli_templates(
-                                x,
-                                np.where(
-                                    (
-                                        np.asarray(
-                                            fit3["labels"],
-                                            dtype=np.int16,
-                                        )
-                                        == a
-                                    )
-                                    | (
-                                        np.asarray(
-                                            fit3["labels"],
-                                            dtype=np.int16,
-                                        )
-                                        == b
-                                    )
-                                ).astype(np.int16),
-                                2,
-                            ),
-                            np.where(
-                                (
-                                    np.asarray(
-                                        fit3["labels"],
-                                        dtype=np.int16,
-                                    )
-                                    == a
-                                )
-                                | (
-                                    np.asarray(
-                                        fit3["labels"],
-                                        dtype=np.int16,
-                                    )
-                                    == b
-                                )
-                            ).astype(np.int16),
-                        )
-                    ) / max(cycle_count, 1.0),
-                ),
+                "merge_loss_per_cycle": float(merge_loss),
                 "pair_affinity": float(pair_affinity),
             }
         )
