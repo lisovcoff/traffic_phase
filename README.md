@@ -65,6 +65,10 @@ build_spatial_visualization(). This keeps V9 discovery, V10 physical signal
 semantics, additional arrow sections, timing, and the final HTML viewer on one
 code path.
 
+Large JSON/ZIP archives use the same path-based discovery as V9 CLI, including
+streaming event extraction and large-recording regime selection. The web layer
+must not switch back to discover_records(load_source(...)) for archive analysis.
+
 Offline reference command:
 
     python -m scripts.v9_spatial_visualizer path/to/input.zip --output spatial.html

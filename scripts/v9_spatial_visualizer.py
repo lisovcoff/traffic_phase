@@ -20,7 +20,7 @@ from app.core.v9.signal_renderer import (
     build_signal_model,
 )
 from app.core.v9.spatial import build_spatial_projection, compact_trajectories
-from app.core.v9.v9_discovery import discover_records
+from app.core.v9.v9_discovery import discover_path
 
 
 PAGE = r"""<!doctype html>
@@ -1067,15 +1067,17 @@ def build_spatial_visualization(
         raise ValueError("activity_threshold must be in [0,1]")
 
     tracks, _source_files = load_source(input_path)
-    result = discover_records(
-        tracks,
-        input_name=str(input_path),
+    # Use the canonical path-based discovery for JSON and ZIP inputs.
+    # It streams large archives and applies the same large-recording regime
+    # selection as the standalone V9 discovery command.
+    result = discover_path(
+        input_path,
         dt=float(dt),
     )
     physical_plan = (
         json.loads(physical_plan_path.read_text(encoding="utf-8"))
         if physical_plan_path is not None
-        else None
+        else result.get("physical_signal_plan")
     )
     projection = build_spatial_projection(tracks)
     display_base_ms = (
