@@ -338,8 +338,13 @@ def infer_physical_signal_plan(
             main_probability = float(
                 activity[phase].get(source_main, 0.0)
             )
+            counterparts = {
+                f"{target}->{source}",
+                f"{OPPOSITE[source]}->{OPPOSITE[target]}",
+            }
             if (
-                main_probability >= float(activity_threshold)
+                candidates.intersection(counterparts)
+                and main_probability >= float(activity_threshold)
                 and main_probability >= 2.0 * turn_probability
             ):
                 return set(candidates)
