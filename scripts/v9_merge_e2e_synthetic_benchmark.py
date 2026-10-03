@@ -740,6 +740,7 @@ def main():
     )
 
     policy = report["policy_A"]
+    redundancy_policy = report["redundancy_policy"]
     print("V9 end-to-end synthetic merge benchmark")
     print("cases per class:", args.cases_per_class)
     print(
