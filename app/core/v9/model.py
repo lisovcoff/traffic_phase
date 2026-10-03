@@ -342,7 +342,7 @@ def _local_regime_selection(
     selected_end = float(representative["end_s"])
 
     regime_detection = {
-        "method": "hourly_local_period_and_topology_consensus",
+        "method": "hourly_local_period_consensus",
         "window_s": float(window_s),
         "windows_evaluated": int(len(windows)),
         "candidate_regimes": [
@@ -378,6 +378,14 @@ def _local_regime_selection(
         ),
         "scope": "single_representative_window_from_dominant_period_and_phase_topology",
     }
+    return (
+        regime_detection,
+        (
+            _slice_streams(by_stream, selected_start, selected_end),
+            _slice_streams(entry_streams, selected_start, selected_end),
+            _slice_streams(release_streams, selected_start, selected_end),
+        ),
+    )
 
 
 def _choose_phase_evidence(by_stream, release_streams, event_count: int):
