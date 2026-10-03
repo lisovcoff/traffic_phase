@@ -314,24 +314,25 @@ def infer_physical_signal_plan(
                 if probability >= TURN_CANDIDATE_EVIDENCE_THRESHOLD:
                     suppressed_turn_movements_by_phase[phase].append(movement)
 
+    STRONG_TURN_PAIR_THRESHOLD = 0.20
+
     def _supported_turns(
         phase: str,
         candidates: set[str],
     ) -> set[str]:
-        """Accept turn evidence only with a coherent physical seed.
+        """Accept turn evidence with a strong, coherent physical signature.
 
-        A turn is promoted when its source approach has a sufficiently strong
-        straight movement (at least twice the turn probability). Once one such
-        seed exists, the other phase-selective turn candidates in the same
-        phase may share that protected physical group.
+        A turn group is promoted when either:
+        1. a turn has a same-approach straight seed at least twice as strong; or
+        2. two phase-selective turns form a strong reciprocal/opposite-approach
+           pair, with both probabilities at or above 0.20.
 
-        A turn-only phase is accepted when it has at least two selective turn
-        movements. This does not infer any missing movement or use reciprocal
-        pulling across phases.
+        This rejects weak leakage pairs while preserving genuine protected
+        turn phases and turn-only phases. Baseline noise such as 0.01 is not
+        treated as meaningful straight evidence.
         """
-        strong_seed = False
         for movement in candidates:
-            source, _target = movement.split("->", 1)
+            source, target = movement.split("->", 1)
             source_main = f"{source}->{OPPOSITE[source]}"
             turn_probability = float(activity[phase].get(movement, 0.0))
             main_probability = float(
@@ -341,19 +342,22 @@ def infer_physical_signal_plan(
                 main_probability >= float(activity_threshold)
                 and main_probability >= 2.0 * turn_probability
             ):
-                strong_seed = True
-                break
+                return set(candidates)
 
-        if strong_seed:
-            return set(candidates)
-
-        has_straight = any(
-            float(activity[phase].get(movement, 0.0)) > 0.0
-            for movement in movements
-            if _is_straight(movement)
-        )
-        if not has_straight and len(candidates) >= 2:
-            return set(candidates)
+        for movement in candidates:
+            source, target = movement.split("->", 1)
+            counterparts = {
+                f"{target}->{source}",
+                f"{OPPOSITE[source]}->{OPPOSITE[target]}",
+            }
+            for partner in candidates.intersection(counterparts):
+                if (
+                    float(activity[phase].get(movement, 0.0))
+                    >= STRONG_TURN_PAIR_THRESHOLD
+                    and float(activity[phase].get(partner, 0.0))
+                    >= STRONG_TURN_PAIR_THRESHOLD
+                ):
+                    return set(candidates)
 
         return set()
 
@@ -660,6 +664,7 @@ def infer_physical_signal_plan(
             },
             "turn_candidate_evidence_threshold": TURN_CANDIDATE_EVIDENCE_THRESHOLD,
             "turn_candidate_selectivity_ratio": TURN_CANDIDATE_SELECTIVITY_RATIO,
+            "strong_turn_pair_threshold": STRONG_TURN_PAIR_THRESHOLD,
             "startup_lost_s": float(startup_lost_s),
             "suppressed_turn_movements_by_phase": {
                 key: value
