@@ -11,15 +11,12 @@ from typing import Any
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
 
-from app.core.v9.events import load_source
 from app.core.v9.signal_renderer import (
     DEFAULT_ACTIVITY_THRESHOLD,
     DEFAULT_RED_YELLOW_DURATION_SECONDS,
     DEFAULT_YELLOW_DURATION_SECONDS,
 )
-from app.core.v9.spatial import build_spatial_projection, compact_trajectories
-from app.core.v9.v9_discovery import discover_records
-from scripts.v9_spatial_visualizer import render_html
+from scripts.v9_spatial_visualizer import build_spatial_visualization
 
 router = APIRouter(prefix="/visualization", tags=["visualization"])
 
@@ -334,63 +331,34 @@ async def visualization_analyze(
                     length=1024 * 1024,
                 )
 
-            tracks, _source_files = load_source(source_path)
-            result = discover_records(
-                tracks,
-                input_name=str(source_path),
+            built = build_spatial_visualization(
+                source_path,
                 dt=dt_value,
+                yellow_duration_seconds=yellow_value,
+                red_yellow_duration_seconds=red_yellow_value,
+                activity_threshold=activity_threshold_value,
             )
-            projection = build_spatial_projection(tracks)
-            analysis_base_ms = float(result["analysis_base_timestamp_ms"])
-            recording_start_ms = result.get("recording_start_timestamp_ms")
-            display_base_ms = (
-                float(recording_start_ms)
-                if recording_start_ms is not None
-                else analysis_base_ms
-            )
-            time_offset_s = (analysis_base_ms - display_base_ms) / 1000.0
-            display_duration_s = float(result["recording_duration_s"]) + max(
-                0.0,
-                time_offset_s,
-            )
-            compact = compact_trajectories(
-                tracks,
-                analysis_base_timestamp_ms=analysis_base_ms,
-                display_base_timestamp_ms=display_base_ms,
-                projection=projection,
-            )
-
-            physical_plan = result.get("physical_signal_plan")
+            html = built["html"]
+            result = built["result"]
+            physical_plan = built["physical_plan"]
             print(
                 "[V10 visualization]",
                 {
                     "phase_count": result.get("schedule", {}).get("phase_count"),
-                    "physical_enabled": (
-                        physical_plan.get("enabled")
-                        if isinstance(physical_plan, dict)
-                        else False
-                    ),
-                    "physical_reason": (
-                        physical_plan.get("reason", "")
-                        if isinstance(physical_plan, dict)
-                        else "missing"
-                    ),
-                    "analysis_base_timestamp_ms": analysis_base_ms,
-                    "recording_start_timestamp_ms": display_base_ms,
-                    "time_offset_s": time_offset_s,
+                    "event_count": result.get("event_count"),
+                    "movement_stream_count": result.get("movement_stream_count"),
+                    "physical_enabled": bool(physical_plan.get("enabled")),
+                    "physical_reason": physical_plan.get("reason"),
+                    "analysis_base_timestamp_ms": result.get("analysis_base_timestamp_ms"),
+                    "recording_start_timestamp_ms": result.get("recording_start_timestamp_ms"),
+                    "rendered_trajectories": built["rendered_trajectory_count"],
                 },
             )
-
-            physical_plan = result.get("physical_signal_plan") or {
-                "enabled": False,
-                "reason": "physical_signal_plan missing from V9 result",
-            }
             run_id = (
                 datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
                 + "_"
                 + _safe_run_name(Path(file.filename).stem)
             )
-
             print(
                 "[V10 visualization]",
                 {
@@ -400,22 +368,7 @@ async def visualization_analyze(
                     "movement_stream_count": result.get("movement_stream_count"),
                     "physical_enabled": physical_plan.get("enabled"),
                     "physical_reason": physical_plan.get("reason"),
-                    "analysis_base_timestamp_ms": analysis_base_ms,
-                    "recording_start_timestamp_ms": display_base_ms,
-                    "time_offset_s": time_offset_s,
                 },
-            )
-
-            html = render_html(
-                result,
-                projection,
-                compact,
-                yellow_duration_seconds=yellow_value,
-                red_yellow_duration_seconds=red_yellow_value,
-                activity_threshold=activity_threshold_value,
-                physical_plan=physical_plan,
-                time_offset_s=time_offset_s,
-                display_duration_s=display_duration_s,
             )
             run_dir = _write_visualization_logs(
                 run_id=run_id,

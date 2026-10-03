@@ -53,6 +53,26 @@ The command writes:
 
     v9_output/phase_discovery_v9.json
 
+## Canonical spatial visualizer control point
+
+The known-good spatial viewer control point is commit:
+
+    0768f510c0dc93e1fbac16877c1c5440b5faa76e
+
+The canonical renderer is scripts/v9_spatial_visualizer.py. The offline CLI and
+the Uvicorn endpoint /visualization/analyze must use the same builder
+build_spatial_visualization(). This keeps V9 discovery, V10 physical signal
+semantics, additional arrow sections, timing, and the final HTML viewer on one
+code path.
+
+Offline reference command:
+
+    python -m scripts.v9_spatial_visualizer path/to/input.zip --output spatial.html
+
+Do not maintain a second independent spatial-rendering implementation in the
+web layer. Changes to the spatial viewer should be checked against the control
+point above before being accepted.
+
 ## Unified web visualization
 
 Start the application:

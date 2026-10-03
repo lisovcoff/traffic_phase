@@ -6,6 +6,7 @@ from io import BytesIO
 from fastapi import UploadFile
 
 from app.api.visualization import visualization_analyze, visualization_page
+from app.core.v9.signal_renderer import DEFAULT_ACTIVITY_THRESHOLD
 
 
 def test_visualization_page_is_the_unified_v10_entrypoint():

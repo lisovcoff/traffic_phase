@@ -1048,6 +1048,77 @@ def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
     return page
 
 
+def build_spatial_visualization(
+    input_path: Path,
+    *,
+    dt: float = 1.0,
+    yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS,
+    red_yellow_duration_seconds: float = DEFAULT_RED_YELLOW_DURATION_SECONDS,
+    activity_threshold: float = DEFAULT_ACTIVITY_THRESHOLD,
+    physical_plan_path: Path | None = None,
+) -> dict[str, Any]:
+    """Build the canonical spatial HTML used by both CLI and Uvicorn."""
+    input_path = Path(input_path)
+    if dt <= 0:
+        raise ValueError("dt must be positive")
+    if yellow_duration_seconds < 0 or red_yellow_duration_seconds < 0:
+        raise ValueError("transition durations must be non-negative")
+    if not 0 <= activity_threshold <= 1:
+        raise ValueError("activity_threshold must be in [0,1]")
+
+    tracks, _source_files = load_source(input_path)
+    result = discover_records(
+        tracks,
+        input_name=str(input_path),
+        dt=float(dt),
+    )
+    physical_plan = (
+        json.loads(physical_plan_path.read_text(encoding="utf-8"))
+        if physical_plan_path is not None
+        else None
+    )
+    projection = build_spatial_projection(tracks)
+    display_base_ms = (
+        float(result["recording_start_timestamp_ms"])
+        if result.get("recording_start_timestamp_ms") is not None
+        else float(result["analysis_base_timestamp_ms"])
+    )
+    analysis_base_ms = float(result["analysis_base_timestamp_ms"])
+    time_offset_s = (analysis_base_ms - display_base_ms) / 1000.0
+    display_duration_s = float(result["recording_duration_s"]) + max(
+        0.0,
+        time_offset_s,
+    )
+    compact = compact_trajectories(
+        tracks,
+        analysis_base_timestamp_ms=analysis_base_ms,
+        display_base_timestamp_ms=display_base_ms,
+        projection=projection,
+    )
+    physical_plan = result.get("physical_signal_plan") or {
+        "enabled": False,
+        "reason": "physical_signal_plan missing from V9 result",
+    }
+    html = render_html(
+        result,
+        projection,
+        compact,
+        yellow_duration_seconds=float(yellow_duration_seconds),
+        red_yellow_duration_seconds=float(red_yellow_duration_seconds),
+        activity_threshold=float(activity_threshold),
+        physical_plan=physical_plan,
+        time_offset_s=time_offset_s,
+        display_duration_s=display_duration_s,
+    )
+    return {
+        "html": html,
+        "result": result,
+        "physical_plan": physical_plan,
+        "projection": projection,
+        "rendered_trajectory_count": len(compact),
+        "trajectory_count": len(tracks),
+    }
+
 def main()->int:
     parser=argparse.ArgumentParser(description="Create V9 spatial offline visualization.")
     parser.add_argument("input",type=Path)
@@ -1068,40 +1139,17 @@ def main()->int:
     if args.yellow<0 or args.red_yellow<0:raise SystemExit("transition durations must be non-negative")
     if not 0<=args.activity_threshold<=1:raise SystemExit("--activity-threshold must be in [0,1]")
 
-    tracks,_source_files=load_source(args.input)
-    result=discover_records(tracks,input_name=str(args.input),dt=args.dt)
-    physical_plan = (
-        json.loads(args.physical_plan.read_text(encoding="utf-8"))
-        if args.physical_plan is not None
-        else None
-    )
-    projection=build_spatial_projection(tracks)
-    display_base_ms = (
-        float(result["recording_start_timestamp_ms"])
-        if result.get("recording_start_timestamp_ms") is not None
-        else float(result["analysis_base_timestamp_ms"])
-    )
-    analysis_base_ms = float(result["analysis_base_timestamp_ms"])
-    time_offset_s = (analysis_base_ms - display_base_ms) / 1000.0
-    display_duration_s = float(result["recording_duration_s"]) + max(
-        0.0,
-        time_offset_s,
-    )
-    compact=compact_trajectories(
-        tracks,
-        analysis_base_timestamp_ms=analysis_base_ms,
-        display_base_timestamp_ms=display_base_ms,
-        projection=projection,
-    )
-    html=render_html(
-        result,projection,compact,
+    built=build_spatial_visualization(
+        args.input,
+        dt=args.dt,
         yellow_duration_seconds=args.yellow,
         red_yellow_duration_seconds=args.red_yellow,
         activity_threshold=args.activity_threshold,
-        physical_plan=physical_plan,
-        time_offset_s=time_offset_s,
-        display_duration_s=display_duration_s,
+        physical_plan_path=args.physical_plan,
     )
+    html=built["html"]
+    result=built["result"]
+    projection=built["projection"]
     args.output.write_text(html,encoding="utf-8")
     print("[V9] spatial offline visualization complete")
     print("  input:",args.input)
@@ -1109,7 +1157,7 @@ def main()->int:
     print("  phases:",result["phase_model_selection"]["selected_phase_count"])
     print("  period_s:",round(float(result["period_inference"]["period_s"]),3))
     print("  trajectories:",result["trajectory_count"])
-    print("  rendered_trajectories:",len(compact))
+    print("  rendered_trajectories:",built["rendered_trajectory_count"])
     print("  html_size_mb:",round(len(html.encode("utf-8"))/1024/1024,2))
     print("  projection:",projection["method"])
     return 0
