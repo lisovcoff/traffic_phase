@@ -12,7 +12,7 @@ from app.core.v10.semantic_mapping import (
     map_v9_to_physical,
     normalized_segments,
 )
-from app.core.v9.events import load_source
+from app.core.v9.events import load_tracks
 from app.core.v9.signal_renderer import (
     DEFAULT_ACTIVITY_THRESHOLD,
     DEFAULT_RED_YELLOW_DURATION_SECONDS,
@@ -1030,13 +1030,16 @@ def _physical_visual_model(
 
 def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
                 red_yellow_duration_seconds=2.0,activity_threshold=0.05,
-                physical_plan=None,time_offset_s=None,display_duration_s=None):
+                physical_plan=None,time_offset_s=None,display_duration_s=None,
+                display_base_timestamp_ms=None):
     signal_model=build_signal_model(result,activity_threshold=activity_threshold)
     physical=_physical_visual_model(result,physical_plan)
     if time_offset_s is not None:
         physical["time_offset_s"] = float(time_offset_s)
     if display_duration_s is not None:
         physical["display_duration_s"] = float(display_duration_s)
+    if display_base_timestamp_ms is not None:
+        physical["display_base_timestamp_ms"] = float(display_base_timestamp_ms)
     page=PAGE.replace("__RESULT__",_safe_json(result))
     page=page.replace("__SIGNAL_MODEL__",_safe_json(signal_model))
     page=page.replace("__PROJECTION__",_safe_json(projection))
@@ -1066,7 +1069,6 @@ def build_spatial_visualization(
     if not 0 <= activity_threshold <= 1:
         raise ValueError("activity_threshold must be in [0,1]")
 
-    tracks, _source_files = load_source(input_path)
     # Use the canonical path-based discovery for JSON and ZIP inputs.
     # It streams large archives and applies the same large-recording regime
     # selection as the standalone V9 discovery command.
@@ -1074,23 +1076,61 @@ def build_spatial_visualization(
         input_path,
         dt=float(dt),
     )
+
+    regime = result.get("regime_detection")
+    display_window_start_ms = None
+    display_window_end_ms = None
+    if (
+        isinstance(regime, dict)
+        and regime.get("method") == "hourly_local_period_consensus"
+        and regime.get("selected_window_start_s") is not None
+        and regime.get("selected_window_end_s") is not None
+    ):
+        event_base_ms = float(
+            result.get(
+                "event_base_timestamp_ms",
+                result["analysis_base_timestamp_ms"],
+            )
+        )
+        display_window_start_ms = event_base_ms + (
+            float(regime["selected_window_start_s"]) * 1000.0
+        )
+        display_window_end_ms = event_base_ms + (
+            float(regime["selected_window_end_s"]) * 1000.0
+        )
+        # A long archive is analyzed in one representative regime window.
+        # Render that same window instead of materializing the whole archive,
+        # which keeps ZIP visualization bounded in memory and time.
+        tracks = load_tracks(
+            input_path,
+            start_timestamp_ms=display_window_start_ms,
+            end_timestamp_ms=display_window_end_ms,
+        )
+        display_base_ms = float(result["analysis_base_timestamp_ms"])
+        display_duration_s = max(
+            0.0,
+            (display_window_end_ms - display_base_ms) / 1000.0,
+        )
+    else:
+        tracks = load_tracks(input_path)
+        display_base_ms = (
+            float(result["recording_start_timestamp_ms"])
+            if result.get("recording_start_timestamp_ms") is not None
+            else float(result["analysis_base_timestamp_ms"])
+        )
+        display_duration_s = float(result["recording_duration_s"]) + max(
+            0.0,
+            (float(result["analysis_base_timestamp_ms"]) - display_base_ms) / 1000.0,
+        )
+
     physical_plan = (
         json.loads(physical_plan_path.read_text(encoding="utf-8"))
         if physical_plan_path is not None
         else result.get("physical_signal_plan")
     )
     projection = build_spatial_projection(tracks)
-    display_base_ms = (
-        float(result["recording_start_timestamp_ms"])
-        if result.get("recording_start_timestamp_ms") is not None
-        else float(result["analysis_base_timestamp_ms"])
-    )
     analysis_base_ms = float(result["analysis_base_timestamp_ms"])
     time_offset_s = (analysis_base_ms - display_base_ms) / 1000.0
-    display_duration_s = float(result["recording_duration_s"]) + max(
-        0.0,
-        time_offset_s,
-    )
     compact = compact_trajectories(
         tracks,
         analysis_base_timestamp_ms=analysis_base_ms,
@@ -1111,6 +1151,7 @@ def build_spatial_visualization(
         physical_plan=physical_plan,
         time_offset_s=time_offset_s,
         display_duration_s=display_duration_s,
+        display_base_timestamp_ms=display_base_ms,
     )
     return {
         "html": html,

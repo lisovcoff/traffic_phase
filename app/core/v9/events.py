@@ -383,10 +383,40 @@ def load_event_streams(path: Path):
         int(event_count),
     )
 
-def load_tracks(path: Path):
+def load_tracks(
+    path: Path,
+    *,
+    start_timestamp_ms: float | None = None,
+    end_timestamp_ms: float | None = None,
+):
+    if (
+        start_timestamp_ms is not None
+        and end_timestamp_ms is not None
+        and float(end_timestamp_ms) < float(start_timestamp_ms)
+    ):
+        raise ValueError("end_timestamp_ms must be >= start_timestamp_ms")
+
     tracks = []
     for _name, records in _iter_source_records(Path(path)):
-        tracks.extend(records)
+        for track in records:
+            if start_timestamp_ms is not None or end_timestamp_ms is not None:
+                detections = _track_detection_times(track)
+                if not detections:
+                    continue
+                first_ms = float(detections[0]["millis"])
+                last_ms = float(detections[-1]["millis"])
+                if (
+                    end_timestamp_ms is not None
+                    and first_ms > float(end_timestamp_ms)
+                ):
+                    continue
+                if (
+                    start_timestamp_ms is not None
+                    and last_ms < float(start_timestamp_ms)
+                ):
+                    continue
+            tracks.append(track)
+
     if not tracks:
         raise ValueError(f"no trajectory JSON files found in {path}")
     return tracks

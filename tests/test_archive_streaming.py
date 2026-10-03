@@ -190,3 +190,23 @@ def test_streamed_json_matches_compact_result_shape_of_existing_payload():
         len(session["timeline"]) <= 240
         for session in result["sessions"]
     )
+
+
+def test_v9_load_tracks_can_bound_spatial_archive_to_a_time_window(tmp_path):
+    from app.core.v9.events import load_tracks
+
+    payload = [
+        _record(1, 1_000_000, "N"),
+        _record(2, 2_000_000, "S"),
+        _record(3, 5_000_000, "E"),
+    ]
+    source = tmp_path / "tracks.json"
+    source.write_text(json.dumps(payload), encoding="utf-8")
+
+    tracks = load_tracks(
+        source,
+        start_timestamp_ms=1_999_000,
+        end_timestamp_ms=3_001_000,
+    )
+
+    assert [track["id"] for track in tracks] == [2]
