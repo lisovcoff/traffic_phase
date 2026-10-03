@@ -341,7 +341,7 @@ def _local_regime_selection(
     selected_start = float(representative["start_s"])
     selected_end = float(representative["end_s"])
 
-    return {
+    regime_detection = {
         "method": "hourly_local_period_and_topology_consensus",
         "window_s": float(window_s),
         "windows_evaluated": int(len(windows)),
