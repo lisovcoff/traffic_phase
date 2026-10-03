@@ -467,10 +467,9 @@ def discover_phase_count(
     kmin=2,
     kmax=6,
     dt=1.0,
-    # Penalize recurrent extra phases strongly enough to reject persistent
-    # within-axis splits caused by sparse/imbalanced movement evidence while
-    # preserving clearly distinct three-phase signatures.
-    extra_phase_penalty_per_cycle: float=10.0,
+    # BIC already penalizes extra phase templates. Keep the recurrent boundary
+    # penalty modest so sparse/uneven multi-phase patterns are not collapsed into k=2.
+    extra_phase_penalty_per_cycle: float=5.0,
     recording_end_s: Optional[float]=None,
     entry_streams=None,
     topology_streams=None,
