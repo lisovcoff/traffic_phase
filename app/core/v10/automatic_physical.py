@@ -7,7 +7,7 @@ APPROACHES = frozenset({"N", "S", "E", "W"})
 OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
 DEFAULT_ACTIVITY_THRESHOLD = 0.08
 DEFAULT_SELECTIVITY_RATIO = 1.15
-DEFAULT_STARTUP_LOST_S = 2.0
+DEFAULT_STARTUP_LOST_S = 0.0
 
 
 def _canonical_movement(value: Any) -> str | None:
@@ -270,212 +270,50 @@ def infer_physical_signal_plan(
             sum(evidence) / len(evidence) if evidence else 0.0
         )
 
-    # Turns use a lower candidate threshold than through movements, but
-    # become physical only when V9 exposes an actual protected/isolated phase
-    # pattern. Traffic that merely leaks during an ordinary through phase stays
-    # permissive and does not create a hardware arrow.
+    # Turns are assigned independently from phase-selective evidence.
+    # A physical arrow requires a clear phase peak. No opposing-through,
+    # reciprocal-pulling, or geometry-specific heuristic is used here.
     TURN_CANDIDATE_EVIDENCE_THRESHOLD = 0.03
     TURN_CANDIDATE_SELECTIVITY_RATIO = max(1.25, float(selectivity_ratio))
-    PROTECTED_TURN_MIN_MAIN = max(0.08, float(activity_threshold))
-    PROTECTED_TURN_CLOSED_THRESHOLD = min(
-        0.03,
-        max(0.005, 0.5 * float(activity_threshold)),
-    )
-    PROTECTED_TURN_STRONG_PAIR = 0.20
+    TURN_CANDIDATE_MIN_MARGIN = 0.02
 
-    # Admit weak, phase-selective turn evidence before structural filtering.
+    # Keep straight assignments from the primary evidence pass, but assign
+    # every non-straight movement to at most one statistically dominant phase.
     for phase in names:
-        green = set(green_by_phase[phase])
-        for movement in movements:
-            if _is_straight(movement):
-                continue
-            probability = float(activity[phase].get(movement, 0.0))
-            if probability < TURN_CANDIDATE_EVIDENCE_THRESHOLD:
-                continue
-            other_peak = max(
-                (
-                    float(activity[item].get(movement, 0.0))
-                    for item in names
-                    if item != phase
-                ),
-                default=0.0,
-            )
-            if (
-                probability
-                >= TURN_CANDIDATE_SELECTIVITY_RATIO * max(other_peak, 0.001)
-            ):
-                green.add(movement)
-        green_by_phase[phase] = frozenset(sorted(green))
-
-    PROTECTED_TURN_MAIN_RATIO = 2.0
-
-    PROTECTED_TURN_MAIN_RATIO = 2.0
-
-    def protected_turn_isolated(
-        phase: str,
-        movement: str,
-    ) -> bool:
-        """Check phase contrast against the opposing through stream."""
-        source, _target = movement.split("->", 1)
-        opposing_through = f"{OPPOSITE[source]}->{source}"
-        if (
-            float(activity[phase].get(opposing_through, 0.0))
-            > PROTECTED_TURN_CLOSED_THRESHOLD
-        ):
-            return False
-        return any(
-            other_phase != phase
-            and float(
-                activity[other_phase].get(
-                    opposing_through,
-                    0.0,
-                )
-            )
-            >= PROTECTED_TURN_MIN_MAIN
-            and float(
-                activity[other_phase].get(
-                    movement,
-                    0.0,
-                )
-            )
-            <= PROTECTED_TURN_CLOSED_THRESHOLD
-            for other_phase in names
+        green_by_phase[phase] = frozenset(
+            movement
+            for movement in green_by_phase[phase]
+            if _is_straight(movement)
         )
 
-    def protected_turn_seed(
-        phase: str,
-        movement: str,
-    ) -> bool:
-        """Find a protected turn with a strong same-approach seed."""
-        probability = float(activity[phase].get(movement, 0.0))
-        if probability < TURN_CANDIDATE_EVIDENCE_THRESHOLD:
-            return False
-
-        source, _target = movement.split("->", 1)
-        source_main = f"{source}->{OPPOSITE[source]}"
-        source_main_probability = float(
-            activity[phase].get(source_main, 0.0)
-        )
+    suppressed_turn_movements_by_phase: dict[str, list[str]] = {
+        phase: [] for phase in names
+    }
+    for movement in movements:
+        if _is_straight(movement):
+            continue
+        values = {
+            phase: float(activity[phase].get(movement, 0.0))
+            for phase in names
+        }
+        ranked = sorted(values.items(), key=lambda item: item[1], reverse=True)
+        best_phase, best_probability = ranked[0]
+        second_probability = ranked[1][1] if len(ranked) > 1 else 0.0
         if (
-            source_main_probability < PROTECTED_TURN_MIN_MAIN
-            or source_main_probability
-            < PROTECTED_TURN_MAIN_RATIO * probability
+            best_probability >= TURN_CANDIDATE_EVIDENCE_THRESHOLD
+            and best_probability >= TURN_CANDIDATE_SELECTIVITY_RATIO * max(second_probability, 0.001)
+            and best_probability - second_probability >= TURN_CANDIDATE_MIN_MARGIN
         ):
-            return False
+            green = set(green_by_phase[best_phase])
+            green.add(movement)
+            green_by_phase[best_phase] = frozenset(sorted(green))
+        else:
+            for phase, probability in values.items():
+                if probability >= TURN_CANDIDATE_EVIDENCE_THRESHOLD:
+                    suppressed_turn_movements_by_phase[phase].append(movement)
 
-        return protected_turn_isolated(phase, movement)
-
-    def protected_turn_group(
-        phase: str,
-        candidates: Sequence[str],
-    ) -> bool:
-        candidate_set = set(candidates)
-
-        # A strong protected seed can promote its reciprocal turn. This avoids
-        # requiring equal traffic volumes on the two turn streams.
-        if any(
-            protected_turn_seed(phase, movement)
-            for movement in candidate_set
-        ):
-            return True
-
-        # When both reciprocal turns are substantial, phase isolation itself
-        # is strong evidence even if neither turn has a 2x source-main ratio.
-        for movement in candidate_set:
-            source, target = movement.split("->", 1)
-            reverse = f"{target}->{source}"
-            if movement >= reverse or reverse not in candidate_set:
-                continue
-            if (
-                float(activity[phase].get(movement, 0.0))
-                >= PROTECTED_TURN_STRONG_PAIR
-                and float(activity[phase].get(reverse, 0.0))
-                >= PROTECTED_TURN_STRONG_PAIR
-                and (
-                    protected_turn_isolated(phase, movement)
-                    or protected_turn_isolated(phase, reverse)
-                )
-            ):
-                return True
-
-        # Dedicated turn-only phases do not contain a straight movement.
-        # Require two strong turns from opposite approaches.
-        strong_turns = [
-            movement
-            for movement in candidate_set
-            if float(activity[phase].get(movement, 0.0))
-            >= PROTECTED_TURN_STRONG_PAIR
-        ]
-        if len(strong_turns) >= 2:
-            source_set = {
-                movement.split("->", 1)[0]
-                for movement in strong_turns
-            }
-            if any(
-                OPPOSITE[source] in source_set
-                for source in source_set
-            ):
-                return True
-
-        return False
-
-    suppressed_turn_movements_by_phase: dict[str, list[str]] = {}
-    for phase in names:
-        green = set(green_by_phase[phase])
-        turns = [
-            movement
-            for movement in green
-            if not _is_straight(movement)
-        ]
-        protected: set[str] = set()
-        if turns and protected_turn_group(phase, turns):
-            protected.update(turns)
-
-        suppressed = sorted(set(turns) - protected)
-        if suppressed:
-            green.difference_update(suppressed)
-        suppressed_turn_movements_by_phase[phase] = suppressed
-
-        if not green:
-            straight_candidates = []
-            for movement in movements:
-                if not _is_straight(movement):
-                    continue
-                values = [
-                    float(activity[item].get(movement, 0.0))
-                    for item in names
-                ]
-                probability = float(activity[phase].get(movement, 0.0))
-                other_peak = max(
-                    (
-                        value
-                        for item, value in zip(names, values)
-                        if item != phase
-                    ),
-                    default=0.0,
-                )
-                if (
-                    probability >= 0.03
-                    and probability
-                    >= max(1.25, float(selectivity_ratio))
-                    * max(other_peak, 0.001)
-                ):
-                    straight_candidates.append(
-                        (probability, movement)
-                    )
-            if straight_candidates:
-                best_probability = max(
-                    probability
-                    for probability, _movement in straight_candidates
-                )
-                green.update(
-                    movement
-                    for probability, movement in straight_candidates
-                    if probability >= 0.75 * best_probability
-                )
-
-        green_by_phase[phase] = frozenset(sorted(green))
-
+    # Preserve the physical NS/EW main sections when V9 statistically splits
+    # the two reciprocal straight streams between phases.
     straight_by_axis = {
         "NS": ("N->S", "S->N"),
         "EW": ("E->W", "W->E"),
