@@ -240,3 +240,57 @@ def test_malformed_detection_is_ignored_without_breaking_member(tmp_path: Path):
     assert [item["id"] for item in normalized] == ["car"]
     assert audit.usable_car_count == 1
     assert audit.error is None
+
+
+def test_quick_limit_stops_after_usable_trajectories(tmp_path: Path):
+    payload = [
+        {
+            "id": str(index),
+            "millis": index + 1000,
+            "zone_in": "N",
+            "zone_out": "_S",
+            "category_name": "car",
+            "detections": [
+                {"millis": index, "lat": 54.0, "lng": 61.0},
+            ],
+        }
+        for index in range(10)
+    ]
+    output, audit = prepare_sorted_member(
+        io.BytesIO(json.dumps(payload).encode("utf-8")),
+        name="limited.json",
+        work_dir=tmp_path / "work",
+        chunk_trajectories=2,
+        max_trajectories=3,
+    )
+    try:
+        normalized = json.load(output)
+    finally:
+        output.close()
+
+    assert len(normalized) == 3
+    assert audit.usable_car_count == 3
+
+
+def test_quick_limit_validation_is_rejected(tmp_path: Path):
+    payload = [
+        {
+            "id": "car",
+            "millis": 1000,
+            "zone_in": "N",
+            "zone_out": "_S",
+            "category_name": "car",
+            "detections": [],
+        }
+    ]
+    try:
+        prepare_sorted_member(
+            io.BytesIO(json.dumps(payload).encode("utf-8")),
+            name="invalid.json",
+            work_dir=tmp_path / "work",
+            max_trajectories=0,
+        )
+    except ValueError as exc:
+        assert "max_trajectories" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for non-positive max_trajectories")
