@@ -612,6 +612,19 @@ def _duration_balance_by_pair(
     return pairs
 
 
+
+def _rank_correlation(a: np.ndarray, b: np.ndarray) -> float:
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    if a.size < 2 or b.size != a.size:
+        return 0.0
+    if np.std(a) <= 1e-12 or np.std(b) <= 1e-12:
+        return 0.0
+    ra = np.argsort(np.argsort(a))
+    rb = np.argsort(np.argsort(b))
+    return float(np.corrcoef(ra, rb)[0, 1])
+
+
 def _template_similarity_features(probs, a, b, third):
     pa = np.asarray(probs[a], dtype=float)
     pb = np.asarray(probs[b], dtype=float)
