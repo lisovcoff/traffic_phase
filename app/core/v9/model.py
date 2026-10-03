@@ -85,6 +85,162 @@ def _slice_streams(streams, start_s: float, end_s: float):
     return sliced
 
 
+def _regime_phase_structure(
+    by_stream,
+    entry_streams,
+    release_streams,
+    *,
+    period: float,
+    window_s: float,
+) -> dict[str, object] | None:
+    """Fit phase structure for one local regime window.
+
+    Period stability alone cannot distinguish a true phase topology from a
+    boundary/initialization artifact. Reuse the canonical V9 phase-count
+    selection here so regime selection can prefer the structure that recurs
+    across multiple windows.
+    """
+    event_count = sum(len(values) for values in entry_streams.values())
+    if event_count <= 0:
+        return None
+
+    phase_evidence, evidence_method = _choose_phase_evidence(
+        by_stream,
+        release_streams,
+        event_count,
+    )
+    end_s = max(
+        (
+            max(float(value) for value in values)
+            for values in phase_evidence.values()
+            if len(values)
+        ),
+        default=0.0,
+    )
+    if end_s <= 0.0:
+        return None
+
+    x, _names = build_occupancy_matrix(
+        phase_evidence,
+        end_s,
+        dt=1.0,
+    )
+    try:
+        selected_k, candidates, fits = discover_phase_count(
+            x,
+            phase_evidence,
+            float(period),
+            dt=1.0,
+            recording_end_s=max(1.0, float(window_s)),
+            entry_streams=entry_streams,
+            topology_streams=by_stream,
+        )
+    except Exception:
+        return None
+
+    selected_candidate = next(
+        (
+            candidate
+            for candidate in candidates
+            if int(candidate["k"]) == int(selected_k)
+        ),
+        None,
+    )
+    if selected_candidate is None:
+        return None
+
+    fit = fits[selected_k]
+    coherence = float(
+        np.clip(
+            float(fit.get("boundary_coherence", 0.0)),
+            0.0,
+            1.0,
+        )
+    )
+    return {
+        "phase_count": int(selected_k),
+        "phase_evidence_source": evidence_method,
+        "boundary_coherence": coherence,
+        "supported_phase_count": int(
+            selected_candidate.get("supported_phase_count", 0)
+        ),
+        "unsupported_phase_count": int(
+            selected_candidate.get("unsupported_phase_count", 0)
+        ),
+        "selection_score": float(
+            selected_candidate.get("selection_score", float("inf"))
+        ),
+    }
+
+
+def _cluster_local_regime_windows(windows: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Cluster hourly windows by period regime and recurring phase topology."""
+    clusters: list[dict[str, object]] = []
+    for window in windows:
+        phase_count = window.get("selected_phase_count")
+        placed = False
+        for cluster in clusters:
+            if (
+                phase_count == cluster["phase_count"]
+                and abs(
+                    float(window["period_bucket_s"])
+                    - float(cluster["center_s"])
+                ) <= 4.0
+            ):
+                cluster["windows"].append(window)
+                weights = [
+                    max(1.0, float(item["event_count"]))
+                    * max(0.05, float(item["confidence"]))
+                    for item in cluster["windows"]
+                ]
+                cluster["center_s"] = float(
+                    sum(
+                        float(item["period_bucket_s"]) * weight
+                        for item, weight in zip(
+                            cluster["windows"],
+                            weights,
+                        )
+                    )
+                    / max(1e-9, sum(weights))
+                )
+                placed = True
+                break
+        if not placed:
+            clusters.append(
+                {
+                    "center_s": float(window["period_bucket_s"]),
+                    "phase_count": (
+                        int(phase_count)
+                        if phase_count is not None
+                        else None
+                    ),
+                    "windows": [window],
+                }
+            )
+
+    for cluster in clusters:
+        cluster["support_events"] = int(
+            sum(int(item["event_count"]) for item in cluster["windows"])
+        )
+        cluster["support_windows"] = int(len(cluster["windows"]))
+        cluster["mean_boundary_coherence"] = float(
+            np.mean(
+                [
+                    float(item.get("boundary_coherence", 0.0))
+                    for item in cluster["windows"]
+                ]
+            )
+        )
+        cluster["support_score"] = float(
+            sum(
+                max(1.0, float(item["event_count"]))
+                * max(0.05, float(item["confidence"]))
+                for item in cluster["windows"]
+            )
+        )
+    return clusters
+
+
 def _local_regime_selection(
     by_stream,
     entry_streams,
@@ -109,6 +265,38 @@ def _local_regime_selection(
             top = info.get("top_candidates", [{}])[0]
             score = float(top.get("combined_score", 0.0))
             confidence = max(0.0, min(1.0, score))
+
+            window_by_stream = _slice_streams(by_stream, start, end)
+            release_window = _slice_streams(
+                release_streams,
+                start,
+                end,
+            )
+            phase_structure = _regime_phase_structure(
+                window_by_stream,
+                entry_window,
+                release_window,
+                period=float(period),
+                window_s=window_s,
+            )
+            if phase_structure is None:
+                selected_phase_count = None
+                boundary_coherence = 0.0
+                supported_phase_count = 0
+                unsupported_phase_count = 0
+            else:
+                selected_phase_count = int(
+                    phase_structure["phase_count"]
+                )
+                boundary_coherence = float(
+                    phase_structure["boundary_coherence"]
+                )
+                supported_phase_count = int(
+                    phase_structure["supported_phase_count"]
+                )
+                unsupported_phase_count = int(
+                    phase_structure["unsupported_phase_count"]
+                )
             bucket = round(float(period) / 2.0) * 2.0
             windows.append(
                 {
@@ -119,6 +307,10 @@ def _local_regime_selection(
                     "event_count": int(event_count),
                     "score": float(score),
                     "confidence": float(confidence),
+                    "selected_phase_count": selected_phase_count,
+                    "boundary_coherence": boundary_coherence,
+                    "supported_phase_count": supported_phase_count,
+                    "unsupported_phase_count": unsupported_phase_count,
                 }
             )
         start += window_s
@@ -126,44 +318,13 @@ def _local_regime_selection(
     if not windows:
         return None
 
-    clusters = []
-    for window in windows:
-        placed = False
-        for cluster in clusters:
-            if abs(window["period_bucket_s"] - cluster["center_s"]) <= 4.0:
-                cluster["windows"].append(window)
-                weights = [max(1.0, float(item["event_count"])) * max(0.05, float(item["confidence"])) for item in cluster["windows"]]
-                cluster["center_s"] = float(
-                    sum(item["period_bucket_s"] * weight for item, weight in zip(cluster["windows"], weights))
-                    / max(1e-9, sum(weights))
-                )
-                placed = True
-                break
-        if not placed:
-            clusters.append(
-                {
-                    "center_s": float(window["period_bucket_s"]),
-                    "windows": [window],
-                }
-            )
-
-    for cluster in clusters:
-        cluster["support_events"] = int(
-            sum(int(item["event_count"]) for item in cluster["windows"])
-        )
-        cluster["support_windows"] = int(len(cluster["windows"]))
-        cluster["support_score"] = float(
-            sum(
-                max(1.0, float(item["event_count"]))
-                * max(0.05, float(item["confidence"]))
-                for item in cluster["windows"]
-            )
-        )
+    clusters = _cluster_local_regime_windows(windows)
 
     selected_cluster = max(
         clusters,
         key=lambda item: (
             item["support_score"],
+            item["support_windows"],
             item["support_events"],
             -abs(float(item["center_s"]) - 120.0),
         ),
@@ -171,7 +332,9 @@ def _local_regime_selection(
     representative = max(
         selected_cluster["windows"],
         key=lambda item: (
-            max(0.05, float(item["confidence"])) * max(1.0, float(item["event_count"])),
+            max(0.05, float(item["confidence"]))
+            * max(0.25, float(item.get("boundary_coherence", 0.0)))
+            * max(1.0, float(item["event_count"])),
             float(item["event_count"]),
         ),
     )
@@ -179,15 +342,20 @@ def _local_regime_selection(
     selected_end = float(representative["end_s"])
 
     return {
-        "method": "hourly_local_period_consensus",
+        "method": "hourly_local_period_and_topology_consensus",
         "window_s": float(window_s),
         "windows_evaluated": int(len(windows)),
         "candidate_regimes": [
             {
                 "period_s": round(float(cluster["center_s"]), 3),
+                "phase_count": cluster["phase_count"],
                 "support_windows": int(cluster["support_windows"]),
                 "support_events": int(cluster["support_events"]),
                 "support_score": round(float(cluster["support_score"]), 3),
+                "mean_boundary_coherence": round(
+                    float(cluster["mean_boundary_coherence"]),
+                    4,
+                ),
             }
             for cluster in sorted(
                 clusters,
@@ -196,16 +364,20 @@ def _local_regime_selection(
             )
         ],
         "selected_period_s": round(float(selected_cluster["center_s"]), 3),
+        "selected_phase_count": selected_cluster["phase_count"],
         "selected_window_start_s": round(selected_start, 3),
         "selected_window_end_s": round(selected_end, 3),
         "selected_window_event_count": int(representative["event_count"]),
-        "selected_window_confidence": round(float(representative["confidence"]), 4),
-        "scope": "single_representative_window_from_dominant_regime",
-    }, (
-        _slice_streams(by_stream, selected_start, selected_end),
-        _slice_streams(entry_streams, selected_start, selected_end),
-        _slice_streams(release_streams, selected_start, selected_end),
-    )
+        "selected_window_confidence": round(
+            float(representative["confidence"]),
+            4,
+        ),
+        "selected_window_boundary_coherence": round(
+            float(representative.get("boundary_coherence", 0.0)),
+            4,
+        ),
+        "scope": "single_representative_window_from_dominant_period_and_phase_topology",
+    }
 
 
 def _choose_phase_evidence(by_stream, release_streams, event_count: int):
