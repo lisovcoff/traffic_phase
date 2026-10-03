@@ -20,6 +20,32 @@ jobs:
       - run: python -m pytest -q
       - run: python -m scripts.e2e_smoke
 
+  v9-merge-benchmark:
+    name: V9 merge benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Run 500+500 redundancy benchmark
+        run: |
+          python -m scripts.v9_merge_e2e_synthetic_benchmark             --cases-per-class 500             --seed 20261003             --output /tmp/v9_merge_benchmark.json
+      - name: Enforce 98 percent acceptance
+        run: |
+          python - <<'PY'
+          import json
+          with open("/tmp/v9_merge_benchmark.json", encoding="utf-8") as handle:
+              report = json.load(handle)
+          metrics = report["redundancy_policy"]
+          print(metrics)
+          assert metrics["balanced_accuracy"] >= 0.98, metrics
+          assert metrics["true2_merge_recall"] >= 0.98, metrics
+          assert metrics["true3_false_merge_rate"] <= 0.04, metrics
+          PY
+
   lenina-regression:
     name: Lenina regression
     runs-on: ubuntu-latest

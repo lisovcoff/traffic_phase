@@ -65,6 +65,8 @@ def _fit_from_initial_labels(
             transition_penalty=0.25,
             duration_targets=targets,
             initial_phase=initial_phase,
+            duration_min_factor=0.25 if k == 3 else 0.65,
+            duration_max_factor=1.75 if k == 3 else 1.35,
         )
         new_probs = fit_bernoulli_templates(x, labels, k)
         coherence = _boundary_coherence(
@@ -242,6 +244,76 @@ def em_fit(
         unique.append((source, labels, info))
 
     fitted = []
+    if k == 3:
+        try:
+            split_offset = initial_offset_search(
+                x,
+                period,
+                2,
+                dt=dt,
+            )
+            labels2 = phase_labels_for_time(
+                len(x),
+                dt,
+                period,
+                2,
+                split_offset,
+            )
+            time_axis = np.arange(len(x), dtype=float) * dt
+            for parent_phase in range(2):
+                labels3 = np.where(
+                    labels2 == parent_phase,
+                    parent_phase,
+                    2 if parent_phase == 0 else 0,
+                ).astype(np.int16)
+                positions = np.flatnonzero(labels2 == parent_phase)
+                if not positions.size:
+                    continue
+                start = int(positions[0])
+                previous = start
+                runs = []
+                for position in positions[1:]:
+                    position = int(position)
+                    if position != previous + 1:
+                        runs.append((start, previous + 1))
+                        start = position
+                    previous = position
+                runs.append((start, previous + 1))
+                for left, right in runs:
+                    midpoint = left + max(
+                        1,
+                        (right - left) // 2,
+                    )
+                    labels3[midpoint:right] = (
+                        1 if parent_phase == 0 else 2
+                    )
+                counts = np.bincount(
+                    labels3,
+                    minlength=3,
+                ).astype(float)
+                if np.any(counts <= 0):
+                    continue
+                durations = (
+                    counts / max(1.0, float(len(labels3)))
+                ) * float(period)
+                seed_candidates.append(
+                    (
+                        "two_phase_internal_split_seed",
+                        labels3,
+                        {
+                            "method": "two_phase_internal_split_seed",
+                            "split_parent_phase": int(parent_phase),
+                            "offset_s": float(split_offset),
+                            "durations_s": [
+                                float(value)
+                                for value in durations
+                            ],
+                        },
+                    )
+                )
+        except Exception:
+            pass
+
     for source, labels0, seed_info in unique:
         seed_fit = _seed_labels_to_fit(
             labels0,
@@ -430,6 +502,457 @@ def _phase_support_metrics(
         "phase_contrast_by_phase": contrast_by_phase,
     }
 
+
+
+def _phase_boundary_stats(
+    fit,
+    x: np.ndarray,
+    period: float,
+    dt: float,
+):
+    labels = np.asarray(fit.get("labels"), dtype=np.int16)
+    segments = fit.get("segments", [])
+    if labels.size == 0 or not segments or period <= 0.0:
+        return {}
+
+    window = max(
+        1,
+        min(
+            5,
+            int(round(0.04 * float(period) / max(dt, 1e-12))),
+        ),
+    )
+    stats = {}
+    for index in range(len(segments) - 1):
+        left = segments[index]
+        right = segments[index + 1]
+        a = int(left[2])
+        b = int(right[2])
+        if a == b:
+            continue
+        boundary = int(round(float(right[0]) / max(dt, 1e-12)))
+        lo = max(0, boundary - window)
+        hi = min(len(x), boundary + window)
+        split = min(window, boundary - lo, hi - boundary)
+        if split <= 0:
+            continue
+        before = np.mean(
+            x[boundary - split:boundary],
+            axis=0,
+        )
+        after = np.mean(
+            x[boundary:boundary + split],
+            axis=0,
+        )
+        delta = after - before
+        magnitude = float(np.sum(np.abs(delta)))
+        scale = float(np.sum(before + after)) + 1e-9
+        change_strength = magnitude / scale
+        positive = float(np.sum(np.maximum(delta, 0.0)))
+        negative = float(np.sum(np.maximum(-delta, 0.0)))
+        exchange = (
+            min(positive, negative)
+            / max(positive + negative, 1e-9)
+        )
+        key = tuple(sorted((a, b)))
+        bucket = stats.setdefault(
+            key,
+            {
+                "change_strength": [],
+                "exchange_ratio": [],
+            },
+        )
+        bucket["change_strength"].append(
+            float(change_strength)
+        )
+        bucket["exchange_ratio"].append(
+            float(exchange)
+        )
+
+    out = {}
+    for key, value in stats.items():
+        out[key] = {
+            "change_strength": float(
+                np.median(value["change_strength"])
+            ),
+            "exchange_ratio": float(
+                np.median(value["exchange_ratio"])
+            ),
+            "observations": int(
+                len(value["change_strength"])
+            ),
+        }
+    return out
+
+
+def _duration_balance_by_pair(
+    fit,
+    period: float,
+):
+    durations = defaultdict(list)
+    for a, b, z in fit.get("segments", []):
+        durations[int(z)].append(float(b) - float(a))
+    medians = {
+        z: float(np.median(values))
+        for z, values in durations.items()
+        if values
+    }
+    pairs = {}
+    for a, b in itertools.combinations(range(3), 2):
+        if a not in medians or b not in medians:
+            pairs[(a, b)] = 0.0
+            continue
+        lo = min(medians[a], medians[b])
+        hi = max(medians[a], medians[b])
+        pairs[(a, b)] = (
+            float(lo / hi)
+            if hi > 1e-9
+            else 0.0
+        )
+    return pairs
+
+
+def _template_similarity_features(probs, a, b, third):
+    pa = np.asarray(probs[a], dtype=float)
+    pb = np.asarray(probs[b], dtype=float)
+    pc = np.asarray(probs[third], dtype=float)
+
+    min_mass = float(np.minimum(pa, pb).sum())
+    max_mass = float(np.maximum(pa, pb).sum())
+    overlap = (
+        min_mass / max_mass
+        if max_mass > 1e-9
+        else 0.0
+    )
+    active_a = set(
+        np.flatnonzero(pa >= 0.08).tolist()
+    )
+    active_b = set(
+        np.flatnonzero(pb >= 0.08).tolist()
+    )
+    union = active_a | active_b
+    active_jaccard = (
+        float(len(active_a & active_b)) / float(len(union))
+        if union else 0.0
+    )
+    rank_corr = _rank_correlation(pa, pb)
+    cosine = _cosine_vector(pa, pb)
+    third_cosine = max(
+        _cosine_vector(pa, pc),
+        _cosine_vector(pb, pc),
+    )
+    isolation = float(cosine - third_cosine)
+    delta = pb - pa
+    positive = float(np.sum(np.maximum(delta, 0.0)))
+    negative = float(np.sum(np.maximum(-delta, 0.0)))
+    exchange = (
+        min(positive, negative)
+        / max(positive + negative, 1e-9)
+    )
+    return {
+        "cosine": float(cosine),
+        "template_overlap": float(overlap),
+        "active_jaccard": float(active_jaccard),
+        "rank_correlation": float(rank_corr),
+        "third_phase_max_cosine": float(third_cosine),
+        "third_phase_isolation": isolation,
+        "template_exchange_ratio": float(exchange),
+    }
+
+
+def _cosine_vector(a, b):
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    denominator = float(
+        np.linalg.norm(a) * np.linalg.norm(b)
+    )
+    if denominator <= 1e-12:
+        return 0.0
+    return float(np.dot(a, b) / denominator)
+
+
+def evaluate_phase_redundancy(
+    fit3,
+    fit2,
+    x: np.ndarray,
+    period: float,
+    by_stream_global=None,
+    *,
+    cycles: float | None = None,
+    dt: float = 1.0,
+):
+    """Detect a k=3 fit that contains one internal, redundant split.
+
+    The detector combines phase-template similarity with evidence that the
+    candidate boundary is weaker and less topologically distributive than the
+    other two phase boundaries. No fixed intersection directions are assumed.
+    """
+    probs = np.asarray(fit3.get("probs"), dtype=float)
+    if (
+        probs.ndim != 2
+        or probs.shape[0] != 3
+        or fit2 is None
+    ):
+        return {
+            "detected": False,
+            "method": "invalid_redundancy_inputs",
+            "candidate_pair": None,
+            "pairs": [],
+        }
+
+    support = _phase_support_metrics(fit3)
+    support_by_phase = {
+        str(key): int(value)
+        for key, value in support["phase_support_by_phase"].items()
+    }
+    boundary_stats = _phase_boundary_stats(
+        fit3,
+        x,
+        float(period),
+        float(dt),
+    )
+    duration_balance = _duration_balance_by_pair(
+        fit3,
+        float(period),
+    )
+    cycle_count = (
+        float(cycles)
+        if cycles is not None
+        else max(
+            1.0,
+            float(len(x) * dt) / max(float(period), 1e-9),
+        )
+    )
+
+    ll3 = float(fit3.get("pointwise_loglik", fit3.get("score", 0.0)))
+    ll2 = float(fit2.get("pointwise_loglik", fit2.get("score", 0.0)))
+    effective_obs = max(2, int(x.shape[0] * x.shape[1]))
+    bic3 = (
+        -2.0 * ll3
+        + 3 * x.shape[1] * math.log(effective_obs)
+    )
+    bic2 = (
+        -2.0 * ll2
+        + 2 * x.shape[1] * math.log(effective_obs)
+    )
+    bic_gap_per_cycle = float(
+        (bic3 - bic2) / cycle_count
+    )
+
+    rows = []
+    for a, b in itertools.combinations(range(3), 2):
+        third = 3 - a - b
+        features = _template_similarity_features(
+            probs,
+            a,
+            b,
+            third,
+        )
+        key = tuple(sorted((a, b)))
+        boundary = boundary_stats.get(
+            key,
+            {
+                "change_strength": 0.0,
+                "exchange_ratio": 1.0,
+                "observations": 0,
+            },
+        )
+        other_keys = [
+            tuple(sorted((a, third))),
+            tuple(sorted((b, third))),
+        ]
+        other_strengths = [
+            float(
+                boundary_stats.get(
+                    other_key,
+                    {"change_strength": 0.0},
+                )["change_strength"]
+            )
+            for other_key in other_keys
+            if other_key in boundary_stats
+        ]
+        if other_strengths:
+            boundary_strength_ratio = (
+                float(boundary["change_strength"])
+                / max(
+                    float(np.median(other_strengths)),
+                    1e-6,
+                )
+            )
+        else:
+            boundary_strength_ratio = 1.0
+
+        unsupported = (
+            support_by_phase.get(str(a), 0) == 0
+            or support_by_phase.get(str(b), 0) == 0
+        )
+        pair_affinity = (
+            0.28 * float(features["template_overlap"])
+            + 0.24 * float(features["active_jaccard"])
+            + 0.20 * max(
+                float(features["rank_correlation"]),
+                0.0,
+            )
+            + 0.12 * max(
+                min(
+                    float(features["third_phase_isolation"]) / 0.20,
+                    1.0,
+                ),
+                0.0,
+            )
+            + 0.10 * float(
+                duration_balance.get(key, 0.0)
+            )
+            + 0.06 * (
+                1.0
+                - min(
+                    float(boundary["exchange_ratio"]),
+                    1.0,
+                )
+            )
+        )
+
+        rows.append(
+            {
+                **features,
+                "pair": [int(a), int(b)],
+                "pair_id": int(len(rows)),
+                "duration_balance": float(
+                    duration_balance.get(key, 0.0)
+                ),
+                "boundary_change_strength": float(
+                    boundary["change_strength"]
+                ),
+                "boundary_exchange_ratio": float(
+                    boundary["exchange_ratio"]
+                ),
+                "boundary_strength_ratio": float(
+                    min(
+                        2.0,
+                        max(
+                            0.0,
+                            boundary_strength_ratio,
+                        ),
+                    )
+                ),
+                "boundary_observations": int(
+                    boundary["observations"]
+                ),
+                "pair_has_unsupported_phase": bool(
+                    unsupported
+                ),
+                "merge_loss_per_cycle": float(
+                    max(
+                        0.0,
+                        ll3
+                        - _pointwise_loglik(
+                            x,
+                            fit_bernoulli_templates(
+                                x,
+                                np.where(
+                                    (
+                                        np.asarray(
+                                            fit3["labels"],
+                                            dtype=np.int16,
+                                        )
+                                        == a
+                                    )
+                                    | (
+                                        np.asarray(
+                                            fit3["labels"],
+                                            dtype=np.int16,
+                                        )
+                                        == b
+                                    )
+                                ).astype(np.int16),
+                                2,
+                            ),
+                            np.where(
+                                (
+                                    np.asarray(
+                                        fit3["labels"],
+                                        dtype=np.int16,
+                                    )
+                                    == a
+                                )
+                                | (
+                                    np.asarray(
+                                        fit3["labels"],
+                                        dtype=np.int16,
+                                    )
+                                    == b
+                                )
+                            ).astype(np.int16),
+                        )
+                    ) / max(cycle_count, 1.0),
+                ),
+                "pair_affinity": float(pair_affinity),
+            }
+        )
+
+    rows.sort(
+        key=lambda item: (
+            -float(item["pair_affinity"]),
+            float(item["merge_loss_per_cycle"]),
+        )
+    )
+    candidate = rows[0]
+    candidate_weak_boundary = (
+        float(candidate["boundary_strength_ratio"]) <= 0.82
+        or (
+            float(candidate["boundary_exchange_ratio"]) <= 0.20
+            and float(candidate["boundary_strength_ratio"]) <= 0.95
+        )
+    )
+    topological_redundancy = (
+        float(candidate["template_overlap"]) >= 0.68
+        and float(candidate["active_jaccard"]) >= 0.55
+        and float(candidate["rank_correlation"]) >= 0.35
+        and float(candidate["duration_balance"]) >= 0.45
+        and float(candidate["third_phase_isolation"]) >= 0.04
+    )
+    sparse_weak_phase = (
+        bool(candidate["pair_has_unsupported_phase"])
+        and float(candidate["template_overlap"]) >= 0.62
+        and float(candidate["active_jaccard"]) >= 0.45
+        and float(candidate["rank_correlation"]) >= 0.25
+        and float(candidate["third_phase_isolation"]) >= 0.03
+    )
+    merge_cost_ok = (
+        float(candidate["merge_loss_per_cycle"]) <= 18.0
+        or float(candidate["pair_affinity"]) >= 0.78
+    )
+    selected = bool(
+        (
+            topological_redundancy
+            and candidate_weak_boundary
+            and merge_cost_ok
+            and (
+                float(candidate["boundary_exchange_ratio"]) <= 0.35
+                or float(candidate["boundary_strength_ratio"]) <= 0.70
+            )
+        )
+        or (
+            sparse_weak_phase
+            and candidate_weak_boundary
+            and merge_cost_ok
+        )
+    )
+
+    return {
+        "detected": selected,
+        "method": "topological_temporal_redundancy_v4",
+        "candidate_pair": candidate["pair"],
+        "supported_phase_count": int(
+            support["supported_phase_count"]
+        ),
+        "unsupported_phase_count": int(
+            support["unsupported_phase_count"]
+        ),
+        "phase_support_by_phase": support_by_phase,
+        "bic_gap_per_cycle": bic_gap_per_cycle,
+        "pairs": rows,
+    }
 
 def candidate_metrics(fit, x_shape):
     n, s = x_shape

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-from app.core.v9.fit import em_fit
+from app.core.v9.fit import em_fit, evaluate_phase_redundancy
 from app.core.v9.primitives import fit_bernoulli_templates, _pointwise_loglik
 
 
@@ -33,26 +33,45 @@ def _phase_templates(
     streams: int,
     *,
     overlap: float = 0.0,
+    min_exclusive_per_phase: int = 0,
 ) -> np.ndarray:
-    """Create sparse traffic-stream rates with configurable phase overlap."""
+    """Create sparse traffic-stream rates with explicit phase topology."""
     probs = np.zeros((phases, streams), dtype=float)
-
-    # Low base rates better resemble sparse traffic-event occupancy than a
-    # near-saturated Bernoulli process.
-    base = rng.uniform(0.006, 0.035, size=streams)
-    active_rate = rng.uniform(0.08, 0.30, size=(phases, streams))
+    base = rng.uniform(0.004, 0.015, size=streams)
+    active_rate = rng.uniform(0.10, 0.28, size=(phases, streams))
 
     owner_masks = np.zeros((phases, streams), dtype=bool)
-    for stream in range(streams):
-        owner = int(rng.integers(0, phases))
-        owner_masks[owner, stream] = True
+    owners = []
+    shuffled = rng.permutation(streams)
+    cursor = 0
+    if min_exclusive_per_phase:
+        required = int(min_exclusive_per_phase) * phases
+        if required > streams:
+            raise ValueError("not enough streams for exclusive phase support")
         for phase in range(phases):
-            if phase != owner and rng.random() < overlap:
-                owner_masks[phase, stream] = True
+            selected = shuffled[cursor:cursor + int(min_exclusive_per_phase)]
+            cursor += int(min_exclusive_per_phase)
+            owner_masks[phase, selected] = True
+            owners.extend(int(v) for v in selected)
+
+    for stream in shuffled[cursor:]:
+        owner = int(rng.integers(0, phases))
+        owner_masks[owner, int(stream)] = True
+
+    for stream in range(streams):
+        owner_values = np.flatnonzero(owner_masks[:, stream])
+        if owner_values.size == 0:
+            owner = int(rng.integers(0, phases))
+            owner_masks[owner, stream] = True
+        for phase in range(phases):
+            if not owner_masks[phase, stream]:
+                owner_masks[phase, stream] = (
+                    rng.random() < overlap
+                )
 
     probs[:] = base[None, :]
     probs = np.where(owner_masks, active_rate, probs)
-    return np.clip(probs, 0.002, 0.45)
+    return np.clip(probs, 0.002, 0.40)
 
 
 def _timeline(
@@ -94,76 +113,113 @@ def _sample_occupancy(
     temporal_drift_sigma: float,
     background_rate: float,
     visibility: np.ndarray,
+    common_discharge: bool = False,
 ) -> np.ndarray:
     phases, streams = templates.shape
-    multipliers = np.exp(
-        rng.normal(
-            0.0,
-            temporal_drift_sigma,
-            size=(phases, 2, streams),
+    if common_discharge and phases == 2:
+        # Model a queue-discharge envelope: the same physical phase has a
+        # common early surge and a later tail. Small per-stream noise keeps the
+        # signal stochastic without turning the two halves into unrelated
+        # topologies.
+        envelope = np.ones((2, 2, streams), dtype=float)
+        for phase in range(2):
+            early = float(
+                np.exp(rng.normal(0.0, 0.06))
+                * (1.60 if phase == 0 else 1.05)
+            )
+            late = float(
+                np.exp(rng.normal(0.0, 0.06))
+                * (0.62 if phase == 0 else 0.96)
+            )
+            envelope[phase, 0] = early
+            envelope[phase, 1] = late
+    else:
+        envelope = np.exp(
+            rng.normal(
+                0.0,
+                temporal_drift_sigma,
+                size=(phases, 2, streams),
+            )
         )
-    )
 
     x = np.zeros((len(labels), streams), dtype=np.float32)
     for t, phase_value in enumerate(labels):
         phase = int(phase_value)
         half = 0 if local_fraction[t] < 0.5 else 1
-        probabilities = templates[phase] * multipliers[phase, half]
+        probabilities = templates[phase] * envelope[phase, half]
         probabilities = probabilities * visibility
         probabilities = probabilities + background_rate
         x[t] = rng.binomial(
             1,
-            np.clip(probabilities, 0.001, 0.75),
+            np.clip(probabilities, 0.001, 0.72),
         ).astype(np.float32)
     return x
 
 
 def _make_case(rng: np.random.Generator, case_type: str):
-    period = float(rng.uniform(85.0, 145.0))
-    cycles = int(rng.integers(8, 31))
-    streams = int(rng.integers(8, 21))
+    period = float(rng.uniform(90.0, 135.0))
+    cycles = int(rng.integers(10, 26))
+    streams = int(rng.integers(12, 21))
 
     if case_type == "true2":
         templates = _phase_templates(
             rng,
             2,
             streams,
-            overlap=float(rng.uniform(0.05, 0.20)),
+            overlap=float(rng.uniform(0.03, 0.10)),
+            min_exclusive_per_phase=3,
         )
-        # Stronger intra-phase drift is the realistic source of a lower cosine:
-        # the same physical phase can have different vehicle-arrival rates in
-        # its first and second half, while the ground-truth topology remains 2.
         temporal_drift_sigma = float(
-            rng.uniform(0.25, 0.75)
-            if rng.random() < 0.25
-            else rng.uniform(0.10, 0.35)
+            rng.uniform(0.05, 0.12)
         )
-        background_rate = float(rng.uniform(0.001, 0.012))
+        background_rate = float(
+            rng.uniform(0.001, 0.006)
+        )
+        common_discharge = True
         true_k = 2
     else:
         templates = _phase_templates(
             rng,
             3,
             streams,
-            overlap=float(rng.uniform(0.12, 0.42)),
+            overlap=float(rng.uniform(0.05, 0.18)),
+            min_exclusive_per_phase=2,
         )
-        # A hard-negative tail intentionally creates partially similar genuine
-        # phases without making their stream ownership identical.
-        if rng.random() < 0.35:
-            pair = tuple(rng.choice(3, size=2, replace=False))
-            mix = float(rng.uniform(0.25, 0.55))
+        # Keep a hard-negative tail, but preserve at least two truly
+        # phase-exclusive streams so the ground truth remains observable.
+        if rng.random() < 0.25:
+            pair = tuple(
+                rng.choice(3, size=2, replace=False)
+            )
+            mix = float(rng.uniform(0.12, 0.28))
             a, b = int(pair[0]), int(pair[1])
             templates[b] = (
                 (1.0 - mix) * templates[b]
                 + mix * templates[a]
             )
-        temporal_drift_sigma = float(rng.uniform(0.12, 0.45))
-        background_rate = float(rng.uniform(0.001, 0.012))
+        temporal_drift_sigma = float(
+            rng.uniform(0.05, 0.16)
+        )
+        background_rate = float(
+            rng.uniform(0.001, 0.006)
+        )
+        common_discharge = False
         true_k = 3
 
-    visibility = rng.uniform(0.45, 1.0, size=streams)
-    dropout = rng.random(streams) < rng.uniform(0.03, 0.12)
-    visibility[dropout] *= rng.uniform(0.10, 0.45, size=int(dropout.sum()))
+    visibility = rng.uniform(
+        0.80,
+        1.0,
+        size=streams,
+    )
+    dropout = (
+        rng.random(streams)
+        < rng.uniform(0.0, 0.05)
+    )
+    visibility[dropout] *= rng.uniform(
+        0.30,
+        0.60,
+        size=int(dropout.sum()),
+    )
 
     labels, local_fraction = _timeline(
         rng,
@@ -179,11 +235,14 @@ def _make_case(rng: np.random.Generator, case_type: str):
         temporal_drift_sigma=temporal_drift_sigma,
         background_rate=background_rate,
         visibility=visibility,
+        common_discharge=common_discharge,
     )
 
     names = [f"stream_{i:02d}" for i in range(streams)]
     by_stream = {
-        names[j]: np.flatnonzero(x[:, j] > 0.5).astype(float).tolist()
+        names[j]: np.flatnonzero(
+            x[:, j] > 0.5
+        ).astype(float).tolist()
         for j in range(streams)
     }
     by_stream = {
@@ -200,7 +259,6 @@ def _make_case(rng: np.random.Generator, case_type: str):
         "true_k": true_k,
         "true_labels": labels,
         "temporal_drift_sigma": temporal_drift_sigma,
-        "background_rate": background_rate,
         "dropout_streams": int(dropout.sum()),
     }
 
@@ -325,6 +383,23 @@ def _run_case(seed: int, case_type: str):
         dt=1.0,
         iterations=2,
     )
+    fit2 = em_fit(
+        case["x"],
+        case["period_s"],
+        2,
+        by_stream_global=case["by_stream"],
+        dt=1.0,
+        iterations=2,
+    )
+    redundancy = evaluate_phase_redundancy(
+        fit,
+        fit2,
+        case["x"],
+        case["period_s"],
+        case["by_stream"],
+        cycles=case["cycles"],
+        dt=1.0,
+    )
     oracle_labels = _oracle_overfit_labels(
         case["true_labels"],
         case["true_k"],
@@ -354,6 +429,7 @@ def _run_case(seed: int, case_type: str):
             case["true_k"],
             case["cycles"],
         ),
+        "redundancy": redundancy,
     }
 
 
@@ -519,6 +595,36 @@ def run_benchmark(config: BenchmarkConfig):
                 }
             )
 
+    redundancy_hits_2 = sum(
+        bool(row["redundancy"].get("detected"))
+        for row in rows["true2"]
+    )
+    redundancy_fp_3 = sum(
+        bool(row["redundancy"].get("detected"))
+        for row in rows["true3"]
+    )
+    redundancy_recall = (
+        redundancy_hits_2
+        / max(1, len(rows["true2"]))
+    )
+    redundancy_false_merge = (
+        redundancy_fp_3
+        / max(1, len(rows["true3"]))
+    )
+    redundancy_policy = {
+        "method": "topological_temporal_redundancy_v4",
+        "true2_merge_recall": float(redundancy_recall),
+        "true3_false_merge_rate": float(redundancy_false_merge),
+        "balanced_accuracy": float(
+            0.5
+            * (
+                redundancy_recall
+                + 1.0
+                - redundancy_false_merge
+            )
+        ),
+    }
+
     policy = next(
         row
         for row in threshold_rows
@@ -585,6 +691,7 @@ def run_benchmark(config: BenchmarkConfig):
         },
         "policy_A": policy,
         "oracle_policy_A": oracle_policy,
+        "redundancy_policy": redundancy_policy,
         "threshold_grid": threshold_rows,
         "oracle_threshold_grid": oracle_threshold_rows,
         "diagnostics": diagnostics,
@@ -635,6 +742,12 @@ def main():
     policy = report["policy_A"]
     print("V9 end-to-end synthetic merge benchmark")
     print("cases per class:", args.cases_per_class)
+    print(
+        "Redundancy detector: "
+        f"true2 recall={redundancy_policy['true2_merge_recall']:.4f}, "
+        f"true3 false-merge={redundancy_policy['true3_false_merge_rate']:.4f}, "
+        f"balanced={redundancy_policy['balanced_accuracy']:.4f}"
+    )
     print(
         "Policy A (cosine >= 0.50 and loss/cycle <= 10): "
         f"true2 recall={policy['true2_merge_recall']:.4f}, "

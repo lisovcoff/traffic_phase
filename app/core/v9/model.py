@@ -11,7 +11,12 @@ import numpy as np
 from scipy.ndimage import gaussian_filter1d
 
 from .primitives import build_streams_from_base, build_occupancy_matrix, infer_period
-from .fit import discover_phase_count, anonymous_phase_name, phase_activity_summary
+from .fit import (
+    discover_phase_count,
+    anonymous_phase_name,
+    phase_activity_summary,
+    evaluate_phase_redundancy,
+)
 from .events import (
     extract_event_views,
     load_event_streams,
@@ -619,7 +624,26 @@ def _discover_from_stream_views(
         entry_streams=working_entry_streams,
         topology_streams=working_by_stream,
     )
+    raw_selected_k = int(selected_k)
+    phase_redundancy = {
+        "detected": False,
+        "method": "not_evaluated",
+        "candidate_pair": None,
+        "pairs": [],
+    }
     fit = all_fits[selected_k]
+    if selected_k == 3 and 2 in all_fits:
+        phase_redundancy = evaluate_phase_redundancy(
+            all_fits[3],
+            all_fits[2],
+            x,
+            period,
+            phase_evidence,
+            dt=dt,
+        )
+        if bool(phase_redundancy.get("detected")):
+            selected_k = 2
+            fit = all_fits[2]
 
     raw_segments = [
         tuple(float(value) for value in segment)
@@ -735,6 +759,7 @@ def _discover_from_stream_views(
             }
         ),
         "phase_anchor_calibration": phase_anchor_calibration,
+        "phase_redundancy": phase_redundancy,
         "phase_evidence": {
             "source": phase_evidence_method,
             "release_event_count": int(
@@ -742,7 +767,12 @@ def _discover_from_stream_views(
             ),
         },
         "phase_model_selection": {
+            "raw_selected_phase_count": int(raw_selected_k),
             "selected_phase_count": int(selected_k),
+            "redundancy_detector": phase_redundancy.get(
+                "method",
+                "not_evaluated",
+            ),
             "topology_prior": {
                 "canonical_four_leg_cap_applied": bool(
                     any(
