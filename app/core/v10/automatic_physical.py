@@ -314,13 +314,18 @@ def infer_physical_signal_plan(
                 if probability >= TURN_CANDIDATE_EVIDENCE_THRESHOLD:
                     suppressed_turn_movements_by_phase[phase].append(movement)
 
-    def _supported_turn_pairs(candidates: set[str]) -> set[str]:
-        """Return turn movements that have a coherent counterpart.
+    def _supported_turn_pairs(
+        phase: str,
+        candidates: set[str],
+    ) -> set[str]:
+        """Return turn movements with coherent paired evidence.
 
         A counterpart can be the reverse movement (for example N->E/E->N)
-        or the geometrically paired movement from the opposite approach
-        (for example N->E/S->W). A lone turn candidate is treated as traffic
-        leakage rather than as evidence for a physical arrow.
+        or the paired movement from the opposite approach
+        (for example N->E/S->W). When a pair shares a sufficiently strong
+        same-approach straight movement, that straight evidence must be at
+        least twice the turn evidence before the turns are promoted. A
+        turn-only phase can rely on the pair itself.
         """
         supported: set[str] = set()
         for movement in candidates:
@@ -329,9 +334,37 @@ def infer_physical_signal_plan(
                 f"{target}->{source}",
                 f"{OPPOSITE[source]}->{OPPOSITE[target]}",
             }
-            if candidates.intersection(counterparts):
-                supported.add(movement)
-                supported.update(candidates.intersection(counterparts))
+            for partner in sorted(candidates.intersection(counterparts)):
+                pair = (movement, partner)
+                source_main_exists = any(
+                    float(activity[phase].get(
+                        f"{item.split('->', 1)[0]}"
+                        f"->{OPPOSITE[item.split('->', 1)[0]]}",
+                        0.0,
+                    )) >= float(activity_threshold)
+                    for item in pair
+                )
+                strong_source_main = any(
+                    (
+                        float(activity[phase].get(
+                            f"{item.split('->', 1)[0]}"
+                            f"->{OPPOSITE[item.split('->', 1)[0]]}",
+                            0.0,
+                        ))
+                        >= float(activity_threshold)
+                        and float(activity[phase].get(
+                            f"{item.split('->', 1)[0]}"
+                            f"->{OPPOSITE[item.split('->', 1)[0]]}",
+                            0.0,
+                        ))
+                        >= 2.0 * float(
+                            activity[phase].get(item, 0.0)
+                        )
+                    )
+                    for item in pair
+                )
+                if not source_main_exists or strong_source_main:
+                    supported.update(pair)
         return supported
 
     # Do not let a single weak turn candidate create a third physical phase.
@@ -343,13 +376,50 @@ def infer_physical_signal_plan(
         if not candidates:
             continue
 
-        supported = _supported_turn_pairs(candidates)
+        supported = _supported_turn_pairs(phase, candidates)
         green = set(green_by_phase[phase])
         green.update(supported)
         green_by_phase[phase] = frozenset(sorted(green))
 
         for movement in sorted(candidates - supported):
             suppressed_turn_movements_by_phase[phase].append(movement)
+
+        # If turn candidates were the only evidence for this phase, recover
+        # the strongest selective straight movement rather than emitting an
+        # empty MIXED phase after suppressing the unsupported turns.
+        if not green:
+            straight_candidates: list[tuple[float, str]] = []
+            for movement in movements:
+                if not _is_straight(movement):
+                    continue
+                probability = float(activity[phase].get(movement, 0.0))
+                other_peak = max(
+                    (
+                        float(activity[item].get(movement, 0.0))
+                        for item in names
+                        if item != phase
+                    ),
+                    default=0.0,
+                )
+                if (
+                    probability >= TURN_CANDIDATE_EVIDENCE_THRESHOLD
+                    and probability
+                    >= TURN_CANDIDATE_SELECTIVITY_RATIO
+                    * max(other_peak, 0.001)
+                ):
+                    straight_candidates.append((probability, movement))
+
+            if straight_candidates:
+                best_probability = max(
+                    probability for probability, _movement
+                    in straight_candidates
+                )
+                green.update(
+                    movement
+                    for probability, movement in straight_candidates
+                    if probability >= 0.75 * best_probability
+                )
+            green_by_phase[phase] = frozenset(sorted(green))
 
     # Preserve the physical NS/EW main sections when V9 statistically splits
     # the two reciprocal straight streams between phases.
