@@ -289,6 +289,10 @@ def infer_physical_signal_plan(
     suppressed_turn_movements_by_phase: dict[str, list[str]] = {
         phase: [] for phase in names
     }
+    turn_candidates_by_phase: dict[str, set[str]] = {
+        phase: set() for phase in names
+    }
+
     for movement in movements:
         if _is_straight(movement):
             continue
@@ -304,13 +308,52 @@ def infer_physical_signal_plan(
             and best_probability >= TURN_CANDIDATE_SELECTIVITY_RATIO * max(second_probability, 0.001)
             and best_probability - second_probability >= TURN_CANDIDATE_MIN_MARGIN
         ):
-            green = set(green_by_phase[best_phase])
-            green.add(movement)
-            green_by_phase[best_phase] = frozenset(sorted(green))
+            turn_candidates_by_phase[best_phase].add(movement)
         else:
             for phase, probability in values.items():
                 if probability >= TURN_CANDIDATE_EVIDENCE_THRESHOLD:
                     suppressed_turn_movements_by_phase[phase].append(movement)
+
+    # A protected-turn candidate is accepted only when the phase has enough
+    # same-phase straight traffic to support the extra physical arrow. This
+    # prevents traffic leakage from dominating a short V9 split and producing
+    # a phantom third physical phase. Turn-only phases remain valid when they
+    # contain a reciprocal pair of turn movements.
+    for phase in names:
+        candidates = turn_candidates_by_phase[phase]
+        if not candidates:
+            continue
+
+        straight_evidence = sum(
+            float(activity[phase].get(movement, 0.0))
+            for movement in movements
+            if _is_straight(movement)
+        )
+        turn_evidence = sum(
+            float(activity[phase].get(movement, 0.0))
+            for movement in candidates
+        )
+
+        reciprocal_pair = any(
+            f"{target}->{source}" in candidates
+            for movement in candidates
+            for source, target in [movement.split("->", 1)]
+        )
+
+        if straight_evidence > 0.0 and turn_evidence <= straight_evidence:
+            green = set(green_by_phase[phase])
+            green.update(candidates)
+            green_by_phase[phase] = frozenset(sorted(green))
+            continue
+
+        if straight_evidence <= 0.0 and reciprocal_pair:
+            green = set(green_by_phase[phase])
+            green.update(candidates)
+            green_by_phase[phase] = frozenset(sorted(green))
+            continue
+
+        for movement in sorted(candidates):
+            suppressed_turn_movements_by_phase[phase].append(movement)
 
     # Preserve the physical NS/EW main sections when V9 statistically splits
     # the two reciprocal straight streams between phases.
