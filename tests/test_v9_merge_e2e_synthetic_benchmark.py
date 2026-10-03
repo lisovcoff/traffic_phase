@@ -49,3 +49,9 @@ def test_v9_e2e_synthetic_benchmark_exposes_case_level_diagnostics():
 
     assert "oracle_policy_A" in report
     assert "oracle_threshold_grid" in report
+
+
+def test_v9_redundancy_probe_report(capsys):
+    report = run_benchmark(BenchmarkConfig(cases_per_class=40, seed=20261003))
+    print(report["redundancy_policy"])
+    assert 0.0 <= report["redundancy_policy"]["balanced_accuracy"] <= 1.0

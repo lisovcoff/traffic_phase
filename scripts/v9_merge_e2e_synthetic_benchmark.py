@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-from app.core.v9.fit import em_fit
+from app.core.v9.fit import em_fit, evaluate_phase_redundancy
 from app.core.v9.primitives import fit_bernoulli_templates, _pointwise_loglik
 
 
@@ -325,6 +325,17 @@ def _run_case(seed: int, case_type: str):
         dt=1.0,
         iterations=2,
     )
+    fit2 = em_fit(
+        case["x"],
+        case["period_s"],
+        2,
+        by_stream_global=case["by_stream"],
+        dt=1.0,
+        iterations=2,
+    )
+    redundancy = evaluate_phase_redundancy(
+        fit, fit2, case["x"], case["period_s"], case["by_stream"], cycles=case["cycles"]
+    )
     oracle_labels = _oracle_overfit_labels(
         case["true_labels"],
         case["true_k"],
@@ -354,6 +365,7 @@ def _run_case(seed: int, case_type: str):
             case["true_k"],
             case["cycles"],
         ),
+        "redundancy": redundancy,
     }
 
 
@@ -519,6 +531,15 @@ def run_benchmark(config: BenchmarkConfig):
                 }
             )
 
+    redundancy_true2 = sum(bool(r["redundancy"]["detected"]) for r in rows["true2"]) / max(1, len(rows["true2"]))
+    redundancy_true3 = sum(bool(r["redundancy"]["detected"]) for r in rows["true3"]) / max(1, len(rows["true3"]))
+    redundancy_policy = {
+        "method": "hierarchical_topological_redundancy_v2",
+        "true2_merge_recall": float(redundancy_true2),
+        "true3_false_merge_rate": float(redundancy_true3),
+        "balanced_accuracy": float(0.5 * (redundancy_true2 + 1.0 - redundancy_true3)),
+    }
+
     policy = next(
         row
         for row in threshold_rows
@@ -585,6 +606,7 @@ def run_benchmark(config: BenchmarkConfig):
         },
         "policy_A": policy,
         "oracle_policy_A": oracle_policy,
+        "redundancy_policy": redundancy_policy,
         "threshold_grid": threshold_rows,
         "oracle_threshold_grid": oracle_threshold_rows,
         "diagnostics": diagnostics,
@@ -633,6 +655,12 @@ def main():
     )
 
     policy = report["policy_A"]
+    print(
+        "Redundancy detector: "
+        f"true2 recall={report['redundancy_policy']['true2_merge_recall']:.4f}, "
+        f"true3 false-merge={report['redundancy_policy']['true3_false_merge_rate']:.4f}, "
+        f"balanced={report['redundancy_policy']['balanced_accuracy']:.4f}"
+    )
     print("V9 end-to-end synthetic merge benchmark")
     print("cases per class:", args.cases_per_class)
     print(

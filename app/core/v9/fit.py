@@ -431,6 +431,124 @@ def _phase_support_metrics(
     }
 
 
+
+
+def _phase_topology_pair(probs: np.ndarray, fit3, x: np.ndarray, period: float, pair, cycles: float):
+    a, b = map(int, pair)
+    pa = np.asarray(probs[a], dtype=float)
+    pb = np.asarray(probs[b], dtype=float)
+    active = [
+        set(np.flatnonzero(row >= 0.08).tolist())
+        for row in probs
+    ]
+    sa, sb = active[a], active[b]
+    union = sa | sb
+    active_jaccard = len(sa & sb) / len(union) if union else 0.0
+    min_mass = float(np.minimum(pa, pb).sum())
+    max_mass = float(np.maximum(pa, pb).sum())
+    overlap = min_mass / max_mass if max_mass > 1e-12 else 0.0
+    coverage = max(
+        min_mass / max(float(pa.sum()), 1e-12),
+        min_mass / max(float(pb.sum()), 1e-12),
+    )
+    exclusive_ratio = float(np.abs(pa - pb).sum()) / max(float((pa + pb).sum()), 1e-12)
+    rank_corr = 0.0
+    if pa.size >= 2 and np.std(pa) > 1e-12 and np.std(pb) > 1e-12:
+        rank_corr = float(np.corrcoef(np.argsort(np.argsort(pa)), np.argsort(np.argsort(pb)))[0, 1])
+    support = _phase_support_metrics(fit3)
+    pair_has_unsupported = (
+        int(support["phase_support_by_phase"].get(str(a), 0)) == 0
+        or int(support["phase_support_by_phase"].get(str(b), 0)) == 0
+    )
+    third = 3 - a - b
+    pc = np.asarray(probs[third], dtype=float)
+    mask = (np.abs(pa - pc) >= 0.02) | (np.abs(pb - pc) >= 0.02)
+    third_order = (
+        float(np.mean(np.sign(pa[mask] - pc[mask]) == np.sign(pb[mask] - pc[mask])))
+        if np.any(mask)
+        else 0.0
+    )
+    labels = np.asarray(fit3["labels"], dtype=np.int16)
+    ll3 = _pointwise_loglik(x, probs, labels)
+    merged = np.where((labels == a) | (labels == b), 0, 1).astype(np.int16)
+    ll2 = _pointwise_loglik(x, fit_bernoulli_templates(x, merged, 2), merged)
+    loss = float((ll3 - ll2) / max(float(cycles), 1.0))
+    score = (
+        0.25 * overlap
+        + 0.22 * coverage
+        + 0.18 * active_jaccard
+        + 0.15 * max(rank_corr, 0.0)
+        + 0.12 * third_order
+        - 0.18 * exclusive_ratio
+        + (0.12 if pair_has_unsupported else 0.0)
+    )
+    return {
+        "pair": [a, b],
+        "cosine": float(np.dot(pa, pb) / max(float(np.linalg.norm(pa) * np.linalg.norm(pb)), 1e-12)),
+        "template_overlap": float(overlap),
+        "coverage": float(coverage),
+        "active_jaccard": float(active_jaccard),
+        "exclusive_mass_ratio": float(exclusive_ratio),
+        "rank_correlation": float(rank_corr),
+        "third_order_consistency": float(third_order),
+        "merge_loss_per_cycle": loss,
+        "pair_has_unsupported_phase": bool(pair_has_unsupported),
+        "redundancy_score": float(score),
+    }
+
+
+def evaluate_phase_redundancy(fit3, fit2, x: np.ndarray, period: float, by_stream_global=None, *, cycles: float | None = None):
+    """Return structural evidence for collapsing a k=3 over-split."""
+    if fit2 is None:
+        return {"detected": False, "method": "missing_k2_fit", "candidate_pair": None, "pairs": []}
+    probs = np.asarray(fit3.get("probs"), dtype=float)
+    if probs.shape != (3, x.shape[1]):
+        return {"detected": False, "method": "invalid_k3_fit", "candidate_pair": None, "pairs": []}
+    cycle_count = float(cycles) if cycles is not None else max(1.0, len(x) / max(float(period), 1e-12))
+    pairs = [
+        _phase_topology_pair(probs, fit3, x, period, pair, cycle_count)
+        for pair in itertools.combinations(range(3), 2)
+    ]
+    pairs.sort(key=lambda item: item["redundancy_score"], reverse=True)
+    candidate = pairs[0]
+    runner_up = pairs[1] if len(pairs) > 1 else candidate
+    margin = float(candidate["redundancy_score"] - runner_up["redundancy_score"])
+    candidate["score_margin"] = margin
+
+    # Conservative: a weakly supported phase must also look like a continuation
+    # of the same stream topology.  Fully supported k=3 models require stronger
+    # nesting and a larger score margin before collapsing.
+    weak_rule = (
+        candidate["pair_has_unsupported_phase"]
+        and candidate["template_overlap"] >= 0.62
+        and candidate["coverage"] >= 0.74
+        and candidate["active_jaccard"] >= 0.60
+        and candidate["rank_correlation"] >= 0.30
+        and candidate["third_order_consistency"] >= 0.70
+        and candidate["exclusive_mass_ratio"] <= 0.36
+        and (margin >= 0.025 or candidate["merge_loss_per_cycle"] <= 12.0)
+    )
+    strong_rule = (
+        not candidate["pair_has_unsupported_phase"]
+        and candidate["template_overlap"] >= 0.82
+        and candidate["coverage"] >= 0.90
+        and candidate["active_jaccard"] >= 0.80
+        and candidate["rank_correlation"] >= 0.70
+        and candidate["third_order_consistency"] >= 0.82
+        and candidate["exclusive_mass_ratio"] <= 0.22
+        and margin >= 0.07
+        and candidate["merge_loss_per_cycle"] <= 18.0
+    )
+    return {
+        "detected": bool(weak_rule or strong_rule),
+        "method": "hierarchical_topological_redundancy_v2",
+        "candidate_pair": candidate["pair"],
+        "supported_phase_count": int(_phase_support_metrics(fit3)["supported_phase_count"]),
+        "unsupported_phase_count": int(_phase_support_metrics(fit3)["unsupported_phase_count"]),
+        "pairs": pairs,
+    }
+
+
 def candidate_metrics(fit, x_shape):
     n, s = x_shape
     p_count = fit['k'] * s
