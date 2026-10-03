@@ -29,5 +29,23 @@ def test_v9_e2e_synthetic_benchmark_exposes_case_level_diagnostics():
             "p50",
             "p95",
         }
+        assert set(diagnostics["fit_label_accuracy"]) >= {
+            "p05",
+            "p50",
+            "p95",
+        }
+        assert set(diagnostics["oracle_pairwise_cosine"]) >= {
+            "p05",
+            "p50",
+            "p95",
+        }
+        assert set(diagnostics["oracle_pairwise_loss_per_cycle"]) >= {
+            "p05",
+            "p50",
+            "p95",
+        }
         assert len(diagnostics["false_positive_cases"]) <= 25
         assert len(diagnostics["false_negative_cases"]) <= 25
+
+    assert "oracle_policy_A" in report
+    assert "oracle_threshold_grid" in report

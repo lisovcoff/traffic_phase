@@ -198,15 +198,23 @@ def _make_case(rng: np.random.Generator, case_type: str):
         "period_s": period,
         "cycles": cycles,
         "true_k": true_k,
+        "true_labels": labels,
         "temporal_drift_sigma": temporal_drift_sigma,
         "background_rate": background_rate,
         "dropout_streams": int(dropout.sum()),
     }
 
 
-def _merge_metrics(fit, x: np.ndarray, cycles: int):
-    labels = np.asarray(fit["labels"], dtype=np.int16)
-    probs = np.asarray(fit["probs"], dtype=float)
+def _merge_metrics_from_labels(
+    x: np.ndarray,
+    labels: np.ndarray,
+    cycles: int,
+):
+    labels = np.asarray(labels, dtype=np.int16)
+    k = int(np.max(labels)) + 1
+    if k != 3:
+        raise ValueError("merge metrics require exactly three labels")
+    probs = fit_bernoulli_templates(x, labels, 3)
     ll3 = _pointwise_loglik(x, probs, labels)
     metrics = {}
 
@@ -235,6 +243,69 @@ def _merge_metrics(fit, x: np.ndarray, cycles: int):
     return metrics
 
 
+def _merge_metrics(fit, x: np.ndarray, cycles: int):
+    return _merge_metrics_from_labels(
+        x,
+        np.asarray(fit["labels"], dtype=np.int16),
+        cycles,
+    )
+
+
+def _oracle_overfit_labels(true_labels: np.ndarray, true_k: int) -> np.ndarray:
+    labels = np.asarray(true_labels, dtype=np.int16).copy()
+    if int(true_k) == 3:
+        return labels
+    if int(true_k) != 2:
+        raise ValueError(f"unsupported true_k={true_k}")
+
+    # Turn the first physical phase into two temporal pieces and remap the
+    # second physical phase to label 2. This is the oracle analogue of the
+    # k=3 overfit we are asking the detector to undo.
+    oracle = np.where(labels == 1, 2, labels).astype(np.int16)
+    positions = np.flatnonzero(labels == 0)
+    if not positions.size:
+        raise ValueError("true2 oracle split has no phase-0 observations")
+    start = int(positions[0])
+    previous = start
+    runs = []
+    for position in positions[1:]:
+        position = int(position)
+        if position != previous + 1:
+            runs.append((start, previous + 1))
+            start = position
+        previous = position
+    runs.append((start, previous + 1))
+
+    for left, right in runs:
+        midpoint = left + max(1, (right - left) // 2)
+        oracle[midpoint:right] = 1
+    return oracle
+
+
+def _oracle_metrics(x: np.ndarray, true_labels: np.ndarray, true_k: int, cycles: int):
+    labels = _oracle_overfit_labels(true_labels, true_k)
+    return _merge_metrics_from_labels(x, labels, cycles)
+
+
+def _best_label_accuracy(predicted: np.ndarray, expected: np.ndarray) -> float:
+    predicted = np.asarray(predicted, dtype=np.int16)
+    expected = np.asarray(expected, dtype=np.int16)
+    if predicted.shape != expected.shape:
+        raise ValueError("label arrays must have the same shape")
+    predicted_values = range(int(np.max(predicted)) + 1)
+    expected_values = range(int(np.max(expected)) + 1)
+    if len(list(predicted_values)) != 3 or len(list(expected_values)) != 3:
+        return 0.0
+    best = 0.0
+    for permutation in itertools.permutations(range(3)):
+        mapped = np.asarray(
+            [permutation[int(value)] for value in predicted],
+            dtype=np.int16,
+        )
+        best = max(best, float(np.mean(mapped == expected)))
+    return best
+
+
 def _passes(metrics, cosine_min: float, loss_max: float) -> bool:
     return any(
         item["cosine"] >= cosine_min
@@ -254,12 +325,20 @@ def _run_case(seed: int, case_type: str):
         dt=1.0,
         iterations=2,
     )
+    oracle_labels = _oracle_overfit_labels(
+        case["true_labels"],
+        case["true_k"],
+    )
     return {
         "true_k": case["true_k"],
         "streams": int(case["x"].shape[1]),
         "period_s": float(case["period_s"]),
         "cycles": int(case["cycles"]),
         "fit_k": int(fit["k"]),
+        "label_accuracy": _best_label_accuracy(
+            fit["labels"],
+            oracle_labels,
+        ),
         "temporal_drift_sigma": float(
             case["temporal_drift_sigma"]
         ),
@@ -267,6 +346,12 @@ def _run_case(seed: int, case_type: str):
         "metrics": _merge_metrics(
             fit,
             case["x"],
+            case["cycles"],
+        ),
+        "oracle_metrics": _oracle_metrics(
+            case["x"],
+            case["true_labels"],
+            case["true_k"],
             case["cycles"],
         ),
     }
@@ -293,30 +378,54 @@ def _diagnostics(rows):
     diagnostics = {}
     for group_name, group in rows.items():
         pairwise_cosines = []
+        oracle_pairwise_cosines = []
         pairwise_losses = []
+        oracle_pairwise_losses = []
+        label_accuracies = []
         best_cosine = []
         min_loss = []
+        oracle_best_cosine = []
+        oracle_min_loss = []
         for row in group:
             values = list(row["metrics"].values())
+            oracle_values = list(row["oracle_metrics"].values())
             pairwise_cosines.extend(
                 float(item["cosine"]) for item in values
+            )
+            oracle_pairwise_cosines.extend(
+                float(item["cosine"]) for item in oracle_values
             )
             pairwise_losses.extend(
                 float(item["loss_per_cycle"]) for item in values
             )
+            oracle_pairwise_losses.extend(
+                float(item["loss_per_cycle"]) for item in oracle_values
+            )
+            label_accuracies.append(float(row["label_accuracy"]))
             best_cosine.append(
                 max(float(item["cosine"]) for item in values)
             )
             min_loss.append(
                 min(float(item["loss_per_cycle"]) for item in values)
             )
+            oracle_best_cosine.append(
+                max(float(item["cosine"]) for item in oracle_values)
+            )
+            oracle_min_loss.append(
+                min(float(item["loss_per_cycle"]) for item in oracle_values)
+            )
 
         diagnostics[group_name] = {
             "case_count": len(group),
+            "fit_label_accuracy": _percentiles(label_accuracies),
             "pairwise_cosine": _percentiles(pairwise_cosines),
+            "oracle_pairwise_cosine": _percentiles(oracle_pairwise_cosines),
             "pairwise_loss_per_cycle": _percentiles(pairwise_losses),
+            "oracle_pairwise_loss_per_cycle": _percentiles(oracle_pairwise_losses),
             "best_pair_cosine_by_case": _percentiles(best_cosine),
             "minimum_pair_loss_by_case": _percentiles(min_loss),
+            "oracle_best_pair_cosine_by_case": _percentiles(oracle_best_cosine),
+            "oracle_minimum_pair_loss_by_case": _percentiles(oracle_min_loss),
             "false_positive_cases": [],
             "false_negative_cases": [],
         }
@@ -339,6 +448,7 @@ def run_benchmark(config: BenchmarkConfig):
                 )
             )
 
+    oracle_threshold_rows = []
     threshold_rows = []
     for cosine_min in COSINE_GRID:
         for loss_max in LOSS_GRID:
@@ -373,10 +483,51 @@ def run_benchmark(config: BenchmarkConfig):
                     ),
                 }
             )
+            oracle_n2 = len(rows["true2"])
+            oracle_n3 = len(rows["true3"])
+            oracle_true2_hits = sum(
+                _passes(
+                    row["oracle_metrics"],
+                    cosine_min,
+                    loss_max,
+                )
+                for row in rows["true2"]
+            )
+            oracle_true3_false = sum(
+                _passes(
+                    row["oracle_metrics"],
+                    cosine_min,
+                    loss_max,
+                )
+                for row in rows["true3"]
+            )
+            oracle_recall = oracle_true2_hits / max(1, oracle_n2)
+            oracle_false_merge = oracle_true3_false / max(1, oracle_n3)
+            oracle_threshold_rows.append(
+                {
+                    "cosine_min": cosine_min,
+                    "loss_max": loss_max,
+                    "true2_merge_recall": float(oracle_recall),
+                    "true3_false_merge_rate": float(oracle_false_merge),
+                    "balanced_accuracy": float(
+                        0.5 * (
+                            oracle_recall
+                            + 1.0
+                            - oracle_false_merge
+                        )
+                    ),
+                }
+            )
 
     policy = next(
         row
         for row in threshold_rows
+        if row["cosine_min"] == 0.50
+        and row["loss_max"] == 10.0
+    )
+    oracle_policy = next(
+        row
+        for row in oracle_threshold_rows
         if row["cosine_min"] == 0.50
         and row["loss_max"] == 10.0
     )
@@ -433,7 +584,9 @@ def run_benchmark(config: BenchmarkConfig):
             "true3_distinct": len(rows["true3"]),
         },
         "policy_A": policy,
+        "oracle_policy_A": oracle_policy,
         "threshold_grid": threshold_rows,
+        "oracle_threshold_grid": oracle_threshold_rows,
         "diagnostics": diagnostics,
     }
 
@@ -493,17 +646,36 @@ def main():
         group_diag = report["diagnostics"][group_name]
         cosine = group_diag["pairwise_cosine"]
         loss = group_diag["pairwise_loss_per_cycle"]
+        oracle_cosine = group_diag["oracle_pairwise_cosine"]
+        oracle_loss = group_diag["oracle_pairwise_loss_per_cycle"]
+        accuracy = group_diag["fit_label_accuracy"]
         print(
             f"{group_name}: "
-            f"pairwise cosine p05/p50/p95="
+            f"fit cosine p05/p50/p95="
             f"{cosine.get('p05', 0.0):.3f}/"
             f"{cosine.get('p50', 0.0):.3f}/"
             f"{cosine.get('p95', 0.0):.3f}, "
-            f"loss/cycle p05/p50/p95="
+            f"fit loss/cycle p05/p50/p95="
             f"{loss.get('p05', 0.0):.3f}/"
             f"{loss.get('p50', 0.0):.3f}/"
-            f"{loss.get('p95', 0.0):.3f}"
+            f"{loss.get('p95', 0.0):.3f}, "
+            f"label-acc p05/p50/p95="
+            f"{accuracy.get('p05', 0.0):.3f}/"
+            f"{accuracy.get('p50', 0.0):.3f}/"
+            f"{accuracy.get('p95', 0.0):.3f}"
         )
+        print(
+            f"{group_name} oracle: "
+            f"cosine p05/p50/p95="
+            f"{oracle_cosine.get('p05', 0.0):.3f}/"
+            f"{oracle_cosine.get('p50', 0.0):.3f}/"
+            f"{oracle_cosine.get('p95', 0.0):.3f}, "
+            f"loss/cycle p05/p50/p95="
+            f"{oracle_loss.get('p05', 0.0):.3f}/"
+            f"{oracle_loss.get('p50', 0.0):.3f}/"
+            f"{oracle_loss.get('p95', 0.0):.3f}"
+        )
+
 
 
 if __name__ == "__main__":
