@@ -410,23 +410,6 @@ def infer_physical_signal_plan(
                 )
             green_by_phase[phase] = frozenset(sorted(green))
 
-    # Do not let a single weak turn candidate create a third physical phase.
-    # A physical turn group needs a coherent paired movement signature. This
-    # keeps short/noisy V9 splits such as 27.02 and 05.10 collapsed to their
-    # underlying NS/EW phases while preserving genuine paired turn phases.
-    for phase in names:
-        candidates = turn_candidates_by_phase[phase]
-        if not candidates:
-            continue
-
-        supported = _supported_turn_pairs(phase, candidates)
-        green = set(green_by_phase[phase])
-        green.update(supported)
-        green_by_phase[phase] = frozenset(sorted(green))
-
-        for movement in sorted(candidates - supported):
-            suppressed_turn_movements_by_phase[phase].append(movement)
-
         # If turn candidates were the only evidence for this phase, recover
         # the strongest selective straight movement rather than emitting an
         # empty MIXED phase after suppressing the unsupported turns.
