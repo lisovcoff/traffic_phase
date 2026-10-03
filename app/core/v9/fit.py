@@ -706,6 +706,17 @@ def evaluate_phase_redundancy(
         or probs.shape[0] != 3
         or fit2 is None
     ):
+    labels3 = np.asarray(
+        fit3.get("labels"),
+        dtype=np.int16,
+    )
+    if labels3.shape != (x.shape[0],):
+        return {
+            "detected": False,
+            "method": "invalid_redundancy_labels",
+            "candidate_pair": None,
+            "pairs": [],
+        }
         return {
             "detected": False,
             "method": "invalid_redundancy_inputs",
