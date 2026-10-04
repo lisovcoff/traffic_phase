@@ -116,12 +116,24 @@ def _sample_occupancy(
     common_discharge: bool = False,
 ) -> np.ndarray:
     phases, streams = templates.shape
+    discharge_split = np.full(len(labels), 0.5, dtype=float)
     if common_discharge and phases == 2:
         # Model a queue-discharge envelope: the same physical phase has a
-        # common early surge and a later tail. Small per-stream noise keeps the
-        # signal stochastic without turning the two halves into unrelated
-        # topologies.
+        # common early surge and a later tail. The end of the discharge
+        # surge drifts independently from cycle to cycle, so an EM overfit
+        # boundary is not phase-locked to a fixed position in the cycle.
         envelope = np.ones((2, 2, streams), dtype=float)
+        run_start = 0
+        while run_start < len(labels):
+            phase = int(labels[run_start])
+            run_end = run_start + 1
+            while run_end < len(labels) and int(labels[run_end]) == phase:
+                run_end += 1
+            discharge_split[run_start:run_end] = rng.uniform(
+                0.20,
+                0.65,
+            )
+            run_start = run_end
         for phase in range(2):
             early = float(
                 np.exp(rng.normal(0.0, 0.06))
@@ -145,7 +157,7 @@ def _sample_occupancy(
     x = np.zeros((len(labels), streams), dtype=np.float32)
     for t, phase_value in enumerate(labels):
         phase = int(phase_value)
-        half = 0 if local_fraction[t] < 0.5 else 1
+        half = 0 if local_fraction[t] < discharge_split[t] else 1
         probabilities = templates[phase] * envelope[phase, half]
         probabilities = probabilities * visibility
         probabilities = probabilities + background_rate
@@ -612,7 +624,7 @@ def run_benchmark(config: BenchmarkConfig):
         / max(1, len(rows["true3"]))
     )
     redundancy_policy = {
-        "method": "topological_temporal_redundancy_v4",
+        "method": "topological_temporal_redundancy_v5",
         "true2_merge_recall": float(redundancy_recall),
         "true3_false_merge_rate": float(redundancy_false_merge),
         "balanced_accuracy": float(
