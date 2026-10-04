@@ -19,39 +19,20 @@ def test_v9_e2e_synthetic_benchmark_exposes_case_level_diagnostics():
     for group in ("true2", "true3"):
         diagnostics = report["diagnostics"][group]
         assert diagnostics["case_count"] == 5
-        assert set(diagnostics["pairwise_cosine"]) >= {
-            "p05",
-            "p50",
-            "p95",
-        }
-        assert set(diagnostics["pairwise_loss_per_cycle"]) >= {
-            "p05",
-            "p50",
-            "p95",
-        }
-        assert set(diagnostics["fit_label_accuracy"]) >= {
-            "p05",
-            "p50",
-            "p95",
-        }
-        assert set(diagnostics["oracle_pairwise_cosine"]) >= {
-            "p05",
-            "p50",
-            "p95",
-        }
-        assert set(diagnostics["oracle_pairwise_loss_per_cycle"]) >= {
-            "p05",
-            "p50",
-            "p95",
-        }
+        assert set(diagnostics["pairwise_cosine"]) >= {"p05", "p50", "p95"}
+        assert set(diagnostics["pairwise_loss_per_cycle"]) >= {"p05", "p50", "p95"}
+        assert set(diagnostics["fit_label_accuracy"]) >= {"p05", "p50", "p95"}
+        assert set(diagnostics["oracle_pairwise_cosine"]) >= {"p05", "p50", "p95"}
+        assert set(diagnostics["oracle_pairwise_loss_per_cycle"]) >= {"p05", "p50", "p95"}
         assert len(diagnostics["false_positive_cases"]) <= 25
         assert len(diagnostics["false_negative_cases"]) <= 25
 
     assert "oracle_policy_A" in report
     assert "oracle_threshold_grid" in report
+    assert "redundancy_policy" in report
 
 
-def test_v9_redundancy_detector_handcrafted_internal_split() -> None:
+def test_v9_redundancy_detector_internal_split_requires_boundary_and_contrast():
     import numpy as np
     from app.core.v9.fit import evaluate_phase_redundancy
 
@@ -73,40 +54,25 @@ def test_v9_redundancy_detector_handcrafted_internal_split() -> None:
             [0.02, 0.02, 0.70, 0.55],
         ]),
         "labels": labels,
-        "segments": [
-            (0.0, 20.0, 0),
-            (20.0, 40.0, 1),
-            (40.0, 100.0, 2),
-        ],
+        "segments": [(0.0, 20.0, 0), (20.0, 40.0, 1), (40.0, 100.0, 2)],
         "pointwise_loglik": -50.0,
-        "boundary_coherence": 0.40,
-    }
-    fit2 = {
-        "probs": np.asarray([
-            [0.70, 0.60, 0.02, 0.02],
-            [0.02, 0.02, 0.70, 0.55],
-        ]),
-        "labels": np.where(labels == 2, 1, 0).astype(np.int16),
-        "segments": [
-            (0.0, 40.0, 0),
-            (40.0, 100.0, 1),
-        ],
-        "pointwise_loglik": -51.0,
-        "boundary_coherence": 0.80,
     }
     result = evaluate_phase_redundancy(
         fit3,
-        fit2,
+        None,
         x,
         100.0,
         {"a": [1.0], "b": [20.0], "c": [40.0]},
         cycles=1,
     )
-    assert result["candidate_pair"] in ([0, 1], [1, 0])
     assert result["detected"] is True
+    candidate = next(row for row in result["pairs"] if row["pair"] == [0, 1])
+    assert candidate["directional_exclusivity"] == 1.0
+    assert candidate["contrast_gap_ratio"] < 0.20
+    assert candidate["boundary_coherent"] is True
 
 
-def test_v9_redundancy_detector_preserves_distinct_templates() -> None:
+def test_v9_redundancy_detector_preserves_distinct_templates():
     import numpy as np
     from app.core.v9.fit import evaluate_phase_redundancy
 
@@ -126,33 +92,51 @@ def test_v9_redundancy_detector_preserves_distinct_templates() -> None:
             [0.02, 0.02, 0.85, 0.02, 0.02, 0.02],
         ]),
         "labels": labels,
-        "segments": [
-            (0.0, 30.0, 0),
-            (30.0, 60.0, 1),
-            (60.0, 100.0, 2),
-        ],
+        "segments": [(0.0, 30.0, 0), (30.0, 60.0, 1), (60.0, 100.0, 2)],
         "pointwise_loglik": -40.0,
-        "boundary_coherence": 0.90,
-    }
-    fit2 = {
-        "probs": np.asarray([
-            [0.70, 0.45, 0.45, 0.02, 0.02, 0.02],
-            [0.02, 0.02, 0.02, 0.60, 0.02, 0.02],
-        ]),
-        "labels": np.where(labels == 2, 1, 0).astype(np.int16),
-        "segments": [
-            (0.0, 60.0, 0),
-            (60.0, 100.0, 1),
-        ],
-        "pointwise_loglik": -52.0,
-        "boundary_coherence": 0.85,
     }
     result = evaluate_phase_redundancy(
         fit3,
-        fit2,
+        None,
         x,
         100.0,
         {"a": [1.0], "b": [31.0], "c": [61.0]},
+        cycles=1,
+    )
+    assert result["detected"] is False
+
+
+def test_v9_redundancy_detector_allows_sparse_protected_turn_when_selective():
+    import numpy as np
+    from app.core.v9.fit import evaluate_phase_redundancy
+
+    labels = np.concatenate([
+        np.zeros(45, dtype=np.int16),
+        np.ones(5, dtype=np.int16),
+        np.full(50, 2, dtype=np.int16),
+    ])
+    x = np.zeros((100, 5), dtype=np.float32)
+    x[:45, 0] = 1.0
+    x[:45, 1] = 0.6
+    x[45:50, 2] = 1.0
+    x[50:, 3] = 1.0
+    x[50:, 4] = 0.7
+    fit3 = {
+        "probs": np.asarray([
+            [0.82, 0.55, 0.03, 0.03, 0.03],
+            [0.08, 0.06, 0.70, 0.03, 0.02],
+            [0.03, 0.03, 0.03, 0.72, 0.58],
+        ]),
+        "labels": labels,
+        "segments": [(0.0, 45.0, 0), (45.0, 50.0, 1), (50.0, 100.0, 2)],
+        "pointwise_loglik": -35.0,
+    }
+    result = evaluate_phase_redundancy(
+        fit3,
+        None,
+        x,
+        100.0,
+        {"a": [1.0], "b": [46.0], "c": [51.0]},
         cycles=1,
     )
     assert result["detected"] is False
