@@ -612,7 +612,7 @@ def run_benchmark(config: BenchmarkConfig):
         / max(1, len(rows["true3"]))
     )
     redundancy_policy = {
-        "method": "topological_temporal_redundancy_v4",
+        "method": "topological_temporal_redundancy_v5",
         "true2_merge_recall": float(redundancy_recall),
         "true3_false_merge_rate": float(redundancy_false_merge),
         "balanced_accuracy": float(
