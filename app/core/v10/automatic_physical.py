@@ -259,11 +259,6 @@ def infer_physical_signal_plan(
                             )
                         )
 
-        if not green:
-            raise ValueError(
-                f"phase {phase!r} has no supported physical green movements"
-            )
-
         green_set = frozenset(sorted(green))
         green_by_phase[phase] = green_set
         confidence_by_phase[phase] = (
@@ -315,22 +310,47 @@ def infer_physical_signal_plan(
                     suppressed_turn_movements_by_phase[phase].append(movement)
 
     STRONG_TURN_PAIR_THRESHOLD = 0.20
+    TURN_RECIPROCAL_PAIR_MIN_PROBABILITY = 0.06
 
     def _supported_turns(
         phase: str,
         candidates: set[str],
     ) -> set[str]:
-        """Accept turn evidence with a strong, coherent physical signature.
+        """Accept turn evidence with a coherent physical signature.
 
-        A turn group is promoted when either:
-        1. a turn has a same-approach straight seed at least twice as strong; or
-        2. two phase-selective turns form a strong reciprocal/opposite-approach
-           pair, with both probabilities at or above 0.20.
-
-        This rejects weak leakage pairs while preserving genuine protected
-        turn phases and turn-only phases. Baseline noise such as 0.01 is not
-        treated as meaningful straight evidence.
+        A short discharge interval can make several turn streams look
+        phase-selective even when both reciprocal through directions are
+        simultaneously active. In that situation, require an independently
+        supported reciprocal turn pair before promoting any arrow.
         """
+        for source_main, target_main in (
+            ("N->S", "S->N"),
+            ("E->W", "W->E"),
+        ):
+            if (
+                float(activity[phase].get(source_main, 0.0))
+                >= float(activity_threshold)
+                and float(activity[phase].get(target_main, 0.0))
+                >= float(activity_threshold)
+            ):
+                reciprocal_turn_pair = False
+                for movement in candidates:
+                    source, target = movement.split("->", 1)
+                    partner = f"{target}->{source}"
+                    if partner not in candidates:
+                        continue
+                    if (
+                        min(
+                            float(activity[phase].get(movement, 0.0)),
+                            float(activity[phase].get(partner, 0.0)),
+                        )
+                        >= TURN_RECIPROCAL_PAIR_MIN_PROBABILITY
+                    ):
+                        reciprocal_turn_pair = True
+                        break
+                if not reciprocal_turn_pair:
+                    return set()
+
         for movement in candidates:
             source, target = movement.split("->", 1)
             source_main = f"{source}->{OPPOSITE[source]}"
@@ -456,8 +476,10 @@ def infer_physical_signal_plan(
                 )
             green_by_phase[phase] = frozenset(sorted(green))
 
-    # Preserve the physical NS/EW main sections when V9 statistically splits
-    # the two reciprocal straight streams between phases.
+    # A latent phase can lose one reciprocal straight stream when a
+    # neighboring/related phase carries turn evidence. Restore the physical
+    # reciprocal head only in that case. A pure N->S / S->N directional split
+    # with no turn evidence remains physically directional.
     straight_by_axis = {
         "NS": ("N->S", "S->N"),
         "EW": ("E->W", "W->E"),
@@ -473,12 +495,103 @@ def infer_physical_signal_plan(
         }
         if not observed:
             continue
+
+        turn_evidence_phases = {
+            phase
+            for phase in names
+            if any(
+                (
+                    movement.split("->", 1)[0]
+                    in ({"N", "S"} if axis == "NS" else {"E", "W"})
+                )
+                for movement in turn_candidates_by_phase[phase]
+            )
+        }
+
+        # A turn-bearing physical phase keeps its own directional straight
+        # evidence. Only a turn-free phase may inherit the reciprocal straight
+        # from the same axis; otherwise a protected turn would gain an
+        # unrelated opposite-through head.
+        if turn_evidence_phases:
+            for phase in names:
+                green = set(green_by_phase[phase])
+                if any(not _is_straight(movement) for movement in green):
+                    continue
+                axis_straight = green.intersection(straight_movements)
+                if len(axis_straight) != 1:
+                    continue
+                if phase in turn_evidence_phases:
+                    green.update(observed)
+                elif any(
+                    turn_phase != phase
+                    and (
+                        (set(straight_movements) - green)
+                        .intersection(green_by_phase[turn_phase])
+                    )
+                    for turn_phase in turn_evidence_phases
+                ):
+                    green.update(observed)
+                else:
+                    continue
+                green_by_phase[phase] = frozenset(sorted(green))
+
+        # A reciprocal stream that is only baseline noise is not evidence of
+        # a directional split. Preserve the physical main-head pair in that
+        # case, while keeping genuinely observed N/S or E/W splits distinct.
         for phase in names:
             green = set(green_by_phase[phase])
-            if _semantic_name(frozenset(green)) != f"{axis}_THROUGH":
+            if any(not _is_straight(movement) for movement in green):
                 continue
-            green.update(straight_movements)
-            green_by_phase[phase] = frozenset(sorted(green))
+            axis_straight = green.intersection(straight_movements)
+            if len(axis_straight) != 1:
+                continue
+            missing = set(straight_movements) - axis_straight
+            if all(
+                max(
+                    activity[item].get(movement, 0.0)
+                    for item in names
+                ) < 0.03
+                for movement in missing
+            ):
+                green.update(missing)
+                green_by_phase[phase] = frozenset(sorted(green))
+
+    # A phase with no physical green evidence is a latent artifact, not
+    # a signal state. Inherit the nearest supported phase in cyclic order so
+    # the physical plan remains a complete cycle without rerunning HSMM.
+    baseline_order = _baseline_order(result, names, period)
+    ordered_phases = list(baseline_order)
+    ordered_phases.extend(
+        phase for phase in names
+        if phase not in ordered_phases
+    )
+    inherited_empty_phases: dict[str, str] = {}
+    if ordered_phases:
+        for phase_index, phase in enumerate(ordered_phases):
+            if green_by_phase[phase]:
+                continue
+            for distance in range(1, len(ordered_phases)):
+                candidate_phase = ordered_phases[
+                    (phase_index - distance) % len(ordered_phases)
+                ]
+                if green_by_phase[candidate_phase]:
+                    green_by_phase[phase] = green_by_phase[candidate_phase]
+                    confidence_by_phase[phase] = min(
+                        confidence_by_phase.get(candidate_phase, 0.0),
+                        0.5,
+                    )
+                    inherited_empty_phases[phase] = candidate_phase
+                    break
+
+    unresolved_empty_phases = [
+        phase for phase in names
+        if not green_by_phase[phase]
+    ]
+    if unresolved_empty_phases:
+        raise ValueError(
+            "phases have no supported physical green movements: "
+            + ", ".join(repr(phase) for phase in unresolved_empty_phases)
+        )
 
     # Resolve physical names only after all weak-evidence rescue has completed.
     # This keeps a phase with N/S straight + protected turns named NS_TURN
@@ -499,6 +612,15 @@ def infer_physical_signal_plan(
         signature_names[signature] = physical_name
         mapping[phase] = physical_name
 
+    physical_duration_by_name: defaultdict[str, float] = defaultdict(float)
+    for phase in names:
+        physical_duration_by_name[mapping[phase]] += float(
+            durations.get(
+                phase,
+                period / max(1, len(names)),
+            )
+        )
+
     phases = []
     emitted_names: set[str] = set()
 
@@ -517,12 +639,7 @@ def infer_physical_signal_plan(
                 "green_movements": sorted(green),
                 "additional_movements": sorted(additional),
                 "duration_s": round(
-                    float(
-                        durations.get(
-                            phase,
-                            period / max(1, len(names)),
-                        )
-                    ),
+                    float(physical_duration_by_name[physical_name]),
                     6,
                 ),
                 "source_phase": phase,
@@ -558,18 +675,59 @@ def infer_physical_signal_plan(
                 }
             )
 
+    # Physical signal heads are the canonical identity of a stage.
+    # Latent phase names or movement metadata may differ after upstream
+    # inference, but identical lamp configurations are the same physical state.
     merged_stages: list[dict[str, Any]] = []
     for stage in stages:
-        if (
-            merged_stages
-            and merged_stages[-1]["name"] == stage["name"]
-            and merged_stages[-1]["heads"] == stage["heads"]
-            and merged_stages[-1]["active_movements"]
-            == stage["active_movements"]
-        ):
+        if merged_stages and merged_stages[-1]["heads"] == stage["heads"]:
             merged_stages[-1]["phase_end"] = stage["phase_end"]
         else:
             merged_stages.append(stage)
+
+    # Baseline coordinates are cyclic. If the same physical heads occur at
+    # both ends of the linearized cycle, rotate the stage *order* rather than
+    # applying modulo independently to each endpoint. Rebuilding coordinates
+    # from durations guarantees continuous [0, period) coverage for renderers.
+    cycle_rotation_s = 0.0
+    if (
+        len(merged_stages) > 1
+        and merged_stages[0]["heads"] == merged_stages[-1]["heads"]
+    ):
+        cycle_rotation_s = float(merged_stages[-1]["phase_start"])
+        ordered = [merged_stages[-1], *merged_stages[:-1]]
+        grouped: list[tuple[dict[str, Any], float]] = []
+        for stage in ordered:
+            duration = max(
+                0.0,
+                float(stage["phase_end"]) - float(stage["phase_start"]),
+            )
+            if duration <= 0.0:
+                continue
+            if grouped and grouped[-1][0]["heads"] == stage["heads"]:
+                grouped[-1] = (grouped[-1][0], grouped[-1][1] + duration)
+            else:
+                grouped.append((dict(stage), duration))
+
+        rebuilt: list[dict[str, Any]] = []
+        cursor = 0.0
+        for stage, duration in grouped:
+            expected_duration = float(
+                physical_duration_by_name.get(stage["name"], duration)
+            )
+            if abs(expected_duration - duration) <= 1e-3:
+                duration = expected_duration
+
+            stage["phase_start"] = round(cursor, 6)
+            cursor = min(period, cursor + duration)
+            stage["phase_end"] = round(cursor, 6)
+            rebuilt.append(stage)
+
+        if rebuilt:
+            rebuilt[-1]["phase_end"] = round(period, 6)
+
+        merged_stages = rebuilt
+
     stages = merged_stages
     for index, stage in enumerate(stages, start=1):
         stage["stage_id"] = index
@@ -615,7 +773,7 @@ def infer_physical_signal_plan(
     try:
         physical_anchor_s = (
             model_anchor_s - float(startup_lost_s)
-        )
+        ) + float(cycle_rotation_s)
     except (TypeError, ValueError):
         physical_anchor_s = model_anchor_s
 
@@ -650,6 +808,7 @@ def infer_physical_signal_plan(
             "phase_anchor_physical_s": round(float(physical_anchor_s), 6),
             "startup_lost_s": round(float(startup_lost_s), 6),
             "slice_start_s": round(float(slice_start_s), 6),
+            "cycle_rotation_s": round(float(cycle_rotation_s), 6),
             "event_base_offset_s": (
                 round(float(event_base_offset_s), 6)
                 if event_base_offset_s is not None
@@ -671,6 +830,9 @@ def infer_physical_signal_plan(
             "turn_candidate_selectivity_ratio": TURN_CANDIDATE_SELECTIVITY_RATIO,
             "strong_turn_pair_threshold": STRONG_TURN_PAIR_THRESHOLD,
             "startup_lost_s": float(startup_lost_s),
+            "cycle_rotation_s": float(cycle_rotation_s),
+            "inherited_empty_phases": dict(inherited_empty_phases),
+            "turn_reciprocal_pair_min_probability": TURN_RECIPROCAL_PAIR_MIN_PROBABILITY,
             "suppressed_turn_movements_by_phase": {
                 key: value
                 for key, value in suppressed_turn_movements_by_phase.items()
