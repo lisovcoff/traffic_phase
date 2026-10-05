@@ -456,6 +456,25 @@ def infer_physical_signal_plan(
                 )
             green_by_phase[phase] = frozenset(sorted(green))
 
+    # Detect genuine single-approach N/S split phases before reciprocal
+    # completion. A split phase may also carry weak turn candidates; those
+    # candidates must not cause the opposite main head to become GREEN.
+    NS_SPLIT_INACTIVE_THRESHOLD = 0.04
+    directional_ns_split_by_phase: dict[str, str] = {}
+    for phase in names:
+        p_ns = float(activity[phase].get("N->S", 0.0))
+        p_sn = float(activity[phase].get("S->N", 0.0))
+        if (
+            p_ns >= float(activity_threshold)
+            and p_sn < NS_SPLIT_INACTIVE_THRESHOLD
+        ):
+            directional_ns_split_by_phase[phase] = "NORTH_SPLIT"
+        elif (
+            p_sn >= float(activity_threshold)
+            and p_ns < NS_SPLIT_INACTIVE_THRESHOLD
+        ):
+            directional_ns_split_by_phase[phase] = "SOUTH_SPLIT"
+
     # Preserve the physical NS/EW main sections when V9 statistically splits
     # the two reciprocal straight streams between phases.
     straight_by_axis = {
@@ -475,6 +494,11 @@ def infer_physical_signal_plan(
             continue
         for phase in names:
             green = set(green_by_phase[phase])
+            if (
+                axis == "NS"
+                and phase in directional_ns_split_by_phase
+            ):
+                continue
             if _semantic_name(frozenset(green)) != f"{axis}_THROUGH":
                 continue
             green.update(straight_movements)
@@ -491,7 +515,10 @@ def infer_physical_signal_plan(
         if signature in signature_names:
             mapping[phase] = signature_names[signature]
             continue
-        base = _semantic_name(green_by_phase[phase])
+        base = directional_ns_split_by_phase.get(
+            phase,
+            _semantic_name(green_by_phase[phase]),
+        )
         used[base] += 1
         physical_name = (
             base if used[base] == 1 else f"{base}_{used[base]}"

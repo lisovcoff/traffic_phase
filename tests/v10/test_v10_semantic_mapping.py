@@ -618,6 +618,104 @@ def test_automatic_physical_plan_handles_turn_only_four_phase_catalog() -> None:
     }
 
 
+
+def test_automatic_physical_plan_preserves_directional_ns_split_with_turn_candidates():
+    result = {
+        "schedule": {
+            "phase_names": ["PHASE_A", "PHASE_B", "PHASE_C"],
+            "phase_count": 3,
+            "period_s": 120.0,
+            "baseline_duration_targets_s": {
+                "PHASE_A": 21.6,
+                "PHASE_B": 40.2,
+                "PHASE_C": 58.1,
+            },
+            "baseline_segments": [
+                [0.0, 21.6, 0],
+                [21.6, 61.8, 1],
+                [61.8, 119.9, 2],
+            ],
+            "stream_activity_by_phase": [
+                {
+                    "stream": "N->S",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.1458,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "S->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.0270,
+                        "PHASE_B": 0.1988,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "E->W",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.0616,
+                    },
+                },
+                {
+                    "stream": "W->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "N->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.1181,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "E->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.0563,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "S->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.0386,
+                        "PHASE_C": 0.01,
+                    },
+                },
+            ],
+        }
+    }
+
+    plan = infer_physical_signal_plan(result)
+
+    assert plan["mapping"] == {
+        "PHASE_A": "NORTH_SPLIT",
+        "PHASE_B": "SOUTH_SPLIT",
+        "PHASE_C": "EW_THROUGH",
+    }
+    assert len(plan["stages"]) == 3
+
+    north = plan["phases"][0]
+    south = plan["phases"][1]
+    assert north["heads"]["N"]["main"] == "GREEN"
+    assert north["heads"]["S"]["main"] == "RED"
+    assert south["heads"]["N"]["main"] == "RED"
+    assert south["heads"]["S"]["main"] == "GREEN"
+    assert plan["inference"]["directional_ns_split_by_phase"] == {
+        "PHASE_A": "NORTH_SPLIT",
+        "PHASE_B": "SOUTH_SPLIT",
+    }
+
 def test_automatic_physical_plan_rejects_noncompass_streams() -> None:
     result = {
         "schedule": {
