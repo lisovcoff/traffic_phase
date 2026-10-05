@@ -650,3 +650,326 @@ def test_automatic_physical_plan_rejects_noncompass_streams() -> None:
         assert "canonical N/S/E/W" in str(exc)
     else:
         raise AssertionError("non-compass movement must not become physical")
+
+
+def test_automatic_physical_plan_merges_adjacent_stages_by_head_configuration() -> None:
+    names = ["PHASE_A", "PHASE_B", "PHASE_C"]
+    result = {
+        "schedule": {
+            "phase_names": names,
+            "phase_count": 3,
+            "period_s": 100.0,
+            "baseline_duration_targets_s": {
+                "PHASE_A": 20.0,
+                "PHASE_B": 20.0,
+                "PHASE_C": 60.0,
+            },
+            "baseline_segments": [
+                [0.0, 20.0, 0],
+                [20.0, 40.0, 1],
+                [40.0, 100.0, 2],
+            ],
+            "stream_activity_by_phase": [
+                {
+                    "stream": "N->S",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.90,
+                        "PHASE_B": 0.88,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "S->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.90,
+                        "PHASE_B": 0.88,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "E->W",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.90,
+                    },
+                },
+                {
+                    "stream": "W->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.90,
+                    },
+                },
+            ],
+        }
+    }
+
+    plan = infer_physical_signal_plan(result)
+
+    assert plan["inference"]["physical_phase_count"] == 2
+    assert [
+        (stage["name"], stage["phase_start"], stage["phase_end"])
+        for stage in plan["stages"]
+    ] == [
+        ("NS_THROUGH", 0.0, 40.0),
+        ("EW_THROUGH", 40.0, 100.0),
+    ]
+    assert plan["stages"][0]["heads"]["N"]["main"] == "GREEN"
+    assert plan["stages"][0]["heads"]["E"]["main"] == "RED"
+    assert plan["stages"][1]["heads"]["N"]["main"] == "RED"
+    assert plan["stages"][1]["heads"]["E"]["main"] == "GREEN"
+
+
+
+def test_automatic_physical_plan_keeps_directional_ns_split_distinct() -> None:
+    names = ["PHASE_A", "PHASE_B", "PHASE_C"]
+    result = {
+        "schedule": {
+            "phase_names": names,
+            "phase_count": 3,
+            "period_s": 100.0,
+            "baseline_duration_targets_s": {
+                "PHASE_A": 30.0,
+                "PHASE_B": 30.0,
+                "PHASE_C": 40.0,
+            },
+            "baseline_segments": [
+                [0.0, 30.0, 0],
+                [30.0, 60.0, 1],
+                [60.0, 100.0, 2],
+            ],
+            "stream_activity_by_phase": [
+                {
+                    "stream": "E->W",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.20,
+                    },
+                },
+                {
+                    "stream": "W->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.20,
+                    },
+                },
+                {
+                    "stream": "N->S",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.20,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "S->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.20,
+                        "PHASE_C": 0.01,
+                    },
+                },
+            ],
+        }
+    }
+
+    plan = infer_physical_signal_plan(result)
+    by_name = {phase["name"]: phase for phase in plan["phases"]}
+
+    assert plan["mapping"] == {
+        "PHASE_A": "NS_THROUGH",
+        "PHASE_B": "NS_THROUGH_2",
+        "PHASE_C": "EW_THROUGH",
+    }
+    assert by_name["NS_THROUGH"]["heads"]["N"]["main"] == "GREEN"
+    assert by_name["NS_THROUGH"]["heads"]["S"]["main"] == "RED"
+    assert by_name["NS_THROUGH_2"]["heads"]["N"]["main"] == "RED"
+    assert by_name["NS_THROUGH_2"]["heads"]["S"]["main"] == "GREEN"
+
+
+def test_automatic_physical_plan_absorbs_empty_phase_and_merges_cycle_boundary() -> None:
+    names = ["PHASE_A", "PHASE_B", "PHASE_C"]
+    result = {
+        "schedule": {
+            "phase_names": names,
+            "phase_count": 3,
+            "period_s": 120.119464,
+            "baseline_duration_targets_s": {
+                "PHASE_A": 43.183084,
+                "PHASE_B": 34.878968,
+                "PHASE_C": 42.057412,
+            },
+            "baseline_segments": [
+                [0.0, 38.283030, 0],
+                [38.283030, 73.161998, 1],
+                [73.161998, 115.219411, 2],
+                [115.219411, 120.119464, 0],
+            ],
+            "stream_activity_by_phase": [
+                {
+                    "stream": "E->W",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.20,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "W->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.20,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "N->S",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.20,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "S->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.20,
+                        "PHASE_C": 0.01,
+                    },
+                },
+            ],
+        }
+    }
+
+    plan = infer_physical_signal_plan(result)
+
+    assert plan["mapping"] == {
+        "PHASE_A": "EW_THROUGH",
+        "PHASE_B": "NS_THROUGH",
+        "PHASE_C": "NS_THROUGH",
+    }
+    assert plan["inference"]["inherited_empty_phases"] == {
+        "PHASE_C": "PHASE_B"
+    }
+    assert len(plan["stages"]) == 2
+    assert [
+        (stage["name"], stage["phase_start"], stage["phase_end"])
+        for stage in plan["stages"]
+    ] == [
+        ("EW_THROUGH", 0.0, 43.183084),
+        ("NS_THROUGH", 43.183084, 120.119464),
+    ]
+    assert plan["timing"]["cycle_rotation_s"] == 115.219411
+
+
+def test_automatic_physical_plan_suppresses_discharge_turn_arrows() -> None:
+    names = ["PHASE_A", "PHASE_B", "PHASE_C"]
+    result = {
+        "schedule": {
+            "phase_names": names,
+            "phase_count": 3,
+            "period_s": 120.150651,
+            "baseline_duration_targets_s": {
+                "PHASE_A": 57.866394,
+                "PHASE_B": 7.004673,
+                "PHASE_C": 55.279584,
+            },
+            "baseline_segments": [
+                [0.0, 23.681599, 2],
+                [23.681599, 81.547993, 0],
+                [81.547993, 88.552666, 1],
+                [88.552666, 120.150651, 2],
+            ],
+            "stream_activity_by_phase": [
+                {
+                    "stream": "N->S",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.690104,
+                        "PHASE_C": 0.138292,
+                    },
+                },
+                {
+                    "stream": "S->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.309896,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "N->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.252604,
+                        "PHASE_C": 0.071983,
+                    },
+                },
+                {
+                    "stream": "N->W",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.01,
+                        "PHASE_B": 0.242188,
+                        "PHASE_C": 0.079152,
+                    },
+                },
+                {
+                    "stream": "S->W",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.02,
+                        "PHASE_B": 0.091146,
+                        "PHASE_C": 0.050478,
+                    },
+                },
+                {
+                    "stream": "E->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.114853,
+                        "PHASE_B": 0.013021,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "W->N",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.144790,
+                        "PHASE_B": 0.023438,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "E->W",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.097582,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+                {
+                    "stream": "W->E",
+                    "event_probability_by_phase": {
+                        "PHASE_A": 0.025619,
+                        "PHASE_B": 0.01,
+                        "PHASE_C": 0.01,
+                    },
+                },
+            ],
+        }
+    }
+
+    plan = infer_physical_signal_plan(result)
+
+    assert plan["inference"]["physical_phase_count"] == 2
+    assert plan["topology"]["N"]["arrows"] == []
+    assert plan["topology"]["S"]["arrows"] == []
+    assert plan["inference"]["suppressed_turn_movements_by_phase"]["PHASE_B"] == [
+        "N->E",
+        "N->W",
+        "S->W",
+    ]
+    assert len(plan["stages"]) == 2
