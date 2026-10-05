@@ -114,7 +114,7 @@ def test_four_phase_equal_duration_uses_movement_signature() -> None:
         "schedule": {
             "phase_names": names,
             "phase_count": 4,
-            "period_s": 100.0,
+            "period_s": 119.9,
             "baseline_duration_targets_s": {name: 25.0 for name in names},
             "baseline_segments": [
                 [0.0, 25.0, 0], [25.0, 50.0, 1],
@@ -731,48 +731,24 @@ def test_automatic_physical_plan_keeps_directional_ns_split_distinct() -> None:
             "phase_count": 3,
             "period_s": 100.0,
             "baseline_duration_targets_s": {
-                "PHASE_A": 30.0,
-                "PHASE_B": 30.0,
-                "PHASE_C": 40.0,
+                "PHASE_A": 21.6,
+                "PHASE_B": 40.2,
+                "PHASE_C": 58.1,
             },
             "baseline_segments": [
-                [0.0, 30.0, 0],
-                [30.0, 60.0, 1],
-                [60.0, 100.0, 2],
+                [0.0, 21.6, 0],
+                [21.6, 61.8, 1],
+                [61.8, 119.9, 2],
             ],
             "stream_activity_by_phase": [
-                {
-                    "stream": "E->W",
-                    "event_probability_by_phase": {
-                        "PHASE_A": 0.01,
-                        "PHASE_B": 0.01,
-                        "PHASE_C": 0.20,
-                    },
-                },
-                {
-                    "stream": "W->E",
-                    "event_probability_by_phase": {
-                        "PHASE_A": 0.01,
-                        "PHASE_B": 0.01,
-                        "PHASE_C": 0.20,
-                    },
-                },
-                {
-                    "stream": "N->S",
-                    "event_probability_by_phase": {
-                        "PHASE_A": 0.20,
-                        "PHASE_B": 0.01,
-                        "PHASE_C": 0.01,
-                    },
-                },
-                {
-                    "stream": "S->N",
-                    "event_probability_by_phase": {
-                        "PHASE_A": 0.01,
-                        "PHASE_B": 0.20,
-                        "PHASE_C": 0.01,
-                    },
-                },
+                {"stream":"N->S","event_probability_by_phase":{"PHASE_A":0.1458,"PHASE_B":0.01,"PHASE_C":0.01}},
+                {"stream":"S->N","event_probability_by_phase":{"PHASE_A":0.0270,"PHASE_B":0.1988,"PHASE_C":0.01}},
+                {"stream":"E->W","event_probability_by_phase":{"PHASE_A":0.01,"PHASE_B":0.01,"PHASE_C":0.0616}},
+                {"stream":"W->E","event_probability_by_phase":{"PHASE_A":0.01,"PHASE_B":0.01,"PHASE_C":0.01}},
+                {"stream":"N->E","event_probability_by_phase":{"PHASE_A":0.1181,"PHASE_B":0.01,"PHASE_C":0.01}},
+                {"stream":"E->N","event_probability_by_phase":{"PHASE_A":0.0563,"PHASE_B":0.01,"PHASE_C":0.01}},
+                {"stream":"S->E","event_probability_by_phase":{"PHASE_A":0.01,"PHASE_B":0.0386,"PHASE_C":0.01}},
+                {"stream":"W->S","event_probability_by_phase":{"PHASE_A":0.01,"PHASE_B":0.01,"PHASE_C":0.0381}},
             ],
         }
     }
@@ -781,14 +757,19 @@ def test_automatic_physical_plan_keeps_directional_ns_split_distinct() -> None:
     by_name = {phase["name"]: phase for phase in plan["phases"]}
 
     assert plan["mapping"] == {
-        "PHASE_A": "NS_THROUGH",
-        "PHASE_B": "NS_THROUGH_2",
+        "PHASE_A": "NORTH_SPLIT",
+        "PHASE_B": "SOUTH_SPLIT",
         "PHASE_C": "EW_THROUGH",
     }
-    assert by_name["NS_THROUGH"]["heads"]["N"]["main"] == "GREEN"
-    assert by_name["NS_THROUGH"]["heads"]["S"]["main"] == "RED"
-    assert by_name["NS_THROUGH_2"]["heads"]["N"]["main"] == "RED"
-    assert by_name["NS_THROUGH_2"]["heads"]["S"]["main"] == "GREEN"
+    assert len(plan["stages"]) == 3
+    assert by_name["NORTH_SPLIT"]["heads"]["N"]["main"] == "GREEN"
+    assert by_name["NORTH_SPLIT"]["heads"]["S"]["main"] == "RED"
+    assert by_name["SOUTH_SPLIT"]["heads"]["N"]["main"] == "RED"
+    assert by_name["SOUTH_SPLIT"]["heads"]["S"]["main"] == "GREEN"
+    assert plan["inference"]["directional_ns_split_by_phase"] == {
+        "PHASE_A": "NORTH_SPLIT",
+        "PHASE_B": "SOUTH_SPLIT",
+    }
 
 
 def test_automatic_physical_plan_absorbs_empty_phase_and_merges_cycle_boundary() -> None:

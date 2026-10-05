@@ -476,6 +476,99 @@ def infer_physical_signal_plan(
                 )
             green_by_phase[phase] = frozenset(sorted(green))
 
+    # Detect genuine single-approach N/S split phases before reciprocal
+    # restoration. A turn candidate in a split phase must never cause the
+    # opposite main head to be synthesized as GREEN.
+    NS_SPLIT_INACTIVE_THRESHOLD = 0.04
+    NS_SPLIT_MIN_DURATION_RATIO = 1.60
+    NS_SPLIT_MIN_DURATION_GAP_FRACTION = 0.12
+
+    north_split_candidates = {
+        phase
+        for phase in names
+        if (
+            float(activity[phase].get("N->S", 0.0))
+            >= float(activity_threshold)
+            and float(activity[phase].get("S->N", 0.0))
+            < NS_SPLIT_INACTIVE_THRESHOLD
+        )
+    }
+    south_split_candidates = {
+        phase
+        for phase in names
+        if (
+            float(activity[phase].get("S->N", 0.0))
+            >= float(activity_threshold)
+            and float(activity[phase].get("N->S", 0.0))
+            < NS_SPLIT_INACTIVE_THRESHOLD
+        )
+    }
+
+    # A directional split is only established when the cycle contains both
+    # complementary one-sided phases with a pronounced duration contrast.
+    # This prevents ordinary V9 over-segmentation (for example a short
+    # statistical sub-phase followed by the reciprocal through stream) from
+    # being promoted to a physical split controller stage.
+    directional_ns_split_by_phase: dict[str, str] = {}
+    for north_phase in north_split_candidates:
+        north_duration = float(
+            durations.get(north_phase, period / max(1, len(names)))
+        )
+        for south_phase in south_split_candidates:
+            if not _cyclic_adjacent(north_phase, south_phase):
+                continue
+            south_duration = float(
+                durations.get(south_phase, period / max(1, len(names)))
+            )
+            short_duration = min(north_duration, south_duration)
+            long_duration = max(north_duration, south_duration)
+            if short_duration <= 0.0:
+                continue
+            if (
+                long_duration / short_duration >= NS_SPLIT_MIN_DURATION_RATIO
+                and (
+                    long_duration - short_duration
+                ) / period >= NS_SPLIT_MIN_DURATION_GAP_FRACTION
+            ):
+                # A latent phase carrying a strong perpendicular through
+                # movement is not a pure single-approach NS split. This is a
+                # common V9 artifact when one straight stream is shared with
+                # a neighboring physical phase.
+                has_perpendicular_through = any(
+                    float(activity[north_phase].get(movement, 0.0))
+                    >= float(activity_threshold)
+                    for movement in ("E->W", "W->E")
+                ) or any(
+                    float(activity[south_phase].get(movement, 0.0))
+                    >= float(activity_threshold)
+                    for movement in ("E->W", "W->E")
+                )
+                if has_perpendicular_through:
+                    continue
+
+                directional_ns_split_by_phase[north_phase] = "NORTH_SPLIT"
+                directional_ns_split_by_phase[south_phase] = "SOUTH_SPLIT"
+                break
+
+    # Candidate split phases must be consecutive in the cyclic baseline.
+    # This prevents a non-adjacent shared-stream artifact from being mistaken
+    # for a single-approach controller stage.
+    baseline_order_for_split = _baseline_order(result, names, period)
+    baseline_index_for_split = {
+        phase: index
+        for index, phase in enumerate(baseline_order_for_split)
+    }
+
+    def _cyclic_adjacent(left: str, right: str) -> bool:
+        if len(baseline_order_for_split) < 2:
+            return False
+        left_index = baseline_index_for_split.get(left)
+        right_index = baseline_index_for_split.get(right)
+        if left_index is None or right_index is None:
+            return False
+        distance = abs(left_index - right_index)
+        return distance == 1 or distance == len(baseline_order_for_split) - 1
+
     # A latent phase can lose one reciprocal straight stream when a
     # neighboring/related phase carries turn evidence. Restore the physical
     # reciprocal head only in that case. A pure N->S / S->N directional split
@@ -514,6 +607,14 @@ def infer_physical_signal_plan(
         # unrelated opposite-through head.
         if turn_evidence_phases:
             for phase in names:
+                # A detected single-approach split is already physically
+                # directional. Never restore its reciprocal main head merely
+                # because a neighboring turn stream is phase-selective.
+                if (
+                    axis == "NS"
+                    and phase in directional_ns_split_by_phase
+                ):
+                    continue
                 green = set(green_by_phase[phase])
                 if any(not _is_straight(movement) for movement in green):
                     continue
@@ -540,6 +641,11 @@ def infer_physical_signal_plan(
         # case, while keeping genuinely observed N/S or E/W splits distinct.
         for phase in names:
             green = set(green_by_phase[phase])
+            if (
+                axis == "NS"
+                and phase in directional_ns_split_by_phase
+            ):
+                continue
             if any(not _is_straight(movement) for movement in green):
                 continue
             axis_straight = green.intersection(straight_movements)
@@ -604,7 +710,10 @@ def infer_physical_signal_plan(
         if signature in signature_names:
             mapping[phase] = signature_names[signature]
             continue
-        base = _semantic_name(green_by_phase[phase])
+        base = directional_ns_split_by_phase.get(
+            phase,
+            _semantic_name(green_by_phase[phase]),
+        )
         used[base] += 1
         physical_name = (
             base if used[base] == 1 else f"{base}_{used[base]}"
@@ -831,6 +940,7 @@ def infer_physical_signal_plan(
             "strong_turn_pair_threshold": STRONG_TURN_PAIR_THRESHOLD,
             "startup_lost_s": float(startup_lost_s),
             "cycle_rotation_s": float(cycle_rotation_s),
+            "directional_ns_split_by_phase": dict(directional_ns_split_by_phase),
             "inherited_empty_phases": dict(inherited_empty_phases),
             "turn_reciprocal_pair_min_probability": TURN_RECIPROCAL_PAIR_MIN_PROBABILITY,
             "suppressed_turn_movements_by_phase": {
