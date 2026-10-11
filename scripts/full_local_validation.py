@@ -247,9 +247,18 @@ class MemberAudit:
             "error": self.error,
         }
 
-def prepare_sorted_member(stream: BinaryIO, *, name: str, work_dir: Path, chunk_trajectories: int = DEFAULT_CHUNK_TRAJECTORIES) -> tuple[BinaryIO, MemberAudit]:
+def prepare_sorted_member(
+    stream: BinaryIO,
+    *,
+    name: str,
+    work_dir: Path,
+    chunk_trajectories: int = DEFAULT_CHUNK_TRAJECTORIES,
+    max_trajectories: int | None = None,
+) -> tuple[BinaryIO, MemberAudit]:
     if chunk_trajectories <= 0:
         raise ValueError("chunk_trajectories must be positive")
+    if max_trajectories is not None and max_trajectories <= 0:
+        raise ValueError("max_trajectories must be positive when provided")
     work_dir.mkdir(parents=True, exist_ok=True)
     audit = MemberAudit(name)
     chunks: list[Path] = []
@@ -273,6 +282,8 @@ def prepare_sorted_member(stream: BinaryIO, *, name: str, work_dir: Path, chunk_
             )
             chunk_records.append((int(trajectory_start_ms), ordinal, item))
             ordinal += 1
+            if max_trajectories is not None and ordinal >= max_trajectories:
+                break
             if len(chunk_records) >= chunk_trajectories:
                 chunk_records.sort(key=lambda x: (x[0], x[1]))
                 chunk_path = work_dir / f"chunk_{len(chunks):05d}.pkl"
@@ -349,12 +360,26 @@ def _aggregate_audits(audits: list[dict[str, object]]) -> dict[str, object]:
         ),
     }
 
-def _member_streams(archive_path: Path, work_root: Path, audit_sink: list[dict[str, object]], *, chunk_trajectories: int) -> tuple[int, Iterator[tuple[int, str, BinaryIO]]]:
+def _member_streams(
+    archive_path: Path,
+    work_root: Path,
+    audit_sink: list[dict[str, object]],
+    *,
+    chunk_trajectories: int,
+    max_trajectories_per_member: int | None = None,
+    max_members: int | None = None,
+) -> tuple[int, Iterator[tuple[int, str, BinaryIO]]]:
+    if max_trajectories_per_member is not None and max_trajectories_per_member <= 0:
+        raise ValueError("max_trajectories_per_member must be positive when provided")
+    if max_members is not None and max_members <= 0:
+        raise ValueError("max_members must be positive when provided")
     archive = zipfile.ZipFile(archive_path)
     members = [
         member for member in archive.infolist()
         if not member.is_dir() and member.filename.lower().endswith(".json")
     ]
+    if max_members is not None:
+        members = members[:max_members]
 
     def iterator() -> Iterator[tuple[int, str, BinaryIO]]:
         try:
@@ -369,6 +394,7 @@ def _member_streams(archive_path: Path, work_root: Path, audit_sink: list[dict[s
                             name=member.filename,
                             work_dir=member_dir,
                             chunk_trajectories=chunk_trajectories,
+                            max_trajectories=max_trajectories_per_member,
                         )
                     audit_sink.append(audit.to_dict())
                 except Exception as exc:
@@ -387,7 +413,17 @@ def _member_streams(archive_path: Path, work_root: Path, audit_sink: list[dict[s
 
     return len(members), iterator()
 
-def analyze_local_archive(dataset: ValidationDataset, *, work_root: Path, sample_seconds: float, transition_tolerance_seconds: float, baseline: TrafficBaselineProfile | None, chunk_trajectories: int) -> tuple[dict[str, object], object]:
+def analyze_local_archive(
+    dataset: ValidationDataset,
+    *,
+    work_root: Path,
+    sample_seconds: float,
+    transition_tolerance_seconds: float,
+    baseline: TrafficBaselineProfile | None,
+    chunk_trajectories: int,
+    max_trajectories_per_member: int | None = None,
+    max_members: int | None = None,
+) -> tuple[dict[str, object], object]:
     audit_sink: list[dict[str, object]] = []
     started = time.perf_counter()
     member_count, members = _member_streams(
@@ -395,6 +431,8 @@ def analyze_local_archive(dataset: ValidationDataset, *, work_root: Path, sample
         work_root,
         audit_sink,
         chunk_trajectories=chunk_trajectories,
+        max_trajectories_per_member=max_trajectories_per_member,
+        max_members=max_members,
     )
     store = SegmentEventStore()
     analysis = _stream_members_into_store(
@@ -599,6 +637,23 @@ def main() -> int:
     parser.add_argument("--sample-seconds", type=float, default=DEFAULT_SAMPLE_SECONDS)
     parser.add_argument("--transition-tolerance-seconds", type=float, default=DEFAULT_TRANSITION_TOLERANCE_SECONDS)
     parser.add_argument("--chunk-trajectories", type=int, default=DEFAULT_CHUNK_TRAJECTORIES)
+    parser.add_argument(
+        "--max-trajectories-per-member",
+        type=int,
+        default=None,
+        help="stop after this many usable car trajectories in each JSON member",
+    )
+    parser.add_argument(
+        "--max-members",
+        type=int,
+        default=None,
+        help="process only the first N JSON members of each ZIP",
+    )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="quick real-data smoke: first JSON member and first 750 usable car trajectories per dataset",
+    )
     args = parser.parse_args()
 
     if args.sample_seconds <= 0:
@@ -607,6 +662,15 @@ def main() -> int:
         raise SystemExit("--transition-tolerance-seconds must be non-negative")
     if args.chunk_trajectories <= 0:
         raise SystemExit("--chunk-trajectories must be positive")
+    if args.max_trajectories_per_member is not None and args.max_trajectories_per_member <= 0:
+        raise SystemExit("--max-trajectories-per-member must be positive")
+    if args.max_members is not None and args.max_members <= 0:
+        raise SystemExit("--max-members must be positive")
+    if args.quick and (args.max_trajectories_per_member is not None or args.max_members is not None):
+        raise SystemExit("--quick cannot be combined with explicit --max-trajectories-per-member/--max-members")
+
+    max_trajectories_per_member = 750 if args.quick else args.max_trajectories_per_member
+    max_members = 1 if args.quick else args.max_members
 
     data_dir = args.data_dir.resolve()
     output_dir = args.output_dir.resolve()
@@ -635,6 +699,8 @@ def main() -> int:
             transition_tolerance_seconds=args.transition_tolerance_seconds,
             baseline=None,
             chunk_trajectories=args.chunk_trajectories,
+            max_trajectories_per_member=max_trajectories_per_member,
+            max_members=max_members,
         )
         reports.append(report)
         reference_records.append((dataset, analysis))
@@ -659,6 +725,8 @@ def main() -> int:
             transition_tolerance_seconds=args.transition_tolerance_seconds,
             baseline=baselines.get(dataset.intersection_id),
             chunk_trajectories=args.chunk_trajectories,
+            max_trajectories_per_member=max_trajectories_per_member,
+            max_members=max_members,
         )
         reference_options = reference_periods.get(dataset.intersection_id, [])
         report["cycle"]["reference_period_options_seconds"] = [round(float(value), 4) for value in reference_options]
@@ -699,6 +767,11 @@ def main() -> int:
             "detections": sum(int(report["audit"]["aggregate"]["detections"]) for report in reports),
             "ordering_violations": sum(int(report["audit"]["aggregate"]["order_violations"]) for report in reports),
             "duplicate_ids": sum(int(report["audit"]["aggregate"]["duplicate_ids"]) for report in reports),
+        },
+        "validation_mode": "quick_sample" if args.quick else "full",
+        "limits": {
+            "max_members": max_members,
+            "max_trajectories_per_member": max_trajectories_per_member,
         },
         "scenario_counts": {
             kind: sum(1 for report in reports if report["dataset"]["kind"] == kind)
