@@ -1137,10 +1137,13 @@ def build_spatial_visualization(
         display_base_timestamp_ms=display_base_ms,
         projection=projection,
     )
-    physical_plan = result.get("physical_signal_plan") or {
-        "enabled": False,
-        "reason": "physical_signal_plan missing from V9 result",
-    }
+    # Preserve an explicitly provided physical plan, including an intentionally
+    # disabled plan. Replacing it here would silently discard operator input.
+    if physical_plan is None:
+        physical_plan = {
+            "enabled": False,
+            "reason": "physical_signal_plan missing from V9 result",
+        }
     html = render_html(
         result,
         projection,
