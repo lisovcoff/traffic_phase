@@ -1123,11 +1123,25 @@ def build_spatial_visualization(
             (float(result["analysis_base_timestamp_ms"]) - display_base_ms) / 1000.0,
         )
 
-    physical_plan = (
-        json.loads(physical_plan_path.read_text(encoding="utf-8"))
-        if physical_plan_path is not None
-        else result.get("physical_signal_plan")
-    )
+    if physical_plan_path is not None:
+        # A supplied physical plan is an explicit calibration, not a hint.
+        # Never silently replace it with the automatically inferred plan.
+        manual = json.loads(Path(physical_plan_path).read_text(encoding="utf-8"))
+        if not isinstance(manual, dict) or not manual.get("stages"):
+            raise ValueError("manual physical plan must contain non-empty stages")
+        if float(manual.get("cycle_seconds", 0.0)) <= 0:
+            raise ValueError("manual physical plan must have a positive cycle_seconds")
+        physical_plan = {
+            **manual,
+            "enabled": True,
+            "auto_inferred": False,
+            "source": "MANUAL",
+        }
+    else:
+        physical_plan = result.get("physical_signal_plan") or {
+            "enabled": False,
+            "reason": "physical_signal_plan missing from V9 result",
+        }
     projection = build_spatial_projection(tracks)
     analysis_base_ms = float(result["analysis_base_timestamp_ms"])
     time_offset_s = (analysis_base_ms - display_base_ms) / 1000.0
@@ -1137,10 +1151,6 @@ def build_spatial_visualization(
         display_base_timestamp_ms=display_base_ms,
         projection=projection,
     )
-    physical_plan = result.get("physical_signal_plan") or {
-        "enabled": False,
-        "reason": "physical_signal_plan missing from V9 result",
-    }
     html = render_html(
         result,
         projection,
