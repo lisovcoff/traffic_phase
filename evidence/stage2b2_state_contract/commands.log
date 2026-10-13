@@ -1,0 +1,9 @@
+Base: git switch fix/stage2b1-temporal-evidence-20261013; git switch -c fix/stage2b2-state-contract-20261013
+Import limited uncertainty patch: git restore --source=1207344bdcbc46edbf19bace65382ee0252d1f4d -- app/core/temporal_evidence.py app/core/v9/events.py app/core/v9/model.py tests/test_temporal_evidence_contract_diagnostics.py
+python -m scripts.verify_state_contract_2b2
+python -m pytest -q -p no:cacheprovider tests/test_state_contract_2b2.py tests/test_signal_renderer.py tests/v10/test_v10_semantic_mapping.py tests/test_temporal_evidence_contract_diagnostics.py tests/test_vehicle_temporal_evidence.py
+After preserving vehicle support and tightening independent attestation:
+python -m pytest -q -p no:cacheprovider tests/test_state_contract_2b2.py tests/test_signal_renderer.py
+git diff --exit-code BASE -- protected paths (listed in final_code_versions.json)
+git diff --check BASE
+No fitting, benchmark, parameter search or trajectory/annotation file reads.
