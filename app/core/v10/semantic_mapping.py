@@ -6,6 +6,7 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
+from app.core.state_contract import logical_phase_at, physical_estimate
 
 
 DEFAULT_ACTIVITY_THRESHOLD = 0.05
@@ -54,6 +55,9 @@ class SemanticMappingResult:
         return {
             "mapping": dict(self.mapping),
             "confidence": round(self.confidence, 4),
+            "confidence_semantics": "heuristic_mapping_score_NOT_lamp_probability",
+            "mapping_verified": False,
+            "calibrated_lamp_probability": None,
             "scores": {
                 anonymous: {
                     physical: round(float(score), 6)
@@ -267,9 +271,24 @@ def signal_state_at(
     timestamp_s: float,
     physical_phases: Sequence[PhaseSpec],
     mapping: Mapping[str, str],
+    *,
+    mode: str = "reconstructed",
 ) -> dict[str, Any]:
-    if timestamp_s < 0:
-        raise ValueError("timestamp_s must be non-negative")
+    logical = logical_phase_at(result, timestamp_s, mode=mode)
+    physical = physical_estimate("UNKNOWN", mode=mode)
+    if mode == "reconstructed":
+        # A heuristic catalog assignment does not establish lamp or arrow states.
+        if logical.abstention_reason:
+            from dataclasses import replace
+            physical = replace(physical, abstention_reason=logical.abstention_reason)
+        return {"timestamp_s": logical.observation_support["timestamp_s"], "phase": None,
+                "logical_phase": logical.to_dict(), "physical_section": physical.to_dict(),
+                "mapping_candidate": mapping.get(logical.estimated_state),
+                "green_movements": [], "red_movements": [], "additional_movements": []}
+    if not math.isfinite(timestamp_s) or timestamp_s < 0:
+        return {"timestamp_s": timestamp_s, "phase": None, "logical_phase": logical.to_dict(),
+                "physical_section": physical.to_dict(), "green_movements": [],
+                "red_movements": [], "additional_movements": []}
     schedule = result.get("schedule")
     if not isinstance(schedule, Mapping):
         raise ValueError("V9 result has no schedule")
@@ -299,6 +318,11 @@ def signal_state_at(
         "green_movements": sorted(spec.green_movements),
         "additional_movements": sorted(spec.additional_movements),
         "red_movements": sorted(all_green - set(spec.green_movements)),
+        "mode": mode,
+        "logical_phase": logical.to_dict(),
+        "physical_section": physical_estimate("GREEN", mode=mode,
+            source="explicit_phase_catalog", provenance={"mapping": dict(mapping)},
+            assumptions=("catalog_and_phase_assignment_assumed",)).to_dict(),
     }
 
 

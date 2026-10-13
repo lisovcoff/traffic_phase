@@ -135,11 +135,11 @@ def test_four_phase_equal_duration_uses_movement_signature() -> None:
 def test_physical_state_does_not_leak_ns_through_into_lenina_c() -> None:
     result = _lenina_result((0, 1, 2))
     mapped = map_v9_to_physical(result, LENINA_PHASES, duration_weight=0.95)
-    state = signal_state_at(result, 60.0, LENINA_PHASES, mapped.mapping)
+    state = signal_state_at(result, 60.0, LENINA_PHASES, mapped.mapping, mode="configured")
     assert state["phase"] == "B"
     assert "N->S" in state["green_movements"]
 
-    state_c = signal_state_at(result, 10.0, LENINA_PHASES, mapped.mapping)
+    state_c = signal_state_at(result, 10.0, LENINA_PHASES, mapped.mapping, mode="configured")
     assert state_c["phase"] == "C"
     assert "N->S" not in state_c["green_movements"]
     assert "W->N" in state_c["green_movements"]

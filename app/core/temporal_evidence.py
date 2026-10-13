@@ -35,7 +35,43 @@ class TemporalEvent:
             raise ValueError("actual CROSSING requires verified stop-line provenance")
 
     def to_dict(self):
-        return asdict(self)
+        result = asdict(self)
+        interval = self.provenance.get("observation_interval_ms")
+        result["temporal_uncertainty_ms_scope"] = "vehicle_event_unvalidated_heuristic_only"
+        result["calibrated_lamp_probability"] = None
+        result["uncertainty"] = {
+            "vehicle_event": {
+                "sampling_interval_ms": interval,
+                "sampling_interval_width_ms": interval[1] - interval[0] if interval else None,
+                "heuristic_localization_radius_ms": self.temporal_uncertainty_ms,
+                "calibrated": False,
+                "statistical_error_bound": False,
+            },
+            "event_to_signal_switch": {
+                "status": "UNKNOWN",
+                "uncertainty_ms": None,
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
+            },
+        }
+        return result
+
+
+class EvidenceUnavailable(ValueError):
+    """Machine-readable abstention, retaining ValueError compatibility.
+
+    No phase schedule or K is constructed; consumers may persist to_dict().
+    This is not a fabricated detector result for an empty recording.
+    """
+    def __init__(self, message, *, reason_code):
+        super().__init__(message)
+        self.reason_code = reason_code
+
+    def to_dict(self):
+        return {"status": "unavailable", "state": "UNKNOWN", "reason_code": self.reason_code,
+                "reason": str(self), "phase_count": None, "schedule": None,
+                "estimated_state": "UNKNOWN", "level": "logical_phase",
+                "source": "temporal_evidence", "assumptions": [], "observation_support": {},
+                "abstention_reason": self.reason_code, "calibrated_lamp_probability": None}
 
 
 def adapt_trajectory_event(event, *, source_track_id, evidence_method, provenance,

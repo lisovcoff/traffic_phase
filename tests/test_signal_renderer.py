@@ -51,7 +51,7 @@ def test_renderer_contract_is_config_driven(factory):
         assert section["source"] == RendererSignalSource.UNKNOWN.value
 
 
-def test_renderer_serializes_observed_and_modelled_sources_distinctly():
+def test_renderer_serializes_configured_states_and_transitions_distinctly():
     config = DEFAULT_INTERSECTION_CONFIG
     observed = ApproachState(
         approach="N",
@@ -77,6 +77,7 @@ def test_renderer_serializes_observed_and_modelled_sources_distinctly():
     payload = build_signal_renderer_data(
         config,
         (observed, modelled),
+        mode="configured",
         state_by_head={
             "E_MAIN": RendererSignalState.OFF.value,
             "W_MAIN": RendererSignalState.UNKNOWN.value,
@@ -88,7 +89,9 @@ def test_renderer_serializes_observed_and_modelled_sources_distinctly():
     }
 
     assert by_id["N_MAIN"]["state"] == "GREEN"
-    assert by_id["N_MAIN"]["source"] == "OBSERVED_EVIDENCE"
+    assert by_id["N_MAIN"]["source"] == "INFERRED_MODEL"
+    assert by_id["N_MAIN"]["mode"] == "configured"
+    assert by_id["N_MAIN"]["calibrated_lamp_probability"] is None
     assert by_id["N_MAIN"]["confidence"] == 0.83
 
     assert by_id["S_MAIN"]["state"] == "YELLOW"

@@ -10,6 +10,7 @@ from app.core.intersection_config import (
     SignalHead,
 )
 from app.core.signal_state_estimator import ApproachState, SignalState
+from app.core.state_contract import StateEstimate, physical_estimate
 
 
 class RendererSignalState(str, Enum):
@@ -38,6 +39,7 @@ class SignalSectionRenderData:
     state: RendererSignalState
     confidence: float
     source: RendererSignalSource
+    estimate: StateEstimate
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -49,6 +51,10 @@ class SignalSectionRenderData:
             "state": self.state.value,
             "confidence": round(max(0.0, min(1.0, self.confidence)), 4),
             "source": self.source.value,
+            **self.estimate.to_dict(),
+            "source": self.source.value,
+            "state_estimate": self.estimate.to_dict(),
+            "confidence_semantics": "heuristic_input_quality_NOT_lamp_probability",
         }
 
 
@@ -133,11 +139,13 @@ def build_signal_renderer_data(
     state_by_head: Mapping[str, object] | None = None,
     confidence: float | None = None,
     source: RendererSignalSource | str | None = None,
+    mode: str = "reconstructed",
+    evidence_by_head: Mapping[str, Mapping[str, object]] | None = None,
 ) -> dict[str, object]:
     """Build the frontend contract for physical signal heads.
 
-    This is presentation data only. It does not infer or change signal state.
-    The physical structure always comes from IntersectionConfig.
+    Vehicle-derived color proposals are not lamp observations. Explicit
+    configured/simulated mode preserves plan rendering, labelled as assumed.
     """
     config = config or DEFAULT_INTERSECTION_CONFIG
     by_head = {item.signal_head_id: item for item in states if item.signal_head_id}
@@ -156,6 +164,24 @@ def build_signal_renderer_data(
             else float(confidence or 0.0)
         )
         section_source = _source(approach_state, explicit_source=source)
+        evidence = (evidence_by_head or {}).get(head.id, {})
+        estimate = physical_estimate(current_state.value, mode=mode,
+            source=str(evidence.get("source", "vehicle_state_proposal")),
+            observation_support=evidence.get("observation_support", {}),
+            provenance=evidence.get("provenance", {}),
+            mapping_verified=evidence.get("mapping_verified") is True,
+            hardware_verified=evidence.get("hardware_verified") is True,
+            verified_lamp_observation=evidence.get("verified_lamp_observation") is True)
+        current_state = _state(estimate.estimated_state)
+        if estimate.abstention_reason:
+            section_source = RendererSignalSource.UNKNOWN
+            section_confidence = 0.0
+        elif mode != "reconstructed":
+            section_source = (RendererSignalSource.MODELLED_TRANSITION
+                              if current_state in {RendererSignalState.YELLOW, RendererSignalState.RED_YELLOW}
+                              else RendererSignalSource.INFERRED_MODEL)
+        else:
+            section_source = RendererSignalSource.OBSERVED_EVIDENCE
         kind = "additional_section" if head.additional else "main"
 
         sections = (
@@ -168,6 +194,7 @@ def build_signal_renderer_data(
                 state=current_state,
                 confidence=section_confidence,
                 source=section_source,
+                estimate=estimate,
             ),
         )
         heads.append(
