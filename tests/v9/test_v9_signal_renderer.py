@@ -54,8 +54,8 @@ def _states(snapshot: dict[str, object]) -> dict[str, str]:
     }
 
 
-def test_green_and_red_are_phase_activity_states():
-    states = _states(signal_state_at(_result(), 25.0))
+def test_green_and_red_are_explicitly_configured_activity_proxies():
+    states = _states(signal_state_at(_result(), 25.0, mode="configured"))
     assert states == {
         "N->S": "GREEN",
         "S->N": "GREEN",
@@ -65,21 +65,21 @@ def test_green_and_red_are_phase_activity_states():
 
 
 def test_yellow_is_only_a_modelled_end_transition():
-    states = _states(signal_state_at(_result(), 48.0))
+    states = _states(signal_state_at(_result(), 48.0, mode="configured"))
     assert states["N->S"] == "YELLOW"
     assert states["S->N"] == "YELLOW"
     assert states["E->W"] == "RED"
 
 
 def test_red_yellow_precedes_new_green_phase():
-    states = _states(signal_state_at(_result(), 51.0))
+    states = _states(signal_state_at(_result(), 51.0, mode="configured"))
     assert states["N->S"] == "RED"
     assert states["E->W"] == "RED_YELLOW"
     assert states["W->E"] == "RED_YELLOW"
 
 
 def test_transition_semantics_are_explicit():
-    snapshot = signal_state_at(_result(), 48.0)
+    snapshot = signal_state_at(_result(), 48.0, mode="configured")
     assert snapshot["transition"] is True
     assert all(
         item["source"] == "MODELLED_TRANSITION"

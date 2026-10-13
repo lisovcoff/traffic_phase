@@ -1,275 +1,133 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping
 
+from app.core.state_contract import StateEstimate, logical_phase_at, physical_estimate, prepare_logical_query
 
 DEFAULT_ACTIVITY_THRESHOLD = 0.05
 DEFAULT_YELLOW_DURATION_SECONDS = 3.0
 DEFAULT_RED_YELLOW_DURATION_SECONDS = 2.0
 
 
-def _phase_name(phase_id: int) -> str:
-    return f"PHASE_{chr(ord('A') + int(phase_id))}"
+class SignalQueryModel(dict):
+    """JSON-compatible model with a reusable validated history snapshot."""
+    def __init__(self, values, query):
+        super().__init__(values)
+        self.logical_query = query
 
 
-def _phase_id_from_name(name: str) -> int:
-    prefix = "PHASE_"
-    if not str(name).startswith(prefix):
-        raise ValueError(f"invalid phase name: {name!r}")
-    suffix = str(name)[len(prefix) :].strip()
-    if len(suffix) != 1 or not suffix.isalpha():
-        raise ValueError(f"invalid phase name: {name!r}")
-    return ord(suffix.upper()) - ord("A")
-
-
-def _as_float(value: Any) -> float:
-    return float(value)
-
-
-def _find_segment(
-    segments: Sequence[Sequence[Any]],
-    timestamp_s: float,
-) -> tuple[float, float, int] | None:
-    for raw in segments:
-        if len(raw) < 3:
-            continue
-        start, end, phase_id = (
-            _as_float(raw[0]),
-            _as_float(raw[1]),
-            int(raw[2]),
-        )
-        if start <= timestamp_s < end:
-            return start, end, phase_id
-    if segments:
-        first = segments[0]
-        if len(first) >= 3 and timestamp_s < _as_float(first[0]):
-            return (
-                _as_float(first[0]),
-                _as_float(first[1]),
-                int(first[2]),
-            )
-        last = segments[-1]
-        if len(last) >= 3:
-            return (
-                _as_float(last[0]),
-                _as_float(last[1]),
-                int(last[2]),
-            )
-    return None
-
-
-def _adjacent_phase(
-    segments: Sequence[Sequence[Any]],
-    index: int,
-    direction: int,
-) -> int | None:
-    if not segments:
-        return None
-    target = index + direction
-    if 0 <= target < len(segments):
-        return int(segments[target][2])
-    return int(segments[target % len(segments)][2])
-
-
-def build_signal_model(
-    result: Mapping[str, Any],
-    *,
-    activity_threshold: float = DEFAULT_ACTIVITY_THRESHOLD,
-) -> dict[str, Any]:
+def build_signal_model(result: Mapping[str, Any], *, activity_threshold=DEFAULT_ACTIVITY_THRESHOLD,
+                       mode="reconstructed") -> SignalQueryModel:
     schedule = result.get("schedule")
     if not isinstance(schedule, Mapping):
         raise ValueError("V9 result has no schedule")
-    period = _as_float(schedule.get("period_s", 0.0))
-    if period <= 0:
-        raise ValueError("V9 period must be positive")
-
-    phase_count = int(schedule.get("phase_count", 0))
-    if phase_count <= 0:
-        raise ValueError("V9 phase_count must be positive")
-
-    activity: dict[str, dict[int, float]] = defaultdict(dict)
-    streams = schedule.get("stream_activity_by_phase", ())
-    for item in streams:
-        if not isinstance(item, Mapping):
+    query = prepare_logical_query(result, mode=mode)
+    names = query.phase_names
+    name_ids = {name:index for index,name in enumerate(names)}
+    activity = defaultdict(dict)
+    for item in schedule.get("stream_activity_by_phase", ()):
+        if not isinstance(item,Mapping):
             continue
         movement = str(item.get("stream", "")).strip()
         probabilities = item.get("event_probability_by_phase", {})
-        if not movement or not isinstance(probabilities, Mapping):
+        if not movement or not isinstance(probabilities,Mapping):
             continue
-        for name, value in probabilities.items():
-            try:
-                phase_id = _phase_id_from_name(str(name))
-            except ValueError:
-                continue
-            activity[movement][phase_id] = _as_float(value)
-
-    movement_names = sorted(activity)
-    approaches: dict[str, list[str]] = defaultdict(list)
-    for movement in movement_names:
-        approach = movement.split("->", 1)[0].strip()
-        if approach:
-            approaches[approach].append(movement)
-
-    for movement_list in approaches.values():
-        movement_list.sort()
-
-    return {
-        "period_s": period,
-        "phase_count": phase_count,
-        "phase_names": [
-            str(name)
-            for name in schedule.get(
-                "phase_names",
-                [_phase_name(index) for index in range(phase_count)],
-            )
-        ],
-        "segments": [
-            [float(row[0]), float(row[1]), int(row[2])]
-            for row in schedule.get("baseline_segments", ())
-            if isinstance(row, Sequence) and len(row) >= 3
-        ],
-        "activity": {
-            movement: {
-                int(phase_id): float(probability)
-                for phase_id, probability in probabilities.items()
-            }
-            for movement, probabilities in activity.items()
-        },
-        "approaches": {
-            approach: list(movements)
-            for approach, movements in sorted(approaches.items())
-        },
-        "activity_threshold": float(activity_threshold),
-    }
+        activity[movement]  # Preserve stream identity even when its phase scores are unavailable.
+        for name,value in probabilities.items():
+            if name in name_ids:
+                activity[movement][name_ids[name]] = float(value)
+    approaches = defaultdict(list)
+    for movement in sorted(activity):
+        approaches[movement.split("->",1)[0].strip()].append(movement)
+    return SignalQueryModel({
+        "mode":mode, "period_s":schedule.get("period_s"),
+        "phase_count":schedule.get("phase_count"), "phase_names":list(names),
+        "segments":[list(row) for row in query.segments],
+        "activity":dict(activity), "approaches":dict(approaches),
+        "activity_threshold":float(activity_threshold),
+        "activity_semantics":"vehicle_event_occupancy_NOT_lamp_probability",
+        "history_validation_error":query.validation_error,
+        "physical_section":physical_estimate("UNKNOWN",mode=mode).to_dict(),
+    },query)
 
 
-def signal_state_at(
-    result: Mapping[str, Any],
-    timestamp_s: float,
-    *,
-    yellow_duration_seconds: float = DEFAULT_YELLOW_DURATION_SECONDS,
-    red_yellow_duration_seconds: float = DEFAULT_RED_YELLOW_DURATION_SECONDS,
-    activity_threshold: float = DEFAULT_ACTIVITY_THRESHOLD,
-) -> dict[str, Any]:
-    if timestamp_s < 0:
-        raise ValueError("timestamp_s must be non-negative")
+def signal_state_at(result: Mapping[str, Any], timestamp_s: float, *,
+                    yellow_duration_seconds=DEFAULT_YELLOW_DURATION_SECONDS,
+                    red_yellow_duration_seconds=DEFAULT_RED_YELLOW_DURATION_SECONDS,
+                    activity_threshold=DEFAULT_ACTIVITY_THRESHOLD, mode=None) -> dict[str, Any]:
+    """Default physical abstention; pass build_signal_model output for bulk queries."""
     if yellow_duration_seconds < 0 or red_yellow_duration_seconds < 0:
         raise ValueError("transition durations must be non-negative")
-
-    model = build_signal_model(
-        result,
-        activity_threshold=activity_threshold,
-    )
-    segments = model["segments"]
-    if not segments:
-        raise ValueError("V9 result has no baseline segments")
-
-    recording_segment = _find_segment(segments, timestamp_s)
-    if recording_segment is None:
-        raise ValueError("timestamp is outside the available baseline")
-
-    start, end, phase_id = recording_segment
-    segment_index = next(
-        index
-        for index, row in enumerate(segments)
-        if (
-            abs(float(row[0]) - start) < 1e-9
-            and abs(float(row[1]) - end) < 1e-9
-            and int(row[2]) == phase_id
-        )
-    )
-    previous_phase = _adjacent_phase(segments, segment_index, -1)
-    next_phase = _adjacent_phase(segments, segment_index, +1)
-    distance_from_start = max(0.0, timestamp_s - start)
-    distance_to_end = max(0.0, end - timestamp_s)
-
-    streams: list[dict[str, Any]] = []
-    for movement in model["activity"]:
-        probabilities = model["activity"][movement]
-        probability = float(probabilities.get(phase_id, 0.0))
-        current_green = probability >= activity_threshold
-        previous_green = (
-            float(probabilities.get(previous_phase, 0.0)) >= activity_threshold
-            if previous_phase is not None
-            else False
-        )
-        next_green = (
-            float(probabilities.get(next_phase, 0.0)) >= activity_threshold
-            if next_phase is not None
-            else False
-        )
-
-        state = "GREEN" if current_green else "RED"
-        source = "INFERRED_MODEL"
-        transition = None
-
-        if (
-            current_green
-            and not next_green
-            and 0.0 < distance_to_end <= yellow_duration_seconds
-        ):
-            state = "YELLOW"
-            source = "MODELLED_TRANSITION"
-            transition = {
-                "from_state": "GREEN",
-                "to_state": "RED",
-                "duration_seconds": float(yellow_duration_seconds),
-            }
-        elif (
-            current_green
-            and not previous_green
-            and 0.0 <= distance_from_start < red_yellow_duration_seconds
-            and red_yellow_duration_seconds > 0
-        ):
-            state = "RED_YELLOW"
-            source = "MODELLED_TRANSITION"
-            transition = {
-                "from_state": "RED",
-                "to_state": "GREEN",
-                "duration_seconds": float(red_yellow_duration_seconds),
-            }
-
-        approach = movement.split("->", 1)[0].strip()
-        streams.append(
-            {
-                "movement": movement,
-                "approach": approach,
-                "state": state,
-                "probability": round(probability, 4),
-                "confidence": round(min(1.0, probability), 4),
-                "source": source,
-                "transition": transition,
-            }
-        )
-
-    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for item in streams:
-        grouped[item["approach"]].append(item)
-
-    return {
-        "timestamp_s": round(float(timestamp_s), 3),
-        "cycle_position_s": round(float(timestamp_s % model["period_s"]), 3),
-        "phase_id": phase_id,
-        "phase_name": _phase_name(phase_id),
-        "transition": any(item["transition"] is not None for item in streams),
-        "approaches": {
-            approach: sorted(items, key=lambda item: item["movement"])
-            for approach, items in sorted(grouped.items())
-        },
-        "streams": streams,
-        "semantics": {
-            "green_red": "inferred from V9 per-stream phase activity",
-            "yellow": "modelled transition before an active stream turns red",
-            "red_yellow": "modelled transition before an inactive stream turns green",
-        },
-    }
+    if isinstance(result,SignalQueryModel):
+        model=result
+        if mode is not None and mode != model.logical_query.mode:
+            raise ValueError("query mode differs from prepared model")
+    else:
+        model=build_signal_model(result,activity_threshold=activity_threshold,mode=mode or "reconstructed")
+    mode=model.logical_query.mode
+    logical=logical_phase_at(model.logical_query,timestamp_s)
+    phase_id=logical.observation_support.get("phase_id")
+    index=logical.observation_support.get("segment_index")
+    segments=model.logical_query.segments
+    position=logical.observation_support.get("query_position_s")
+    previous_phase=next_phase=None
+    distance_from_start=distance_to_end=0.
+    if index is not None:
+        start,end,_=segments[index]
+        distance_from_start=position-start; distance_to_end=end-position
+        if index>0 and segments[index-1][1]==start:
+            previous_phase=segments[index-1][2]
+        if index+1<len(segments) and segments[index+1][0]==end:
+            next_phase=segments[index+1][2]
+        # Circular neighbors belong only to explicitly assumed periodic mode.
+        if mode != "reconstructed":
+            if index==0 and start==0:
+                previous_phase=segments[-1][2]
+            if end==model.logical_query.period_s and segments[0][0]==0:
+                next_phase=segments[0][2]
+    streams=[]
+    for movement,probabilities in model["activity"].items():
+        score=probabilities.get(phase_id) if phase_id is not None else None
+        activity=StateEstimate("MODELLED_EVENT_ACTIVITY" if score is not None else "UNKNOWN", "activity",
+            "bernoulli_event_occupancy", ("activity_score_NOT_lamp_probability",),
+            logical.observation_support,
+            logical.abstention_reason or ("NO_PHASE_ACTIVITY_SCORE" if score is None else None),
+            {"movement":movement},mode)
+        proposed="UNKNOWN"; transition=None
+        if mode != "reconstructed" and score is not None:
+            current_green=score>=model["activity_threshold"]
+            previous_green=probabilities.get(previous_phase,0.)>=model["activity_threshold"]
+            next_green=probabilities.get(next_phase,0.)>=model["activity_threshold"]
+            proposed="GREEN" if current_green else "RED"
+            if current_green and next_phase is not None and not next_green and 0<distance_to_end<=yellow_duration_seconds:
+                proposed="YELLOW"
+                transition={"from_state":"GREEN","to_state":"RED","duration_seconds":float(yellow_duration_seconds)}
+            elif current_green and previous_phase is not None and not previous_green and 0<=distance_from_start<red_yellow_duration_seconds:
+                proposed="RED_YELLOW"
+                transition={"from_state":"RED","to_state":"GREEN","duration_seconds":float(red_yellow_duration_seconds)}
+        physical=physical_estimate(proposed,mode=mode,source="v9_event_activity",
+            assumptions=("activity_threshold_is_assumed_plan_proxy",) if mode!="reconstructed" else (),
+            observation_support=logical.observation_support,provenance={"movement":movement},logical_support=logical)
+        streams.append({"movement":movement,"approach":movement.split("->",1)[0].strip(),
+            "state":physical.estimated_state, **physical.to_dict(),
+            "activity":{**activity.to_dict(),"activity_score":score},
+            "logical_phase":logical.to_dict(),"physical_section":physical.to_dict(),
+            "confidence":0.,"confidence_semantics":"no_calibrated_lamp_confidence",
+            "source":"UNKNOWN" if physical.abstention_reason else "MODELLED_TRANSITION" if transition else "INFERRED_MODEL",
+            "transition":transition})
+    grouped=defaultdict(list)
+    for stream in streams:
+        grouped[stream["approach"]].append(stream)
+    return {"timestamp_s":logical.observation_support["timestamp_s"],
+        "cycle_position_s":position,"phase_id":phase_id,"phase_name":logical.estimated_state,
+        "logical_phase":logical.to_dict(),"mode":mode,
+        "physical_section":physical_estimate("UNKNOWN",mode=mode,logical_support=logical).to_dict(),
+        "transition":any(s["transition"] is not None for s in streams),
+        "approaches":dict(grouped),"streams":streams,
+        "semantics":{"activity":"vehicle_event_occupancy_NOT_lamp_probability",
+                     "physical":"UNKNOWN unless explicitly configured/simulated", "history":"validated_half_open_intervals"}}
 
 
-__all__ = [
-    "DEFAULT_ACTIVITY_THRESHOLD",
-    "DEFAULT_RED_YELLOW_DURATION_SECONDS",
-    "DEFAULT_YELLOW_DURATION_SECONDS",
-    "build_signal_model",
-    "signal_state_at",
-]
+__all__=["DEFAULT_ACTIVITY_THRESHOLD","DEFAULT_RED_YELLOW_DURATION_SECONDS",
+         "DEFAULT_YELLOW_DURATION_SECONDS","SignalQueryModel","build_signal_model","signal_state_at"]

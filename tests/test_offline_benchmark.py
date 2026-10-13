@@ -102,12 +102,14 @@ def test_extended_phase_is_measured_as_timing_error_not_overwritten_by_baseline(
 def test_no_vehicle_demand_cannot_be_scored_as_red_or_lamp_accuracy():
     from app.core.v9.signal_renderer import signal_state_at
     pred = prediction()
+    pred["schedule"]["phase_names"] = ["PHASE_A", "PHASE_B"]
     pred["schedule"]["stream_activity_by_phase"] = [{"stream": "N->S",
         "event_probability_by_phase": {"PHASE_A": .4, "PHASE_B": 0.0}}]
-    # Existing renderer labels no-demand as RED even with zero confidence.
-    # This is an intentionally preserved counterexample, not a detector fix.
+    # GREEN without demand and RED without demand are observationally compatible.
+    # The canonical renderer now abstains; activity remains a separate score.
     lamp_hypothesis = signal_state_at(pred, 70)["streams"][0]
-    assert lamp_hypothesis["state"] == "RED"
+    assert lamp_hypothesis["state"] == "UNKNOWN"
+    assert lamp_hypothesis["activity"]["activity_score"] == 0
     assert lamp_hypothesis["confidence"] == 0
     result = evaluate_prediction(pred, annotation())
     assert result["physical_lamp_accuracy"]["value"] is None

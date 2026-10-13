@@ -74,4 +74,7 @@ percentage describes the result policy, not measured per-lamp accuracy.
 The evidence package includes the base SHA, protected source hashes, prediction
 hashes, diff, test output and contract checks. No phase annotations, raw trajectory
 records, fitting, benchmark or parameter search are needed. Independent event and
-lamp validation and the missing `Инфо.docx` remain outstanding.
+lamp validation, synchronization and endpoint calibration remain outstanding.
+The supplied `Инфо.docx` description of top-level millis is recorded in
+PROJECT_STATUS; the canonical V9/history follow-up is documented in
+V9_QUERY_CONTRACT_FOLLOWUP.md.

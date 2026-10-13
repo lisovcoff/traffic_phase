@@ -1,4 +1,4 @@
-# Project status — 2B.2, 2026-10-13
+# Project status — 2B.2 follow-up, 2026-10-14
 
 Stages 1 and 2A are accepted as audit/planning and a reproducible offline baseline.
 Stage 2B.1 is accepted as an engineering improvement in temporal evidence,
@@ -19,10 +19,15 @@ Only uncertainty/structured-abstention code and its tests were taken from
 `1207344bdcbc46edbf19bace65382ee0252d1f4d`; diagnostic runners/artifacts were
 not used as the production base. Main remains unchanged.
 
-Top-level `millis`: the historical consumer interprets it as a track-end anchor
-for `millis - move_duration_millis`. This is a consumer assumption, not a verified
-supplier definition or a measured crossing timestamp. `Инфо.docx` was not found
-in the available workspace files or archive directories (only ZIP metadata was
-inspected). Its exact description cannot be cited or substituted with a guess.
-Provide that document to resolve the producer definition. Even a documented
-definition would not establish camera/controller clock synchronization.
+Top-level `millis`: according to the supplied description from `Инфо.docx`,
+this is the time when the vehicle left the intersection. This is provided field
+semantics, not a measured stop-line crossing. Camera/controller synchronization,
+endpoint timing accuracy and the relation to the stop line remain unverified.
+The historical `millis - move_duration_millis` calculation remains a proxy.
+
+The canonical V9 core renderer now delegates to the shared state contract.
+Prepared immutable history supports repeated queries without repeated validation.
+Malformed histories give UNKNOWN/INVALID_PHASE_HISTORY; valid gaps/out-of-range
+queries give UNKNOWN/NO_TEMPORAL_COVERAGE. Explicit configured/simulated modes
+remain distinct from reconstructed physical states. Follow-up base:
+`8bb7ca1a9d8137001028f2c6b6e8e6af98d42201`.

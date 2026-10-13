@@ -6,7 +6,7 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
-from app.core.state_contract import logical_phase_at, physical_estimate
+from app.core.state_contract import LogicalPhaseQuery, logical_phase_at, physical_estimate
 
 
 DEFAULT_ACTIVITY_THRESHOLD = 0.05
@@ -273,14 +273,12 @@ def signal_state_at(
     mapping: Mapping[str, str],
     *,
     mode: str = "reconstructed",
+    query_model: LogicalPhaseQuery | None = None,
 ) -> dict[str, Any]:
-    logical = logical_phase_at(result, timestamp_s, mode=mode)
-    physical = physical_estimate("UNKNOWN", mode=mode)
-    if mode == "reconstructed":
+    logical = logical_phase_at(query_model if query_model is not None else result, timestamp_s, mode=mode)
+    physical = physical_estimate("UNKNOWN", mode=mode, logical_support=logical)
+    if mode == "reconstructed" or logical.abstention_reason:
         # A heuristic catalog assignment does not establish lamp or arrow states.
-        if logical.abstention_reason:
-            from dataclasses import replace
-            physical = replace(physical, abstention_reason=logical.abstention_reason)
         return {"timestamp_s": logical.observation_support["timestamp_s"], "phase": None,
                 "logical_phase": logical.to_dict(), "physical_section": physical.to_dict(),
                 "mapping_candidate": mapping.get(logical.estimated_state),
