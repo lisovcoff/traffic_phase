@@ -1,0 +1,37 @@
+{
+  "base_sha": "8bb7ca1a9d8137001028f2c6b6e8e6af98d42201",
+  "final_implementation_sha": "f9bf1111f5f5c85206b9c95128399d7169eb1874",
+  "prediction_verification_sha": "ac49ad8a5c879d787899abdb2da9f4e04d29961a",
+  "final_followup": "configured V10 now uses snapshot phase directly; reconstructed prediction checks unaffected; 47 affected tests passed",
+  "refs": {
+    "HEAD": "f9bf1111f5f5c85206b9c95128399d7169eb1874",
+    "main": "a005a2521f62ce3b2c9f9d52f9f0d73913754e01",
+    "origin/main": "a005a2521f62ce3b2c9f9d52f9f0d73913754e01"
+  },
+  "changed_files": [
+    "app/core/state_contract.py",
+    "app/core/v10/semantic_mapping.py",
+    "app/core/v9/signal_renderer.py",
+    "docs/PROJECT_STATUS.md",
+    "docs/STATE_CONTRACT_2B2.md",
+    "docs/V9_QUERY_CONTRACT_FOLLOWUP.md",
+    "scripts/verify_v9_query_contract_followup.py",
+    "tests/test_offline_benchmark.py",
+    "tests/test_v9_query_contract_followup.py",
+    "tests/v9/test_v9_signal_renderer.py"
+  ],
+  "source_sha256": {
+    "app/core/state_contract.py": "84d24717f53c3f1d334ea2969d667075642e939b00d240210822cb334772d1aa",
+    "app/core/v10/semantic_mapping.py": "16d37870bad6aed79d61c339b7feaf205d5c20cd56e3ea39de44b89faf6682bf",
+    "app/core/v9/signal_renderer.py": "44618246ce7085632ab330f0b61373eb4a565924c42d0f5ec9bc37cac1beda5f",
+    "docs/PROJECT_STATUS.md": "5ba85ac201d6c6316862bf615c8f3501f4e3b9c2379de6f12bf0df16872e845d",
+    "docs/STATE_CONTRACT_2B2.md": "1bf86c668a13af0c1168e9cea760f0c27c10a35a61d1f5209d965b404663e844",
+    "docs/V9_QUERY_CONTRACT_FOLLOWUP.md": "15520f4afd5bf3bd638bebee33020d1c39675a15df395b7e9bd3e5cf179f2647",
+    "scripts/verify_v9_query_contract_followup.py": "e3a909d95b5407ca99ef0c2bcdefac731fd1f0fb5ea8f838b3bb4743abac5b87",
+    "tests/test_offline_benchmark.py": "7dd2e67b19cf51475f429d60346b6b10616c32a1d5c03eac657bb1ae2fae28df",
+    "tests/test_v9_query_contract_followup.py": "7d4cde4bcdd6062a46d4cde34ba7ef3d59d594adf24f6cf90686b82270d502cf",
+    "tests/v9/test_v9_signal_renderer.py": "64fc5b0806af46e42ae33938cae87ea96785358ef3edd1c91c80c5b834dd2992"
+  },
+  "fitting_runs": 0,
+  "benchmark_runs": 0
+}
