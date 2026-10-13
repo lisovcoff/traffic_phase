@@ -1,0 +1,3994 @@
+diff --git a/app/core/temporal_evidence.py b/app/core/temporal_evidence.py
+new file mode 100644
+index 0000000..001e47f
+--- /dev/null
++++ b/app/core/temporal_evidence.py
+@@ -0,0 +1,65 @@
++"""Vehicle timing evidence, never a probability or observation of a lamp state."""
++from __future__ import annotations
++
++from dataclasses import asdict, dataclass
++import math
++from typing import Any
++
++
++@dataclass(frozen=True, slots=True)
++class TemporalEvent:
++    timestamp_ms: float
++    event_type: str
++    movement: str
++    source_track_id: Any
++    evidence_method: str
++    confidence: float
++    evidence_quality: str
++    temporal_uncertainty_ms: float | None
++    provenance: dict[str, Any]
++
++    def __post_init__(self):
++        if not math.isfinite(self.timestamp_ms) or self.timestamp_ms < 0:
++            raise ValueError("invalid event timestamp")
++        if not math.isfinite(self.confidence) or not 0 <= self.confidence <= 1:
++            raise ValueError("invalid heuristic evidence confidence")
++        if self.temporal_uncertainty_ms is not None and (
++            not math.isfinite(self.temporal_uncertainty_ms) or self.temporal_uncertainty_ms < 0
++        ):
++            raise ValueError("invalid temporal uncertainty")
++        if self.event_type not in {"ENTRY", "STOP", "RELEASE", "CROSSING", "CROSSING_PROXY"}:
++            raise ValueError("unknown vehicle evidence type")
++        if self.evidence_quality not in {"HIGH", "MEDIUM", "LOW"}:
++            raise ValueError("unknown evidence quality")
++        if self.event_type == "CROSSING" and not self.provenance.get("verified_stop_line"):
++            raise ValueError("actual CROSSING requires verified stop-line provenance")
++
++    def to_dict(self):
++        return asdict(self)
++
++
++def adapt_trajectory_event(event, *, source_track_id, evidence_method, provenance,
++                           temporal_uncertainty_ms=None):
++    """Bridge existing trajectory_events outputs without reimplementing motion logic.
++
++    Legacy CROSSING may be a zone or track-end proxy. Its enum alone never
++    authorizes claiming an actual stop-line crossing.
++    """
++    kind = getattr(event.event_type, "value", event.event_type)
++    if kind == "APPROACH":
++        kind = "ENTRY"
++    if kind == "CROSSING" and not provenance.get("verified_stop_line"):
++        kind = "CROSSING_PROXY"
++    return TemporalEvent(float(event.timestamp_ms), kind, event.movement, source_track_id,
++                         evidence_method, float(event.confidence), event.quality,
++                         temporal_uncertainty_ms, dict(provenance))
++
++
++class EventStreamBundle(tuple):
++    """Keep the existing 10-slot packed-stream API plus aligned evidence sidecar."""
++    def __new__(cls, values, *, temporal_events=(), permission_streams=None, diagnostics=None):
++        obj = super().__new__(cls, values)
++        obj.temporal_events = tuple(temporal_events)
++        obj.permission_streams = permission_streams or {}
++        obj.diagnostics = diagnostics or {}
++        return obj
+diff --git a/app/core/v9/events.py b/app/core/v9/events.py
+index 4327aed..7fdbd9f 100644
+--- a/app/core/v9/events.py
++++ b/app/core/v9/events.py
+@@ -5,11 +5,12 @@ import itertools
+ import codecs
+ import zipfile
+ from array import array
+-from collections import defaultdict
++from collections import Counter, defaultdict
+ from pathlib import Path
+ from typing import Dict, List, Optional, Sequence
+ import numpy as np
+ from scipy.ndimage import gaussian_filter1d
++from app.core.temporal_evidence import EventStreamBundle
+ 
+ from .primitives import norm_zone, _speed_restart_plausible
+ from .fit import anonymous_phase_name
+@@ -240,6 +241,7 @@ def _track_event_view(tr, ds=None):
+ 
+ 
+ def load_event_views(path: Path):
++    """Legacy tuple views; lossless canonical ingestion is load_event_streams()."""
+     main_events, entry_events, release_evidence = [], [], []
+     method_counts = defaultdict(int)
+     files = []
+@@ -290,7 +292,7 @@ def load_event_views(path: Path):
+     )
+ 
+ 
+-def load_event_streams(path: Path):
++def _load_event_streams_legacy(path: Path):
+     """
+     Stream a source into the compact representation consumed by V9 discovery.
+ 
+@@ -383,6 +385,71 @@ def load_event_streams(path: Path):
+         int(event_count),
+     )
+ 
++def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _records=None):
++    """Keep packed tuple compatibility, with lossless vehicle evidence sidecar.
++
++    Legacy policy is explicit and uses the historical extractor/selection rules.
++    The default never replaces movement-permission evidence with demand entries.
++    """
++    if evidence_policy == "legacy_v9":
++        if _records is not None:
++            raise ValueError("legacy records use extract_event_views")
++        return _load_event_streams_legacy(path)
++    if evidence_policy != "permission_per_stream":
++        raise ValueError("unknown evidence policy")
++    from .vehicle_evidence import extract_vehicle_evidence, select_permission_events, diagnostics
++    temporal, files, seen = [], [], set()
++    stats = Counter()
++    trajectory_count, recording_start = 0, None
++    sources = [("records", iter(_records))] if _records is not None else _iter_source_records(Path(path))
++    for source_name, records in sources:
++        files.append(source_name)
++        for track in records:
++            trajectory_count += 1
++            events, quality_stats = extract_vehicle_evidence(track, source_name=source_name)
++            if not events:
++                stats.update(quality_stats)
++                stats["tracks_without_usable_events"] += 1
++                continue
++            key = events[0].provenance["track_fingerprint"]
++            if key in seen:
++                stats["duplicate_tracks"] += 1
++                continue
++            seen.add(key)
++            stats.update(quality_stats)
++            start = events[0].provenance["track_range_ms"][0]
++            recording_start = min(recording_start, start) if recording_start is not None else start
++            temporal.extend(events)
++    temporal.sort(key=lambda e: (e.timestamp_ms, e.event_type, e.movement))
++    entries = [e for e in temporal if e.event_type == "ENTRY"]
++    if not entries:
++        raise ValueError("no usable demand or permission events; evidence is UNKNOWN")
++    base = min(e.timestamp_ms for e in entries)
++    selected, methods = select_permission_events(temporal)
++
++    def packed(events):
++        absolute = defaultdict(list)
++        for e in events:
++            absolute[e.movement].append((e.timestamp_ms - base) / 1000)
++        return {m: array('d', sorted(values)) for m, values in absolute.items()}
++
++    entry_streams = packed(entries)
++    releases = [e for e in temporal if e.event_type == "RELEASE" and e.evidence_quality != "LOW"]
++    diag = diagnostics(temporal, selected, methods, stats)
++    selected_ids = {id(e) for e in selected}
++    diag["selected_event_indices"] = [i for i, e in enumerate(temporal) if id(e) in selected_ids]
++    return EventStreamBundle((entry_streams, entry_streams, packed(releases),
++                              dict(Counter(e.evidence_method for e in entries)),
++                              dict(Counter(e.evidence_method for e in releases)),
++                              files, recording_start, float(base), trajectory_count, len(entries)),
++                             temporal_events=temporal, permission_streams=packed(selected), diagnostics=diag)
++
++
++def extract_timing_streams(tracks):
++    """Use the same streaming adapter for in-memory discovery without a second solver."""
++    return load_event_streams(Path("records"), _records=tracks)
++
++
+ def load_tracks(
+     path: Path,
+     *,
+@@ -571,6 +638,7 @@ def _kinematic_release_candidate(ds, entry_ms, exit_ms):
+     return max(candidates, key=lambda q: (q[2], q[0], -q[1])) if candidates else None
+ 
+ def extract_event_views(tracks):
++    """Legacy tuple adapter retained for evidence_policy='legacy_v9'."""
+     main_events, entry_events = [], []
+     release_evidence = []
+     method_counts = defaultdict(int)
+diff --git a/app/core/v9/model.py b/app/core/v9/model.py
+index 4f23612..f88c488 100644
+--- a/app/core/v9/model.py
++++ b/app/core/v9/model.py
+@@ -20,6 +20,7 @@ from .fit import (
+ from .events import (
+     extract_event_views,
+     load_event_streams,
++    extract_timing_streams,
+     _recording_start_ms,
+     periodic_baseline_from_segments,
+     _phase_duration_targets_from_baseline,
+@@ -39,6 +40,7 @@ def _discover_from_event_views(
+     marks_path: Optional[Path] = None,
+     recording_start_ms: float | None = None,
+     trajectory_count: int = 0,
++    evidence_policy: str = "legacy_v9",
+ ):
+     if not events:
+         raise ValueError("no traffic events supplied")
+@@ -70,6 +72,7 @@ def _discover_from_event_views(
+         analysis_base_ms=float(events[0][0]),
+         trajectory_count=trajectory_count,
+         event_count=len(events),
++        evidence_policy=evidence_policy,
+     )
+ 
+ def _slice_streams(streams, start_s: float, end_s: float):
+@@ -97,6 +100,7 @@ def _regime_phase_structure(
+     *,
+     period: float,
+     window_s: float,
++    evidence_policy: str = "permission_per_stream",
+ ) -> dict[str, object] | None:
+     """Fit phase structure for one local regime window.
+ 
+@@ -113,6 +117,7 @@ def _regime_phase_structure(
+         by_stream,
+         release_streams,
+         event_count,
++        evidence_policy=evidence_policy,
+     )
+     end_s = max(
+         (
+@@ -254,6 +259,7 @@ def _local_regime_selection(
+     *,
+     window_s: float = 3600.0,
+     min_events: int = 120,
++    evidence_policy: str = "permission_per_stream",
+ ):
+     if total_end_s < 2.0 * window_s:
+         return None
+@@ -283,6 +289,7 @@ def _local_regime_selection(
+                 release_window,
+                 period=float(period),
+                 window_s=window_s,
++                evidence_policy=evidence_policy,
+             )
+             if phase_structure is None:
+                 selected_phase_count = None
+@@ -393,7 +400,14 @@ def _local_regime_selection(
+     )
+ 
+ 
+-def _choose_phase_evidence(by_stream, release_streams, event_count: int):
++def _choose_phase_evidence(by_stream, release_streams, event_count: int,
++                           *, evidence_policy="permission_per_stream"):
++    if evidence_policy == "permission_per_stream":
++        # The adapter has selected release/zone proxies per movement. Never
++        # replace missing permission evidence with input-zone demand timestamps.
++        return {m: values for m, values in release_streams.items() if len(values)}, "permission_per_stream"
++    if evidence_policy != "legacy_v9":
++        raise ValueError("unknown evidence policy")
+     release_events = sum(len(values) for values in release_streams.values())
+     active_streams = sum(bool(values) for values in by_stream.values())
+     release_stream_count = sum(bool(values) for values in release_streams.values())
+@@ -547,11 +561,16 @@ def _discover_from_stream_views(
+     trajectory_count: int = 0,
+     event_count: int | None = None,
+     source_files=None,
++    permission_streams=None,
++    temporal_events=(),
++    evidence_diagnostics=None,
++    evidence_policy: str = "permission_per_stream",
+ ):
+     if not by_stream:
+         raise ValueError("no traffic events supplied")
+     if release_streams is None:
+         release_streams = {}
++    effective_permissions = release_streams if permission_streams is None else permission_streams
+     original_end_s = max(
+         max(float(value) for value in ts)
+         for ts in by_stream.values()
+@@ -560,13 +579,14 @@ def _discover_from_stream_views(
+     regime_detection = None
+     working_by_stream = by_stream
+     working_entry_streams = entry_streams
+-    working_release_streams = release_streams
++    working_release_streams = effective_permissions
+     if original_end_s >= 7200.0:
+         regime_payload = _local_regime_selection(
+             by_stream,
+             entry_streams,
+-            release_streams,
++            effective_permissions,
+             original_end_s,
++            evidence_policy=evidence_policy,
+         )
+         if regime_payload is not None:
+             regime_detection, (
+@@ -609,7 +629,12 @@ def _discover_from_stream_views(
+         working_by_stream,
+         working_release_streams,
+         working_event_count,
++        evidence_policy=evidence_policy,
+     )
++    if not phase_evidence:
++        raise ValueError("insufficient movement-permission evidence; entry is demand only, phase UNKNOWN")
++    if evidence_policy == "permission_per_stream":
++        end_s = max(end_s, max(max(float(v) for v in values) for values in phase_evidence.values() if len(values)))
+     x, names = build_occupancy_matrix(
+         phase_evidence,
+         end_s,
+@@ -665,10 +690,8 @@ def _discover_from_stream_views(
+     )
+ 
+     if regime_detection is not None:
+-        archive_phase_evidence = (
+-            release_streams
+-            if phase_evidence_method == "release_only"
+-            else by_stream
++        archive_phase_evidence = effective_permissions if evidence_policy == "permission_per_stream" else (
++            release_streams if phase_evidence_method == "release_only" else by_stream
+         )
+         phase_anchor_calibration = _calibrate_phase_anchor(
+             archive_phase_evidence,
+@@ -734,6 +757,10 @@ def _discover_from_stream_views(
+             ),
+         ),
+         "event_extraction": {
++            "evidence_policy": evidence_policy,
++            "temporal_evidence_contract": 1 if temporal_events else None,
++            "temporal_events": [event.to_dict() for event in temporal_events],
++            "quality_diagnostics": evidence_diagnostics,
+             "methods": method_counts,
+             "release_evidence_count": int(
+                 sum(release_method_counts.values())
+@@ -762,8 +789,17 @@ def _discover_from_stream_views(
+         "phase_redundancy": phase_redundancy,
+         "phase_evidence": {
+             "source": phase_evidence_method,
++            "selection_scope": "per_movement" if evidence_policy == "permission_per_stream" else "legacy_global_gate",
++            "demand_entries_used_for_phase_evidence": phase_evidence_method == "mixed_release_or_entry",
++            "excluded_movements_without_permission": sorted(set(working_by_stream) - set(phase_evidence)),
++            "permission_event_count": int(sum(len(values) for values in phase_evidence.values())),
+             "release_event_count": int(
+-                sum(len(values) for values in working_release_streams.values())
++                sum(len(values) for values in (
++                    _slice_streams(release_streams,
++                                   float(regime_detection["selected_window_start_s"]),
++                                   float(regime_detection["selected_window_end_s"]))
++                    if regime_detection is not None else release_streams
++                ).values())
+             ),
+         },
+         "phase_model_selection": {
+@@ -883,9 +919,16 @@ def discover_records(
+     input_name: str = "records",
+     dt: float = 1.0,
+     marks_path: Optional[Path] = None,
++    evidence_policy: str = "permission_per_stream",
+ ) -> dict[str, object]:
+     if not tracks:
+         raise ValueError("no trajectory records supplied")
++    if evidence_policy == "permission_per_stream":
++        bundle = extract_timing_streams(tracks)
++        return _discover_bundle(bundle, input_name=input_name, dt=dt, marks_path=marks_path,
++                                evidence_policy=evidence_policy)
++    if evidence_policy != "legacy_v9":
++        raise ValueError("unknown evidence policy")
+     recording_start_ms = float(_recording_start_ms(tracks))
+     events, entry_events, release_evidence, method_counts = extract_event_views(tracks)
+     return _discover_from_event_views(
+@@ -906,6 +949,7 @@ def discover_path(
+     *,
+     dt: float = 1.0,
+     marks_path: Optional[Path] = None,
++    evidence_policy: str = "permission_per_stream",
+ ) -> dict[str, object]:
+     path = Path(path)
+     if path.is_file() and path.suffix.lower() not in {".json", ".zip"}:
+@@ -913,18 +957,25 @@ def discover_path(
+     if path.is_dir() and not path.exists():
+         raise FileNotFoundError(path)
+ 
++    bundle = load_event_streams(path, evidence_policy=evidence_policy)
++    return _discover_bundle(bundle, input_name=str(path), dt=dt, marks_path=marks_path,
++                            evidence_policy=evidence_policy,
++                            source_files=[str(path)] if path.is_file() else bundle[5])
++
++
++def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None):
+     (
+         by_stream,
+         entry_streams,
+         release_streams,
+         method_counts,
+         release_method_counts,
+-        source_files,
++        _bundle_files,
+         recording_start_ms,
+         analysis_base_ms,
+         trajectory_count,
+         event_count,
+-    ) = load_event_streams(path)
++    ) = bundle
+ 
+     return _discover_from_stream_views(
+         by_stream,
+@@ -932,16 +983,16 @@ def discover_path(
+         method_counts,
+         release_method_counts,
+         release_streams=release_streams,
+-        input_name=str(path),
++        input_name=input_name,
+         dt=dt,
+         marks_path=marks_path,
+         recording_start_ms=recording_start_ms,
+         analysis_base_ms=analysis_base_ms,
+         trajectory_count=trajectory_count,
+         event_count=event_count,
+-        source_files=(
+-            [str(path)]
+-            if path.is_file()
+-            else source_files
+-        ),
++        source_files=source_files,
++        permission_streams=getattr(bundle, "permission_streams", None),
++        temporal_events=getattr(bundle, "temporal_events", ()),
++        evidence_diagnostics=getattr(bundle, "diagnostics", None),
++        evidence_policy=evidence_policy,
+     )
+diff --git a/app/core/v9/vehicle_evidence.py b/app/core/v9/vehicle_evidence.py
+new file mode 100644
+index 0000000..6e51f03
+--- /dev/null
++++ b/app/core/v9/vehicle_evidence.py
+@@ -0,0 +1,214 @@
++"""V9 evidence adapter; reuse existing timing candidates and zone-transition logic."""
++from __future__ import annotations
++
++from collections import Counter, defaultdict
++import hashlib
++import json
++import statistics
++from types import SimpleNamespace
++
++from app.core.temporal_evidence import TemporalEvent
++from app.core.trajectory_geometry import _finite_number
++from app.core.trajectory_events import EventExtractionConfig, _first_sustained, _zone_crossing_timestamp
++
++
++CONFIG = EventExtractionConfig()  # Shared gap/stop support limits; no label-based tuning.
++
++
++def clean_detections(track):
++    raw = track.get("detections") or []
++    if not isinstance(raw, list):
++        return [], {"invalid_detections": 1, "duplicate_detections": 0, "conflicting_timestamps": 0}
++    groups = defaultdict(list)
++    stats = {"invalid_detections": 0, "duplicate_detections": 0, "conflicting_timestamps": 0}
++    for d in raw:
++        if (not isinstance(d, dict) or not _finite_number(d.get("millis"))
++                or d["millis"] < 0 or d["millis"] != int(d["millis"])):
++            stats["invalid_detections"] += 1
++            continue
++        groups[int(d["millis"])].append(d)
++    result = []
++    for ts in sorted(groups):
++        observations = groups[ts]
++        # Same-time distinct measurements cannot define speed; do not pick an
++        # arbitrary coordinate. Duplicate identical snapshots count once.
++        keys = {json.dumps(d, sort_keys=True, default=str) for d in observations}
++        if len(keys) != 1:
++            stats["conflicting_timestamps"] += 1
++            continue
++        stats["duplicate_detections"] += len(observations) - 1
++        result.append(observations[0])
++    return result, stats
++
++
++def track_fingerprint(track, detections):
++    # Missing IDs no longer collapse different tracks with the same start time.
++    core = [track.get("id"), track.get("zone_in"), track.get("zone_out"),
++            track.get("stay_duration_millis"), track.get("wait_s"), detections]
++    return hashlib.sha256(json.dumps(core, sort_keys=True, default=str).encode()).hexdigest()
++
++
++def bracket(detections, timestamp_ms):
++    before = [d["millis"] for d in detections if d["millis"] < timestamp_ms]
++    after = [d["millis"] for d in detections if d["millis"] >= timestamp_ms]
++    if not before or not after:
++        return None
++    return [max(before), min(after)]
++
++
++def extract_vehicle_evidence(track, *, source_name="records"):
++    # Local imports avoid circular import; V9's existing image-space solver stays
++    # in events.py and is not duplicated with another fitted motion model.
++    from .events import _kinematic_release_candidate
++    from .primitives import norm_zone, _speed_restart_plausible
++    if not isinstance(track, dict):
++        return [], {"invalid_tracks": 1}
++    ds, stats = clean_detections(track)
++    origin, target = norm_zone(track.get("zone_in")), norm_zone(track.get("zone_out"))
++    if not origin or not target or origin == target or not ds:
++        return [], stats
++    movement = f"{origin}->{target}"
++    fingerprint = track_fingerprint(track, ds)
++    gaps = [b["millis"] - a["millis"] for a, b in zip(ds, ds[1:])]
++    max_gap = max(gaps, default=None)
++    provenance = {"schema_version": 1, "source": source_name, "track_fingerprint": fingerprint,
++                  "verified_stop_line": False, "signal_state_observed": False,
++                  "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
++                  "track_range_ms": [ds[0]["millis"], ds[-1]["millis"]],
++                  "max_detection_gap_ms": max_gap, **stats}
++    dirty = stats["invalid_detections"] or stats["conflicting_timestamps"]
++    events = []
++
++    def emit(ts, kind, method, score, quality, uncertainty, **extra):
++        events.append(TemporalEvent(float(ts), kind, movement, track.get("id"), method,
++                                    min(score, .4) if dirty else score,
++                                    "LOW" if dirty else quality, uncertainty,
++                                    {**provenance, **extra}))
++
++    incoming = [d for d in ds if norm_zone(d.get("zone")) == origin]
++    entry_ms = incoming[0]["millis"] if incoming else ds[0]["millis"]
++    emit(entry_ms, "ENTRY", "input_zone_entry" if incoming else "first_detection_entry_proxy",
++         .7 if incoming and len(ds) > 1 else .25,
++         "MEDIUM" if incoming and len(ds) > 1 else "LOW", None,
++         role="demand_only", left_censored=True)
++
++    # Reuse common zone-transition detector. Unknown stop-line geometry means
++    # that an observed zone transition is CROSSING_PROXY, never CROSSING.
++    points = [SimpleNamespace(millis=d["millis"], zone=norm_zone(d.get("zone"))) for d in ds]
++    crossing_ms, named = _zone_crossing_timestamp(points, zone_in=origin, zone_out=target)
++    if crossing_ms is not None:
++        bounds = bracket(ds, crossing_ms)
++        sampled_gap = bounds[1] - bounds[0] if bounds else None
++        emit(crossing_ms, "CROSSING_PROXY", "observed_zone_transition_proxy",
++             .35, "LOW", None, role="movement_permission_proxy",
++             observation_interval_ms=bounds, sampling_uncertainty_ms=sampled_gap,
++             uncertainty_reason="distance_and_time_to_stop_line_unknown",
++             eligible_proxy=bool(bounds and sampled_gap <= CONFIG.max_detection_gap_s * 1000))
++    elif not named:
++        # Do not invent even a crossing proxy from a track's final detection.
++        stats["missing_crossing_zone_evidence"] = 1
++
++    speeds = [(float(d["millis"]), float(d["speed"])) for d in ds
++              if _finite_number(d.get("speed")) and d["speed"] >= 0]
++    # Raw speed units are not established. Exact zero is unit-independent;
++    # thresholds in m/s from metric geometry must not be applied to raw speed.
++    intervals = [(b[0], b[1], (b[0] - a[0]) / 1000) for a, b in zip(speeds, speeds[1:])
++                 if b[0] - a[0] <= CONFIG.max_detection_gap_s * 1000]
++    # Reset sustained runs across missing observations instead of concatenating
++    # them into a fictitious continuous stop.
++    stop_ms = None
++    chunks = []
++    for item in intervals:
++        if not chunks or item[0] - item[2] * 1000 > chunks[-1][-1][0]:
++            chunks.append([])
++        chunks[-1].append(item)
++    for chunk in chunks:
++        stop_ms = _first_sustained(chunk, lambda speed: speed == 0, CONFIG.stop_min_duration_s)
++        if stop_ms is not None:
++            break
++    if stop_ms is not None:
++        bounds = bracket(ds, stop_ms)
++        emit(stop_ms, "STOP", "sustained_zero_raw_speed", .6, "MEDIUM",
++             (bounds[1] - bounds[0]) if bounds else None,
++             role="vehicle_stationary_not_proof_of_RED", observation_interval_ms=bounds,
++             stop_location="unknown_relative_to_stop_line")
++
++    durations = [v for v in (track.get("wait_s"),
++                             track.get("stay_duration_millis", 0) / 1000
++                             if _finite_number(track.get("stay_duration_millis", 0)) else None)
++                 if _finite_number(v) and v >= 0]
++    stay_s = max(durations, default=0)
++    candidate = entry_ms + stay_s * 1000
++    bounds = bracket(ds, candidate)
++    before = [s for t, s in speeds if candidate - 3000 <= t < candidate]
++    after = [s for t, s in speeds if candidate <= t <= candidate + 3000]
++    # The old plausible() returns True with <6 speeds: explicitly disallow this.
++    metadata_supported = (
++        stay_s >= 1.5 and stop_ms is not None and stop_ms < candidate
++        and candidate < ds[-1]["millis"] and bounds is not None
++        and bounds[1] - bounds[0] <= CONFIG.max_detection_gap_s * 1000
++        and len(speeds) >= 6 and len(before) >= 2 and len(after) >= 2
++        and statistics.median(before) <= .25 * max(statistics.median(after), 1e-9)
++        and _speed_restart_plausible(ds, candidate / 1000)
++    )
++    if metadata_supported:
++        emit(candidate, "RELEASE", "metadata_dwell_end_restart_supported", .65, "MEDIUM",
++             max(3000, bounds[1] - bounds[0]), role="vehicle_restart_proxy_not_GREEN",
++             observation_interval_ms=bounds, proxy=True,
++             uncertainty_reason="metadata_dwell_anchor_and_restart_sampling_unvalidated")
++    else:
++        if stay_s >= 1.5:
++            stats["unsupported_metadata_restart"] = 1
++        # Existing image-space candidate is a relative motion heuristic. Gaps,
++        # invalid coordinates and missing origin/exit observations invalidate it.
++        coords = [d for d in ds if _finite_number(d.get("centroid_x"))
++                  and _finite_number(d.get("centroid_y"))]
++        if len(coords) == len(ds) and len(ds) >= 14 and incoming and crossing_ms is not None:
++            if max_gap <= CONFIG.max_detection_gap_s * 1000:
++                candidate = _kinematic_release_candidate(ds, entry_ms, ds[-1]["millis"])
++                if candidate is not None:
++                    duration, ts, score, separation = candidate
++                    bounds = bracket(ds, ts * 1000)
++                    emit(ts * 1000, "RELEASE", "kinematic_restart_proxy", min(.65, score),
++                         "MEDIUM", max(1300, (bounds[1] - bounds[0]) if bounds else 0),
++                         role="vehicle_restart_proxy_not_GREEN", proxy=True,
++                         observation_interval_ms=bounds, relative_low_speed_duration_s=duration,
++                         image_speed_separation=separation,
++                         uncertainty_reason="image_motion_restart_and_smoothing_unvalidated")
++    return events, stats
++
++
++def select_permission_events(events):
++    """Per movement: observed restart first, otherwise eligible zone proxy.
++
++    No demand entry substitution. Weak proxy uncertainty remains visible.
++    Timestamp-based HSMM cannot yet consume the full uncertainty distribution.
++    """
++    releases, proxies = defaultdict(list), defaultdict(list)
++    for event in events:
++        if event.event_type == "RELEASE" and event.evidence_quality != "LOW":
++            releases[event.movement].append(event)
++        elif (event.event_type == "CROSSING_PROXY" and event.provenance.get("eligible_proxy")
++              and not event.provenance.get("conflicting_timestamps")
++              and not event.provenance.get("invalid_detections")):
++            proxies[event.movement].append(event)
++    chosen, methods = [], {}
++    for movement in sorted(set(releases) | set(proxies)):
++        values = releases.get(movement) or proxies[movement]
++        chosen.extend(values)
++        methods[movement] = "release_proxy" if releases.get(movement) else "zone_crossing_proxy"
++    return sorted(chosen, key=lambda event: event.timestamp_ms), methods
++
++
++def diagnostics(events, selected, methods, track_stats):
++    weak = sum(e.evidence_quality == "LOW" or e.temporal_uncertainty_ms is None for e in events)
++    selected_weak = sum(e.evidence_quality == "LOW" or e.temporal_uncertainty_ms is None for e in selected)
++    return {"contract_version": 1, "event_type_counts": dict(Counter(e.event_type for e in events)),
++            "event_method_counts": dict(Counter(e.evidence_method for e in events)),
++            "total_events": len(events), "weak_or_unknown_uncertainty_events": weak,
++            "weak_or_unknown_uncertainty_percent": 100 * weak / len(events) if events else None,
++            "selected_event_count": len(selected), "selected_weak_or_unknown_uncertainty_events": selected_weak,
++            "selected_weak_or_unknown_uncertainty_percent": 100 * selected_weak / len(selected) if selected else None,
++            "selection_by_movement": methods, "track_quality_counts": dict(track_stats),
++            "phase_model_receives": "timestamps_of_permission_proxies; NOT_lamp_states",
++            "uncertainty_scope": "heuristic_or_unknown_not_calibrated_lamp_transition_interval"}
+diff --git a/benchmarks/stage2b1_20261013/baseline_metrics.json b/benchmarks/stage2b1_20261013/baseline_metrics.json
+new file mode 100644
+index 0000000..72d6e05
+--- /dev/null
++++ b/benchmarks/stage2b1_20261013/baseline_metrics.json
+@@ -0,0 +1,1636 @@
++{
++  "schema_version": 1,
++  "config": {
++    "dt_s": 1.0,
++    "boundary_tolerance_s": 2.0,
++    "grid_ms": 1000,
++    "timeout_per_file_s": 90.0,
++    "mode": "offline_full_single_json",
++    "split": "development_regression",
++    "movement_mapping": null,
++    "seed": 0,
++    "boundary_endpoints": "exclude_first_and_last_truth_marks"
++  },
++  "config_sha256": "c1ca38484ba0033703cb44e49dcdb15d918345df3f9e909f2a59f2975cfab383",
++  "code": {
++    "git_commit": "161f32fd42ce80cca01bb74c0a00988d6969382a",
++    "git_branch": "fix/stage2b1-temporal-evidence-20261013",
++    "working_tree_status": "",
++    "file_hashes": {
++      "app/core/__init__.py": "78fcd5feb56f60d60b9e2cbc73924978ec05251e0ff4c43180608bfe191c19ec",
++      "app/core/adaptive_realtime.py": "b611550cddb48da7eab280139122f5a9d322ce5f6e3ceb2aa151517ddd74472f",
++      "app/core/analyzer.py": "0982bce9462405d853c9ea1e8446871d7df59c72cc4b067559bd5e2b52d37088",
++      "app/core/anomaly_inference.py": "597f7dd33e0ff16f6081b73b30568db8f36972f8cbf266cd46c695aa7ca408e5",
++      "app/core/anomaly_profile.py": "df0df53b7e5b46bf58694926f9860a39f4925add2583ea16997ee668a5705fc7",
++      "app/core/archive_analysis.py": "1c5ed5e07f36ec21306f2ca7c4a6c1f04c44a7f4ff510ef9c7e330d91556fdd1",
++      "app/core/cycle_comparison.py": "2abd479d66e3f5604f56fe66446b33af53b93333d82311e11e14d3893793bd97",
++      "app/core/cycle_estimator.py": "2d8536b0af424627efd15c0c7bf7535666cc4244af97bd4d4197ef7cdf456157",
++      "app/core/event_cycle_estimator.py": "6fab88ca8785c0666ef3ca1af82210230606ba5466c37e024f2497d88598286f",
++      "app/core/event_phase_discovery.py": "a64b088f76fba19f82f7d797b2980c245aad51005fd55625b9d6e99522ce550b",
++      "app/core/intersection_config.py": "af73cba3582337d04e6585817f273523341bd289c77493cf9fea816de482ac69",
++      "app/core/intersection_topology.py": "b61964712c429258c6a0260d0556cfd497df35d96796e0bbd7c707e1069bf791",
++      "app/core/models.py": "cd4975fb093ecbe14cf69e178bd508ee80d1ab936d4d1602a38a151ab8f4605e",
++      "app/core/observability.py": "db9a442dd0211cb06f0321fb903774cd596240adfcdd1cafe230b68ec8c73fc3",
++      "app/core/offline_benchmark.py": "80b6bea1f7f754653122c98accd0977b44e213e2ff5d2240ddf2a895d6ab1448",
++      "app/core/online_phase_learning.py": "fd0731ee8b6e354d8e8c4a2d9308be6e8fb20df8ec395d50b05b67db6457cf10",
++      "app/core/online_regime_memory.py": "33fbc681196292de90c152fd5405a29fa0503bb85a6bffbd79491f6507f9c9b3",
++      "app/core/phase_comparison.py": "9883803490bf02bec050232b8c73e0029e99c060646ed70bf41367672308c409",
++      "app/core/phase_discovery.py": "6282c491f1e6d938d8160288f3ea953b159837615cdae05d664b78594d7ae22d",
++      "app/core/playback.py": "dbd8e9c80f4180ebd4d7340523ca571c991ba5e6815cd31b84314b6de661516b",
++      "app/core/preprocessing.py": "2be10f078a003e37ee3ea0c23af3ce55ce8c03c4b987ebbcd62bfb497bce3c6d",
++      "app/core/realtime_inference.py": "022460eff2c0dd494df9a68d4605a33f28298eced9b8adf4f6fd1f4bc1f57cd9",
++      "app/core/realtime_phase_sync.py": "1a9d311d94813a15cde10a7ef9d233b3e47c42b603be494f5d6b70120797774b",
++      "app/core/realtime_simulation.py": "7ff6f3455050fe119bfd57165a25bbc274c7b3bc25762aefb525a7205c6d185e",
++      "app/core/reconstruction.py": "1c9b1a0a84fc2e96f826ce5e541e78500feb7104f1152b6f672f68a93f7aa4be",
++      "app/core/regime_aggregation.py": "7b7f8bc0576ff90e6552e9a2b15f923c75dbd369ef4af3a42ed6c08084eff604",
++      "app/core/review_log.py": "1d6a5bd004b60d16440dbdeea2764a411147efb2d31e3f33b2cdf046fffc61d3",
++      "app/core/signal_group_discovery.py": "7a0113f75cf9bee86261a3d9138ef04af399f2a0170d588d7aecfbdd3cc74e16",
++      "app/core/signal_group_mapping.py": "7ba4f115777588e040a83630e979ef4eac6b2a21b099f43dcd053087e0d2607b",
++      "app/core/signal_group_signature.py": "33e66bd1dd4041eba0de25cb75c1a4c850a18634769aa8890372f0a100e4558c",
++      "app/core/signal_plan_discovery.py": "1e109915b26335f1eaeb06b6a97667490d133e295ca506dced5840090585918e",
++      "app/core/signal_renderer.py": "635449f17439664cb2e3d91e79da7807b977dc179fdf46c1d2862f8c7b9d054a",
++      "app/core/signal_state_estimator.py": "0ab7acb78207d1544b2122abb6b70b20a8b4e53db7b19e1f4349ee70f31c986d",
++      "app/core/temporal_evidence.py": "18f768fdd08c3afb701120af20a43f49b91c1c177ef609ed2e7cdc9f97d6d7cc",
++      "app/core/trajectory_events.py": "9a55981fd2f403e0c1de7ee0aa48c40191d3360c47fdb37dfd2a0c757625deca",
++      "app/core/trajectory_geometry.py": "be1109cfc8721f6f67d0f71ecb1907d7542243feedb09bb86ad281e627a8d5c5",
++      "app/core/v10/__init__.py": "09ef73aa58403cd821a83930bf13896d6c6d9c782e5064b1d143f836c6b5330f",
++      "app/core/v10/automatic_physical.py": "36761579470df06393d80a37480b276b14f1551ba3ee936ccf5553803fe340a3",
++      "app/core/v10/semantic_mapping.py": "63479fc743b6a1d035454e94f591ff1df26759f96093044056439ceddc0b2465",
++      "app/core/v9/__init__.py": "7e50ffb83ad2e5d122500e9eca34ee5b15bb3e933b7403c688a0740cd09af01c",
++      "app/core/v9/decoder.py": "e0879dac1dfdd4aafc0632657a8c9897d7a542179680eda11abe15f0f29ee394",
++      "app/core/v9/evaluate.py": "2d91949a7515b9f3d91c9ae7a55865412c277d9ec2258c6a89de5b45cd9c11a1",
++      "app/core/v9/events.py": "cd33b5cee73ac6954bc4798a47e9ae86c5b66dfe9e7bad4ba7d2b7028da374c7",
++      "app/core/v9/fit.py": "b26baa5d7bfdae7bf12e17cb7e033006ff81c55f20655dfdf223a10e9c18659b",
++      "app/core/v9/model.py": "4199fa1955fc840477da8604aa2e424f43f634c8fb2b93daa0e0e19e54251efe",
++      "app/core/v9/online.py": "e4741fac70b3c33e4c873fc76abd3f864010ef4f2bfab83720c8a977c74b7984",
++      "app/core/v9/primitives.py": "0dd1867215ae331352651367ce2f2026def23ee31714657f9e4927ae5611e56f",
++      "app/core/v9/signal_renderer.py": "08fbd9b58e9bc955d83e5b3305ac3df2759a721259f73c28a421668055ff11a8",
++      "app/core/v9/spatial.py": "92536546dc684d6e48743fe21218348c94f4307e5b6c8a314c2841596931ff96",
++      "app/core/v9/v9_discovery.py": "532ba7a95a03aef6bb105337e3a514979b9905fd191555234a1de89b6e4d32c8",
++      "app/core/v9/vehicle_evidence.py": "28022ecb3045ae51a92c1bd0ab42916866307522995946cc3f9ea83fec6242c3",
++      "app/core/validation.py": "7fa39d98c5d63e6dc523ef45af015218ab3ddf5bb5e52c39b8984a12e0292a03",
++      "scripts/offline_benchmark.py": "03885e1bb4dfc02bfe48cb6d22c65d111b3bb4eee6adb00906099c57cdd3ab4a"
++    },
++    "code_digest": "86a057896802de9bf48b21d837ef6b72ec28271ba56f9d3b6519bf7227f62526"
++  },
++  "runtime": {
++    "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
++    "platform": "Windows-11-10.0.26200-SP0",
++    "packages": {
++      "numpy": "2.4.6",
++      "scipy": "1.17.1",
++      "scikit-learn": "1.8.0"
++    }
++  },
++  "timezone": "Asia/Yekaterinburg",
++  "rows": [
++    {
++      "source_name": "17_2025_2_19_10.json",
++      "source_path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\17_2025_2_19_10.json",
++      "annotation_path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\17_2025_2_19_10.json_manual_marks.json",
++      "annotation_sha256": "201449919f0f3c358f12d21211a14cb927f7cfe3478c43f5e7f8506ceedd30e6",
++      "annotation_validation": {
++        "valid": true,
++        "errors": [],
++        "warnings": [
++          "unknown_initial_phase_before_first_mark",
++          "missing_terminal_boundary_for_last_phase"
++        ],
++        "marks": [
++          {
++            "timestamp_ms": 1739941438144,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1739941469157,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1739941516394,
++            "kind": "C"
++          },
++          {
++            "timestamp_ms": 1739941536764,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1739941567824,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1739941617230,
++            "kind": "C"
++          },
++          {
++            "timestamp_ms": 1739941637831,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1739941668432,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1739941714748,
++            "kind": "C"
++          },
++          {
++            "timestamp_ms": 1739941736748,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1739941772859,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1739941816358,
++            "kind": "C"
++          },
++          {
++            "timestamp_ms": 1739941837358,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1739941866358,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1739941916080,
++            "kind": "C"
++          },
++          {
++            "timestamp_ms": 1739941936080,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1739941971080,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1739942015080,
++            "kind": "C"
++          },
++          {
++            "timestamp_ms": 1739942036080,
++            "kind": "A"
++          }
++        ],
++        "labels": [
++          "A",
++          "B",
++          "C"
++        ],
++        "start_ms": 1739941077895,
++        "known_range_ms": [
++          1739941438144,
++          1739942036080
++        ],
++        "complete_intervals": 18,
++        "physical_lamp_truth_available": false,
++        "phase_movement_mapping": null
++      },
++      "fixture_overlap": [
++        {
++          "fixture": "tests\\fixtures\\lenina_manual_signal_marks.json",
++          "sha256": "3d47e76583b0481200122fa3b59f3eaa0741de295e9e1413b026fbd2a4fbcd00",
++          "same_timestamp_count": 0,
++          "interpretation": "timestamp_overlap_check_not_proof_of_independence"
++        }
++      ],
++      "source_sha256": "958edabf3288c94ee6b51c9d43d2c5655f21dcbe88e51e0bf2b97d1016dce553",
++      "source_bytes": 175239268,
++      "source_schema_sample": {
++        "status": "ok",
++        "bytes_read_at_most": 1048576,
++        "complete_sample_tracks": 13,
++        "track_keys": [
++          "category_name",
++          "detections",
++          "distance",
++          "id",
++          "line_in",
++          "line_out",
++          "max_speed",
++          "millis",
++          "move_duration_millis",
++          "speed",
++          "stay_duration_millis",
++          "zone_in",
++          "zone_out"
++        ],
++        "detection_keys": [
++          "category",
++          "centroid_x",
++          "centroid_y",
++          "lat",
++          "lng",
++          "millis",
++          "score",
++          "speed",
++          "x1",
++          "x2",
++          "y1",
++          "y2",
++          "zone"
++        ],
++        "sample_range_ms": [
++          1739941630696,
++          1739944748810
++        ],
++        "interpretation": "prefix_schema_sample_not_full_recording_range"
++      },
++      "prediction_file": "predictions/17_2025_2_19_10_v9.json",
++      "prediction_sha256_before_evaluation": "598dc500edf957952d8451f462e68e1f393b10674fe43073d1bf4683c3a53006",
++      "prediction_summary": {
++        "trajectory_count": 2735,
++        "event_count": 2728,
++        "movement_stream_count": 9,
++        "recording_start_timestamp_ms": 1739941077895.0,
++        "schedule_base_timestamp_ms": 1739941077895.0,
++        "recording_duration_s": 3710.688,
++        "phase_evidence": {
++          "source": "permission_per_stream",
++          "selection_scope": "per_movement",
++          "demand_entries_used_for_phase_evidence": false,
++          "excluded_movements_without_permission": [],
++          "permission_event_count": 717,
++          "release_event_count": 716
++        },
++        "regime_detection": {
++          "method": "global_fallback",
++          "scope": "full_input"
++        }
++      },
++      "metrics": {
++        "status": "ok",
++        "phase_count_match": {
++          "value": true,
++          "n_observations": 1,
++          "range_ms": [
++            1739941438144,
++            1739942036080
++          ],
++          "reason": null,
++          "predicted": 3,
++          "annotation_distinct_labels": 3,
++          "interpretation": "observed_phase_labels; not_proof_of_full_controller_K"
++        },
++        "period_absolute_error_s": {
++          "value": 0.018186789783200652,
++          "n_observations": 16,
++          "range_ms": [
++            1739941438144,
++            1739942036080
++          ],
++          "reason": null,
++          "predicted_s": 99.84281321021679,
++          "truth_recurrence_median_s": 99.86099999999999,
++          "recurrence_intervals_s": [
++            98.62,
++            98.667,
++            100.836,
++            101.067,
++            100.608,
++            97.518,
++            98.917,
++            104.427,
++            101.61,
++            100.61,
++            93.499,
++            99.722,
++            98.722,
++            104.722,
++            99.0,
++            100.0
++          ],
++          "relative_error_percent": 0.018212104608606616,
++          "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
++        },
++        "histories": {
++          "raw_hsmm_segments": {
++            "history_field": "raw_hsmm_segments",
++            "status": "ok",
++            "reason": null,
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 18,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "covered_duration_s": 597.936,
++              "truth_duration_s": 597.936,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "boundaries": {
++              "mae_s": {
++                "value": 0.7092666666666667,
++                "n_observations": 15,
++                "range_ms": [
++                  1739941438144,
++                  1739942036080
++                ],
++                "reason": null,
++                "truth_boundaries": 17,
++                "predicted_boundaries": 18,
++                "matched_boundaries": 15,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "p95_s": {
++                "value": 1.4851999999999999,
++                "n_observations": 15,
++                "range_ms": [
++                  1739941438144,
++                  1739942036080
++                ],
++                "reason": null,
++                "truth_boundaries": 17,
++                "predicted_boundaries": 18,
++                "matched_boundaries": 15,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "precision": {
++                "value": 0.8333333333333334,
++                "n_observations": 18,
++                "range_ms": [
++                  1739941438144,
++                  1739942036080
++                ],
++                "reason": null,
++                "truth_boundaries": 17,
++                "predicted_boundaries": 18,
++                "matched_boundaries": 15,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "recall": {
++                "value": 0.8823529411764706,
++                "n_observations": 17,
++                "range_ms": [
++                  1739941438144,
++                  1739942036080
++                ],
++                "reason": null,
++                "truth_boundaries": 17,
++                "predicted_boundaries": 18,
++                "matched_boundaries": 15,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "matches": [
++                {
++                  "truth_ms": 1739941469157,
++                  "predicted_ms": 1739941468895.0,
++                  "signed_error_s": -0.262
++                },
++                {
++                  "truth_ms": 1739941516394,
++                  "predicted_ms": 1739941515895.0,
++                  "signed_error_s": -0.499
++                },
++                {
++                  "truth_ms": 1739941536764,
++                  "predicted_ms": 1739941536895.0,
++                  "signed_error_s": 0.131
++                },
++                {
++                  "truth_ms": 1739941567824,
++                  "predicted_ms": 1739941568895.0,
++                  "signed_error_s": 1.071
++                },
++                {
++                  "truth_ms": 1739941617230,
++                  "predicted_ms": 1739941615895.0,
++                  "signed_error_s": -1.335
++                },
++                {
++                  "truth_ms": 1739941637831,
++                  "predicted_ms": 1739941636895.0,
++                  "signed_error_s": -0.936
++                },
++                {
++                  "truth_ms": 1739941668432,
++                  "predicted_ms": 1739941668895.0,
++                  "signed_error_s": 0.463
++                },
++                {
++                  "truth_ms": 1739941714748,
++                  "predicted_ms": 1739941714895.0,
++                  "signed_error_s": 0.147
++                },
++                {
++                  "truth_ms": 1739941736748,
++                  "predicted_ms": 1739941736895.0,
++                  "signed_error_s": 0.147
++                },
++                {
++                  "truth_ms": 1739941816358,
++                  "predicted_ms": 1739941814895.0,
++                  "signed_error_s": -1.463
++                },
++                {
++                  "truth_ms": 1739941837358,
++                  "predicted_ms": 1739941836895.0,
++                  "signed_error_s": -0.463
++                },
++                {
++                  "truth_ms": 1739941866358,
++                  "predicted_ms": 1739941867895.0,
++                  "signed_error_s": 1.537
++                },
++                {
++                  "truth_ms": 1739941916080,
++                  "predicted_ms": 1739941914895.0,
++                  "signed_error_s": -1.185
++                },
++                {
++                  "truth_ms": 1739941936080,
++                  "predicted_ms": 1739941936895.0,
++                  "signed_error_s": 0.815
++                },
++                {
++                  "truth_ms": 1739942015080,
++                  "predicted_ms": 1739942014895.0,
++                  "signed_error_s": -0.185
++                }
++              ],
++              "missed_truth_ms": [
++                1739941772859,
++                1739941971080
++              ],
++              "extra_predicted_ms": [
++                1739941767895.0,
++                1739941967895.0,
++                1739942035895.0
++              ],
++              "nearest_truth_boundary_mae_s_diagnostic": {
++                "value": 1.1051764705882354,
++                "n_observations": 17,
++                "range_ms": [
++                  1739941438144,
++                  1739942036080
++                ],
++                "reason": null,
++                "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++              }
++            },
++            "phase_agreement_diagnostic": {
++              "value": 0.9615384615384616,
++              "n_observations": 598,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "total_grid_points": 598,
++              "grid_ms": 1000,
++              "diagnostic_mapping": {
++                "0": "C",
++                "1": "A",
++                "2": "B"
++              },
++              "interpretation": "test_permutation_invariant_phase_agreement_only_NOT_physical_lamp_accuracy"
++            }
++          },
++          "baseline_segments": {
++            "history_field": "baseline_segments",
++            "status": "ok",
++            "reason": null,
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 18,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "covered_duration_s": 597.936,
++              "truth_duration_s": 597.936,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "boundaries": {
++              "mae_s": {
++                "value": 0.7483207845052083,
++                "n_observations": 15,
++                "range_ms": [
++                  1739941438144,
++                  1739942036080
++                ],
++                "reason": null,
++                "truth_boundaries": 17,
++                "predicted_boundaries": 17,
++                "matched_boundaries": 15,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "p95_s": {
++                "value": 1.7859468994140622,
++                "n_observations": 15,
++                "range_ms": [
++                  1739941438144,
++                  1739942036080
++                ],
++                "reason": null,
++                "truth_boundaries": 17,
++                "predicted_boundaries": 17,
++                "matched_boundaries": 15,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "precision": {
++                "value": 0.8823529411764706,
++                "n_observations": 17,
++                "range_ms": [
++                  1739941438144,
++                  1739942036080
++                ],
++                "reason": null,
++                "truth_boundaries": 17,
++                "predicted_boundaries": 17,
++                "matched_boundaries": 15,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "recall": {
++                "value": 0.8823529411764706,
++                "n_observations": 17,
++                "range_ms": [
++                  1739941438144,
++                  1739942036080
++                ],
++                "reason": null,
++                "truth_boundaries": 17,
++                "predicted_boundaries": 17,
++                "matched_boundaries": 15,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "matches": [
++                {
++                  "truth_ms": 1739941469157,
++                  "predicted_ms": 1739941468980.2886,
++                  "signed_error_s": -0.17671142578125
++                },
++                {
++                  "truth_ms": 1739941516394,
++                  "predicted_ms": 1739941515690.209,
++                  "signed_error_s": -0.703791015625
++                },
++                {
++                  "truth_ms": 1739941536764,
++                  "predicted_ms": 1739941537176.6965,
++                  "signed_error_s": 0.412696533203125
++                },
++                {
++                  "truth_ms": 1739941567824,
++                  "predicted_ms": 1739941568823.1018,
++                  "signed_error_s": 0.999101806640625
++                },
++                {
++                  "truth_ms": 1739941617230,
++                  "predicted_ms": 1739941615533.0222,
++                  "signed_error_s": -1.696977783203125
++                },
++                {
++                  "truth_ms": 1739941637831,
++                  "predicted_ms": 1739941637019.5098,
++                  "signed_error_s": -0.811490234375
++                },
++                {
++                  "truth_ms": 1739941668432,
++                  "predicted_ms": 1739941668665.915,
++                  "signed_error_s": 0.2339150390625
++                },
++                {
++                  "truth_ms": 1739941714748,
++                  "predicted_ms": 1739941715375.8354,
++                  "signed_error_s": 0.62783544921875
++                },
++                {
++                  "truth_ms": 1739941736748,
++                  "predicted_ms": 1739941736862.323,
++                  "signed_error_s": 0.114322998046875
++                },
++                {
++                  "truth_ms": 1739941816358,
++                  "predicted_ms": 1739941815218.6487,
++                  "signed_error_s": -1.139351318359375
++                },
++                {
++                  "truth_ms": 1739941837358,
++                  "predicted_ms": 1739941836705.1362,
++                  "signed_error_s": -0.65286376953125
++                },
++                {
++                  "truth_ms": 1739941866358,
++                  "predicted_ms": 1739941868351.5415,
++                  "signed_error_s": 1.99354150390625
++                },
++                {
++                  "truth_ms": 1739941916080,
++                  "predicted_ms": 1739941915061.4617,
++                  "signed_error_s": -1.018538330078125
++                },
++                {
++                  "truth_ms": 1739941936080,
++                  "predicted_ms": 1739941936547.9495,
++                  "signed_error_s": 0.467949462890625
++                },
++                {
++                  "truth_ms": 1739942015080,
++                  "predicted_ms": 1739942014904.275,
++                  "signed_error_s": -0.17572509765625
++                }
++              ],
++              "missed_truth_ms": [
++                1739941772859,
++                1739941971080
++              ],
++              "extra_predicted_ms": [
++                1739941768508.7283,
++                1739941968194.3547
++              ],
++              "nearest_truth_boundary_mae_s_diagnostic": {
++                "value": 1.0859252211626838,
++                "n_observations": 17,
++                "range_ms": [
++                  1739941438144,
++                  1739942036080
++                ],
++                "reason": null,
++                "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++              }
++            },
++            "phase_agreement_diagnostic": {
++              "value": 0.9665551839464883,
++              "n_observations": 598,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "total_grid_points": 598,
++              "grid_ms": 1000,
++              "diagnostic_mapping": {
++                "0": "C",
++                "1": "A",
++                "2": "B"
++              },
++              "interpretation": "test_permutation_invariant_phase_agreement_only_NOT_physical_lamp_accuracy"
++            }
++          }
++        },
++        "physical_plan_phase_count": {
++          "value": 3,
++          "n_observations": 1,
++          "range_ms": [
++            1739941438144,
++            1739942036080
++          ],
++          "reason": null
++        },
++        "physical_lamp_accuracy": {
++          "value": null,
++          "n_observations": 0,
++          "range_ms": [
++            1739941438144,
++            1739942036080
++          ],
++          "reason": "no_independent_per_lamp_truth_or_fixed_semantic_mapping"
++        }
++      },
++      "status": "ok",
++      "inference_runtime_s": 28.358
++    },
++    {
++      "source_name": "19_2025_2_24_16.json",
++      "source_path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\19_2025_2_24_16.json",
++      "annotation_path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\19_2025_2_24_16.json_manual_marks.json",
++      "annotation_sha256": "31dd7e58acdae65f47ee02c3b902811f97b030c6643d04242937b69451ea098f",
++      "annotation_validation": {
++        "valid": true,
++        "errors": [],
++        "warnings": [
++          "missing_terminal_boundary_for_last_phase"
++        ],
++        "marks": [
++          {
++            "timestamp_ms": 1740397207758,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1740397255529,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1740397325996,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1740397377304,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1740397448108,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1740397496138,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1740397565105,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1740397616762,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1740397687378,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1740397732720,
++            "kind": "B"
++          }
++        ],
++        "labels": [
++          "A",
++          "B"
++        ],
++        "start_ms": 1740397207758,
++        "known_range_ms": [
++          1740397207758,
++          1740397732720
++        ],
++        "complete_intervals": 9,
++        "physical_lamp_truth_available": false,
++        "phase_movement_mapping": null
++      },
++      "fixture_overlap": [
++        {
++          "fixture": "tests\\fixtures\\lenina_manual_signal_marks.json",
++          "sha256": "3d47e76583b0481200122fa3b59f3eaa0741de295e9e1413b026fbd2a4fbcd00",
++          "same_timestamp_count": 0,
++          "interpretation": "timestamp_overlap_check_not_proof_of_independence"
++        }
++      ],
++      "source_sha256": "258ea23ebc1608dbc6eb84da31aa8455a14aee35332bfd88607c104ebfe85598",
++      "source_bytes": 115838168,
++      "source_schema_sample": {
++        "status": "ok",
++        "bytes_read_at_most": 1048576,
++        "complete_sample_tracks": 7,
++        "track_keys": [
++          "category_name",
++          "detections",
++          "distance",
++          "id",
++          "line_in",
++          "line_out",
++          "max_speed",
++          "millis",
++          "move_duration_millis",
++          "speed",
++          "stay_duration_millis",
++          "zone_in",
++          "zone_out"
++        ],
++        "detection_keys": [
++          "category",
++          "centroid_x",
++          "centroid_y",
++          "lat",
++          "lng",
++          "millis",
++          "score",
++          "speed",
++          "x1",
++          "x2",
++          "y1",
++          "y2",
++          "zone"
++        ],
++        "sample_range_ms": [
++          1740397392502,
++          1740398312281
++        ],
++        "interpretation": "prefix_schema_sample_not_full_recording_range"
++      },
++      "prediction_file": "predictions/19_2025_2_24_16_v9.json",
++      "prediction_sha256_before_evaluation": "c44de68629e6e6a4acbe9a4398987582b5b9fbc0eeae5809b5c2f87a98e408ab",
++      "prediction_summary": {
++        "trajectory_count": 1154,
++        "event_count": 1104,
++        "movement_stream_count": 12,
++        "recording_start_timestamp_ms": 1740397207758.0,
++        "schedule_base_timestamp_ms": 1740397207758.0,
++        "recording_duration_s": 1184.664,
++        "phase_evidence": {
++          "source": "permission_per_stream",
++          "selection_scope": "per_movement",
++          "demand_entries_used_for_phase_evidence": false,
++          "excluded_movements_without_permission": [],
++          "permission_event_count": 597,
++          "release_event_count": 581
++        },
++        "regime_detection": {
++          "method": "global_fallback",
++          "scope": "full_input"
++        }
++      },
++      "metrics": {
++        "status": "ok",
++        "phase_count_match": {
++          "value": true,
++          "n_observations": 1,
++          "range_ms": [
++            1740397207758,
++            1740397732720
++          ],
++          "reason": null,
++          "predicted": 2,
++          "annotation_distinct_labels": 2,
++          "interpretation": "observed_phase_labels; not_proof_of_full_controller_K"
++        },
++        "period_absolute_error_s": {
++          "value": 0.2994995494199628,
++          "n_observations": 8,
++          "range_ms": [
++            1740397207758,
++            1740397732720
++          ],
++          "reason": null,
++          "predicted_s": 120.02849954941996,
++          "truth_recurrence_median_s": 119.729,
++          "recurrence_intervals_s": [
++            118.238,
++            121.775,
++            122.112,
++            118.834,
++            116.997,
++            120.624,
++            122.273,
++            115.958
++          ],
++          "relative_error_percent": 0.2501478751346481,
++          "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
++        },
++        "histories": {
++          "raw_hsmm_segments": {
++            "history_field": "raw_hsmm_segments",
++            "status": "ok",
++            "reason": null,
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 9,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "covered_duration_s": 524.962,
++              "truth_duration_s": 524.962,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "boundaries": {
++              "mae_s": {
++                "value": 1.546,
++                "n_observations": 1,
++                "range_ms": [
++                  1740397207758,
++                  1740397732720
++                ],
++                "reason": null,
++                "truth_boundaries": 8,
++                "predicted_boundaries": 8,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "p95_s": {
++                "value": 1.546,
++                "n_observations": 1,
++                "range_ms": [
++                  1740397207758,
++                  1740397732720
++                ],
++                "reason": null,
++                "truth_boundaries": 8,
++                "predicted_boundaries": 8,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "precision": {
++                "value": 0.125,
++                "n_observations": 8,
++                "range_ms": [
++                  1740397207758,
++                  1740397732720
++                ],
++                "reason": null,
++                "truth_boundaries": 8,
++                "predicted_boundaries": 8,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "recall": {
++                "value": 0.125,
++                "n_observations": 8,
++                "range_ms": [
++                  1740397207758,
++                  1740397732720
++                ],
++                "reason": null,
++                "truth_boundaries": 8,
++                "predicted_boundaries": 8,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "matches": [
++                {
++                  "truth_ms": 1740397377304,
++                  "predicted_ms": 1740397375758.0,
++                  "signed_error_s": -1.546
++                }
++              ],
++              "missed_truth_ms": [
++                1740397255529,
++                1740397325996,
++                1740397448108,
++                1740397496138,
++                1740397565105,
++                1740397616762,
++                1740397687378
++              ],
++              "extra_predicted_ms": [
++                1740397252758.0,
++                1740397322758.0,
++                1740397436758.0,
++                1740397493758.0,
++                1740397555758.0,
++                1740397613758.0,
++                1740397682758.0
++              ],
++              "nearest_truth_boundary_mae_s_diagnostic": {
++                "value": 4.782,
++                "n_observations": 8,
++                "range_ms": [
++                  1740397207758,
++                  1740397732720
++                ],
++                "reason": null,
++                "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++              }
++            },
++            "phase_agreement_diagnostic": {
++              "value": 0.9219047619047619,
++              "n_observations": 525,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "total_grid_points": 525,
++              "grid_ms": 1000,
++              "diagnostic_mapping": {
++                "0": "B",
++                "1": "A"
++              },
++              "interpretation": "test_permutation_invariant_phase_agreement_only_NOT_physical_lamp_accuracy"
++            }
++          },
++          "baseline_segments": {
++            "history_field": "baseline_segments",
++            "status": "ok",
++            "reason": null,
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 9,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "covered_duration_s": 524.962,
++              "truth_duration_s": 524.962,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "boundaries": {
++              "mae_s": {
++                "value": 1.599451171875,
++                "n_observations": 1,
++                "range_ms": [
++                  1740397207758,
++                  1740397732720
++                ],
++                "reason": null,
++                "truth_boundaries": 8,
++                "predicted_boundaries": 8,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "p95_s": {
++                "value": 1.599451171875,
++                "n_observations": 1,
++                "range_ms": [
++                  1740397207758,
++                  1740397732720
++                ],
++                "reason": null,
++                "truth_boundaries": 8,
++                "predicted_boundaries": 8,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "precision": {
++                "value": 0.125,
++                "n_observations": 8,
++                "range_ms": [
++                  1740397207758,
++                  1740397732720
++                ],
++                "reason": null,
++                "truth_boundaries": 8,
++                "predicted_boundaries": 8,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "recall": {
++                "value": 0.125,
++                "n_observations": 8,
++                "range_ms": [
++                  1740397207758,
++                  1740397732720
++                ],
++                "reason": null,
++                "truth_boundaries": 8,
++                "predicted_boundaries": 8,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "matches": [
++                {
++                  "truth_ms": 1740397255529,
++                  "predicted_ms": 1740397253929.5488,
++                  "signed_error_s": -1.599451171875
++                }
++              ],
++              "missed_truth_ms": [
++                1740397325996,
++                1740397377304,
++                1740397448108,
++                1740397496138,
++                1740397565105,
++                1740397616762,
++                1740397687378
++              ],
++              "extra_predicted_ms": [
++                1740397321161.8503,
++                1740397373958.0483,
++                1740397441190.3499,
++                1740397493986.5479,
++                1740397561218.8494,
++                1740397614015.0474,
++                1740397681247.349
++              ],
++              "nearest_truth_boundary_mae_s_diagnostic": {
++                "value": 3.9515511169433593,
++                "n_observations": 8,
++                "range_ms": [
++                  1740397207758,
++                  1740397732720
++                ],
++                "reason": null,
++                "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++              }
++            },
++            "phase_agreement_diagnostic": {
++              "value": 0.939047619047619,
++              "n_observations": 525,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "total_grid_points": 525,
++              "grid_ms": 1000,
++              "diagnostic_mapping": {
++                "0": "B",
++                "1": "A"
++              },
++              "interpretation": "test_permutation_invariant_phase_agreement_only_NOT_physical_lamp_accuracy"
++            }
++          }
++        },
++        "physical_plan_phase_count": {
++          "value": 2,
++          "n_observations": 1,
++          "range_ms": [
++            1740397207758,
++            1740397732720
++          ],
++          "reason": null
++        },
++        "physical_lamp_accuracy": {
++          "value": null,
++          "n_observations": 0,
++          "range_ms": [
++            1740397207758,
++            1740397732720
++          ],
++          "reason": "no_independent_per_lamp_truth_or_fixed_semantic_mapping"
++        }
++      },
++      "status": "ok",
++      "inference_runtime_s": 17.204
++    },
++    {
++      "source_name": "6_2025_2_14_20.json",
++      "source_path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\6_2025_2_14_20.json",
++      "annotation_path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\6_2025_2_14_20.json_manual_marks.json",
++      "annotation_sha256": "89d1d52417a26e39153af3d56965184724c18fbbc2b4284e7be874ac79130b45",
++      "annotation_validation": {
++        "valid": true,
++        "errors": [],
++        "warnings": [
++          "unknown_initial_phase_before_first_mark",
++          "missing_terminal_boundary_for_last_phase"
++        ],
++        "marks": [
++          {
++            "timestamp_ms": 1739545472172,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1739545507902,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1739545570928,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1739545607508,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1739545670794,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1739545706091,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1739545771375,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1739545806955,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1739545873012,
++            "kind": "A"
++          },
++          {
++            "timestamp_ms": 1739545907966,
++            "kind": "B"
++          },
++          {
++            "timestamp_ms": 1739545972279,
++            "kind": "A"
++          }
++        ],
++        "labels": [
++          "A",
++          "B"
++        ],
++        "start_ms": 1739545136544,
++        "known_range_ms": [
++          1739545472172,
++          1739545972279
++        ],
++        "complete_intervals": 10,
++        "physical_lamp_truth_available": false,
++        "phase_movement_mapping": null
++      },
++      "fixture_overlap": [
++        {
++          "fixture": "tests\\fixtures\\lenina_manual_signal_marks.json",
++          "sha256": "3d47e76583b0481200122fa3b59f3eaa0741de295e9e1413b026fbd2a4fbcd00",
++          "same_timestamp_count": 0,
++          "interpretation": "timestamp_overlap_check_not_proof_of_independence"
++        }
++      ],
++      "source_sha256": "57d04137cc1d8383d89edbd4a88084c1a874f8ee7e6eb2d206954624c2753651",
++      "source_bytes": 107670906,
++      "source_schema_sample": {
++        "status": "ok",
++        "bytes_read_at_most": 1048576,
++        "complete_sample_tracks": 14,
++        "track_keys": [
++          "category_name",
++          "detections",
++          "distance",
++          "id",
++          "line_in",
++          "line_out",
++          "max_speed",
++          "millis",
++          "move_duration_millis",
++          "speed",
++          "stay_duration_millis",
++          "zone_in",
++          "zone_out"
++        ],
++        "detection_keys": [
++          "category",
++          "centroid_x",
++          "centroid_y",
++          "lat",
++          "lng",
++          "millis",
++          "score",
++          "speed",
++          "x1",
++          "x2",
++          "y1",
++          "y2",
++          "zone"
++        ],
++        "sample_range_ms": [
++          1739545380171,
++          1739548521296
++        ],
++        "interpretation": "prefix_schema_sample_not_full_recording_range"
++      },
++      "prediction_file": "predictions/6_2025_2_14_20_v9.json",
++      "prediction_sha256_before_evaluation": "97e0eab523cc3836b3592212680bb06289849e974701297e5a1589cfe3c82f85",
++      "prediction_summary": {
++        "trajectory_count": 1901,
++        "event_count": 1844,
++        "movement_stream_count": 11,
++        "recording_start_timestamp_ms": 1739545136544.0,
++        "schedule_base_timestamp_ms": 1739545137142.0,
++        "recording_duration_s": 3637.385,
++        "phase_evidence": {
++          "source": "permission_per_stream",
++          "selection_scope": "per_movement",
++          "demand_entries_used_for_phase_evidence": false,
++          "excluded_movements_without_permission": [],
++          "permission_event_count": 1107,
++          "release_event_count": 1107
++        },
++        "regime_detection": {
++          "method": "global_fallback",
++          "scope": "full_input"
++        }
++      },
++      "metrics": {
++        "status": "ok",
++        "phase_count_match": {
++          "value": false,
++          "n_observations": 1,
++          "range_ms": [
++            1739545472172,
++            1739545972279
++          ],
++          "reason": null,
++          "predicted": 3,
++          "annotation_distinct_labels": 2,
++          "interpretation": "observed_phase_labels; not_proof_of_full_controller_K"
++        },
++        "period_absolute_error_s": {
++          "value": 0.12924773335186046,
++          "n_observations": 9,
++          "range_ms": [
++            1739545472172,
++            1739545972279
++          ],
++          "reason": null,
++          "predicted_s": 99.99524773335186,
++          "truth_recurrence_median_s": 99.866,
++          "recurrence_intervals_s": [
++            98.756,
++            99.606,
++            99.866,
++            98.583,
++            100.581,
++            100.864,
++            101.637,
++            101.011,
++            99.267
++          ],
++          "relative_error_percent": 0.12942115770318272,
++          "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
++        },
++        "histories": {
++          "raw_hsmm_segments": {
++            "history_field": "raw_hsmm_segments",
++            "status": "ok",
++            "reason": null,
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 10,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "covered_duration_s": 500.107,
++              "truth_duration_s": 500.107,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "boundaries": {
++              "mae_s": {
++                "value": 1.4713333333333334,
++                "n_observations": 3,
++                "range_ms": [
++                  1739545472172,
++                  1739545972279
++                ],
++                "reason": null,
++                "truth_boundaries": 9,
++                "predicted_boundaries": 15,
++                "matched_boundaries": 3,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "p95_s": {
++                "value": 1.7969,
++                "n_observations": 3,
++                "range_ms": [
++                  1739545472172,
++                  1739545972279
++                ],
++                "reason": null,
++                "truth_boundaries": 9,
++                "predicted_boundaries": 15,
++                "matched_boundaries": 3,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "precision": {
++                "value": 0.2,
++                "n_observations": 15,
++                "range_ms": [
++                  1739545472172,
++                  1739545972279
++                ],
++                "reason": null,
++                "truth_boundaries": 9,
++                "predicted_boundaries": 15,
++                "matched_boundaries": 3,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "recall": {
++                "value": 0.3333333333333333,
++                "n_observations": 9,
++                "range_ms": [
++                  1739545472172,
++                  1739545972279
++                ],
++                "reason": null,
++                "truth_boundaries": 9,
++                "predicted_boundaries": 15,
++                "matched_boundaries": 3,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "matches": [
++                {
++                  "truth_ms": 1739545670794,
++                  "predicted_ms": 1739545669142.0,
++                  "signed_error_s": -1.652
++                },
++                {
++                  "truth_ms": 1739545706091,
++                  "predicted_ms": 1739545705142.0,
++                  "signed_error_s": -0.949
++                },
++                {
++                  "truth_ms": 1739545806955,
++                  "predicted_ms": 1739545805142.0,
++                  "signed_error_s": -1.813
++                }
++              ],
++              "missed_truth_ms": [
++                1739545507902,
++                1739545570928,
++                1739545607508,
++                1739545771375,
++                1739545873012,
++                1739545907966
++              ],
++              "extra_predicted_ms": [
++                1739545504142.0,
++                1739545519142.0,
++                1739545566142.0,
++                1739545604142.0,
++                1739545629142.0,
++                1739545728142.0,
++                1739545769142.0,
++                1739545824142.0,
++                1739545869142.0,
++                1739545905142.0,
++                1739545924142.0,
++                1739545968142.0
++              ],
++              "nearest_truth_boundary_mae_s_diagnostic": {
++                "value": 2.8058888888888887,
++                "n_observations": 9,
++                "range_ms": [
++                  1739545472172,
++                  1739545972279
++                ],
++                "reason": null,
++                "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++              }
++            },
++            "phase_agreement_diagnostic": {
++              "value": null,
++              "n_observations": 500,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": "unequal_phase_cardinality",
++              "total_grid_points": 500,
++              "grid_ms": 1000,
++              "diagnostic_mapping": null,
++              "interpretation": "test_permutation_invariant_phase_agreement_only_NOT_physical_lamp_accuracy"
++            }
++          },
++          "baseline_segments": {
++            "history_field": "baseline_segments",
++            "status": "ok",
++            "reason": null,
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 10,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "covered_duration_s": 500.107,
++              "truth_duration_s": 500.107,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "boundaries": {
++              "mae_s": {
++                "value": 1.418416015625,
++                "n_observations": 1,
++                "range_ms": [
++                  1739545472172,
++                  1739545972279
++                ],
++                "reason": null,
++                "truth_boundaries": 9,
++                "predicted_boundaries": 15,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "p95_s": {
++                "value": 1.418416015625,
++                "n_observations": 1,
++                "range_ms": [
++                  1739545472172,
++                  1739545972279
++                ],
++                "reason": null,
++                "truth_boundaries": 9,
++                "predicted_boundaries": 15,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "precision": {
++                "value": 0.06666666666666667,
++                "n_observations": 15,
++                "range_ms": [
++                  1739545472172,
++                  1739545972279
++                ],
++                "reason": null,
++                "truth_boundaries": 9,
++                "predicted_boundaries": 15,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "recall": {
++                "value": 0.1111111111111111,
++                "n_observations": 9,
++                "range_ms": [
++                  1739545472172,
++                  1739545972279
++                ],
++                "reason": null,
++                "truth_boundaries": 9,
++                "predicted_boundaries": 15,
++                "matched_boundaries": 1,
++                "tolerance_s": 2.0,
++                "matching": "untyped_absolute_one_to_one_no_offset_fit"
++              },
++              "matches": [
++                {
++                  "truth_ms": 1739545706091,
++                  "predicted_ms": 1739545704672.584,
++                  "signed_error_s": -1.418416015625
++                }
++              ],
++              "missed_truth_ms": [
++                1739545507902,
++                1739545570928,
++                1739545607508,
++                1739545670794,
++                1739545771375,
++                1739545806955,
++                1739545873012,
++                1739545907966
++              ],
++              "extra_predicted_ms": [
++                1739545504682.0884,
++                1739545525361.443,
++                1739545568607.285,
++                1739545604677.3362,
++                1739545625356.691,
++                1739545668602.5327,
++                1739545725351.9385,
++                1739545768597.7803,
++                1739545804667.8315,
++                1739545825347.1863,
++                1739545868593.028,
++                1739545904663.0793,
++                1739545925342.434,
++                1739545968588.276
++              ],
++              "nearest_truth_boundary_mae_s_diagnostic": {
++                "value": 2.751939398871528,
++                "n_observations": 9,
++                "range_ms": [
++                  1739545472172,
++                  1739545972279
++                ],
++                "reason": null,
++                "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++              }
++            },
++            "phase_agreement_diagnostic": {
++              "value": null,
++              "n_observations": 500,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": "unequal_phase_cardinality",
++              "total_grid_points": 500,
++              "grid_ms": 1000,
++              "diagnostic_mapping": null,
++              "interpretation": "test_permutation_invariant_phase_agreement_only_NOT_physical_lamp_accuracy"
++            }
++          }
++        },
++        "physical_plan_phase_count": {
++          "value": 2,
++          "n_observations": 1,
++          "range_ms": [
++            1739545472172,
++            1739545972279
++          ],
++          "reason": null
++        },
++        "physical_lamp_accuracy": {
++          "value": null,
++          "n_observations": 0,
++          "range_ms": [
++            1739545472172,
++            1739545972279
++          ],
++          "reason": "no_independent_per_lamp_truth_or_fixed_semantic_mapping"
++        }
++      },
++      "status": "ok",
++      "inference_runtime_s": 20.248
++    }
++  ],
++  "interpretation": "development regression phase benchmark; NOT independent physical lamp accuracy",
++  "inference_contract": "trajectory file only; no marks, no test phase mapping, no time offset fitting",
++  "metrics_scope": "truth intervals between first and last marks; interior transitions only",
++  "status": "ok"
++}
+diff --git a/benchmarks/stage2b1_20261013/comparison.json b/benchmarks/stage2b1_20261013/comparison.json
+new file mode 100644
+index 0000000..6c3c353
+--- /dev/null
++++ b/benchmarks/stage2b1_20261013/comparison.json
+@@ -0,0 +1,1150 @@
++{
++  "before_report_sha256": "bafcb9955ea7388d2b0e5f9935115cad0bfaf404255d8c1e639b31e1bf603d41",
++  "after_report_sha256": "168ec6f8e0e70294f28570a6828ec3c8041152eb96203454e111c14370945f03",
++  "before_code_commit": "a9a3523d531e5f195486da127c067713b082d592",
++  "after_code_commit": "161f32fd42ce80cca01bb74c0a00988d6969382a",
++  "same_config_sha256": "c1ca38484ba0033703cb44e49dcdb15d918345df3f9e909f2a59f2975cfab383",
++  "rows": [
++    {
++      "source": "17_2025_2_19_10.json",
++      "source_sha256": "958edabf3288c94ee6b51c9d43d2c5655f21dcbe88e51e0bf2b97d1016dce553",
++      "annotation_sha256": "201449919f0f3c358f12d21211a14cb927f7cfe3478c43f5e7f8506ceedd30e6",
++      "before_status": "ok",
++      "after_status": "ok",
++      "before": {
++        "K": {
++          "value": true,
++          "n_observations": 1,
++          "range_ms": [
++            1739941438144,
++            1739942036080
++          ],
++          "reason": null,
++          "predicted": 3,
++          "annotation_distinct_labels": 3,
++          "interpretation": "observed_phase_labels; not_proof_of_full_controller_K"
++        },
++        "V10_plan_K": {
++          "value": 3,
++          "n_observations": 1,
++          "range_ms": [
++            1739941438144,
++            1739942036080
++          ],
++          "reason": null
++        },
++        "period_error_s": {
++          "value": 0.018186789783200652,
++          "n_observations": 16,
++          "range_ms": [
++            1739941438144,
++            1739942036080
++          ],
++          "reason": null,
++          "predicted_s": 99.84281321021679,
++          "truth_recurrence_median_s": 99.86099999999999,
++          "recurrence_intervals_s": [
++            98.62,
++            98.667,
++            100.836,
++            101.067,
++            100.608,
++            97.518,
++            98.917,
++            104.427,
++            101.61,
++            100.61,
++            93.499,
++            99.722,
++            98.722,
++            104.722,
++            99.0,
++            100.0
++          ],
++          "relative_error_percent": 0.018212104608606616,
++          "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
++        },
++        "inference_runtime_s": 15.577,
++        "events": {
++          "event_type_counts": {
++            "ENTRY": 2728,
++            "RELEASE": 796,
++            "STOP": 0,
++            "CROSSING": 0,
++            "CROSSING_PROXY": 0
++          },
++          "event_method_counts": {
++            "legacy_main_view": {
++              "input_zone_entry": 2452,
++              "metadata_dwell_end_restart": 276
++            },
++            "legacy_release_view": {
++              "kinematic_release": 520,
++              "metadata_dwell_end_restart": 276
++            }
++          },
++          "total_events": 3524,
++          "weak_or_unknown_uncertainty_events": null,
++          "weak_or_unknown_uncertainty_percent": null,
++          "weak_percentage_reason": "legacy_packed_streams_lost_per_event_quality_and_uncertainty",
++          "interpretation": "counts_of_emitted_legacy_views_NOT_counts_of_true_vehicle_events"
++        },
++        "histories": {
++          "raw_hsmm_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 18,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "covered_duration_s": 597.936,
++              "truth_duration_s": 597.936,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.16666666666666666,
++              "n_observations": 18,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "truth_boundaries": 17,
++              "predicted_boundaries": 18,
++              "matched_boundaries": 3,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.17647058823529413,
++              "n_observations": 17,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "truth_boundaries": 17,
++              "predicted_boundaries": 18,
++              "matched_boundaries": 3,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 6.422235294117647,
++              "n_observations": 17,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          },
++          "baseline_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 18,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "covered_duration_s": 597.936,
++              "truth_duration_s": 597.936,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.2777777777777778,
++              "n_observations": 18,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "truth_boundaries": 17,
++              "predicted_boundaries": 18,
++              "matched_boundaries": 5,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.29411764705882354,
++              "n_observations": 17,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "truth_boundaries": 17,
++              "predicted_boundaries": 18,
++              "matched_boundaries": 5,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 2.9450456973805146,
++              "n_observations": 17,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          }
++        }
++      },
++      "after": {
++        "K": {
++          "value": true,
++          "n_observations": 1,
++          "range_ms": [
++            1739941438144,
++            1739942036080
++          ],
++          "reason": null,
++          "predicted": 3,
++          "annotation_distinct_labels": 3,
++          "interpretation": "observed_phase_labels; not_proof_of_full_controller_K"
++        },
++        "V10_plan_K": {
++          "value": 3,
++          "n_observations": 1,
++          "range_ms": [
++            1739941438144,
++            1739942036080
++          ],
++          "reason": null
++        },
++        "period_error_s": {
++          "value": 0.018186789783200652,
++          "n_observations": 16,
++          "range_ms": [
++            1739941438144,
++            1739942036080
++          ],
++          "reason": null,
++          "predicted_s": 99.84281321021679,
++          "truth_recurrence_median_s": 99.86099999999999,
++          "recurrence_intervals_s": [
++            98.62,
++            98.667,
++            100.836,
++            101.067,
++            100.608,
++            97.518,
++            98.917,
++            104.427,
++            101.61,
++            100.61,
++            93.499,
++            99.722,
++            98.722,
++            104.722,
++            99.0,
++            100.0
++          ],
++          "relative_error_percent": 0.018212104608606616,
++          "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
++        },
++        "inference_runtime_s": 28.358,
++        "events": {
++          "event_type_counts": {
++            "ENTRY": 2728,
++            "CROSSING_PROXY": 2728,
++            "RELEASE": 716
++          },
++          "event_method_counts": {
++            "input_zone_entry": 2728,
++            "observed_zone_transition_proxy": 2728,
++            "kinematic_restart_proxy": 716
++          },
++          "total_events": 6172,
++          "weak_or_unknown_uncertainty_events": 5456,
++          "weak_or_unknown_uncertainty_percent": 88.39922229423202,
++          "selected_event_count": 717,
++          "selected_weak_or_unknown_uncertainty_percent": 0.1394700139470014,
++          "selection_by_movement": {
++            "E->N": "release_proxy",
++            "E->W": "release_proxy",
++            "N->E": "release_proxy",
++            "N->S": "release_proxy",
++            "S->E": "release_proxy",
++            "S->N": "release_proxy",
++            "S->W": "zone_crossing_proxy",
++            "W->E": "release_proxy",
++            "W->S": "release_proxy"
++          },
++          "track_quality_counts": {
++            "invalid_detections": 0,
++            "duplicate_detections": 0,
++            "conflicting_timestamps": 0,
++            "unsupported_metadata_restart": 741,
++            "tracks_without_usable_events": 7
++          }
++        },
++        "histories": {
++          "raw_hsmm_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 18,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "covered_duration_s": 597.936,
++              "truth_duration_s": 597.936,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.8333333333333334,
++              "n_observations": 18,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "truth_boundaries": 17,
++              "predicted_boundaries": 18,
++              "matched_boundaries": 15,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.8823529411764706,
++              "n_observations": 17,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "truth_boundaries": 17,
++              "predicted_boundaries": 18,
++              "matched_boundaries": 15,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 1.1051764705882354,
++              "n_observations": 17,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          },
++          "baseline_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 18,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "covered_duration_s": 597.936,
++              "truth_duration_s": 597.936,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.8823529411764706,
++              "n_observations": 17,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "truth_boundaries": 17,
++              "predicted_boundaries": 17,
++              "matched_boundaries": 15,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.8823529411764706,
++              "n_observations": 17,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "truth_boundaries": 17,
++              "predicted_boundaries": 17,
++              "matched_boundaries": 15,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 1.0859252211626838,
++              "n_observations": 17,
++              "range_ms": [
++                1739941438144,
++                1739942036080
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          }
++        }
++      }
++    },
++    {
++      "source": "19_2025_2_24_16.json",
++      "source_sha256": "258ea23ebc1608dbc6eb84da31aa8455a14aee35332bfd88607c104ebfe85598",
++      "annotation_sha256": "31dd7e58acdae65f47ee02c3b902811f97b030c6643d04242937b69451ea098f",
++      "before_status": "ok",
++      "after_status": "ok",
++      "before": {
++        "K": {
++          "value": false,
++          "n_observations": 1,
++          "range_ms": [
++            1740397207758,
++            1740397732720
++          ],
++          "reason": null,
++          "predicted": 3,
++          "annotation_distinct_labels": 2,
++          "interpretation": "observed_phase_labels; not_proof_of_full_controller_K"
++        },
++        "V10_plan_K": {
++          "value": 2,
++          "n_observations": 1,
++          "range_ms": [
++            1740397207758,
++            1740397732720
++          ],
++          "reason": null
++        },
++        "period_error_s": {
++          "value": 0.2994995494199628,
++          "n_observations": 8,
++          "range_ms": [
++            1740397207758,
++            1740397732720
++          ],
++          "reason": null,
++          "predicted_s": 120.02849954941996,
++          "truth_recurrence_median_s": 119.729,
++          "recurrence_intervals_s": [
++            118.238,
++            121.775,
++            122.112,
++            118.834,
++            116.997,
++            120.624,
++            122.273,
++            115.958
++          ],
++          "relative_error_percent": 0.2501478751346481,
++          "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
++        },
++        "inference_runtime_s": 9.331,
++        "events": {
++          "event_type_counts": {
++            "ENTRY": 1104,
++            "RELEASE": 611,
++            "STOP": 0,
++            "CROSSING": 0,
++            "CROSSING_PROXY": 0
++          },
++          "event_method_counts": {
++            "legacy_main_view": {
++              "input_zone_entry": 946,
++              "metadata_dwell_end_restart": 158
++            },
++            "legacy_release_view": {
++              "kinematic_release": 453,
++              "metadata_dwell_end_restart": 158
++            }
++          },
++          "total_events": 1715,
++          "weak_or_unknown_uncertainty_events": null,
++          "weak_or_unknown_uncertainty_percent": null,
++          "weak_percentage_reason": "legacy_packed_streams_lost_per_event_quality_and_uncertainty",
++          "interpretation": "counts_of_emitted_legacy_views_NOT_counts_of_true_vehicle_events"
++        },
++        "histories": {
++          "raw_hsmm_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 9,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "covered_duration_s": 524.962,
++              "truth_duration_s": 524.962,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.07692307692307693,
++              "n_observations": 13,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "truth_boundaries": 8,
++              "predicted_boundaries": 13,
++              "matched_boundaries": 1,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.125,
++              "n_observations": 8,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "truth_boundaries": 8,
++              "predicted_boundaries": 13,
++              "matched_boundaries": 1,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 5.657,
++              "n_observations": 8,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          },
++          "baseline_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 9,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "covered_duration_s": 524.962,
++              "truth_duration_s": 524.962,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.15384615384615385,
++              "n_observations": 13,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "truth_boundaries": 8,
++              "predicted_boundaries": 13,
++              "matched_boundaries": 2,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.25,
++              "n_observations": 8,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "truth_boundaries": 8,
++              "predicted_boundaries": 13,
++              "matched_boundaries": 2,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 6.304480041503906,
++              "n_observations": 8,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          }
++        }
++      },
++      "after": {
++        "K": {
++          "value": true,
++          "n_observations": 1,
++          "range_ms": [
++            1740397207758,
++            1740397732720
++          ],
++          "reason": null,
++          "predicted": 2,
++          "annotation_distinct_labels": 2,
++          "interpretation": "observed_phase_labels; not_proof_of_full_controller_K"
++        },
++        "V10_plan_K": {
++          "value": 2,
++          "n_observations": 1,
++          "range_ms": [
++            1740397207758,
++            1740397732720
++          ],
++          "reason": null
++        },
++        "period_error_s": {
++          "value": 0.2994995494199628,
++          "n_observations": 8,
++          "range_ms": [
++            1740397207758,
++            1740397732720
++          ],
++          "reason": null,
++          "predicted_s": 120.02849954941996,
++          "truth_recurrence_median_s": 119.729,
++          "recurrence_intervals_s": [
++            118.238,
++            121.775,
++            122.112,
++            118.834,
++            116.997,
++            120.624,
++            122.273,
++            115.958
++          ],
++          "relative_error_percent": 0.2501478751346481,
++          "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
++        },
++        "inference_runtime_s": 17.204,
++        "events": {
++          "event_type_counts": {
++            "ENTRY": 1104,
++            "CROSSING_PROXY": 1104,
++            "RELEASE": 581
++          },
++          "event_method_counts": {
++            "input_zone_entry": 1104,
++            "observed_zone_transition_proxy": 1104,
++            "kinematic_restart_proxy": 581
++          },
++          "total_events": 2789,
++          "weak_or_unknown_uncertainty_events": 2208,
++          "weak_or_unknown_uncertainty_percent": 79.16816063105055,
++          "selected_event_count": 597,
++          "selected_weak_or_unknown_uncertainty_percent": 2.680067001675042,
++          "selection_by_movement": {
++            "E->N": "release_proxy",
++            "E->S": "release_proxy",
++            "E->W": "release_proxy",
++            "N->E": "release_proxy",
++            "N->S": "release_proxy",
++            "N->W": "release_proxy",
++            "S->E": "zone_crossing_proxy",
++            "S->N": "release_proxy",
++            "S->W": "release_proxy",
++            "W->E": "release_proxy",
++            "W->N": "release_proxy",
++            "W->S": "release_proxy"
++          },
++          "track_quality_counts": {
++            "invalid_detections": 0,
++            "duplicate_detections": 0,
++            "conflicting_timestamps": 0,
++            "unsupported_metadata_restart": 588,
++            "tracks_without_usable_events": 50
++          }
++        },
++        "histories": {
++          "raw_hsmm_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 9,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "covered_duration_s": 524.962,
++              "truth_duration_s": 524.962,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.125,
++              "n_observations": 8,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "truth_boundaries": 8,
++              "predicted_boundaries": 8,
++              "matched_boundaries": 1,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.125,
++              "n_observations": 8,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "truth_boundaries": 8,
++              "predicted_boundaries": 8,
++              "matched_boundaries": 1,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 4.782,
++              "n_observations": 8,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          },
++          "baseline_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 9,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "covered_duration_s": 524.962,
++              "truth_duration_s": 524.962,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.125,
++              "n_observations": 8,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "truth_boundaries": 8,
++              "predicted_boundaries": 8,
++              "matched_boundaries": 1,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.125,
++              "n_observations": 8,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "truth_boundaries": 8,
++              "predicted_boundaries": 8,
++              "matched_boundaries": 1,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 3.9515511169433593,
++              "n_observations": 8,
++              "range_ms": [
++                1740397207758,
++                1740397732720
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          }
++        }
++      }
++    },
++    {
++      "source": "6_2025_2_14_20.json",
++      "source_sha256": "57d04137cc1d8383d89edbd4a88084c1a874f8ee7e6eb2d206954624c2753651",
++      "annotation_sha256": "89d1d52417a26e39153af3d56965184724c18fbbc2b4284e7be874ac79130b45",
++      "before_status": "ok",
++      "after_status": "ok",
++      "before": {
++        "K": {
++          "value": true,
++          "n_observations": 1,
++          "range_ms": [
++            1739545472172,
++            1739545972279
++          ],
++          "reason": null,
++          "predicted": 2,
++          "annotation_distinct_labels": 2,
++          "interpretation": "observed_phase_labels; not_proof_of_full_controller_K"
++        },
++        "V10_plan_K": {
++          "value": 2,
++          "n_observations": 1,
++          "range_ms": [
++            1739545472172,
++            1739545972279
++          ],
++          "reason": null
++        },
++        "period_error_s": {
++          "value": 0.12924773335186046,
++          "n_observations": 9,
++          "range_ms": [
++            1739545472172,
++            1739545972279
++          ],
++          "reason": null,
++          "predicted_s": 99.99524773335186,
++          "truth_recurrence_median_s": 99.866,
++          "recurrence_intervals_s": [
++            98.756,
++            99.606,
++            99.866,
++            98.583,
++            100.581,
++            100.864,
++            101.637,
++            101.011,
++            99.267
++          ],
++          "relative_error_percent": 0.12942115770318272,
++          "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
++        },
++        "inference_runtime_s": 12.023,
++        "events": {
++          "event_type_counts": {
++            "ENTRY": 1844,
++            "RELEASE": 1126,
++            "STOP": 0,
++            "CROSSING": 0,
++            "CROSSING_PROXY": 0
++          },
++          "event_method_counts": {
++            "legacy_main_view": {
++              "input_zone_entry": 1684,
++              "metadata_dwell_end_restart": 160
++            },
++            "legacy_release_view": {
++              "kinematic_release": 966,
++              "metadata_dwell_end_restart": 160
++            }
++          },
++          "total_events": 2970,
++          "weak_or_unknown_uncertainty_events": null,
++          "weak_or_unknown_uncertainty_percent": null,
++          "weak_percentage_reason": "legacy_packed_streams_lost_per_event_quality_and_uncertainty",
++          "interpretation": "counts_of_emitted_legacy_views_NOT_counts_of_true_vehicle_events"
++        },
++        "histories": {
++          "raw_hsmm_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 10,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "covered_duration_s": 500.107,
++              "truth_duration_s": 500.107,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.2,
++              "n_observations": 10,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "truth_boundaries": 9,
++              "predicted_boundaries": 10,
++              "matched_boundaries": 2,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.2222222222222222,
++              "n_observations": 9,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "truth_boundaries": 9,
++              "predicted_boundaries": 10,
++              "matched_boundaries": 2,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 3.028111111111111,
++              "n_observations": 9,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          },
++          "baseline_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 10,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "covered_duration_s": 500.107,
++              "truth_duration_s": 500.107,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.1,
++              "n_observations": 10,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "truth_boundaries": 9,
++              "predicted_boundaries": 10,
++              "matched_boundaries": 1,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.1111111111111111,
++              "n_observations": 9,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "truth_boundaries": 9,
++              "predicted_boundaries": 10,
++              "matched_boundaries": 1,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 3.6180809461805556,
++              "n_observations": 9,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          }
++        }
++      },
++      "after": {
++        "K": {
++          "value": false,
++          "n_observations": 1,
++          "range_ms": [
++            1739545472172,
++            1739545972279
++          ],
++          "reason": null,
++          "predicted": 3,
++          "annotation_distinct_labels": 2,
++          "interpretation": "observed_phase_labels; not_proof_of_full_controller_K"
++        },
++        "V10_plan_K": {
++          "value": 2,
++          "n_observations": 1,
++          "range_ms": [
++            1739545472172,
++            1739545972279
++          ],
++          "reason": null
++        },
++        "period_error_s": {
++          "value": 0.12924773335186046,
++          "n_observations": 9,
++          "range_ms": [
++            1739545472172,
++            1739545972279
++          ],
++          "reason": null,
++          "predicted_s": 99.99524773335186,
++          "truth_recurrence_median_s": 99.866,
++          "recurrence_intervals_s": [
++            98.756,
++            99.606,
++            99.866,
++            98.583,
++            100.581,
++            100.864,
++            101.637,
++            101.011,
++            99.267
++          ],
++          "relative_error_percent": 0.12942115770318272,
++          "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
++        },
++        "inference_runtime_s": 20.248,
++        "events": {
++          "event_type_counts": {
++            "ENTRY": 1844,
++            "CROSSING_PROXY": 1844,
++            "RELEASE": 1107
++          },
++          "event_method_counts": {
++            "input_zone_entry": 1844,
++            "observed_zone_transition_proxy": 1844,
++            "kinematic_restart_proxy": 1107
++          },
++          "total_events": 4795,
++          "weak_or_unknown_uncertainty_events": 3688,
++          "weak_or_unknown_uncertainty_percent": 76.91345151199165,
++          "selected_event_count": 1107,
++          "selected_weak_or_unknown_uncertainty_percent": 0.0,
++          "selection_by_movement": {
++            "E->N": "release_proxy",
++            "E->S": "release_proxy",
++            "E->W": "release_proxy",
++            "N->E": "release_proxy",
++            "N->S": "release_proxy",
++            "N->W": "release_proxy",
++            "S->N": "release_proxy",
++            "S->W": "release_proxy",
++            "W->E": "release_proxy",
++            "W->N": "release_proxy",
++            "W->S": "release_proxy"
++          },
++          "track_quality_counts": {
++            "invalid_detections": 0,
++            "duplicate_detections": 0,
++            "conflicting_timestamps": 0,
++            "unsupported_metadata_restart": 780,
++            "tracks_without_usable_events": 57
++          }
++        },
++        "histories": {
++          "raw_hsmm_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 10,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "covered_duration_s": 500.107,
++              "truth_duration_s": 500.107,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.2,
++              "n_observations": 15,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "truth_boundaries": 9,
++              "predicted_boundaries": 15,
++              "matched_boundaries": 3,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.3333333333333333,
++              "n_observations": 9,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "truth_boundaries": 9,
++              "predicted_boundaries": 15,
++              "matched_boundaries": 3,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 2.8058888888888887,
++              "n_observations": 9,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          },
++          "baseline_segments": {
++            "coverage": {
++              "value": 1.0,
++              "n_observations": 10,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "covered_duration_s": 500.107,
++              "truth_duration_s": 500.107,
++              "interpretation": "temporal_support_not_correctness_or_lamp_observability"
++            },
++            "precision": {
++              "value": 0.06666666666666667,
++              "n_observations": 15,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "truth_boundaries": 9,
++              "predicted_boundaries": 15,
++              "matched_boundaries": 1,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "recall": {
++              "value": 0.1111111111111111,
++              "n_observations": 9,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "truth_boundaries": 9,
++              "predicted_boundaries": 15,
++              "matched_boundaries": 1,
++              "tolerance_s": 2.0,
++              "matching": "untyped_absolute_one_to_one_no_offset_fit"
++            },
++            "nearest_boundary_mae_s": {
++              "value": 2.751939398871528,
++              "n_observations": 9,
++              "range_ms": [
++                1739545472172,
++                1739545972279
++              ],
++              "reason": null,
++              "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
++            }
++          }
++        }
++      }
++    }
++  ],
++  "interpretation": "one_development_regression_cycle; NOT independent lamp accuracy",
++  "evidence_policy_change": "legacy global entry/release gate -> permission proxy per movement"
++}
+diff --git a/docs/TEMPORAL_EVIDENCE_2B1.md b/docs/TEMPORAL_EVIDENCE_2B1.md
+new file mode 100644
+index 0000000..fca2395
+--- /dev/null
++++ b/docs/TEMPORAL_EVIDENCE_2B1.md
+@@ -0,0 +1,241 @@
++# Этап 2B.1: контракт временного evidence автомобиля
++
++Дата: 2026-10-13. Основа — `benchmark/stage2a-offline-20261013`, `aa2c4a3`.
++Ветка работы — `fix/stage2b1-temporal-evidence-20261013`.
++Ветки этапов 1 и 2A отправлены в origin; main локально и в origin остаётся
++`a005a2521f62ce3b2c9f9d52f9f0d73913754e01`.
++
++## Подтверждённые дефекты
++
++* Старый `_track_event_view` использует первую detection входной зоны, с fallback
++  на первую detection. Это demand entry, не измерение пересечения стоп-линии.
++* Metadata release = entry + stay. `_speed_restart_plausible` возвращает True
++  при <6 speed points. Двухточечная траектория с stay=6s получает release
++  confidence=0,9 без доказательства остановки/разгона (unit counterexample).
++* Kinematic release — существующий relative image-speed solver, который ищет
++  длительный low-speed участок и повышение скорости. Это не calibrated m/s,
++  не stop-line crossing и не точное включение лампы. Smoothing и sampling дают
++  дополнительную временную неопределённость; низкая скорость не обязательно STOP.
++* Старый `_choose_phase_evidence` требует глобальную квоту ≥80/15% events и
++  release coverage ≥половины streams. При её невыполнении *все* movements
++  переключаются на mixed main timestamps, включая entry. Надёжный restart
++  одного движения подменяется demand timestamp из-за разреженности другого.
++* `load_event_streams` пакует только timestamps: индивидуальные source ID,
++  method и confidence теряются до fitting. Method counts не восстанавливают
++  их связь с конкретным событием. Unknown uncertainty нельзя получить из counts.
++* In-memory путь не дедуплицирует треки; path loader использует ID+first time+OD,
++  что может склеить разные безымянные/частичные треки. Duplicate detection
++  timestamps и NaN не защищены в старом V9 preprocessing.
++
++Общий `trajectory_events.py` уже содержит stop/release logic, zone transition,
++causal extraction и stop_line_provider. Его возможности не переписывались.
++Переиспользованы `_zone_crossing_timestamp`, `_first_sustained`,
++`EventExtractionConfig`, `_finite_number` из существующей normalizer/geometry;
++V9 image-speed candidate тоже переиспользован без нового motion solver.
++
++## Единый контракт и семантика
++
++`app/core/temporal_evidence.py::TemporalEvent`:
++
++| Поле | Значение |
++| --- | --- |
++| timestamp_ms | Время автомобильного evidence, absolute Unix milliseconds; для heuristic candidate — proxy, не истинный lamp switch |
++| event_type | ENTRY / STOP / RELEASE / CROSSING_PROXY / CROSSING |
++| movement | Нормализованный OD, произвольные направления поддержаны |
++| source_track_id | Исходный ID, включая None без выдуманного ID |
++| evidence_method | Конкретный наблюдаемый/эвристический способ |
++| confidence / evidence_quality | Heuristic vehicle evidence score и HIGH/MEDIUM/LOW; **не вероятность лампы** |
++| temporal_uncertainty_ms | Консервативный heuristic radius; None — неизвестна. Это не calibrated statistical CI |
++| provenance | Source/member, track fingerprint/range, quality issues, observation bracket, proxy role, отсутствие lamp observation |
++
++ENTRY — спрос. Если origin не наблюдался, entry — left-censored first-detection
++proxy. STOP — stationary evidence, без знания места относительно стоп-линии и
++без вывода RED. RELEASE — косвенный proxy возобновления движения. Он одинаково
++возможен после разрешения движения, при permissive turn и после снятия ДТП-блокировки.
++Причина остаётся неизвестной. Никакие события не содержат GREEN/RED.
++
++Zone transition при неизвестной геометрии — **CROSSING_PROXY**. Timestamp
++самого наблюдаемого zone transition хранится вместе с sampling bracket;
++sampling gap отдельно от temporal_uncertainty относительно стоп-линии (None).
++Конец траектории не создаёт crossing evidence. CROSSING допустим только при
++явном verified_stop_line provenance; default V9 ни одной стоп-линии не предполагает.
++`adapt_trajectory_event` соединяет старый TrajectoryEvent с этим контрактом:
++старый CROSSING enum без verified geometry автоматически остаётся proxy.
++
++## Ограниченный цикл изменений
++
++* Санитизация finite integer timestamps, sorting, exact duplicate detections;
++  conflicting same-time observations исключаются без произвольного выбора.
++  Exact track fingerprint дедуплицирует одинаковые записи; разные безымянные
++  треки с одним start не склеиваются. Partial snapshots с различным содержимым
++  ещё не сшиваются — это остаётся отдельной задачей.
++* Единый typed extractor для path и in-memory discovery. Оба пути сохраняют
++  sidecar до вызова фазовой модели и в результат `event_extraction.temporal_events`.
++  `selected_event_indices` указывает события, чьи timestamps получила модель.
++* Metadata restart требует наблюдённый sustained zero-speed stop, достаточный
++  before/after support, наблюдаемый подъём скорости и bracket без gap>2s.
++  Для raw speed неизвестны единицы: абсолютные m/s thresholds не применяются;
++  exact zero и относительный restart имеют unit-independent смысл. Общие
++  stop_min_duration/gap limits взяты из существующего EventExtractionConfig.
++* Existing image-space restart допускается лишь при полных finite centroids,
++  достаточном числе points, наблюдаемом incoming/zone transition и без gaps>2s.
++  Метод называется kinematic_restart_proxy, качество не выше MEDIUM.
++* Uncertainty metadata restart ≥3s (его before/after support window), image
++  restart ≥1,3s (два существующих smoothing scales по 0,65s); sampling brackets
++  сохранены отдельно. Эти engineering bounds заранее выбраны по механизму,
++  не по ручным marks; calibration ламповых задержек отсутствует.
++* Selection **отдельно по movement**: поддержанные RELEASE, иначе eligible
++  zone-crossing proxies. ENTRY никогда не подменяет фазовое permission evidence.
++  Без любых permission proxies — явный ValueError с UNKNOWN, а не fabricated K.
++* Zone proxy может быть LOW с неизвестной stop-line uncertainty и всё же давать
++  движение-подобный фазовый признак. Эта слабость видна в diagnostics. HSMM
++  получает только timestamps; confidence/uncertainty пока не входят в likelihood.
++  Реализация их весов/цензурирования относится к следующему заданию.
++
++Это изменение event ingestion и выбора evidence. HSMM, infer_period, выбор K,
++periodic_baseline_from_segments и physical mapping не менялись. Временной extent
++при новой политике включает последнюю permission observation, а не обрезается
++последним demand entry. Offline evaluator, its CLI/config и annotations неизменны.
++
++## Совместимость
++
++`load_event_streams` возвращает tuple-compatible EventStreamBundle длины 10;
++existing unpacking и packed array streams сохраняются. Default main/entry slots
++теперь demand views; истинные selected phase timestamps находятся в
++`permission_streams`. Атрибуты sidecar сохраняют происхождение. Публичные
++legacy `extract_event_views`/`load_event_views` остаются tuple adapters и явно
++документированы как legacy.
++
++`discover_path(..., evidence_policy='legacy_v9')` и
++`discover_records(..., evidence_policy='legacy_v9')` сохраняют старый extractor
++и global gate. Default — `permission_per_stream`. Это намеренное изменение
++семантики, а не обещание прежних фазовых результатов. Внешние consumers,
++которые непосредственно unpack load_event_streams и выбирают evidence,
++должны использовать permission_streams, а не считать demand slot разрешением.
++`scripts/v9_regime_diagnostics.py` остаётся старым consumer release-only views;
++его нельзя считать canonical selection диагностики новой политики.
++
++Память sidecar O(vehicle events), а не O(raw detections). В рамках текущих трёх
++записей это несколько тысяч events. На больших архивах сериализация provenance
++может быть заметна; долговременный indexed sidecar/JSONL storage требует
++отдельной resource проверки. Не запускать здесь полный 43GiB benchmark.
++
++## Проверки и запуск
++
++Новые unit cases: no-stop, stop/restart без геометрии, очередь с lag от внешнего
++green, permissive/ДТП без причинного вывода, sparse/missing detections,
++duplicates/conflicting timestamps, truncated records, missing IDs, no demand,
++per-movement selection и sidecar сохранён до fitting, shared-event adapter.
++Existing regression tests не переписаны ради зелёного результата.
++
++После unit/regression запускается один benchmark с тем же evaluator/config:
++
++```powershell
++python -m scripts.offline_benchmark run --data-dir 'D:\Code\PythonProjects\traffic_phase\data\ручная разметка' --out benchmarks/stage2b1_20261013 --timeout 90
++python -m scripts.compare_temporal_evidence benchmarks/stage2a_20261013/baseline_metrics.json benchmarks/stage2b1_20261013/baseline_metrics.json --out benchmarks/stage2b1_20261013/comparison.json
++```
++
++Comparer проверяет равенство configuration/source/annotation hashes и
++неизменность prediction artifacts. Старые event counts показывают число
++выданных entry/release views, а weak percentage unavailable из-за потери качества:
++не восстанавливать его выдуманными числами. Нулевые STOP/CROSSING в legacy
++означают «тип не выдавался», а не физическое отсутствие остановок/пересечений.
++Разметка и три development-case не используются для настройки threshold.
++
++После одного сравнения сохранить результаты, явно показать ухудшения и остановиться.
++Без следующего задания не переходить к 2B.2.
++
++## Реальное сравнение одного ограниченного запуска
++
++Measured code: `161f32fd42ce80cca01bb74c0a00988d6969382a`, clean working tree
++на момент запуска. Config SHA256 совпал с 2A:
++`c1ca38484ba0033703cb44e49dcdb15d918345df3f9e909f2a59f2975cfab383`.
++Источник и annotation hashes совпали для всех трёх пар. Before artifacts
++не изменялись. After: `benchmarks/stage2b1_20261013/baseline_metrics.json`,
++три lossless prediction JSON и `comparison.json`. Evaluator не модифицирован.
++
++| Запись | V9 K before→after (truth) | V10 plan K before→after | Period error s before→after | Runtime s before→after |
++| --- | --- | --- | --- | --- |
++| 17_2025_2_19_10 | 3→3 (3) | 3→3 | 0,018187→0,018187 | 15,577→28,358 |
++| 19_2025_2_24_16 | 3→2 (2) | 2→2 | 0,299500→0,299500 | 9,331→17,204 |
++| 6_2025_2_14_20 | **2→3 (2), regression** | 2→2 | 0,129248→0,129248 | 12,023→20,248 |
++
++V9 K accuracy остаётся 2/3: исправлен один development-case, испорчен другой.
++V10 plan count совпадает в 3/3, но это не hardware lamp accuracy. Период
++на этих записях численно неизменен. Sum runtime 36,931→65,810s (×1,782);
++overhead включает очищение/хеширование detections и JSON-сериализацию provenance.
++Это не performance profile и не прогноз на большие архивы.
++
++| Запись/history | Matches before→after / truth | Predicted boundaries before→after | Precision %, before→after | Recall %, before→after | Nearest MAE s before→after |
++| --- | --- | --- | --- | --- | --- |
++| 17/raw | 3→15 / 17 | 18→18 | 16,67→83,33 | 17,65→88,24 | 6,4222→1,1052 |
++| 17/baseline | 5→15 / 17 | 18→17 | 27,78→88,24 | 29,41→88,24 | 2,9450→1,0859 |
++| 19/raw | 1→1 / 8 | 13→8 | 7,69→12,50 | 12,50→12,50 | 5,6570→4,7820 |
++| 19/baseline | 2→1 / 8 | 13→8 | **15,38→12,50** | **25,00→12,50** | 6,3045→3,9516 |
++| 6/raw | 2→3 / 9 | 10→15 | 20,00→20,00 | 22,22→33,33 | 3,0281→2,8059 |
++| 6/baseline | 1→1 / 9 | 10→15 | **10,00→6,67** | 11,11→11,11 | 3,6181→2,7519 |
++
++±2s tolerance unchanged. Raw summed matches 6→19 / 34; precision
++14,63→46,34%, recall 17,65→55,88%. Baseline matches 8→17 / 34; precision
++19,51→42,50%, recall 23,53→50,00%. Temporal coverage остаётся 100% для обеих
++histories, что не доказывает correctness или observability. MAE/p95 matched
++и individual matching pairs сохранены неизменным evaluator в after report;
++nearest MAE отдельно, без one-to-one constraints, как в 2A.
++
++| Запись | ENTRY before→after | RELEASE before→after | STOP before→after | CROSSING_PROXY before→after | Weak/unknown %, before→after |
++| --- | --- | --- | --- | --- | --- |
++| 17 | 2728→2728 | 796→716 | 0→0 | 0→2728 | unavailable→88,40% |
++| 19 | 1104→1104 | 611→581 | 0→0 | 0→1104 | unavailable→79,17% |
++| 6 | 1844→1844 | 1126→1107 | 0→0 | 0→1844 | unavailable→76,91% |
++
++CROSSING actual =0 после, verified geometry отсутствует. STOP=0 означает,
++что conservative zero-speed detector не выдал этого типа; не утверждает
++отсутствия реальных остановок. Все after RELEASE на этих трёх записях —
++kinematic_restart_proxy, а не metadata restart. Unsupported metadata candidates:
++741 / 588 / 780. События ограничены movement labels с usable detections;
++7 / 50 / 57 треков не имеют usable event. Sampling conflicts/invalid detections
++на этих записях не обнаружены; их handling проверен контрпримерами.
++
++Weak/unknown определяется как quality LOW **или** temporal_uncertainty=None;
++в denominator все emitted types, включая demand ENTRY. Это честная метрика
++контракта, не риск неправильной лампы. Selected permission events 717 / 597 /
++1107; среди них weak/unknown 0,139% / 2,680% / 0%. Даже остальные selected
++events имеют только heuristic radius, без stop-line geometry, без calibration
++причин restart. Нельзя интерпретировать эти малые доли как confidence в GREEN.
++
++Дополнительный аудит saved sidecar: 127 / 193 / 552 release proxies позже
++observed zone transition. Zone transition сам не локализует стоп-линию, поэтому
++нельзя автоматически удалить их как нарушения или backdate их к GREEN.
++Image solver смотрит low-speed/restart вплоть до track end; происхождение этого
++restart (очередь, поворот, interior obstruction, downstream slowdown) не установлено.
++Следующий эксперимент должен проверить spatial relevance и stop/restart support
++на отдельных независимо описанных треках, а не подбирать фильтр по phase marks.
++
++Tests: окончательный unit/contract набор **72 passed** (19 новых cases, включая
++parameterized), existing V9 discovery/renderer/spatial, V10 mapping, streaming,
++regime-selection и safety regressions — **56 passed**. В новом тесте исправлено
++сравнение packed array с list; production значения при этом не менялись.
++AST compare подтверждает отсутствие изменений periodic baseline, deviation
++detector и image solver. Git diff защищённых HSMM/phase-count/period/mapping,
++offline evaluator и before artifacts пустой. Parameters по marks не подбирались.
++
++## Что ещё не решено и следующий эксперимент
++
++* MEDIUM image restart не доказывает stationary stop: low speed может означать
++  поворот/затор; shared metric geometry пока не проверена для реальной камеры.
++* Exact zero raw-speed даёт мало STOP evidence; units/quantization и image jitter
++  требуют независимой проверки. Не ослаблять zero condition ради этих 40 marks.
++* Per-movement priority выбирает все supported releases, даже при малом support;
++  sparsity, censored demand и profile-selection bias ещё не моделируются.
++* Confidence/uncertainty сохраняются, но frozen HSMM пока использует только
++  timestamps. Unknown spatial/causal relation к сигналу не является известным radius.
++* Partial snapshots не stitch; temporal provenance storage имеет измеримый overhead.
++* K regression на записи 6 и boundary recall regression baseline на записи 19
++  зафиксированы, а не скрыты. Изменение K solver запрещено на этом этапе.
++
++Рекомендуемая следующая задача — отдельный bounded эксперимент качества
++image-space restart: несколько независимо аннотированных stop/restart/location
++траекторий (не фазовые test labels), проверка coordinate/speed units, input-zone
++coverage и spatial relevance, затем predeclared quality/abstention rule.
++Baseline phase marks оставлять evaluation-only; не подгонять offset/threshold.
++Не переходить к HSMM или 2B.2 без нового задания.
+diff --git a/scripts/compare_temporal_evidence.py b/scripts/compare_temporal_evidence.py
+new file mode 100644
+index 0000000..df933a4
+--- /dev/null
++++ b/scripts/compare_temporal_evidence.py
+@@ -0,0 +1,97 @@
++"""Compare frozen 2A and 2B.1 artifacts without fitting or changing evaluation."""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++from pathlib import Path
++
++
++def sha(path):
++    return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++def load_prediction(folder, row):
++    path = folder / row["prediction_file"]
++    if sha(path) != row["prediction_sha256_before_evaluation"]:
++        raise ValueError(f"prediction hash mismatch: {path}")
++    return json.loads(path.read_text(encoding="utf-8"))
++
++
++def event_summary(prediction):
++    extraction = prediction.get("event_extraction", {})
++    quality = extraction.get("quality_diagnostics")
++    if quality is not None:
++        return {k: quality[k] for k in (
++            "event_type_counts", "event_method_counts", "total_events",
++            "weak_or_unknown_uncertainty_events", "weak_or_unknown_uncertainty_percent",
++            "selected_event_count", "selected_weak_or_unknown_uncertainty_percent",
++            "selection_by_movement", "track_quality_counts")}
++    # Legacy extractor emits an entry for each usable track and no STOP/crossing
++    # events. Missing confidence/uncertainty cannot be reconstructed from counts.
++    count = prediction.get("event_count", 0)
++    release = extraction.get("release_evidence_count", 0)
++    return {"event_type_counts": {"ENTRY": count, "RELEASE": release, "STOP": 0,
++                                  "CROSSING": 0, "CROSSING_PROXY": 0},
++            "event_method_counts": {"legacy_main_view": extraction.get("methods", {}),
++                                     "legacy_release_view": extraction.get("release_evidence_methods", {})},
++            "total_events": count + release,
++            "weak_or_unknown_uncertainty_events": None,
++            "weak_or_unknown_uncertainty_percent": None,
++            "weak_percentage_reason": "legacy_packed_streams_lost_per_event_quality_and_uncertainty",
++            "interpretation": "counts_of_emitted_legacy_views_NOT_counts_of_true_vehicle_events"}
++
++
++def compare(before_path, after_path):
++    before = json.loads(before_path.read_text(encoding="utf-8"))
++    after = json.loads(after_path.read_text(encoding="utf-8"))
++    if before["config_sha256"] != after["config_sha256"] or before["config"] != after["config"]:
++        raise ValueError("benchmark configuration changed")
++    old_rows = {r["source_name"]: r for r in before["rows"]}
++    if set(old_rows) != {r["source_name"] for r in after["rows"]}:
++        raise ValueError("source set changed")
++    result = {"before_report_sha256": sha(before_path), "after_report_sha256": sha(after_path),
++              "before_code_commit": before["code"]["git_commit"],
++              "after_code_commit": after["code"]["git_commit"],
++              "same_config_sha256": before["config_sha256"], "rows": [],
++              "interpretation": "one_development_regression_cycle; NOT independent lamp accuracy",
++              "evidence_policy_change": "legacy global entry/release gate -> permission proxy per movement"}
++    for new in after["rows"]:
++        old = old_rows[new["source_name"]]
++        for key in ("source_sha256", "annotation_sha256"):
++            if old.get(key) != new.get(key):
++                raise ValueError(f"input changed: {new['source_name']}/{key}")
++        row = {"source": new["source_name"], "source_sha256": new["source_sha256"],
++               "annotation_sha256": new["annotation_sha256"],
++               "before_status": old["status"], "after_status": new["status"]}
++        for label, entry, folder in (("before", old, before_path.parent), ("after", new, after_path.parent)):
++            if entry["status"] != "ok":
++                row[label] = {"status": "unavailable", "reason": entry.get("reason")}
++                continue
++            prediction = load_prediction(folder, entry)
++            row[label] = {"K": entry["metrics"]["phase_count_match"],
++                          "V10_plan_K": entry["metrics"]["physical_plan_phase_count"],
++                          "period_error_s": entry["metrics"]["period_absolute_error_s"],
++                          "inference_runtime_s": entry["inference_runtime_s"],
++                          "events": event_summary(prediction),
++                          "histories": {name: {"coverage": hist["coverage"],
++                                               "precision": hist["boundaries"]["precision"],
++                                               "recall": hist["boundaries"]["recall"],
++                                               "nearest_boundary_mae_s": hist["boundaries"]["nearest_truth_boundary_mae_s_diagnostic"]}
++                                        for name, hist in entry["metrics"]["histories"].items()}}
++        result["rows"].append(row)
++    return result
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("before", type=Path)
++    parser.add_argument("after", type=Path)
++    parser.add_argument("--out", type=Path, required=True)
++    args = parser.parse_args()
++    report = compare(args.before, args.after)
++    args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/test_vehicle_temporal_evidence.py b/tests/test_vehicle_temporal_evidence.py
+new file mode 100644
+index 0000000..5fa6c6e
+--- /dev/null
++++ b/tests/test_vehicle_temporal_evidence.py
+@@ -0,0 +1,192 @@
++from __future__ import annotations
++
++import copy
++import json
++from types import SimpleNamespace
++
++import pytest
++
++from app.core.temporal_evidence import TemporalEvent, adapt_trajectory_event
++from app.core.v9.events import extract_timing_streams, load_event_streams, _track_event_view
++from app.core.v9.model import _choose_phase_evidence, discover_records
++from app.core.v9.vehicle_evidence import extract_vehicle_evidence, select_permission_events
++
++
++def track(*, stopped=False, movement="N->_S", ident=1):
++    origin, target = movement.split("->")
++    return {"id": ident, "zone_in": origin, "zone_out": target,
++            "stay_duration_millis": 6000 if stopped else 0,
++            "detections": [{"millis": 100000 + t * 1000,
++                            "zone": origin if t < 8 else target,
++                            "speed": 0 if stopped and t < 6 else 10}
++                           for t in range(12)]}
++
++
++def events(record):
++    return extract_vehicle_evidence(record)[0]
++
++
++def test_nonstopping_car_has_demand_and_zone_proxy_not_release_or_true_crossing():
++    values = events(track())
++    assert [e.event_type for e in values] == ["ENTRY", "CROSSING_PROXY"]
++    assert values[0].provenance["role"] == "demand_only"
++    assert values[1].temporal_uncertainty_ms is None
++    assert values[1].provenance["observation_interval_ms"] == [107000, 108000]
++    assert values[1].provenance["sampling_uncertainty_ms"] == 1000
++
++
++def test_stationary_car_and_restart_do_not_imply_stop_line_or_lamp_color():
++    values = events(track(stopped=True))
++    assert {e.event_type for e in values} == {"ENTRY", "STOP", "RELEASE", "CROSSING_PROXY"}
++    release = next(e for e in values if e.event_type == "RELEASE")
++    assert release.timestamp_ms == 106000
++    assert release.temporal_uncertainty_ms >= 1000
++    assert release.provenance["proxy"]
++    stop = next(e for e in values if e.event_type == "STOP")
++    assert stop.provenance["stop_location"] == "unknown_relative_to_stop_line"
++    assert all(not e.provenance["signal_state_observed"] for e in values)
++
++
++def test_queue_discharge_observation_can_lag_configured_green_without_backdating():
++    # External test scenario has green at 103s; vehicle starts at 106s.
++    release = next(e for e in events(track(stopped=True)) if e.event_type == "RELEASE")
++    assert release.timestamp_ms - 103000 == 3000
++    assert "green_timestamp_ms" not in release.provenance
++    assert release.evidence_quality == "MEDIUM"
++
++
++@pytest.mark.parametrize("cause", ["permissive_turn", "accident_cleared_under_unchanged_signal"])
++def test_indistinguishable_restart_does_not_invent_green_or_cause(cause):
++    record = track(stopped=True, movement="N->_E")
++    record["scenario_note"] = cause
++    values = events(record)
++    assert next(e for e in values if e.event_type == "RELEASE").movement == "N->E"
++    assert all("cause" not in e.provenance and not e.provenance["signal_state_observed"] for e in values)
++    assert {e.event_type for e in values} <= {"ENTRY", "STOP", "RELEASE", "CROSSING_PROXY"}
++
++
++def test_sparse_metadata_without_observed_restart_is_not_confident_release():
++    record = track(stopped=True)
++    record["detections"] = [record["detections"][0], record["detections"][-1]]
++    # Existing V9 returns True for insufficient speed support, hence 0.9 release.
++    assert _track_event_view(record)[2][4] == .9
++    assert not any(e.event_type == "RELEASE" for e in events(record))
++    assert select_permission_events(events(record))[0] == []  # 11s gap also rejects zone proxy.
++
++
++def test_missing_detections_do_not_bridge_gap_into_restart_or_crossing():
++    record = track(stopped=True)
++    record["detections"] = [d for d in record["detections"] if d["millis"] not in {104000, 105000, 106000, 107000}]
++    values = events(record)
++    assert not any(e.event_type == "RELEASE" for e in values)
++    assert all(e.event_type != "CROSSING" for e in values)
++    assert select_permission_events(values)[0] == []
++
++
++def test_duplicate_detections_and_tracks_are_counted_once_and_audited():
++    record = track(stopped=True)
++    record["detections"].insert(2, copy.deepcopy(record["detections"][1]))
++    bundle = extract_timing_streams([record, copy.deepcopy(record)])
++    assert bundle[9] == 1
++    assert bundle.diagnostics["track_quality_counts"]["duplicate_tracks"] == 1
++    assert bundle.diagnostics["track_quality_counts"]["duplicate_detections"] == 1
++    assert bundle.diagnostics["event_type_counts"]["ENTRY"] == 1
++
++
++def test_missing_ids_with_same_start_do_not_collapse_different_tracks():
++    a, b = track(ident=None), track(ident=None)
++    b["detections"][-1]["millis"] += 1000
++    assert extract_timing_streams([a, b])[9] == 2
++
++
++def test_conflicting_duplicate_timestamp_is_not_arbitrarily_chosen():
++    record = track()
++    altered = copy.deepcopy(record["detections"][5])
++    altered["speed"] = 999
++    record["detections"].append(altered)
++    bundle = extract_timing_streams([record])
++    assert bundle.diagnostics["track_quality_counts"]["conflicting_timestamps"] == 1
++    assert not bundle.permission_streams
++    assert all(e.evidence_quality == "LOW" for e in bundle.temporal_events)
++
++
++@pytest.mark.parametrize("shape", ["single_point", "no_origin", "no_exit", "invalid_time"])
++def test_short_truncated_or_invalid_tracks_remain_demand_only(shape):
++    record = track()
++    if shape == "single_point":
++        record["detections"] = record["detections"][:1]
++    elif shape == "no_origin":
++        record["detections"] = record["detections"][8:]
++    elif shape == "no_exit":
++        record["detections"] = record["detections"][:8]
++    else:
++        record["detections"] = [{"millis": float("nan"), "zone": "N"}]
++    values = events(record)
++    assert not select_permission_events(values)[0]
++    assert not any(e.event_type in {"RELEASE", "CROSSING"} for e in values)
++
++
++def test_absence_of_demand_or_permission_returns_explicit_unknown_not_entry_fallback():
++    assert extract_vehicle_evidence({"zone_in": "N", "zone_out": "_S", "detections": []})[0] == []
++    chosen, method = _choose_phase_evidence({"N->S": [1, 2]}, {}, 2)
++    assert chosen == {} and method == "permission_per_stream"
++    with pytest.raises(ValueError, match="demand only.*UNKNOWN"):
++        discover_records([{**track(), "detections": track()["detections"][:1]}])
++
++
++def test_sparse_releases_cannot_globally_switch_other_stream_to_demand():
++    a = track(stopped=True, movement="N->_S")
++    b = track(movement="E->_W", ident=2)
++    bundle = extract_timing_streams([a, b])
++    assert bundle.diagnostics["selection_by_movement"] == {
++        "E->W": "zone_crossing_proxy", "N->S": "release_proxy"}
++    assert list(bundle.permission_streams["N->S"]) == [6]
++    assert list(bundle.permission_streams["E->W"]) == [8]
++    chosen, _ = _choose_phase_evidence(bundle[0], bundle.permission_streams, bundle[9])
++    assert list(chosen["N->S"]) == [6]
++    legacy, method = _choose_phase_evidence(bundle[0], bundle[2], bundle[9], evidence_policy="legacy_v9")
++    assert method == "mixed_release_or_entry" and list(legacy["N->S"]) == [0]
++
++
++def test_sidecar_roundtrip_preserves_source_uncertainty_and_selected_identity(tmp_path):
++    record = track(stopped=True)
++    path = tmp_path / "cars.json"
++    path.write_text(json.dumps([record]), encoding="utf-8")
++    bundle = load_event_streams(path)
++    assert len(bundle) == 10 and type(bundle[0]["N->S"]).__name__ == "array"
++    serial = json.loads(json.dumps([e.to_dict() for e in bundle.temporal_events]))
++    selected = serial[bundle.diagnostics["selected_event_indices"][0]]
++    assert selected["source_track_id"] == 1
++    assert selected["provenance"]["source"] == "cars.json"
++    assert selected["evidence_method"] == "metadata_dwell_end_restart_supported"
++    assert selected["temporal_uncertainty_ms"] == 3000
++    assert "NOT_lamp_probability" in selected["provenance"]["confidence_semantics"]
++    legacy = load_event_streams(path, evidence_policy="legacy_v9")
++    assert len(legacy) == 10 and not hasattr(legacy, "temporal_events")
++
++
++def test_shared_extractor_crossing_enum_never_implies_verified_stop_line():
++    legacy = SimpleNamespace(event_type="CROSSING", timestamp_ms=1000,
++                             movement="N->S", confidence=.9, quality="HIGH")
++    proxy = adapt_trajectory_event(legacy, source_track_id=1, evidence_method="zone", provenance={})
++    assert proxy.event_type == "CROSSING_PROXY" and proxy.temporal_uncertainty_ms is None
++    actual = adapt_trajectory_event(legacy, source_track_id=1, evidence_method="configured_geometry",
++                                    provenance={"verified_stop_line": True}, temporal_uncertainty_ms=500)
++    assert actual.event_type == "CROSSING"
++    with pytest.raises(ValueError, match="verified stop-line"):
++        TemporalEvent(1000, "CROSSING", "N->S", 1, "unknown", .9, "HIGH", 0, {})
++
++
++def test_model_receives_lossless_sidecar_before_phase_fit(monkeypatch):
++    import app.core.v9.model as model
++    received = {}
++    def capture(*args, **kwargs):
++        received.update(kwargs)
++        return {"captured": True}
++    monkeypatch.setattr(model, "_discover_from_stream_views", capture)
++    assert model.discover_records([track(stopped=True)]) == {"captured": True}
++    assert received["evidence_policy"] == "permission_per_stream"
++    assert received["temporal_events"]
++    assert list(received["permission_streams"]["N->S"]) == [6]
++    selected = received["evidence_diagnostics"]["selected_event_indices"]
++    assert received["temporal_events"][selected[0]].evidence_method == "metadata_dwell_end_restart_supported"

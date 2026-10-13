@@ -1,0 +1,1278 @@
+{
+  "sample_manifest_sha256": "91a45aefa28d1227b2908ebff72d4e8508a0bd81dc0655b5f677d0db353b8156",
+  "source_sha256": "57d04137cc1d8383d89edbd4a88084c1a874f8ee7e6eb2d206954624c2753651",
+  "scan_counts": {
+    "scanned_tracks": 1901
+  },
+  "scan_plus_legacy_extraction_s": 5.562549900001613,
+  "phase_marks_accessed": false,
+  "phase_fit_runs": 0,
+  "legacy_by_movement": {
+    "E->N": {
+      "main_count": 23,
+      "release_count": 4,
+      "main_range_ms": [
+        1739545239942.0,
+        1739548624580.0
+      ],
+      "release_range_ms": [
+        1739546229447.0,
+        1739546449560.0
+      ],
+      "main_methods": {
+        "input_zone_entry": 22,
+        "metadata_dwell_end_restart": 1
+      },
+      "selected_release_methods": {
+        "kinematic_release": 3,
+        "metadata_dwell_end_restart": 1
+      }
+    },
+    "E->S": {
+      "main_count": 194,
+      "release_count": 145,
+      "main_range_ms": [
+        1739545153929.0,
+        1739548761812.0
+      ],
+      "release_range_ms": [
+        1739545176485.0,
+        1739548768666.0
+      ],
+      "main_methods": {
+        "input_zone_entry": 175,
+        "metadata_dwell_end_restart": 19
+      },
+      "selected_release_methods": {
+        "kinematic_release": 126,
+        "metadata_dwell_end_restart": 19
+      }
+    },
+    "E->W": {
+      "main_count": 359,
+      "release_count": 8,
+      "main_range_ms": [
+        1739545214627.0,
+        1739548764824.0
+      ],
+      "release_range_ms": [
+        1739545405847.0,
+        1739548707047.0
+      ],
+      "main_methods": {
+        "input_zone_entry": 357,
+        "metadata_dwell_end_restart": 2
+      },
+      "selected_release_methods": {
+        "kinematic_release": 6,
+        "metadata_dwell_end_restart": 2
+      }
+    },
+    "N->E": {
+      "main_count": 35,
+      "release_count": 33,
+      "main_range_ms": [
+        1739545137142.0,
+        1739548769619.0
+      ],
+      "release_range_ms": [
+        1739545270897.0,
+        1739548793356.0
+      ],
+      "main_methods": {
+        "input_zone_entry": 30,
+        "metadata_dwell_end_restart": 5
+      },
+      "selected_release_methods": {
+        "kinematic_release": 28,
+        "metadata_dwell_end_restart": 5
+      }
+    },
+    "N->S": {
+      "main_count": 245,
+      "release_count": 216,
+      "main_range_ms": [
+        1739545144337.0,
+        1739548774527.0
+      ],
+      "release_range_ms": [
+        1739545269605.0,
+        1739548780403.0
+      ],
+      "main_methods": {
+        "metadata_dwell_end_restart": 21,
+        "input_zone_entry": 224
+      },
+      "selected_release_methods": {
+        "metadata_dwell_end_restart": 21,
+        "kinematic_release": 195
+      }
+    },
+    "N->W": {
+      "main_count": 116,
+      "release_count": 86,
+      "main_range_ms": [
+        1739545177559.0,
+        1739548745751.0
+      ],
+      "release_range_ms": [
+        1739545271731.0,
+        1739548771288.0
+      ],
+      "main_methods": {
+        "input_zone_entry": 97,
+        "metadata_dwell_end_restart": 19
+      },
+      "selected_release_methods": {
+        "kinematic_release": 67,
+        "metadata_dwell_end_restart": 19
+      }
+    },
+    "S->N": {
+      "main_count": 64,
+      "release_count": 0,
+      "main_range_ms": [
+        1739545278092.0,
+        1739548773238.0
+      ],
+      "release_range_ms": null,
+      "main_methods": {
+        "input_zone_entry": 64
+      },
+      "selected_release_methods": {}
+    },
+    "S->W": {
+      "main_count": 26,
+      "release_count": 16,
+      "main_range_ms": [
+        1739545275815.0,
+        1739548677358.0
+      ],
+      "release_range_ms": [
+        1739545298598.0,
+        1739548193826.0
+      ],
+      "main_methods": {
+        "input_zone_entry": 24,
+        "metadata_dwell_end_restart": 2
+      },
+      "selected_release_methods": {
+        "kinematic_release": 14,
+        "metadata_dwell_end_restart": 2
+      }
+    },
+    "W->E": {
+      "main_count": 532,
+      "release_count": 405,
+      "main_range_ms": [
+        1739545196674.0,
+        1739548758423.0
+      ],
+      "release_range_ms": [
+        1739545200832.0,
+        1739548760252.0
+      ],
+      "main_methods": {
+        "metadata_dwell_end_restart": 60,
+        "input_zone_entry": 472
+      },
+      "selected_release_methods": {
+        "metadata_dwell_end_restart": 60,
+        "kinematic_release": 345
+      }
+    },
+    "W->N": {
+      "main_count": 192,
+      "release_count": 165,
+      "main_range_ms": [
+        1739545161609.0,
+        1739548734458.0
+      ],
+      "release_range_ms": [
+        1739545193754.0,
+        1739548767378.0
+      ],
+      "main_methods": {
+        "input_zone_entry": 167,
+        "metadata_dwell_end_restart": 25
+      },
+      "selected_release_methods": {
+        "kinematic_release": 140,
+        "metadata_dwell_end_restart": 25
+      }
+    },
+    "W->S": {
+      "main_count": 58,
+      "release_count": 48,
+      "main_range_ms": [
+        1739545210670.0,
+        1739548756294.0
+      ],
+      "release_range_ms": [
+        1739545213664.0,
+        1739548781362.0
+      ],
+      "main_methods": {
+        "input_zone_entry": 52,
+        "metadata_dwell_end_restart": 6
+      },
+      "selected_release_methods": {
+        "kinematic_release": 42,
+        "metadata_dwell_end_restart": 6
+      }
+    }
+  },
+  "permission_by_movement": {
+    "E->N": {
+      "all_type_counts": {
+        "ENTRY": 23,
+        "CROSSING_PROXY": 23,
+        "RELEASE": 7
+      },
+      "selected_count": 7,
+      "selected_methods": {
+        "kinematic_restart_proxy": 7
+      },
+      "selected_range_ms": [
+        1739545678612.0,
+        1739548293622.0
+      ]
+    },
+    "E->S": {
+      "all_type_counts": {
+        "ENTRY": 194,
+        "RELEASE": 145,
+        "CROSSING_PROXY": 194
+      },
+      "selected_count": 145,
+      "selected_methods": {
+        "kinematic_restart_proxy": 145
+      },
+      "selected_range_ms": [
+        1739545176485.0,
+        1739548768666.0
+      ]
+    },
+    "E->W": {
+      "all_type_counts": {
+        "ENTRY": 359,
+        "CROSSING_PROXY": 359,
+        "RELEASE": 26
+      },
+      "selected_count": 26,
+      "selected_methods": {
+        "kinematic_restart_proxy": 26
+      },
+      "selected_range_ms": [
+        1739545268259.0,
+        1739548705667.0
+      ]
+    },
+    "N->E": {
+      "all_type_counts": {
+        "ENTRY": 35,
+        "RELEASE": 31,
+        "CROSSING_PROXY": 35
+      },
+      "selected_count": 31,
+      "selected_methods": {
+        "kinematic_restart_proxy": 31
+      },
+      "selected_range_ms": [
+        1739545270897.0,
+        1739548793356.0
+      ]
+    },
+    "N->S": {
+      "all_type_counts": {
+        "ENTRY": 245,
+        "RELEASE": 204,
+        "CROSSING_PROXY": 245
+      },
+      "selected_count": 204,
+      "selected_methods": {
+        "kinematic_restart_proxy": 204
+      },
+      "selected_range_ms": [
+        1739545270768.0,
+        1739548780403.0
+      ]
+    },
+    "N->W": {
+      "all_type_counts": {
+        "ENTRY": 116,
+        "RELEASE": 85,
+        "CROSSING_PROXY": 116
+      },
+      "selected_count": 85,
+      "selected_methods": {
+        "kinematic_restart_proxy": 85
+      },
+      "selected_range_ms": [
+        1739545271611.0,
+        1739548771288.0
+      ]
+    },
+    "S->N": {
+      "all_type_counts": {
+        "ENTRY": 64,
+        "CROSSING_PROXY": 64,
+        "RELEASE": 1
+      },
+      "selected_count": 1,
+      "selected_methods": {
+        "kinematic_restart_proxy": 1
+      },
+      "selected_range_ms": [
+        1739545697809.0,
+        1739545697809.0
+      ]
+    },
+    "S->W": {
+      "all_type_counts": {
+        "ENTRY": 26,
+        "CROSSING_PROXY": 26,
+        "RELEASE": 18
+      },
+      "selected_count": 18,
+      "selected_methods": {
+        "kinematic_restart_proxy": 18
+      },
+      "selected_range_ms": [
+        1739545298598.0,
+        1739548193826.0
+      ]
+    },
+    "W->E": {
+      "all_type_counts": {
+        "ENTRY": 532,
+        "CROSSING_PROXY": 532,
+        "RELEASE": 386
+      },
+      "selected_count": 386,
+      "selected_methods": {
+        "kinematic_restart_proxy": 386
+      },
+      "selected_range_ms": [
+        1739545200832.0,
+        1739548760252.0
+      ]
+    },
+    "W->N": {
+      "all_type_counts": {
+        "ENTRY": 192,
+        "CROSSING_PROXY": 192,
+        "RELEASE": 155
+      },
+      "selected_count": 155,
+      "selected_methods": {
+        "kinematic_restart_proxy": 155
+      },
+      "selected_range_ms": [
+        1739545193754.0,
+        1739548767378.0
+      ]
+    },
+    "W->S": {
+      "all_type_counts": {
+        "ENTRY": 58,
+        "CROSSING_PROXY": 58,
+        "RELEASE": 49
+      },
+      "selected_count": 49,
+      "selected_methods": {
+        "kinematic_restart_proxy": 49
+      },
+      "selected_range_ms": [
+        1739545213664.0,
+        1739548781362.0
+      ]
+    }
+  },
+  "before_saved_phase_evidence": {
+    "source": "release_only",
+    "release_event_count": 1126
+  },
+  "after_saved_phase_evidence": {
+    "source": "permission_per_stream",
+    "selection_scope": "per_movement",
+    "demand_entries_used_for_phase_evidence": false,
+    "excluded_movements_without_permission": [],
+    "permission_event_count": 1107,
+    "release_event_count": 1107
+  },
+  "before_saved_candidate_K": {
+    "raw_selected_phase_count": 2,
+    "selected_phase_count": 2,
+    "redundancy_detector": "not_evaluated",
+    "topology_prior": {
+      "canonical_four_leg_cap_applied": true
+    },
+    "criterion": "approximate_BIC_plus_recurrent_phase_complexity_penalty",
+    "candidates": [
+      {
+        "k": 2,
+        "objective": -3682.8562463842572,
+        "approx_bic": 7575.747981809956,
+        "selection_score": 7575.747981809956,
+        "segment_count": 74
+      },
+      {
+        "k": 3,
+        "objective": -3543.4122211635145,
+        "approx_bic": 7401.877675889193,
+        "selection_score": 7583.7555692116575,
+        "segment_count": 110
+      }
+    ]
+  },
+  "after_saved_candidate_K": {
+    "raw_selected_phase_count": 3,
+    "selected_phase_count": 3,
+    "redundancy_detector": "topological_temporal_redundancy_v4",
+    "topology_prior": {
+      "canonical_four_leg_cap_applied": true
+    },
+    "criterion": "approximate_BIC_plus_recurrent_phase_complexity_penalty",
+    "candidates": [
+      {
+        "k": 2,
+        "objective": -3741.4655242020367,
+        "approx_bic": 7716.181509604924,
+        "selection_score": 7716.181509604924,
+        "segment_count": 74
+      },
+      {
+        "k": 3,
+        "objective": -3572.10166604726,
+        "approx_bic": 7494.079023895796,
+        "selection_score": 7676.898411960601,
+        "segment_count": 110
+      }
+    ]
+  },
+  "samples": [
+    {
+      "track_id": 4633111,
+      "fingerprint": "003531d86d5659f9d8a376c7e8bdf491ad878d73d2fe0f43eced6417b1c80bfd",
+      "stratum": "before_or_at_zone_transition",
+      "selected_event_index": 1197,
+      "release_ms": 1739546017854.0,
+      "zone_transition_ms": 1739546019169.0,
+      "delta_ms": -1315.0,
+      "zone_nearest_release": "W",
+      "zone_runs": [
+        {
+          "zone": null,
+          "first_ms": 1739546012210,
+          "last_ms": 1739546014848,
+          "n": 23
+        },
+        {
+          "zone": "W",
+          "first_ms": 1739546014963,
+          "last_ms": 1739546019087,
+          "n": 30
+        },
+        {
+          "zone": null,
+          "first_ms": 1739546019169,
+          "last_ms": 1739546024575,
+          "n": 46
+        },
+        {
+          "zone": "E",
+          "first_ms": 1739546024703,
+          "last_ms": 1739546025897,
+          "n": 11
+        }
+      ],
+      "n_detections": 110,
+      "coordinate_ranges": {
+        "centroid_x": {
+          "n": 110,
+          "min": 0.04771861620247364,
+          "median": 0.2137550786137581,
+          "max": 0.8132745623588562
+        },
+        "centroid_y": {
+          "n": 110,
+          "min": 0.2228940079268638,
+          "median": 0.397988920298179,
+          "max": 0.963002728252944
+        },
+        "lat": {
+          "n": 110,
+          "min": 55.159457017226195,
+          "median": 55.15947350563765,
+          "max": 55.15950780936665
+        },
+        "lng": {
+          "n": 110,
+          "min": 61.37468257755206,
+          "median": 61.37518464293554,
+          "max": 61.37584560903761
+        },
+        "speed": {
+          "n": 101,
+          "min": 9.44397341049206,
+          "median": 21.331574361329594,
+          "max": 26.93850778261844
+        }
+      },
+      "raw_speed_before_3s": {
+        "n": 19,
+        "min": 13.3691889346672,
+        "median": 14.980079134186292,
+        "max": 19.030496213507163
+      },
+      "raw_speed_after_3s": {
+        "n": 26,
+        "min": 16.852266849982396,
+        "median": 21.464399798596702,
+        "max": 22.60639460949726
+      },
+      "zero_speed_detections": 0,
+      "stop_event_emitted": false,
+      "old_first_outgoing_zone_candidate": [
+        5.644000053405762,
+        1739546017.854,
+        0.8445207265570778,
+        1.5514930657815347
+      ],
+      "track_end_candidate": [
+        5.644000053405762,
+        1739546017.854,
+        0.8445207265570778,
+        1.5514930657815347
+      ],
+      "first_outgoing_zone_ms": 1739546024703,
+      "quality_issues": {
+        "invalid_detections": 0,
+        "duplicate_detections": 0,
+        "conflicting_timestamps": 0
+      },
+      "units_verified": false,
+      "stop_line_location": "UNKNOWN"
+    },
+    {
+      "track_id": 4635538,
+      "fingerprint": "023539318b06251a20e12ba69e6cd559657a08369c4f0487d38a58915b51ffab",
+      "stratum": "before_or_at_zone_transition",
+      "selected_event_index": 3060,
+      "release_ms": 1739547311922.0,
+      "zone_transition_ms": 1739547316606.0,
+      "delta_ms": -4684.0,
+      "zone_nearest_release": null,
+      "zone_runs": [
+        {
+          "zone": null,
+          "first_ms": 1739547302081,
+          "last_ms": 1739547312284,
+          "n": 73
+        },
+        {
+          "zone": "W",
+          "first_ms": 1739547312401,
+          "last_ms": 1739547316482,
+          "n": 35
+        },
+        {
+          "zone": null,
+          "first_ms": 1739547316606,
+          "last_ms": 1739547320429,
+          "n": 33
+        },
+        {
+          "zone": "E",
+          "first_ms": 1739547320557,
+          "last_ms": 1739547320915,
+          "n": 4
+        }
+      ],
+      "n_detections": 145,
+      "coordinate_ranges": {
+        "centroid_x": {
+          "n": 145,
+          "min": 0.07224691100418568,
+          "median": 0.11565432697534561,
+          "max": 0.7893847823143005
+        },
+        "centroid_y": {
+          "n": 145,
+          "min": 0.1829306887762394,
+          "median": 0.22861753515698977,
+          "max": 0.8295222530626983
+        },
+        "lat": {
+          "n": 145,
+          "min": 55.159488151782234,
+          "median": 55.15949194297279,
+          "max": 55.15953143121445
+        },
+        "lng": {
+          "n": 145,
+          "min": 61.37458973515081,
+          "median": 61.37477751656645,
+          "max": 61.37581764682127
+        },
+        "speed": {
+          "n": 138,
+          "min": 0.2626130443754022,
+          "median": 13.84223520072463,
+          "max": 39.36862799662668
+        }
+      },
+      "raw_speed_before_3s": {
+        "n": 24,
+        "min": 0.2635224154708889,
+        "median": 2.0403208925238805,
+        "max": 7.954010921277689
+      },
+      "raw_speed_after_3s": {
+        "n": 26,
+        "min": 8.475132863614844,
+        "median": 16.21629962549044,
+        "max": 22.504414532298178
+      },
+      "zero_speed_detections": 0,
+      "stop_event_emitted": false,
+      "old_first_outgoing_zone_candidate": [
+        9.485999822616577,
+        1739547311.922,
+        0.92,
+        2.909364826978848
+      ],
+      "track_end_candidate": [
+        9.485999822616577,
+        1739547311.922,
+        0.92,
+        2.909364826978848
+      ],
+      "first_outgoing_zone_ms": 1739547320557,
+      "quality_issues": {
+        "invalid_detections": 0,
+        "duplicate_detections": 0,
+        "conflicting_timestamps": 0,
+        "unsupported_metadata_restart": 1
+      },
+      "units_verified": false,
+      "stop_line_location": "UNKNOWN"
+    },
+    {
+      "track_id": 4637850,
+      "fingerprint": "029c7a7492509d09197283dd0e9cdcd5bd6d65e70b952c90e71fc387f6fd81a6",
+      "stratum": "after_zone_transition",
+      "selected_event_index": 4794,
+      "release_ms": 1739548793356.0,
+      "zone_transition_ms": 1739548776322.0,
+      "delta_ms": 17034.0,
+      "zone_nearest_release": null,
+      "zone_runs": [
+        {
+          "zone": "N",
+          "first_ms": 1739548769619,
+          "last_ms": 1739548776203,
+          "n": 56
+        },
+        {
+          "zone": null,
+          "first_ms": 1739548776322,
+          "last_ms": 1739548798873,
+          "n": 179
+        },
+        {
+          "zone": "E",
+          "first_ms": 1739548798997,
+          "last_ms": 1739548799474,
+          "n": 5
+        }
+      ],
+      "n_detections": 240,
+      "coordinate_ranges": {
+        "centroid_x": {
+          "n": 240,
+          "min": 0.5190169811248779,
+          "median": 0.5800058245658875,
+          "max": 0.7679609060287476
+        },
+        "centroid_y": {
+          "n": 240,
+          "min": 0.10948577942776018,
+          "median": 0.32937686518222253,
+          "max": 0.8258905614645965
+        },
+        "lat": {
+          "n": 240,
+          "min": 55.1595262533603,
+          "median": 55.15966581673986,
+          "max": 55.16008938706699
+        },
+        "lng": {
+          "n": 240,
+          "min": 61.37542510488349,
+          "median": 61.37545730430709,
+          "max": 61.375805089329745
+        },
+        "speed": {
+          "n": 231,
+          "min": 0.13693269689928744,
+          "median": 7.171368050001054,
+          "max": 26.073645526826294
+        }
+      },
+      "raw_speed_before_3s": {
+        "n": 25,
+        "min": 0.13693269689928744,
+        "median": 0.27006190676807473,
+        "max": 2.1102880117707894
+      },
+      "raw_speed_after_3s": {
+        "n": 25,
+        "min": 2.3907958831070704,
+        "median": 7.171368050001054,
+        "max": 14.096071519972739
+      },
+      "zero_speed_detections": 0,
+      "stop_event_emitted": false,
+      "old_first_outgoing_zone_candidate": [
+        11.99399995803833,
+        1739548793.356,
+        0.92,
+        1.7409878077383474
+      ],
+      "track_end_candidate": [
+        11.99399995803833,
+        1739548793.356,
+        0.92,
+        1.7409878077383474
+      ],
+      "first_outgoing_zone_ms": 1739548798997,
+      "quality_issues": {
+        "invalid_detections": 0,
+        "duplicate_detections": 0,
+        "conflicting_timestamps": 0,
+        "unsupported_metadata_restart": 1
+      },
+      "units_verified": false,
+      "stop_line_location": "UNKNOWN"
+    },
+    {
+      "track_id": 4636198,
+      "fingerprint": "025c786987c7e4a74b6570af1a799316e8145b039ba3ec0d8f2eda3b98d8631c",
+      "stratum": "after_zone_transition",
+      "selected_event_index": 3586,
+      "release_ms": 1739547755392.0,
+      "zone_transition_ms": 1739547749394.0,
+      "delta_ms": 5998.0,
+      "zone_nearest_release": null,
+      "zone_runs": [
+        {
+          "zone": "E",
+          "first_ms": 1739547748549,
+          "last_ms": 1739547749271,
+          "n": 7
+        },
+        {
+          "zone": null,
+          "first_ms": 1739547749394,
+          "last_ms": 1739547757915,
+          "n": 72
+        },
+        {
+          "zone": "S",
+          "first_ms": 1739547758025,
+          "last_ms": 1739547758747,
+          "n": 7
+        }
+      ],
+      "n_detections": 86,
+      "coordinate_ranges": {
+        "centroid_x": {
+          "n": 86,
+          "min": 0.023653961718082428,
+          "median": 0.521518886089325,
+          "max": 0.9032599925994873
+        },
+        "centroid_y": {
+          "n": 86,
+          "min": 0.4520712721530334,
+          "median": 0.4740878562537536,
+          "max": 0.8665004313345795
+        },
+        "lat": {
+          "n": 86,
+          "min": 55.159348764747236,
+          "median": 55.15957198343749,
+          "max": 55.15964006075202
+        },
+        "lng": {
+          "n": 86,
+          "min": 61.37541377303949,
+          "median": 61.37550546297824,
+          "max": 61.37585998676888
+        },
+        "speed": {
+          "n": 77,
+          "min": 3.292651787578591,
+          "median": 16.254743225289733,
+          "max": 30.19573919516271
+        }
+      },
+      "raw_speed_before_3s": {
+        "n": 24,
+        "min": 3.292651787578591,
+        "median": 5.664697760804225,
+        "max": 12.330066436777178
+      },
+      "raw_speed_after_3s": {
+        "n": 26,
+        "min": 9.28503623861828,
+        "median": 21.452454470778946,
+        "max": 30.19573919516271
+      },
+      "zero_speed_detections": 0,
+      "stop_event_emitted": false,
+      "old_first_outgoing_zone_candidate": [
+        3.243000030517578,
+        1739547755.392,
+        0.7891692685400347,
+        1.4464221119877068
+      ],
+      "track_end_candidate": [
+        3.243000030517578,
+        1739547755.392,
+        0.7891692685400347,
+        1.4464221119877068
+      ],
+      "first_outgoing_zone_ms": 1739547758025,
+      "quality_issues": {
+        "invalid_detections": 0,
+        "duplicate_detections": 0,
+        "conflicting_timestamps": 0
+      },
+      "units_verified": false,
+      "stop_line_location": "UNKNOWN"
+    },
+    {
+      "track_id": 4637003,
+      "fingerprint": "018138e83e779b8c7e2a74fa2d65a8ed18f80eb11f359b7f26e11e22e8acbcc4",
+      "stratum": "after_zone_transition",
+      "selected_event_index": 4269,
+      "release_ms": 1739548321938.0,
+      "zone_transition_ms": 1739548310658.0,
+      "delta_ms": 11280.0,
+      "zone_nearest_release": null,
+      "zone_runs": [
+        {
+          "zone": null,
+          "first_ms": 1739548304058,
+          "last_ms": 1739548304903,
+          "n": 8
+        },
+        {
+          "zone": "W",
+          "first_ms": 1739548306105,
+          "last_ms": 1739548310536,
+          "n": 38
+        },
+        {
+          "zone": null,
+          "first_ms": 1739548310658,
+          "last_ms": 1739548327811,
+          "n": 144
+        },
+        {
+          "zone": "N",
+          "first_ms": 1739548327933,
+          "last_ms": 1739548331168,
+          "n": 28
+        },
+        {
+          "zone": null,
+          "first_ms": 1739548331288,
+          "last_ms": 1739548332135,
+          "n": 8
+        }
+      ],
+      "n_detections": 226,
+      "coordinate_ranges": {
+        "centroid_x": {
+          "n": 226,
+          "min": 0.1332123726606369,
+          "median": 0.4851916581392288,
+          "max": 0.8057351112365723
+        },
+        "centroid_y": {
+          "n": 226,
+          "min": 0.08593106453128645,
+          "median": 0.3170050917325764,
+          "max": 0.353597773718321
+        },
+        "lat": {
+          "n": 226,
+          "min": 55.15956062251953,
+          "median": 55.159611135854114,
+          "max": 55.16020673826654
+        },
+        "lng": {
+          "n": 226,
+          "min": 61.37448366512224,
+          "median": 61.37538244784843,
+          "max": 61.37549964824784
+        },
+        "speed": {
+          "n": 218,
+          "min": 0.3331786634410758,
+          "median": 15.358864929839397,
+          "max": 40.79110144905431
+        }
+      },
+      "raw_speed_before_3s": {
+        "n": 25,
+        "min": 1.3580604036073007,
+        "median": 2.526340081784804,
+        "max": 3.2052426525235354
+      },
+      "raw_speed_after_3s": {
+        "n": 26,
+        "min": 2.89176116983491,
+        "median": 8.977541072494029,
+        "max": 14.741300648120347
+      },
+      "zero_speed_detections": 0,
+      "stop_event_emitted": false,
+      "old_first_outgoing_zone_candidate": [
+        8.27999997138977,
+        1739548321.938,
+        0.8897401744485005,
+        1.6695402007698945
+      ],
+      "track_end_candidate": [
+        8.27999997138977,
+        1739548321.938,
+        0.8897401744485005,
+        1.6695402007698945
+      ],
+      "first_outgoing_zone_ms": 1739548327933,
+      "quality_issues": {
+        "invalid_detections": 0,
+        "duplicate_detections": 0,
+        "conflicting_timestamps": 0,
+        "unsupported_metadata_restart": 1
+      },
+      "units_verified": false,
+      "stop_line_location": "UNKNOWN"
+    },
+    {
+      "track_id": 4632228,
+      "fingerprint": "01393f3edc945ff132f7456a9ff7a7d8db1f8a349cacc84efc8eaafe117bbcaa",
+      "stratum": "after_zone_transition",
+      "selected_event_index": 503,
+      "release_ms": 1739545518610.0,
+      "zone_transition_ms": 1739545518229.0,
+      "delta_ms": 381.0,
+      "zone_nearest_release": null,
+      "zone_runs": [
+        {
+          "zone": null,
+          "first_ms": 1739545513321,
+          "last_ms": 1739545515322,
+          "n": 7
+        },
+        {
+          "zone": "W",
+          "first_ms": 1739545515366,
+          "last_ms": 1739545518154,
+          "n": 24
+        },
+        {
+          "zone": null,
+          "first_ms": 1739545518229,
+          "last_ms": 1739545520877,
+          "n": 23
+        },
+        {
+          "zone": "E",
+          "first_ms": 1739545520994,
+          "last_ms": 1739545521230,
+          "n": 3
+        }
+      ],
+      "n_detections": 57,
+      "coordinate_ranges": {
+        "centroid_x": {
+          "n": 57,
+          "min": 0.0704830139875412,
+          "median": 0.2326728031039238,
+          "max": 0.7800332307815552
+        },
+        "centroid_y": {
+          "n": 57,
+          "min": 0.1887502851506022,
+          "median": 0.33623995369636206,
+          "max": 0.8154377867891595
+        },
+        "lat": {
+          "n": 57,
+          "min": 55.15948487862902,
+          "median": 55.15950317515383,
+          "max": 55.15953260045199
+        },
+        "lng": {
+          "n": 57,
+          "min": 61.37460667076767,
+          "median": 61.37511751231983,
+          "max": 61.37581038241731
+        },
+        "speed": {
+          "n": 50,
+          "min": 20.929281133768008,
+          "median": 36.47445319052839,
+          "max": 54.279877354965485
+        }
+      },
+      "raw_speed_before_3s": {
+        "n": 24,
+        "min": 21.965227560115895,
+        "median": 28.042983086429814,
+        "max": 37.3352225009999
+      },
+      "raw_speed_after_3s": {
+        "n": 23,
+        "min": 37.14721676128045,
+        "median": 46.78192455746048,
+        "max": 54.279877354965485
+      },
+      "zero_speed_detections": 0,
+      "stop_event_emitted": false,
+      "old_first_outgoing_zone_candidate": [
+        5.288999795913696,
+        1739545518.61,
+        0.8040911606953121,
+        1.2021095638430672
+      ],
+      "track_end_candidate": [
+        5.288999795913696,
+        1739545518.61,
+        0.8040911606953121,
+        1.2021095638430672
+      ],
+      "first_outgoing_zone_ms": 1739545520994,
+      "quality_issues": {
+        "invalid_detections": 0,
+        "duplicate_detections": 0,
+        "conflicting_timestamps": 0
+      },
+      "units_verified": false,
+      "stop_line_location": "UNKNOWN"
+    },
+    {
+      "track_id": 4634400,
+      "fingerprint": "002fa9c62f329193ae35b5accb05c9325b90f70d9ab7c4e90598aad4b27d9fcd",
+      "stratum": "before_or_at_zone_transition",
+      "selected_event_index": 2282,
+      "release_ms": 1739546714903.0,
+      "zone_transition_ms": 1739546715021.0,
+      "delta_ms": -118.0,
+      "zone_nearest_release": "W",
+      "zone_runs": [
+        {
+          "zone": null,
+          "first_ms": 1739546710822,
+          "last_ms": 1739546712141,
+          "n": 12
+        },
+        {
+          "zone": "W",
+          "first_ms": 1739546712261,
+          "last_ms": 1739546714903,
+          "n": 23
+        },
+        {
+          "zone": null,
+          "first_ms": 1739546715021,
+          "last_ms": 1739546717661,
+          "n": 23
+        },
+        {
+          "zone": "E",
+          "first_ms": 1739546717787,
+          "last_ms": 1739546718015,
+          "n": 3
+        }
+      ],
+      "n_detections": 61,
+      "coordinate_ranges": {
+        "centroid_x": {
+          "n": 61,
+          "min": 0.09577634185552597,
+          "median": 0.25499943643808365,
+          "max": 0.8147993087768555
+        },
+        "centroid_y": {
+          "n": 61,
+          "min": 0.16503206071401105,
+          "median": 0.29144966766174096,
+          "max": 0.7256863969572861
+        },
+        "lat": {
+          "n": 61,
+          "min": 55.15951294039571,
+          "median": 55.15953344780174,
+          "max": 55.15956646673882
+        },
+        "lng": {
+          "n": 61,
+          "min": 61.37455853877248,
+          "median": 61.37506765636081,
+          "max": 61.375817807418706
+        },
+        "speed": {
+          "n": 52,
+          "min": 29.762282761110946,
+          "median": 38.7456707536158,
+          "max": 52.78217201226054
+        }
+      },
+      "raw_speed_before_3s": {
+        "n": 24,
+        "min": 29.762282761110946,
+        "median": 32.33376110262383,
+        "max": 36.57131081132125
+      },
+      "raw_speed_after_3s": {
+        "n": 26,
+        "min": 38.43759079534153,
+        "median": 47.11862197319695,
+        "max": 52.61698982809691
+      },
+      "zero_speed_detections": 0,
+      "stop_event_emitted": false,
+      "old_first_outgoing_zone_candidate": [
+        4.081000089645386,
+        1739546714.903,
+        0.7836640281814999,
+        1.2111321715601486
+      ],
+      "track_end_candidate": [
+        4.081000089645386,
+        1739546714.903,
+        0.7836640281814999,
+        1.2111321715601486
+      ],
+      "first_outgoing_zone_ms": 1739546717787,
+      "quality_issues": {
+        "invalid_detections": 0,
+        "duplicate_detections": 0,
+        "conflicting_timestamps": 0
+      },
+      "units_verified": false,
+      "stop_line_location": "UNKNOWN"
+    },
+    {
+      "track_id": 4632215,
+      "fingerprint": "010f8251f5553f4b2db73b4490c21253ab153946dbe1e8fa40f5b37c14a1c4b4",
+      "stratum": "before_or_at_zone_transition",
+      "selected_event_index": 477,
+      "release_ms": 1739545512129.0,
+      "zone_transition_ms": 1739545512943.0,
+      "delta_ms": -814.0,
+      "zone_nearest_release": "W",
+      "zone_runs": [
+        {
+          "zone": null,
+          "first_ms": 1739545507443,
+          "last_ms": 1739545508528,
+          "n": 10
+        },
+        {
+          "zone": "W",
+          "first_ms": 1739545508651,
+          "last_ms": 1739545512924,
+          "n": 35
+        },
+        {
+          "zone": null,
+          "first_ms": 1739545512943,
+          "last_ms": 1739545516200,
+          "n": 29
+        },
+        {
+          "zone": "E",
+          "first_ms": 1739545516323,
+          "last_ms": 1739545516443,
+          "n": 2
+        }
+      ],
+      "n_detections": 76,
+      "coordinate_ranges": {
+        "centroid_x": {
+          "n": 76,
+          "min": 0.11526907235383987,
+          "median": 0.24425255879759789,
+          "max": 0.7733212113380432
+        },
+        "centroid_y": {
+          "n": 76,
+          "min": 0.18351063596973208,
+          "median": 0.2984616638924721,
+          "max": 0.7203955499838991
+        },
+        "lat": {
+          "n": 76,
+          "min": 55.15951459867871,
+          "median": 55.15952493945495,
+          "max": 55.1595567611978
+        },
+        "lng": {
+          "n": 76,
+          "min": 61.37464670003136,
+          "median": 61.37506839477139,
+          "max": 61.37579095618743
+        },
+        "speed": {
+          "n": 67,
+          "min": 18.71406162299057,
+          "median": 25.743316410806344,
+          "max": 46.4523980625012
+        }
+      },
+      "raw_speed_before_3s": {
+        "n": 24,
+        "min": 19.965797562389444,
+        "median": 21.254666337994706,
+        "max": 23.313449921510344
+      },
+      "raw_speed_after_3s": {
+        "n": 24,
+        "min": 23.123950380110266,
+        "median": 29.497442410697225,
+        "max": 37.50464125199029
+      },
+      "zero_speed_detections": 0,
+      "stop_event_emitted": false,
+      "old_first_outgoing_zone_candidate": [
+        4.685999870300293,
+        1739545512.129,
+        0.8257571690918174,
+        1.519564700499726
+      ],
+      "track_end_candidate": [
+        4.685999870300293,
+        1739545512.129,
+        0.8257571690918174,
+        1.519564700499726
+      ],
+      "first_outgoing_zone_ms": 1739545516323,
+      "quality_issues": {
+        "invalid_detections": 0,
+        "duplicate_detections": 0,
+        "conflicting_timestamps": 0
+      },
+      "units_verified": false,
+      "stop_line_location": "UNKNOWN"
+    }
+  ],
+  "limits": "No verified units, independent stop annotations or stop-line geometry; no causation claim."
+}

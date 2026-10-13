@@ -1,0 +1,604 @@
+{
+  "selection_rule": "first_4_lexicographic_track_fingerprints_in_each_provenance_delta_stratum",
+  "source": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\6_2025_2_14_20.json",
+  "prediction_sha256": "97e0eab523cc3836b3592212680bb06289849e974701297e5a1589cfe3c82f85",
+  "phase_marks_accessed": false,
+  "stratum_population": {
+    "before_or_at_zone_transition": 555,
+    "after_zone_transition": 552
+  },
+  "samples": [
+    {
+      "selected_event_index": 503,
+      "event": {
+        "timestamp_ms": 1739545518610.0,
+        "event_type": "RELEASE",
+        "movement": "W->E",
+        "source_track_id": 4632228,
+        "evidence_method": "kinematic_restart_proxy",
+        "confidence": 0.65,
+        "evidence_quality": "MEDIUM",
+        "temporal_uncertainty_ms": 1300,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "01393f3edc945ff132f7456a9ff7a7d8db1f8a349cacc84efc8eaafe117bbcaa",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739545513321,
+            1739545521230
+          ],
+          "max_detection_gap_ms": 1328,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "vehicle_restart_proxy_not_GREEN",
+          "proxy": true,
+          "observation_interval_ms": [
+            1739545518481,
+            1739545518610
+          ],
+          "relative_low_speed_duration_s": 5.288999795913696,
+          "image_speed_separation": 1.2021095638430672,
+          "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+        }
+      },
+      "zone_proxy": {
+        "timestamp_ms": 1739545518229.0,
+        "event_type": "CROSSING_PROXY",
+        "movement": "W->E",
+        "source_track_id": 4632228,
+        "evidence_method": "observed_zone_transition_proxy",
+        "confidence": 0.35,
+        "evidence_quality": "LOW",
+        "temporal_uncertainty_ms": null,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "01393f3edc945ff132f7456a9ff7a7d8db1f8a349cacc84efc8eaafe117bbcaa",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739545513321,
+            1739545521230
+          ],
+          "max_detection_gap_ms": 1328,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "movement_permission_proxy",
+          "observation_interval_ms": [
+            1739545518154,
+            1739545518229
+          ],
+          "sampling_uncertainty_ms": 75,
+          "uncertainty_reason": "distance_and_time_to_stop_line_unknown",
+          "eligible_proxy": true
+        }
+      },
+      "delta_ms": 381.0,
+      "stratum": "after_zone_transition"
+    },
+    {
+      "selected_event_index": 4269,
+      "event": {
+        "timestamp_ms": 1739548321938.0,
+        "event_type": "RELEASE",
+        "movement": "W->N",
+        "source_track_id": 4637003,
+        "evidence_method": "kinematic_restart_proxy",
+        "confidence": 0.65,
+        "evidence_quality": "MEDIUM",
+        "temporal_uncertainty_ms": 1300,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "018138e83e779b8c7e2a74fa2d65a8ed18f80eb11f359b7f26e11e22e8acbcc4",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739548304058,
+            1739548332135
+          ],
+          "max_detection_gap_ms": 1202,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "vehicle_restart_proxy_not_GREEN",
+          "proxy": true,
+          "observation_interval_ms": [
+            1739548321817,
+            1739548321938
+          ],
+          "relative_low_speed_duration_s": 8.27999997138977,
+          "image_speed_separation": 1.6695402007698945,
+          "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+        }
+      },
+      "zone_proxy": {
+        "timestamp_ms": 1739548310658.0,
+        "event_type": "CROSSING_PROXY",
+        "movement": "W->N",
+        "source_track_id": 4637003,
+        "evidence_method": "observed_zone_transition_proxy",
+        "confidence": 0.35,
+        "evidence_quality": "LOW",
+        "temporal_uncertainty_ms": null,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "018138e83e779b8c7e2a74fa2d65a8ed18f80eb11f359b7f26e11e22e8acbcc4",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739548304058,
+            1739548332135
+          ],
+          "max_detection_gap_ms": 1202,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "movement_permission_proxy",
+          "observation_interval_ms": [
+            1739548310536,
+            1739548310658
+          ],
+          "sampling_uncertainty_ms": 122,
+          "uncertainty_reason": "distance_and_time_to_stop_line_unknown",
+          "eligible_proxy": true
+        }
+      },
+      "delta_ms": 11280.0,
+      "stratum": "after_zone_transition"
+    },
+    {
+      "selected_event_index": 3586,
+      "event": {
+        "timestamp_ms": 1739547755392.0,
+        "event_type": "RELEASE",
+        "movement": "E->S",
+        "source_track_id": 4636198,
+        "evidence_method": "kinematic_restart_proxy",
+        "confidence": 0.65,
+        "evidence_quality": "MEDIUM",
+        "temporal_uncertainty_ms": 1300,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "025c786987c7e4a74b6570af1a799316e8145b039ba3ec0d8f2eda3b98d8631c",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739547748549,
+            1739547758747
+          ],
+          "max_detection_gap_ms": 359,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "vehicle_restart_proxy_not_GREEN",
+          "proxy": true,
+          "observation_interval_ms": [
+            1739547755265,
+            1739547755392
+          ],
+          "relative_low_speed_duration_s": 3.243000030517578,
+          "image_speed_separation": 1.4464221119877068,
+          "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+        }
+      },
+      "zone_proxy": {
+        "timestamp_ms": 1739547749394.0,
+        "event_type": "CROSSING_PROXY",
+        "movement": "E->S",
+        "source_track_id": 4636198,
+        "evidence_method": "observed_zone_transition_proxy",
+        "confidence": 0.35,
+        "evidence_quality": "LOW",
+        "temporal_uncertainty_ms": null,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "025c786987c7e4a74b6570af1a799316e8145b039ba3ec0d8f2eda3b98d8631c",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739547748549,
+            1739547758747
+          ],
+          "max_detection_gap_ms": 359,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "movement_permission_proxy",
+          "observation_interval_ms": [
+            1739547749271,
+            1739547749394
+          ],
+          "sampling_uncertainty_ms": 123,
+          "uncertainty_reason": "distance_and_time_to_stop_line_unknown",
+          "eligible_proxy": true
+        }
+      },
+      "delta_ms": 5998.0,
+      "stratum": "after_zone_transition"
+    },
+    {
+      "selected_event_index": 4794,
+      "event": {
+        "timestamp_ms": 1739548793356.0,
+        "event_type": "RELEASE",
+        "movement": "N->E",
+        "source_track_id": 4637850,
+        "evidence_method": "kinematic_restart_proxy",
+        "confidence": 0.65,
+        "evidence_quality": "MEDIUM",
+        "temporal_uncertainty_ms": 1300,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "029c7a7492509d09197283dd0e9cdcd5bd6d65e70b952c90e71fc387f6fd81a6",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739548769619,
+            1739548799474
+          ],
+          "max_detection_gap_ms": 1335,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "vehicle_restart_proxy_not_GREEN",
+          "proxy": true,
+          "observation_interval_ms": [
+            1739548793244,
+            1739548793356
+          ],
+          "relative_low_speed_duration_s": 11.99399995803833,
+          "image_speed_separation": 1.7409878077383474,
+          "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+        }
+      },
+      "zone_proxy": {
+        "timestamp_ms": 1739548776322.0,
+        "event_type": "CROSSING_PROXY",
+        "movement": "N->E",
+        "source_track_id": 4637850,
+        "evidence_method": "observed_zone_transition_proxy",
+        "confidence": 0.35,
+        "evidence_quality": "LOW",
+        "temporal_uncertainty_ms": null,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "029c7a7492509d09197283dd0e9cdcd5bd6d65e70b952c90e71fc387f6fd81a6",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739548769619,
+            1739548799474
+          ],
+          "max_detection_gap_ms": 1335,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "movement_permission_proxy",
+          "observation_interval_ms": [
+            1739548776203,
+            1739548776322
+          ],
+          "sampling_uncertainty_ms": 119,
+          "uncertainty_reason": "distance_and_time_to_stop_line_unknown",
+          "eligible_proxy": true
+        }
+      },
+      "delta_ms": 17034.0,
+      "stratum": "after_zone_transition"
+    },
+    {
+      "selected_event_index": 2282,
+      "event": {
+        "timestamp_ms": 1739546714903.0,
+        "event_type": "RELEASE",
+        "movement": "W->E",
+        "source_track_id": 4634400,
+        "evidence_method": "kinematic_restart_proxy",
+        "confidence": 0.65,
+        "evidence_quality": "MEDIUM",
+        "temporal_uncertainty_ms": 1300,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "002fa9c62f329193ae35b5accb05c9325b90f70d9ab7c4e90598aad4b27d9fcd",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739546710822,
+            1739546718015
+          ],
+          "max_detection_gap_ms": 127,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "vehicle_restart_proxy_not_GREEN",
+          "proxy": true,
+          "observation_interval_ms": [
+            1739546714785,
+            1739546714903
+          ],
+          "relative_low_speed_duration_s": 4.081000089645386,
+          "image_speed_separation": 1.2111321715601486,
+          "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+        }
+      },
+      "zone_proxy": {
+        "timestamp_ms": 1739546715021.0,
+        "event_type": "CROSSING_PROXY",
+        "movement": "W->E",
+        "source_track_id": 4634400,
+        "evidence_method": "observed_zone_transition_proxy",
+        "confidence": 0.35,
+        "evidence_quality": "LOW",
+        "temporal_uncertainty_ms": null,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "002fa9c62f329193ae35b5accb05c9325b90f70d9ab7c4e90598aad4b27d9fcd",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739546710822,
+            1739546718015
+          ],
+          "max_detection_gap_ms": 127,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "movement_permission_proxy",
+          "observation_interval_ms": [
+            1739546714903,
+            1739546715021
+          ],
+          "sampling_uncertainty_ms": 118,
+          "uncertainty_reason": "distance_and_time_to_stop_line_unknown",
+          "eligible_proxy": true
+        }
+      },
+      "delta_ms": -118.0,
+      "stratum": "before_or_at_zone_transition"
+    },
+    {
+      "selected_event_index": 1197,
+      "event": {
+        "timestamp_ms": 1739546017854.0,
+        "event_type": "RELEASE",
+        "movement": "W->E",
+        "source_track_id": 4633111,
+        "evidence_method": "kinematic_restart_proxy",
+        "confidence": 0.65,
+        "evidence_quality": "MEDIUM",
+        "temporal_uncertainty_ms": 1300,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "003531d86d5659f9d8a376c7e8bdf491ad878d73d2fe0f43eced6417b1c80bfd",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739546012210,
+            1739546025897
+          ],
+          "max_detection_gap_ms": 727,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "vehicle_restart_proxy_not_GREEN",
+          "proxy": true,
+          "observation_interval_ms": [
+            1739546017724,
+            1739546017854
+          ],
+          "relative_low_speed_duration_s": 5.644000053405762,
+          "image_speed_separation": 1.5514930657815347,
+          "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+        }
+      },
+      "zone_proxy": {
+        "timestamp_ms": 1739546019169.0,
+        "event_type": "CROSSING_PROXY",
+        "movement": "W->E",
+        "source_track_id": 4633111,
+        "evidence_method": "observed_zone_transition_proxy",
+        "confidence": 0.35,
+        "evidence_quality": "LOW",
+        "temporal_uncertainty_ms": null,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "003531d86d5659f9d8a376c7e8bdf491ad878d73d2fe0f43eced6417b1c80bfd",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739546012210,
+            1739546025897
+          ],
+          "max_detection_gap_ms": 727,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "movement_permission_proxy",
+          "observation_interval_ms": [
+            1739546019087,
+            1739546019169
+          ],
+          "sampling_uncertainty_ms": 82,
+          "uncertainty_reason": "distance_and_time_to_stop_line_unknown",
+          "eligible_proxy": true
+        }
+      },
+      "delta_ms": -1315.0,
+      "stratum": "before_or_at_zone_transition"
+    },
+    {
+      "selected_event_index": 477,
+      "event": {
+        "timestamp_ms": 1739545512129.0,
+        "event_type": "RELEASE",
+        "movement": "W->E",
+        "source_track_id": 4632215,
+        "evidence_method": "kinematic_restart_proxy",
+        "confidence": 0.65,
+        "evidence_quality": "MEDIUM",
+        "temporal_uncertainty_ms": 1300,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "010f8251f5553f4b2db73b4490c21253ab153946dbe1e8fa40f5b37c14a1c4b4",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739545507443,
+            1739545516443
+          ],
+          "max_detection_gap_ms": 326,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "vehicle_restart_proxy_not_GREEN",
+          "proxy": true,
+          "observation_interval_ms": [
+            1739545512008,
+            1739545512129
+          ],
+          "relative_low_speed_duration_s": 4.685999870300293,
+          "image_speed_separation": 1.519564700499726,
+          "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+        }
+      },
+      "zone_proxy": {
+        "timestamp_ms": 1739545512943.0,
+        "event_type": "CROSSING_PROXY",
+        "movement": "W->E",
+        "source_track_id": 4632215,
+        "evidence_method": "observed_zone_transition_proxy",
+        "confidence": 0.35,
+        "evidence_quality": "LOW",
+        "temporal_uncertainty_ms": null,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "010f8251f5553f4b2db73b4490c21253ab153946dbe1e8fa40f5b37c14a1c4b4",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739545507443,
+            1739545516443
+          ],
+          "max_detection_gap_ms": 326,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "movement_permission_proxy",
+          "observation_interval_ms": [
+            1739545512924,
+            1739545512943
+          ],
+          "sampling_uncertainty_ms": 19,
+          "uncertainty_reason": "distance_and_time_to_stop_line_unknown",
+          "eligible_proxy": true
+        }
+      },
+      "delta_ms": -814.0,
+      "stratum": "before_or_at_zone_transition"
+    },
+    {
+      "selected_event_index": 3060,
+      "event": {
+        "timestamp_ms": 1739547311922.0,
+        "event_type": "RELEASE",
+        "movement": "W->E",
+        "source_track_id": 4635538,
+        "evidence_method": "kinematic_restart_proxy",
+        "confidence": 0.65,
+        "evidence_quality": "MEDIUM",
+        "temporal_uncertainty_ms": 1300,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "023539318b06251a20e12ba69e6cd559657a08369c4f0487d38a58915b51ffab",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739547302081,
+            1739547320915
+          ],
+          "max_detection_gap_ms": 1682,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "vehicle_restart_proxy_not_GREEN",
+          "proxy": true,
+          "observation_interval_ms": [
+            1739547311820,
+            1739547311922
+          ],
+          "relative_low_speed_duration_s": 9.485999822616577,
+          "image_speed_separation": 2.909364826978848,
+          "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+        }
+      },
+      "zone_proxy": {
+        "timestamp_ms": 1739547316606.0,
+        "event_type": "CROSSING_PROXY",
+        "movement": "W->E",
+        "source_track_id": 4635538,
+        "evidence_method": "observed_zone_transition_proxy",
+        "confidence": 0.35,
+        "evidence_quality": "LOW",
+        "temporal_uncertainty_ms": null,
+        "provenance": {
+          "schema_version": 1,
+          "source": "6_2025_2_14_20.json",
+          "track_fingerprint": "023539318b06251a20e12ba69e6cd559657a08369c4f0487d38a58915b51ffab",
+          "verified_stop_line": false,
+          "signal_state_observed": false,
+          "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+          "track_range_ms": [
+            1739547302081,
+            1739547320915
+          ],
+          "max_detection_gap_ms": 1682,
+          "invalid_detections": 0,
+          "duplicate_detections": 0,
+          "conflicting_timestamps": 0,
+          "role": "movement_permission_proxy",
+          "observation_interval_ms": [
+            1739547316482,
+            1739547316606
+          ],
+          "sampling_uncertainty_ms": 124,
+          "uncertainty_reason": "distance_and_time_to_stop_line_unknown",
+          "eligible_proxy": true
+        }
+      },
+      "delta_ms": -4684.0,
+      "stratum": "before_or_at_zone_transition"
+    }
+  ]
+}

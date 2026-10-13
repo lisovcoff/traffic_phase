@@ -1,0 +1,47 @@
+{
+  "code_commit": "afcfaa2b38e106201d7e819570425acfc4c5487f",
+  "historical_logs": false,
+  "interpretation": "verification rerun; original session stdout was not persisted",
+  "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "suites": {
+    "unit72": {
+      "command": [
+        "C:\\Python314\\python.exe",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp=D:\\Code\\PythonProjects\\traffic_phase\\diagnostic_unit72",
+        "tests/test_vehicle_temporal_evidence.py",
+        "tests/test_trajectory_events.py",
+        "tests/test_trajectory_geometry.py",
+        "tests/test_offline_benchmark.py"
+      ],
+      "exit_code": 0,
+      "seconds": 3.548433899995871,
+      "log_sha256": "b0ce387ff0499fad5242226d6b5de9ffe331bd5fa6c827db0fad11639cd874d7"
+    },
+    "regression56": {
+      "command": [
+        "C:\\Python314\\python.exe",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp=D:\\Code\\PythonProjects\\traffic_phase\\diagnostic_regression56",
+        "tests/v9/test_v9_discovery.py",
+        "tests/v9/test_v9_signal_renderer.py",
+        "tests/v9/test_v9_spatial_visualizer.py",
+        "tests/v10/test_v10_semantic_mapping.py",
+        "tests/test_archive_streaming.py",
+        "tests/test_regime_selection.py",
+        "tests/test_signal_state_safety.py"
+      ],
+      "exit_code": 0,
+      "seconds": 85.60097850000602,
+      "log_sha256": "ddc13911a45a16554cc2458e90785499200994d645ce6fa7ca22ca045c4d1fa0"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "command": [
+    "C:\\Python314\\python.exe",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=D:/Code/PythonProjects/traffic_phase/diagnostic_contract_log",
+    "tests/test_temporal_evidence_contract_diagnostics.py",
+    "tests/test_vehicle_temporal_evidence.py",
+    "tests/test_offline_benchmark.py"
+  ],
+  "exit_code": 0
+}

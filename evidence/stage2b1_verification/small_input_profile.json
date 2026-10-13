@@ -1,0 +1,111 @@
+{
+  "input_files": [
+    {
+      "file": "tracks\\01393f3edc945ff132f7456a9ff7a7d8db1f8a349cacc84efc8eaafe117bbcaa.json",
+      "sha256": "3767e3bab3fefea8fa54b2fbe80ea51f18e0cd913433e5678a089763445ac80c"
+    },
+    {
+      "file": "tracks\\018138e83e779b8c7e2a74fa2d65a8ed18f80eb11f359b7f26e11e22e8acbcc4.json",
+      "sha256": "071c5c94a084a2e37bb3439597aaa4f2a0e5a3ec28bc782fd0fc65718ceb68d7"
+    },
+    {
+      "file": "tracks\\025c786987c7e4a74b6570af1a799316e8145b039ba3ec0d8f2eda3b98d8631c.json",
+      "sha256": "4764b65c24cfb201511d89ddcbe84058c5c098135e2fcb05fa6e29716b6a770d"
+    },
+    {
+      "file": "tracks\\029c7a7492509d09197283dd0e9cdcd5bd6d65e70b952c90e71fc387f6fd81a6.json",
+      "sha256": "13baa99ec96901ec05e3335b405be0ad544c18635cbfe852c76dd870c9879334"
+    },
+    {
+      "file": "tracks\\002fa9c62f329193ae35b5accb05c9325b90f70d9ab7c4e90598aad4b27d9fcd.json",
+      "sha256": "0247b73c380afaf2bfc8cc7c946596087cf2535ee9dd280862c9a61b7bdb6e2a"
+    },
+    {
+      "file": "tracks\\003531d86d5659f9d8a376c7e8bdf491ad878d73d2fe0f43eced6417b1c80bfd.json",
+      "sha256": "45ac9e46a3395089a27340f6630ac019e6468223f75a0827f2e60f036b392c1a"
+    },
+    {
+      "file": "tracks\\010f8251f5553f4b2db73b4490c21253ab153946dbe1e8fa40f5b37c14a1c4b4.json",
+      "sha256": "e206f04e619763a5962064b0a653066f0e144fdaa59f36d7fac4ca8af6b2104d"
+    },
+    {
+      "file": "tracks\\023539318b06251a20e12ba69e6cd559657a08369c4f0487d38a58915b51ffab.json",
+      "sha256": "37b47ed5aa506e177d1b739105abd7bcf00a69d4535eb91b23920907ee324ffc"
+    }
+  ],
+  "track_count": 8,
+  "detection_count": 1001,
+  "warmup_repeats": 1,
+  "measured_repeats": 5,
+  "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "timer": "perf_counter; wrapper overhead retained",
+  "repeats": [
+    {
+      "sanitization_s": 0.012913000013213605,
+      "fingerprinting_s": 0.009282000013627112,
+      "extraction_exclusive_s": 0.00875479995738715,
+      "extraction_inclusive_s": 0.030949799984227866,
+      "to_dict_s": 0.00026569998590275645,
+      "json_encoding_s": 0.0002632999967318028,
+      "serialized_bytes": 38645,
+      "event_count": 24
+    },
+    {
+      "sanitization_s": 0.012810999935027212,
+      "fingerprinting_s": 0.00867790001211688,
+      "extraction_exclusive_s": 0.008823800046229735,
+      "extraction_inclusive_s": 0.030312699993373826,
+      "to_dict_s": 0.0002530000056140125,
+      "json_encoding_s": 0.00025839998852461576,
+      "serialized_bytes": 38645,
+      "event_count": 24
+    },
+    {
+      "sanitization_s": 0.013621199992485344,
+      "fingerprinting_s": 0.00846719992114231,
+      "extraction_exclusive_s": 0.008462900092126802,
+      "extraction_inclusive_s": 0.030551300005754456,
+      "to_dict_s": 0.0002469999890308827,
+      "json_encoding_s": 0.0002573000092525035,
+      "serialized_bytes": 38645,
+      "event_count": 24
+    },
+    {
+      "sanitization_s": 0.013201800000388175,
+      "fingerprinting_s": 0.008779100026004016,
+      "extraction_exclusive_s": 0.008531499974196777,
+      "extraction_inclusive_s": 0.03051240000058897,
+      "to_dict_s": 0.0002454000059515238,
+      "json_encoding_s": 0.00025660000392235816,
+      "serialized_bytes": 38645,
+      "event_count": 24
+    },
+    {
+      "sanitization_s": 0.015520000015385449,
+      "fingerprinting_s": 0.010432800016133115,
+      "extraction_exclusive_s": 0.010685999994166195,
+      "extraction_inclusive_s": 0.03663880002568476,
+      "to_dict_s": 0.0002488000027369708,
+      "json_encoding_s": 0.00026890001026913524,
+      "serialized_bytes": 38645,
+      "event_count": 24
+    }
+  ],
+  "median": {
+    "sanitization_s": 0.013201800000388175,
+    "fingerprinting_s": 0.008779100026004016,
+    "extraction_exclusive_s": 0.00875479995738715,
+    "extraction_inclusive_s": 0.030551300005754456,
+    "to_dict_s": 0.0002488000027369708,
+    "json_encoding_s": 0.00025839998852461576,
+    "serialized_bytes": 38645,
+    "event_count": 24
+  },
+  "excluded": [
+    "source parsing",
+    "phase fitting",
+    "file IO",
+    "full benchmark runtime"
+  ],
+  "code_sha256": "28022ecb3045ae51a92c1bd0ab42916866307522995946cc3f9ea83fec6242c3"
+}

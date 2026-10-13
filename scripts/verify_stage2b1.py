@@ -118,7 +118,7 @@ def analyze():
     plan = json.loads((OUT / "sample_selection.json").read_text(encoding="utf-8"))
     wanted = {r["event"]["provenance"]["track_fingerprint"]: r for r in plan["samples"]}
     chosen_ids = {r["event"]["source_track_id"] for r in plan["samples"]}
-    legacy = defaultdict(lambda: {"main": [], "release": [], "methods": Counter()})
+    legacy = defaultdict(lambda: {"main": [], "release": [], "methods": Counter(), "release_methods": Counter()})
     samples, counters, seen = [], Counter(), set()
     started = time.perf_counter()
     with SOURCE.open("rb") as stream:
@@ -138,6 +138,7 @@ def analyze():
                     legacy[main[1]]["methods"][main[3]] += 1
                     if release:
                         legacy[release[1]]["release"].append(release[0])
+                        legacy[release[1]]["release_methods"][release[3]] += 1
             if track.get("id") not in chosen_ids:
                 continue
             clean, stats = clean_detections(track)
@@ -187,7 +188,8 @@ def analyze():
         legacy_summary[m] = {"main_count": len(values["main"]), "release_count": len(values["release"]),
                              "main_range_ms": [min(values["main"]), max(values["main"])],
                              "release_range_ms": [min(values["release"]), max(values["release"])] if values["release"] else None,
-                             "main_methods": dict(values["methods"])}
+                             "main_methods": dict(values["methods"]),
+                             "selected_release_methods": dict(values["release_methods"])}
     p = prediction(AFTER)
     ext = p["event_extraction"]
     selected = [ext["temporal_events"][i] for i in ext["quality_diagnostics"]["selected_event_indices"]]
@@ -205,6 +207,8 @@ def analyze():
                                      "scan_plus_legacy_extraction_s": time.perf_counter() - started,
                                      "phase_marks_accessed": False, "phase_fit_runs": 0,
                                      "legacy_by_movement": legacy_summary, "permission_by_movement": new,
+                                     "before_saved_phase_evidence": prediction(BEFORE)["phase_evidence"],
+                                     "after_saved_phase_evidence": p["phase_evidence"],
                                      "before_saved_candidate_K": prediction(BEFORE)["phase_model_selection"],
                                      "after_saved_candidate_K": p["phase_model_selection"], "samples": samples,
                                      "limits": "No verified units, independent stop annotations or stop-line geometry; no causation claim."})

@@ -1,0 +1,949 @@
+diff --git a/app/core/temporal_evidence.py b/app/core/temporal_evidence.py
+new file mode 100644
+index 0000000..001e47f
+--- /dev/null
++++ b/app/core/temporal_evidence.py
+@@ -0,0 +1,65 @@
++"""Vehicle timing evidence, never a probability or observation of a lamp state."""
++from __future__ import annotations
++
++from dataclasses import asdict, dataclass
++import math
++from typing import Any
++
++
++@dataclass(frozen=True, slots=True)
++class TemporalEvent:
++    timestamp_ms: float
++    event_type: str
++    movement: str
++    source_track_id: Any
++    evidence_method: str
++    confidence: float
++    evidence_quality: str
++    temporal_uncertainty_ms: float | None
++    provenance: dict[str, Any]
++
++    def __post_init__(self):
++        if not math.isfinite(self.timestamp_ms) or self.timestamp_ms < 0:
++            raise ValueError("invalid event timestamp")
++        if not math.isfinite(self.confidence) or not 0 <= self.confidence <= 1:
++            raise ValueError("invalid heuristic evidence confidence")
++        if self.temporal_uncertainty_ms is not None and (
++            not math.isfinite(self.temporal_uncertainty_ms) or self.temporal_uncertainty_ms < 0
++        ):
++            raise ValueError("invalid temporal uncertainty")
++        if self.event_type not in {"ENTRY", "STOP", "RELEASE", "CROSSING", "CROSSING_PROXY"}:
++            raise ValueError("unknown vehicle evidence type")
++        if self.evidence_quality not in {"HIGH", "MEDIUM", "LOW"}:
++            raise ValueError("unknown evidence quality")
++        if self.event_type == "CROSSING" and not self.provenance.get("verified_stop_line"):
++            raise ValueError("actual CROSSING requires verified stop-line provenance")
++
++    def to_dict(self):
++        return asdict(self)
++
++
++def adapt_trajectory_event(event, *, source_track_id, evidence_method, provenance,
++                           temporal_uncertainty_ms=None):
++    """Bridge existing trajectory_events outputs without reimplementing motion logic.
++
++    Legacy CROSSING may be a zone or track-end proxy. Its enum alone never
++    authorizes claiming an actual stop-line crossing.
++    """
++    kind = getattr(event.event_type, "value", event.event_type)
++    if kind == "APPROACH":
++        kind = "ENTRY"
++    if kind == "CROSSING" and not provenance.get("verified_stop_line"):
++        kind = "CROSSING_PROXY"
++    return TemporalEvent(float(event.timestamp_ms), kind, event.movement, source_track_id,
++                         evidence_method, float(event.confidence), event.quality,
++                         temporal_uncertainty_ms, dict(provenance))
++
++
++class EventStreamBundle(tuple):
++    """Keep the existing 10-slot packed-stream API plus aligned evidence sidecar."""
++    def __new__(cls, values, *, temporal_events=(), permission_streams=None, diagnostics=None):
++        obj = super().__new__(cls, values)
++        obj.temporal_events = tuple(temporal_events)
++        obj.permission_streams = permission_streams or {}
++        obj.diagnostics = diagnostics or {}
++        return obj
+diff --git a/app/core/v9/events.py b/app/core/v9/events.py
+index 4327aed..7fdbd9f 100644
+--- a/app/core/v9/events.py
++++ b/app/core/v9/events.py
+@@ -5,11 +5,12 @@ import itertools
+ import codecs
+ import zipfile
+ from array import array
+-from collections import defaultdict
++from collections import Counter, defaultdict
+ from pathlib import Path
+ from typing import Dict, List, Optional, Sequence
+ import numpy as np
+ from scipy.ndimage import gaussian_filter1d
++from app.core.temporal_evidence import EventStreamBundle
+ 
+ from .primitives import norm_zone, _speed_restart_plausible
+ from .fit import anonymous_phase_name
+@@ -240,6 +241,7 @@ def _track_event_view(tr, ds=None):
+ 
+ 
+ def load_event_views(path: Path):
++    """Legacy tuple views; lossless canonical ingestion is load_event_streams()."""
+     main_events, entry_events, release_evidence = [], [], []
+     method_counts = defaultdict(int)
+     files = []
+@@ -290,7 +292,7 @@ def load_event_views(path: Path):
+     )
+ 
+ 
+-def load_event_streams(path: Path):
++def _load_event_streams_legacy(path: Path):
+     """
+     Stream a source into the compact representation consumed by V9 discovery.
+ 
+@@ -383,6 +385,71 @@ def load_event_streams(path: Path):
+         int(event_count),
+     )
+ 
++def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _records=None):
++    """Keep packed tuple compatibility, with lossless vehicle evidence sidecar.
++
++    Legacy policy is explicit and uses the historical extractor/selection rules.
++    The default never replaces movement-permission evidence with demand entries.
++    """
++    if evidence_policy == "legacy_v9":
++        if _records is not None:
++            raise ValueError("legacy records use extract_event_views")
++        return _load_event_streams_legacy(path)
++    if evidence_policy != "permission_per_stream":
++        raise ValueError("unknown evidence policy")
++    from .vehicle_evidence import extract_vehicle_evidence, select_permission_events, diagnostics
++    temporal, files, seen = [], [], set()
++    stats = Counter()
++    trajectory_count, recording_start = 0, None
++    sources = [("records", iter(_records))] if _records is not None else _iter_source_records(Path(path))
++    for source_name, records in sources:
++        files.append(source_name)
++        for track in records:
++            trajectory_count += 1
++            events, quality_stats = extract_vehicle_evidence(track, source_name=source_name)
++            if not events:
++                stats.update(quality_stats)
++                stats["tracks_without_usable_events"] += 1
++                continue
++            key = events[0].provenance["track_fingerprint"]
++            if key in seen:
++                stats["duplicate_tracks"] += 1
++                continue
++            seen.add(key)
++            stats.update(quality_stats)
++            start = events[0].provenance["track_range_ms"][0]
++            recording_start = min(recording_start, start) if recording_start is not None else start
++            temporal.extend(events)
++    temporal.sort(key=lambda e: (e.timestamp_ms, e.event_type, e.movement))
++    entries = [e for e in temporal if e.event_type == "ENTRY"]
++    if not entries:
++        raise ValueError("no usable demand or permission events; evidence is UNKNOWN")
++    base = min(e.timestamp_ms for e in entries)
++    selected, methods = select_permission_events(temporal)
++
++    def packed(events):
++        absolute = defaultdict(list)
++        for e in events:
++            absolute[e.movement].append((e.timestamp_ms - base) / 1000)
++        return {m: array('d', sorted(values)) for m, values in absolute.items()}
++
++    entry_streams = packed(entries)
++    releases = [e for e in temporal if e.event_type == "RELEASE" and e.evidence_quality != "LOW"]
++    diag = diagnostics(temporal, selected, methods, stats)
++    selected_ids = {id(e) for e in selected}
++    diag["selected_event_indices"] = [i for i, e in enumerate(temporal) if id(e) in selected_ids]
++    return EventStreamBundle((entry_streams, entry_streams, packed(releases),
++                              dict(Counter(e.evidence_method for e in entries)),
++                              dict(Counter(e.evidence_method for e in releases)),
++                              files, recording_start, float(base), trajectory_count, len(entries)),
++                             temporal_events=temporal, permission_streams=packed(selected), diagnostics=diag)
++
++
++def extract_timing_streams(tracks):
++    """Use the same streaming adapter for in-memory discovery without a second solver."""
++    return load_event_streams(Path("records"), _records=tracks)
++
++
+ def load_tracks(
+     path: Path,
+     *,
+@@ -571,6 +638,7 @@ def _kinematic_release_candidate(ds, entry_ms, exit_ms):
+     return max(candidates, key=lambda q: (q[2], q[0], -q[1])) if candidates else None
+ 
+ def extract_event_views(tracks):
++    """Legacy tuple adapter retained for evidence_policy='legacy_v9'."""
+     main_events, entry_events = [], []
+     release_evidence = []
+     method_counts = defaultdict(int)
+diff --git a/app/core/v9/model.py b/app/core/v9/model.py
+index 4f23612..f88c488 100644
+--- a/app/core/v9/model.py
++++ b/app/core/v9/model.py
+@@ -20,6 +20,7 @@ from .fit import (
+ from .events import (
+     extract_event_views,
+     load_event_streams,
++    extract_timing_streams,
+     _recording_start_ms,
+     periodic_baseline_from_segments,
+     _phase_duration_targets_from_baseline,
+@@ -39,6 +40,7 @@ def _discover_from_event_views(
+     marks_path: Optional[Path] = None,
+     recording_start_ms: float | None = None,
+     trajectory_count: int = 0,
++    evidence_policy: str = "legacy_v9",
+ ):
+     if not events:
+         raise ValueError("no traffic events supplied")
+@@ -70,6 +72,7 @@ def _discover_from_event_views(
+         analysis_base_ms=float(events[0][0]),
+         trajectory_count=trajectory_count,
+         event_count=len(events),
++        evidence_policy=evidence_policy,
+     )
+ 
+ def _slice_streams(streams, start_s: float, end_s: float):
+@@ -97,6 +100,7 @@ def _regime_phase_structure(
+     *,
+     period: float,
+     window_s: float,
++    evidence_policy: str = "permission_per_stream",
+ ) -> dict[str, object] | None:
+     """Fit phase structure for one local regime window.
+ 
+@@ -113,6 +117,7 @@ def _regime_phase_structure(
+         by_stream,
+         release_streams,
+         event_count,
++        evidence_policy=evidence_policy,
+     )
+     end_s = max(
+         (
+@@ -254,6 +259,7 @@ def _local_regime_selection(
+     *,
+     window_s: float = 3600.0,
+     min_events: int = 120,
++    evidence_policy: str = "permission_per_stream",
+ ):
+     if total_end_s < 2.0 * window_s:
+         return None
+@@ -283,6 +289,7 @@ def _local_regime_selection(
+                 release_window,
+                 period=float(period),
+                 window_s=window_s,
++                evidence_policy=evidence_policy,
+             )
+             if phase_structure is None:
+                 selected_phase_count = None
+@@ -393,7 +400,14 @@ def _local_regime_selection(
+     )
+ 
+ 
+-def _choose_phase_evidence(by_stream, release_streams, event_count: int):
++def _choose_phase_evidence(by_stream, release_streams, event_count: int,
++                           *, evidence_policy="permission_per_stream"):
++    if evidence_policy == "permission_per_stream":
++        # The adapter has selected release/zone proxies per movement. Never
++        # replace missing permission evidence with input-zone demand timestamps.
++        return {m: values for m, values in release_streams.items() if len(values)}, "permission_per_stream"
++    if evidence_policy != "legacy_v9":
++        raise ValueError("unknown evidence policy")
+     release_events = sum(len(values) for values in release_streams.values())
+     active_streams = sum(bool(values) for values in by_stream.values())
+     release_stream_count = sum(bool(values) for values in release_streams.values())
+@@ -547,11 +561,16 @@ def _discover_from_stream_views(
+     trajectory_count: int = 0,
+     event_count: int | None = None,
+     source_files=None,
++    permission_streams=None,
++    temporal_events=(),
++    evidence_diagnostics=None,
++    evidence_policy: str = "permission_per_stream",
+ ):
+     if not by_stream:
+         raise ValueError("no traffic events supplied")
+     if release_streams is None:
+         release_streams = {}
++    effective_permissions = release_streams if permission_streams is None else permission_streams
+     original_end_s = max(
+         max(float(value) for value in ts)
+         for ts in by_stream.values()
+@@ -560,13 +579,14 @@ def _discover_from_stream_views(
+     regime_detection = None
+     working_by_stream = by_stream
+     working_entry_streams = entry_streams
+-    working_release_streams = release_streams
++    working_release_streams = effective_permissions
+     if original_end_s >= 7200.0:
+         regime_payload = _local_regime_selection(
+             by_stream,
+             entry_streams,
+-            release_streams,
++            effective_permissions,
+             original_end_s,
++            evidence_policy=evidence_policy,
+         )
+         if regime_payload is not None:
+             regime_detection, (
+@@ -609,7 +629,12 @@ def _discover_from_stream_views(
+         working_by_stream,
+         working_release_streams,
+         working_event_count,
++        evidence_policy=evidence_policy,
+     )
++    if not phase_evidence:
++        raise ValueError("insufficient movement-permission evidence; entry is demand only, phase UNKNOWN")
++    if evidence_policy == "permission_per_stream":
++        end_s = max(end_s, max(max(float(v) for v in values) for values in phase_evidence.values() if len(values)))
+     x, names = build_occupancy_matrix(
+         phase_evidence,
+         end_s,
+@@ -665,10 +690,8 @@ def _discover_from_stream_views(
+     )
+ 
+     if regime_detection is not None:
+-        archive_phase_evidence = (
+-            release_streams
+-            if phase_evidence_method == "release_only"
+-            else by_stream
++        archive_phase_evidence = effective_permissions if evidence_policy == "permission_per_stream" else (
++            release_streams if phase_evidence_method == "release_only" else by_stream
+         )
+         phase_anchor_calibration = _calibrate_phase_anchor(
+             archive_phase_evidence,
+@@ -734,6 +757,10 @@ def _discover_from_stream_views(
+             ),
+         ),
+         "event_extraction": {
++            "evidence_policy": evidence_policy,
++            "temporal_evidence_contract": 1 if temporal_events else None,
++            "temporal_events": [event.to_dict() for event in temporal_events],
++            "quality_diagnostics": evidence_diagnostics,
+             "methods": method_counts,
+             "release_evidence_count": int(
+                 sum(release_method_counts.values())
+@@ -762,8 +789,17 @@ def _discover_from_stream_views(
+         "phase_redundancy": phase_redundancy,
+         "phase_evidence": {
+             "source": phase_evidence_method,
++            "selection_scope": "per_movement" if evidence_policy == "permission_per_stream" else "legacy_global_gate",
++            "demand_entries_used_for_phase_evidence": phase_evidence_method == "mixed_release_or_entry",
++            "excluded_movements_without_permission": sorted(set(working_by_stream) - set(phase_evidence)),
++            "permission_event_count": int(sum(len(values) for values in phase_evidence.values())),
+             "release_event_count": int(
+-                sum(len(values) for values in working_release_streams.values())
++                sum(len(values) for values in (
++                    _slice_streams(release_streams,
++                                   float(regime_detection["selected_window_start_s"]),
++                                   float(regime_detection["selected_window_end_s"]))
++                    if regime_detection is not None else release_streams
++                ).values())
+             ),
+         },
+         "phase_model_selection": {
+@@ -883,9 +919,16 @@ def discover_records(
+     input_name: str = "records",
+     dt: float = 1.0,
+     marks_path: Optional[Path] = None,
++    evidence_policy: str = "permission_per_stream",
+ ) -> dict[str, object]:
+     if not tracks:
+         raise ValueError("no trajectory records supplied")
++    if evidence_policy == "permission_per_stream":
++        bundle = extract_timing_streams(tracks)
++        return _discover_bundle(bundle, input_name=input_name, dt=dt, marks_path=marks_path,
++                                evidence_policy=evidence_policy)
++    if evidence_policy != "legacy_v9":
++        raise ValueError("unknown evidence policy")
+     recording_start_ms = float(_recording_start_ms(tracks))
+     events, entry_events, release_evidence, method_counts = extract_event_views(tracks)
+     return _discover_from_event_views(
+@@ -906,6 +949,7 @@ def discover_path(
+     *,
+     dt: float = 1.0,
+     marks_path: Optional[Path] = None,
++    evidence_policy: str = "permission_per_stream",
+ ) -> dict[str, object]:
+     path = Path(path)
+     if path.is_file() and path.suffix.lower() not in {".json", ".zip"}:
+@@ -913,18 +957,25 @@ def discover_path(
+     if path.is_dir() and not path.exists():
+         raise FileNotFoundError(path)
+ 
++    bundle = load_event_streams(path, evidence_policy=evidence_policy)
++    return _discover_bundle(bundle, input_name=str(path), dt=dt, marks_path=marks_path,
++                            evidence_policy=evidence_policy,
++                            source_files=[str(path)] if path.is_file() else bundle[5])
++
++
++def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None):
+     (
+         by_stream,
+         entry_streams,
+         release_streams,
+         method_counts,
+         release_method_counts,
+-        source_files,
++        _bundle_files,
+         recording_start_ms,
+         analysis_base_ms,
+         trajectory_count,
+         event_count,
+-    ) = load_event_streams(path)
++    ) = bundle
+ 
+     return _discover_from_stream_views(
+         by_stream,
+@@ -932,16 +983,16 @@ def discover_path(
+         method_counts,
+         release_method_counts,
+         release_streams=release_streams,
+-        input_name=str(path),
++        input_name=input_name,
+         dt=dt,
+         marks_path=marks_path,
+         recording_start_ms=recording_start_ms,
+         analysis_base_ms=analysis_base_ms,
+         trajectory_count=trajectory_count,
+         event_count=event_count,
+-        source_files=(
+-            [str(path)]
+-            if path.is_file()
+-            else source_files
+-        ),
++        source_files=source_files,
++        permission_streams=getattr(bundle, "permission_streams", None),
++        temporal_events=getattr(bundle, "temporal_events", ()),
++        evidence_diagnostics=getattr(bundle, "diagnostics", None),
++        evidence_policy=evidence_policy,
+     )
+diff --git a/app/core/v9/vehicle_evidence.py b/app/core/v9/vehicle_evidence.py
+new file mode 100644
+index 0000000..6e51f03
+--- /dev/null
++++ b/app/core/v9/vehicle_evidence.py
+@@ -0,0 +1,214 @@
++"""V9 evidence adapter; reuse existing timing candidates and zone-transition logic."""
++from __future__ import annotations
++
++from collections import Counter, defaultdict
++import hashlib
++import json
++import statistics
++from types import SimpleNamespace
++
++from app.core.temporal_evidence import TemporalEvent
++from app.core.trajectory_geometry import _finite_number
++from app.core.trajectory_events import EventExtractionConfig, _first_sustained, _zone_crossing_timestamp
++
++
++CONFIG = EventExtractionConfig()  # Shared gap/stop support limits; no label-based tuning.
++
++
++def clean_detections(track):
++    raw = track.get("detections") or []
++    if not isinstance(raw, list):
++        return [], {"invalid_detections": 1, "duplicate_detections": 0, "conflicting_timestamps": 0}
++    groups = defaultdict(list)
++    stats = {"invalid_detections": 0, "duplicate_detections": 0, "conflicting_timestamps": 0}
++    for d in raw:
++        if (not isinstance(d, dict) or not _finite_number(d.get("millis"))
++                or d["millis"] < 0 or d["millis"] != int(d["millis"])):
++            stats["invalid_detections"] += 1
++            continue
++        groups[int(d["millis"])].append(d)
++    result = []
++    for ts in sorted(groups):
++        observations = groups[ts]
++        # Same-time distinct measurements cannot define speed; do not pick an
++        # arbitrary coordinate. Duplicate identical snapshots count once.
++        keys = {json.dumps(d, sort_keys=True, default=str) for d in observations}
++        if len(keys) != 1:
++            stats["conflicting_timestamps"] += 1
++            continue
++        stats["duplicate_detections"] += len(observations) - 1
++        result.append(observations[0])
++    return result, stats
++
++
++def track_fingerprint(track, detections):
++    # Missing IDs no longer collapse different tracks with the same start time.
++    core = [track.get("id"), track.get("zone_in"), track.get("zone_out"),
++            track.get("stay_duration_millis"), track.get("wait_s"), detections]
++    return hashlib.sha256(json.dumps(core, sort_keys=True, default=str).encode()).hexdigest()
++
++
++def bracket(detections, timestamp_ms):
++    before = [d["millis"] for d in detections if d["millis"] < timestamp_ms]
++    after = [d["millis"] for d in detections if d["millis"] >= timestamp_ms]
++    if not before or not after:
++        return None
++    return [max(before), min(after)]
++
++
++def extract_vehicle_evidence(track, *, source_name="records"):
++    # Local imports avoid circular import; V9's existing image-space solver stays
++    # in events.py and is not duplicated with another fitted motion model.
++    from .events import _kinematic_release_candidate
++    from .primitives import norm_zone, _speed_restart_plausible
++    if not isinstance(track, dict):
++        return [], {"invalid_tracks": 1}
++    ds, stats = clean_detections(track)
++    origin, target = norm_zone(track.get("zone_in")), norm_zone(track.get("zone_out"))
++    if not origin or not target or origin == target or not ds:
++        return [], stats
++    movement = f"{origin}->{target}"
++    fingerprint = track_fingerprint(track, ds)
++    gaps = [b["millis"] - a["millis"] for a, b in zip(ds, ds[1:])]
++    max_gap = max(gaps, default=None)
++    provenance = {"schema_version": 1, "source": source_name, "track_fingerprint": fingerprint,
++                  "verified_stop_line": False, "signal_state_observed": False,
++                  "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
++                  "track_range_ms": [ds[0]["millis"], ds[-1]["millis"]],
++                  "max_detection_gap_ms": max_gap, **stats}
++    dirty = stats["invalid_detections"] or stats["conflicting_timestamps"]
++    events = []
++
++    def emit(ts, kind, method, score, quality, uncertainty, **extra):
++        events.append(TemporalEvent(float(ts), kind, movement, track.get("id"), method,
++                                    min(score, .4) if dirty else score,
++                                    "LOW" if dirty else quality, uncertainty,
++                                    {**provenance, **extra}))
++
++    incoming = [d for d in ds if norm_zone(d.get("zone")) == origin]
++    entry_ms = incoming[0]["millis"] if incoming else ds[0]["millis"]
++    emit(entry_ms, "ENTRY", "input_zone_entry" if incoming else "first_detection_entry_proxy",
++         .7 if incoming and len(ds) > 1 else .25,
++         "MEDIUM" if incoming and len(ds) > 1 else "LOW", None,
++         role="demand_only", left_censored=True)
++
++    # Reuse common zone-transition detector. Unknown stop-line geometry means
++    # that an observed zone transition is CROSSING_PROXY, never CROSSING.
++    points = [SimpleNamespace(millis=d["millis"], zone=norm_zone(d.get("zone"))) for d in ds]
++    crossing_ms, named = _zone_crossing_timestamp(points, zone_in=origin, zone_out=target)
++    if crossing_ms is not None:
++        bounds = bracket(ds, crossing_ms)
++        sampled_gap = bounds[1] - bounds[0] if bounds else None
++        emit(crossing_ms, "CROSSING_PROXY", "observed_zone_transition_proxy",
++             .35, "LOW", None, role="movement_permission_proxy",
++             observation_interval_ms=bounds, sampling_uncertainty_ms=sampled_gap,
++             uncertainty_reason="distance_and_time_to_stop_line_unknown",
++             eligible_proxy=bool(bounds and sampled_gap <= CONFIG.max_detection_gap_s * 1000))
++    elif not named:
++        # Do not invent even a crossing proxy from a track's final detection.
++        stats["missing_crossing_zone_evidence"] = 1
++
++    speeds = [(float(d["millis"]), float(d["speed"])) for d in ds
++              if _finite_number(d.get("speed")) and d["speed"] >= 0]
++    # Raw speed units are not established. Exact zero is unit-independent;
++    # thresholds in m/s from metric geometry must not be applied to raw speed.
++    intervals = [(b[0], b[1], (b[0] - a[0]) / 1000) for a, b in zip(speeds, speeds[1:])
++                 if b[0] - a[0] <= CONFIG.max_detection_gap_s * 1000]
++    # Reset sustained runs across missing observations instead of concatenating
++    # them into a fictitious continuous stop.
++    stop_ms = None
++    chunks = []
++    for item in intervals:
++        if not chunks or item[0] - item[2] * 1000 > chunks[-1][-1][0]:
++            chunks.append([])
++        chunks[-1].append(item)
++    for chunk in chunks:
++        stop_ms = _first_sustained(chunk, lambda speed: speed == 0, CONFIG.stop_min_duration_s)
++        if stop_ms is not None:
++            break
++    if stop_ms is not None:
++        bounds = bracket(ds, stop_ms)
++        emit(stop_ms, "STOP", "sustained_zero_raw_speed", .6, "MEDIUM",
++             (bounds[1] - bounds[0]) if bounds else None,
++             role="vehicle_stationary_not_proof_of_RED", observation_interval_ms=bounds,
++             stop_location="unknown_relative_to_stop_line")
++
++    durations = [v for v in (track.get("wait_s"),
++                             track.get("stay_duration_millis", 0) / 1000
++                             if _finite_number(track.get("stay_duration_millis", 0)) else None)
++                 if _finite_number(v) and v >= 0]
++    stay_s = max(durations, default=0)
++    candidate = entry_ms + stay_s * 1000
++    bounds = bracket(ds, candidate)
++    before = [s for t, s in speeds if candidate - 3000 <= t < candidate]
++    after = [s for t, s in speeds if candidate <= t <= candidate + 3000]
++    # The old plausible() returns True with <6 speeds: explicitly disallow this.
++    metadata_supported = (
++        stay_s >= 1.5 and stop_ms is not None and stop_ms < candidate
++        and candidate < ds[-1]["millis"] and bounds is not None
++        and bounds[1] - bounds[0] <= CONFIG.max_detection_gap_s * 1000
++        and len(speeds) >= 6 and len(before) >= 2 and len(after) >= 2
++        and statistics.median(before) <= .25 * max(statistics.median(after), 1e-9)
++        and _speed_restart_plausible(ds, candidate / 1000)
++    )
++    if metadata_supported:
++        emit(candidate, "RELEASE", "metadata_dwell_end_restart_supported", .65, "MEDIUM",
++             max(3000, bounds[1] - bounds[0]), role="vehicle_restart_proxy_not_GREEN",
++             observation_interval_ms=bounds, proxy=True,
++             uncertainty_reason="metadata_dwell_anchor_and_restart_sampling_unvalidated")
++    else:
++        if stay_s >= 1.5:
++            stats["unsupported_metadata_restart"] = 1
++        # Existing image-space candidate is a relative motion heuristic. Gaps,
++        # invalid coordinates and missing origin/exit observations invalidate it.
++        coords = [d for d in ds if _finite_number(d.get("centroid_x"))
++                  and _finite_number(d.get("centroid_y"))]
++        if len(coords) == len(ds) and len(ds) >= 14 and incoming and crossing_ms is not None:
++            if max_gap <= CONFIG.max_detection_gap_s * 1000:
++                candidate = _kinematic_release_candidate(ds, entry_ms, ds[-1]["millis"])
++                if candidate is not None:
++                    duration, ts, score, separation = candidate
++                    bounds = bracket(ds, ts * 1000)
++                    emit(ts * 1000, "RELEASE", "kinematic_restart_proxy", min(.65, score),
++                         "MEDIUM", max(1300, (bounds[1] - bounds[0]) if bounds else 0),
++                         role="vehicle_restart_proxy_not_GREEN", proxy=True,
++                         observation_interval_ms=bounds, relative_low_speed_duration_s=duration,
++                         image_speed_separation=separation,
++                         uncertainty_reason="image_motion_restart_and_smoothing_unvalidated")
++    return events, stats
++
++
++def select_permission_events(events):
++    """Per movement: observed restart first, otherwise eligible zone proxy.
++
++    No demand entry substitution. Weak proxy uncertainty remains visible.
++    Timestamp-based HSMM cannot yet consume the full uncertainty distribution.
++    """
++    releases, proxies = defaultdict(list), defaultdict(list)
++    for event in events:
++        if event.event_type == "RELEASE" and event.evidence_quality != "LOW":
++            releases[event.movement].append(event)
++        elif (event.event_type == "CROSSING_PROXY" and event.provenance.get("eligible_proxy")
++              and not event.provenance.get("conflicting_timestamps")
++              and not event.provenance.get("invalid_detections")):
++            proxies[event.movement].append(event)
++    chosen, methods = [], {}
++    for movement in sorted(set(releases) | set(proxies)):
++        values = releases.get(movement) or proxies[movement]
++        chosen.extend(values)
++        methods[movement] = "release_proxy" if releases.get(movement) else "zone_crossing_proxy"
++    return sorted(chosen, key=lambda event: event.timestamp_ms), methods
++
++
++def diagnostics(events, selected, methods, track_stats):
++    weak = sum(e.evidence_quality == "LOW" or e.temporal_uncertainty_ms is None for e in events)
++    selected_weak = sum(e.evidence_quality == "LOW" or e.temporal_uncertainty_ms is None for e in selected)
++    return {"contract_version": 1, "event_type_counts": dict(Counter(e.event_type for e in events)),
++            "event_method_counts": dict(Counter(e.evidence_method for e in events)),
++            "total_events": len(events), "weak_or_unknown_uncertainty_events": weak,
++            "weak_or_unknown_uncertainty_percent": 100 * weak / len(events) if events else None,
++            "selected_event_count": len(selected), "selected_weak_or_unknown_uncertainty_events": selected_weak,
++            "selected_weak_or_unknown_uncertainty_percent": 100 * selected_weak / len(selected) if selected else None,
++            "selection_by_movement": methods, "track_quality_counts": dict(track_stats),
++            "phase_model_receives": "timestamps_of_permission_proxies; NOT_lamp_states",
++            "uncertainty_scope": "heuristic_or_unknown_not_calibrated_lamp_transition_interval"}
+diff --git a/scripts/compare_temporal_evidence.py b/scripts/compare_temporal_evidence.py
+new file mode 100644
+index 0000000..df933a4
+--- /dev/null
++++ b/scripts/compare_temporal_evidence.py
+@@ -0,0 +1,97 @@
++"""Compare frozen 2A and 2B.1 artifacts without fitting or changing evaluation."""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++from pathlib import Path
++
++
++def sha(path):
++    return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++def load_prediction(folder, row):
++    path = folder / row["prediction_file"]
++    if sha(path) != row["prediction_sha256_before_evaluation"]:
++        raise ValueError(f"prediction hash mismatch: {path}")
++    return json.loads(path.read_text(encoding="utf-8"))
++
++
++def event_summary(prediction):
++    extraction = prediction.get("event_extraction", {})
++    quality = extraction.get("quality_diagnostics")
++    if quality is not None:
++        return {k: quality[k] for k in (
++            "event_type_counts", "event_method_counts", "total_events",
++            "weak_or_unknown_uncertainty_events", "weak_or_unknown_uncertainty_percent",
++            "selected_event_count", "selected_weak_or_unknown_uncertainty_percent",
++            "selection_by_movement", "track_quality_counts")}
++    # Legacy extractor emits an entry for each usable track and no STOP/crossing
++    # events. Missing confidence/uncertainty cannot be reconstructed from counts.
++    count = prediction.get("event_count", 0)
++    release = extraction.get("release_evidence_count", 0)
++    return {"event_type_counts": {"ENTRY": count, "RELEASE": release, "STOP": 0,
++                                  "CROSSING": 0, "CROSSING_PROXY": 0},
++            "event_method_counts": {"legacy_main_view": extraction.get("methods", {}),
++                                     "legacy_release_view": extraction.get("release_evidence_methods", {})},
++            "total_events": count + release,
++            "weak_or_unknown_uncertainty_events": None,
++            "weak_or_unknown_uncertainty_percent": None,
++            "weak_percentage_reason": "legacy_packed_streams_lost_per_event_quality_and_uncertainty",
++            "interpretation": "counts_of_emitted_legacy_views_NOT_counts_of_true_vehicle_events"}
++
++
++def compare(before_path, after_path):
++    before = json.loads(before_path.read_text(encoding="utf-8"))
++    after = json.loads(after_path.read_text(encoding="utf-8"))
++    if before["config_sha256"] != after["config_sha256"] or before["config"] != after["config"]:
++        raise ValueError("benchmark configuration changed")
++    old_rows = {r["source_name"]: r for r in before["rows"]}
++    if set(old_rows) != {r["source_name"] for r in after["rows"]}:
++        raise ValueError("source set changed")
++    result = {"before_report_sha256": sha(before_path), "after_report_sha256": sha(after_path),
++              "before_code_commit": before["code"]["git_commit"],
++              "after_code_commit": after["code"]["git_commit"],
++              "same_config_sha256": before["config_sha256"], "rows": [],
++              "interpretation": "one_development_regression_cycle; NOT independent lamp accuracy",
++              "evidence_policy_change": "legacy global entry/release gate -> permission proxy per movement"}
++    for new in after["rows"]:
++        old = old_rows[new["source_name"]]
++        for key in ("source_sha256", "annotation_sha256"):
++            if old.get(key) != new.get(key):
++                raise ValueError(f"input changed: {new['source_name']}/{key}")
++        row = {"source": new["source_name"], "source_sha256": new["source_sha256"],
++               "annotation_sha256": new["annotation_sha256"],
++               "before_status": old["status"], "after_status": new["status"]}
++        for label, entry, folder in (("before", old, before_path.parent), ("after", new, after_path.parent)):
++            if entry["status"] != "ok":
++                row[label] = {"status": "unavailable", "reason": entry.get("reason")}
++                continue
++            prediction = load_prediction(folder, entry)
++            row[label] = {"K": entry["metrics"]["phase_count_match"],
++                          "V10_plan_K": entry["metrics"]["physical_plan_phase_count"],
++                          "period_error_s": entry["metrics"]["period_absolute_error_s"],
++                          "inference_runtime_s": entry["inference_runtime_s"],
++                          "events": event_summary(prediction),
++                          "histories": {name: {"coverage": hist["coverage"],
++                                               "precision": hist["boundaries"]["precision"],
++                                               "recall": hist["boundaries"]["recall"],
++                                               "nearest_boundary_mae_s": hist["boundaries"]["nearest_truth_boundary_mae_s_diagnostic"]}
++                                        for name, hist in entry["metrics"]["histories"].items()}}
++        result["rows"].append(row)
++    return result
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("before", type=Path)
++    parser.add_argument("after", type=Path)
++    parser.add_argument("--out", type=Path, required=True)
++    args = parser.parse_args()
++    report = compare(args.before, args.after)
++    args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/test_vehicle_temporal_evidence.py b/tests/test_vehicle_temporal_evidence.py
+new file mode 100644
+index 0000000..5fa6c6e
+--- /dev/null
++++ b/tests/test_vehicle_temporal_evidence.py
+@@ -0,0 +1,192 @@
++from __future__ import annotations
++
++import copy
++import json
++from types import SimpleNamespace
++
++import pytest
++
++from app.core.temporal_evidence import TemporalEvent, adapt_trajectory_event
++from app.core.v9.events import extract_timing_streams, load_event_streams, _track_event_view
++from app.core.v9.model import _choose_phase_evidence, discover_records
++from app.core.v9.vehicle_evidence import extract_vehicle_evidence, select_permission_events
++
++
++def track(*, stopped=False, movement="N->_S", ident=1):
++    origin, target = movement.split("->")
++    return {"id": ident, "zone_in": origin, "zone_out": target,
++            "stay_duration_millis": 6000 if stopped else 0,
++            "detections": [{"millis": 100000 + t * 1000,
++                            "zone": origin if t < 8 else target,
++                            "speed": 0 if stopped and t < 6 else 10}
++                           for t in range(12)]}
++
++
++def events(record):
++    return extract_vehicle_evidence(record)[0]
++
++
++def test_nonstopping_car_has_demand_and_zone_proxy_not_release_or_true_crossing():
++    values = events(track())
++    assert [e.event_type for e in values] == ["ENTRY", "CROSSING_PROXY"]
++    assert values[0].provenance["role"] == "demand_only"
++    assert values[1].temporal_uncertainty_ms is None
++    assert values[1].provenance["observation_interval_ms"] == [107000, 108000]
++    assert values[1].provenance["sampling_uncertainty_ms"] == 1000
++
++
++def test_stationary_car_and_restart_do_not_imply_stop_line_or_lamp_color():
++    values = events(track(stopped=True))
++    assert {e.event_type for e in values} == {"ENTRY", "STOP", "RELEASE", "CROSSING_PROXY"}
++    release = next(e for e in values if e.event_type == "RELEASE")
++    assert release.timestamp_ms == 106000
++    assert release.temporal_uncertainty_ms >= 1000
++    assert release.provenance["proxy"]
++    stop = next(e for e in values if e.event_type == "STOP")
++    assert stop.provenance["stop_location"] == "unknown_relative_to_stop_line"
++    assert all(not e.provenance["signal_state_observed"] for e in values)
++
++
++def test_queue_discharge_observation_can_lag_configured_green_without_backdating():
++    # External test scenario has green at 103s; vehicle starts at 106s.
++    release = next(e for e in events(track(stopped=True)) if e.event_type == "RELEASE")
++    assert release.timestamp_ms - 103000 == 3000
++    assert "green_timestamp_ms" not in release.provenance
++    assert release.evidence_quality == "MEDIUM"
++
++
++@pytest.mark.parametrize("cause", ["permissive_turn", "accident_cleared_under_unchanged_signal"])
++def test_indistinguishable_restart_does_not_invent_green_or_cause(cause):
++    record = track(stopped=True, movement="N->_E")
++    record["scenario_note"] = cause
++    values = events(record)
++    assert next(e for e in values if e.event_type == "RELEASE").movement == "N->E"
++    assert all("cause" not in e.provenance and not e.provenance["signal_state_observed"] for e in values)
++    assert {e.event_type for e in values} <= {"ENTRY", "STOP", "RELEASE", "CROSSING_PROXY"}
++
++
++def test_sparse_metadata_without_observed_restart_is_not_confident_release():
++    record = track(stopped=True)
++    record["detections"] = [record["detections"][0], record["detections"][-1]]
++    # Existing V9 returns True for insufficient speed support, hence 0.9 release.
++    assert _track_event_view(record)[2][4] == .9
++    assert not any(e.event_type == "RELEASE" for e in events(record))
++    assert select_permission_events(events(record))[0] == []  # 11s gap also rejects zone proxy.
++
++
++def test_missing_detections_do_not_bridge_gap_into_restart_or_crossing():
++    record = track(stopped=True)
++    record["detections"] = [d for d in record["detections"] if d["millis"] not in {104000, 105000, 106000, 107000}]
++    values = events(record)
++    assert not any(e.event_type == "RELEASE" for e in values)
++    assert all(e.event_type != "CROSSING" for e in values)
++    assert select_permission_events(values)[0] == []
++
++
++def test_duplicate_detections_and_tracks_are_counted_once_and_audited():
++    record = track(stopped=True)
++    record["detections"].insert(2, copy.deepcopy(record["detections"][1]))
++    bundle = extract_timing_streams([record, copy.deepcopy(record)])
++    assert bundle[9] == 1
++    assert bundle.diagnostics["track_quality_counts"]["duplicate_tracks"] == 1
++    assert bundle.diagnostics["track_quality_counts"]["duplicate_detections"] == 1
++    assert bundle.diagnostics["event_type_counts"]["ENTRY"] == 1
++
++
++def test_missing_ids_with_same_start_do_not_collapse_different_tracks():
++    a, b = track(ident=None), track(ident=None)
++    b["detections"][-1]["millis"] += 1000
++    assert extract_timing_streams([a, b])[9] == 2
++
++
++def test_conflicting_duplicate_timestamp_is_not_arbitrarily_chosen():
++    record = track()
++    altered = copy.deepcopy(record["detections"][5])
++    altered["speed"] = 999
++    record["detections"].append(altered)
++    bundle = extract_timing_streams([record])
++    assert bundle.diagnostics["track_quality_counts"]["conflicting_timestamps"] == 1
++    assert not bundle.permission_streams
++    assert all(e.evidence_quality == "LOW" for e in bundle.temporal_events)
++
++
++@pytest.mark.parametrize("shape", ["single_point", "no_origin", "no_exit", "invalid_time"])
++def test_short_truncated_or_invalid_tracks_remain_demand_only(shape):
++    record = track()
++    if shape == "single_point":
++        record["detections"] = record["detections"][:1]
++    elif shape == "no_origin":
++        record["detections"] = record["detections"][8:]
++    elif shape == "no_exit":
++        record["detections"] = record["detections"][:8]
++    else:
++        record["detections"] = [{"millis": float("nan"), "zone": "N"}]
++    values = events(record)
++    assert not select_permission_events(values)[0]
++    assert not any(e.event_type in {"RELEASE", "CROSSING"} for e in values)
++
++
++def test_absence_of_demand_or_permission_returns_explicit_unknown_not_entry_fallback():
++    assert extract_vehicle_evidence({"zone_in": "N", "zone_out": "_S", "detections": []})[0] == []
++    chosen, method = _choose_phase_evidence({"N->S": [1, 2]}, {}, 2)
++    assert chosen == {} and method == "permission_per_stream"
++    with pytest.raises(ValueError, match="demand only.*UNKNOWN"):
++        discover_records([{**track(), "detections": track()["detections"][:1]}])
++
++
++def test_sparse_releases_cannot_globally_switch_other_stream_to_demand():
++    a = track(stopped=True, movement="N->_S")
++    b = track(movement="E->_W", ident=2)
++    bundle = extract_timing_streams([a, b])
++    assert bundle.diagnostics["selection_by_movement"] == {
++        "E->W": "zone_crossing_proxy", "N->S": "release_proxy"}
++    assert list(bundle.permission_streams["N->S"]) == [6]
++    assert list(bundle.permission_streams["E->W"]) == [8]
++    chosen, _ = _choose_phase_evidence(bundle[0], bundle.permission_streams, bundle[9])
++    assert list(chosen["N->S"]) == [6]
++    legacy, method = _choose_phase_evidence(bundle[0], bundle[2], bundle[9], evidence_policy="legacy_v9")
++    assert method == "mixed_release_or_entry" and list(legacy["N->S"]) == [0]
++
++
++def test_sidecar_roundtrip_preserves_source_uncertainty_and_selected_identity(tmp_path):
++    record = track(stopped=True)
++    path = tmp_path / "cars.json"
++    path.write_text(json.dumps([record]), encoding="utf-8")
++    bundle = load_event_streams(path)
++    assert len(bundle) == 10 and type(bundle[0]["N->S"]).__name__ == "array"
++    serial = json.loads(json.dumps([e.to_dict() for e in bundle.temporal_events]))
++    selected = serial[bundle.diagnostics["selected_event_indices"][0]]
++    assert selected["source_track_id"] == 1
++    assert selected["provenance"]["source"] == "cars.json"
++    assert selected["evidence_method"] == "metadata_dwell_end_restart_supported"
++    assert selected["temporal_uncertainty_ms"] == 3000
++    assert "NOT_lamp_probability" in selected["provenance"]["confidence_semantics"]
++    legacy = load_event_streams(path, evidence_policy="legacy_v9")
++    assert len(legacy) == 10 and not hasattr(legacy, "temporal_events")
++
++
++def test_shared_extractor_crossing_enum_never_implies_verified_stop_line():
++    legacy = SimpleNamespace(event_type="CROSSING", timestamp_ms=1000,
++                             movement="N->S", confidence=.9, quality="HIGH")
++    proxy = adapt_trajectory_event(legacy, source_track_id=1, evidence_method="zone", provenance={})
++    assert proxy.event_type == "CROSSING_PROXY" and proxy.temporal_uncertainty_ms is None
++    actual = adapt_trajectory_event(legacy, source_track_id=1, evidence_method="configured_geometry",
++                                    provenance={"verified_stop_line": True}, temporal_uncertainty_ms=500)
++    assert actual.event_type == "CROSSING"
++    with pytest.raises(ValueError, match="verified stop-line"):
++        TemporalEvent(1000, "CROSSING", "N->S", 1, "unknown", .9, "HIGH", 0, {})
++
++
++def test_model_receives_lossless_sidecar_before_phase_fit(monkeypatch):
++    import app.core.v9.model as model
++    received = {}
++    def capture(*args, **kwargs):
++        received.update(kwargs)
++        return {"captured": True}
++    monkeypatch.setattr(model, "_discover_from_stream_views", capture)
++    assert model.discover_records([track(stopped=True)]) == {"captured": True}
++    assert received["evidence_policy"] == "permission_per_stream"
++    assert received["temporal_events"]
++    assert list(received["permission_streams"]["N->S"]) == [6]
++    selected = received["evidence_diagnostics"]["selected_event_indices"]
++    assert received["temporal_events"][selected[0]].evidence_method == "metadata_dwell_end_restart_supported"

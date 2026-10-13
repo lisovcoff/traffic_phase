@@ -1,0 +1,145 @@
+diff --git a/app/core/temporal_evidence.py b/app/core/temporal_evidence.py
+index 001e47f..0ecaa1a 100644
+--- a/app/core/temporal_evidence.py
++++ b/app/core/temporal_evidence.py
+@@ -35,7 +35,39 @@ class TemporalEvent:
+             raise ValueError("actual CROSSING requires verified stop-line provenance")
+ 
+     def to_dict(self):
+-        return asdict(self)
++        result = asdict(self)
++        interval = self.provenance.get("observation_interval_ms")
++        result["temporal_uncertainty_ms_scope"] = "vehicle_event_unvalidated_heuristic_only"
++        result["uncertainty"] = {
++            "vehicle_event": {
++                "sampling_interval_ms": interval,
++                "sampling_interval_width_ms": interval[1] - interval[0] if interval else None,
++                "heuristic_localization_radius_ms": self.temporal_uncertainty_ms,
++                "calibrated": False,
++                "statistical_error_bound": False,
++            },
++            "event_to_signal_switch": {
++                "status": "UNKNOWN",
++                "uncertainty_ms": None,
++                "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
++            },
++        }
++        return result
++
++
++class EvidenceUnavailable(ValueError):
++    """Machine-readable abstention, retaining ValueError compatibility.
++
++    No phase schedule or K is constructed; consumers may persist to_dict().
++    This is not a fabricated detector result for an empty recording.
++    """
++    def __init__(self, message, *, reason_code):
++        super().__init__(message)
++        self.reason_code = reason_code
++
++    def to_dict(self):
++        return {"status": "unavailable", "state": "UNKNOWN", "reason_code": self.reason_code,
++                "reason": str(self), "phase_count": None, "schedule": None}
+ 
+ 
+ def adapt_trajectory_event(event, *, source_track_id, evidence_method, provenance,
+diff --git a/app/core/v9/events.py b/app/core/v9/events.py
+index 7fdbd9f..9a5e09f 100644
+--- a/app/core/v9/events.py
++++ b/app/core/v9/events.py
+@@ -10,7 +10,7 @@ from pathlib import Path
+ from typing import Dict, List, Optional, Sequence
+ import numpy as np
+ from scipy.ndimage import gaussian_filter1d
+-from app.core.temporal_evidence import EventStreamBundle
++from app.core.temporal_evidence import EventStreamBundle, EvidenceUnavailable
+ 
+ from .primitives import norm_zone, _speed_restart_plausible
+ from .fit import anonymous_phase_name
+@@ -423,7 +423,8 @@ def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _
+     temporal.sort(key=lambda e: (e.timestamp_ms, e.event_type, e.movement))
+     entries = [e for e in temporal if e.event_type == "ENTRY"]
+     if not entries:
+-        raise ValueError("no usable demand or permission events; evidence is UNKNOWN")
++        raise EvidenceUnavailable("no usable demand or permission events; evidence is UNKNOWN",
++                                  reason_code="NO_USABLE_DEMAND_EVIDENCE")
+     base = min(e.timestamp_ms for e in entries)
+     selected, methods = select_permission_events(temporal)
+ 
+diff --git a/app/core/v9/model.py b/app/core/v9/model.py
+index f88c488..0904e18 100644
+--- a/app/core/v9/model.py
++++ b/app/core/v9/model.py
+@@ -28,6 +28,7 @@ from .events import (
+ )
+ from .evaluate import evaluate
+ from app.core.v10.automatic_physical import infer_physical_signal_plan
++from app.core.temporal_evidence import EvidenceUnavailable
+ 
+ def _discover_from_event_views(
+     events,
+@@ -632,7 +633,8 @@ def _discover_from_stream_views(
+         evidence_policy=evidence_policy,
+     )
+     if not phase_evidence:
+-        raise ValueError("insufficient movement-permission evidence; entry is demand only, phase UNKNOWN")
++        raise EvidenceUnavailable("insufficient movement-permission evidence; entry is demand only, phase UNKNOWN",
++                                  reason_code="NO_PERMISSION_EVIDENCE")
+     if evidence_policy == "permission_per_stream":
+         end_s = max(end_s, max(max(float(v) for v in values) for values in phase_evidence.values() if len(values)))
+     x, names = build_occupancy_matrix(
+@@ -922,7 +924,7 @@ def discover_records(
+     evidence_policy: str = "permission_per_stream",
+ ) -> dict[str, object]:
+     if not tracks:
+-        raise ValueError("no trajectory records supplied")
++        raise EvidenceUnavailable("no trajectory records supplied", reason_code="NO_TRAJECTORY_RECORDS")
+     if evidence_policy == "permission_per_stream":
+         bundle = extract_timing_streams(tracks)
+         return _discover_bundle(bundle, input_name=input_name, dt=dt, marks_path=marks_path,
+diff --git a/tests/test_temporal_evidence_contract_diagnostics.py b/tests/test_temporal_evidence_contract_diagnostics.py
+new file mode 100644
+index 0000000..b313990
+--- /dev/null
++++ b/tests/test_temporal_evidence_contract_diagnostics.py
+@@ -0,0 +1,40 @@
++import json
++
++import pytest
++
++from app.core.temporal_evidence import EvidenceUnavailable, TemporalEvent
++from app.core.v9.model import discover_records
++
++
++@pytest.mark.parametrize("radius", [1300, 3000, None])
++def test_vehicle_radius_does_not_bound_signal_switch(radius):
++    event = TemporalEvent(5000, "RELEASE", "N->S", 1, "proxy", .65, "MEDIUM", radius,
++                          {"observation_interval_ms": [4900, 5000], "verified_stop_line": False})
++    result = json.loads(json.dumps(event.to_dict()))
++    assert result["uncertainty"]["vehicle_event"]["sampling_interval_width_ms"] == 100
++    assert result["uncertainty"]["vehicle_event"]["heuristic_localization_radius_ms"] == radius
++    assert result["uncertainty"]["vehicle_event"]["statistical_error_bound"] is False
++    assert result["uncertainty"]["event_to_signal_switch"]["uncertainty_ms"] is None
++    assert result["uncertainty"]["event_to_signal_switch"]["status"] == "UNKNOWN"
++
++
++def test_no_permission_has_structured_unknown_without_phase_fitting(monkeypatch):
++    import app.core.v9.model as model
++    def forbidden_fit(*args, **kwargs):
++        pytest.fail("phase fitting must not run without permission evidence")
++    monkeypatch.setattr(model, "discover_phase_count", forbidden_fit)
++    with pytest.raises(EvidenceUnavailable) as caught:
++        discover_records([{"id": 1, "zone_in": "N", "zone_out": "S",
++                           "detections": [{"millis": 1000, "zone": "N", "speed": 10}]}])
++    result = caught.value.to_dict()
++    assert result["status"] == "unavailable"
++    assert result["state"] == "UNKNOWN"
++    assert result["reason_code"] == "NO_PERMISSION_EVIDENCE"
++    assert result["phase_count"] is None and result["schedule"] is None
++
++
++def test_no_demand_has_separate_machine_code():
++    with pytest.raises(EvidenceUnavailable) as caught:
++        discover_records([])
++    assert caught.value.to_dict()["reason_code"] == "NO_TRAJECTORY_RECORDS"
++    assert isinstance(caught.value, ValueError)
