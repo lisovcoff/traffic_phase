@@ -20,6 +20,7 @@ from .fit import (
 from .events import (
     extract_event_views,
     load_event_streams,
+    extract_timing_streams,
     _recording_start_ms,
     periodic_baseline_from_segments,
     _phase_duration_targets_from_baseline,
@@ -39,6 +40,7 @@ def _discover_from_event_views(
     marks_path: Optional[Path] = None,
     recording_start_ms: float | None = None,
     trajectory_count: int = 0,
+    evidence_policy: str = "legacy_v9",
 ):
     if not events:
         raise ValueError("no traffic events supplied")
@@ -70,6 +72,7 @@ def _discover_from_event_views(
         analysis_base_ms=float(events[0][0]),
         trajectory_count=trajectory_count,
         event_count=len(events),
+        evidence_policy=evidence_policy,
     )
 
 def _slice_streams(streams, start_s: float, end_s: float):
@@ -97,6 +100,7 @@ def _regime_phase_structure(
     *,
     period: float,
     window_s: float,
+    evidence_policy: str = "permission_per_stream",
 ) -> dict[str, object] | None:
     """Fit phase structure for one local regime window.
 
@@ -113,6 +117,7 @@ def _regime_phase_structure(
         by_stream,
         release_streams,
         event_count,
+        evidence_policy=evidence_policy,
     )
     end_s = max(
         (
@@ -254,6 +259,7 @@ def _local_regime_selection(
     *,
     window_s: float = 3600.0,
     min_events: int = 120,
+    evidence_policy: str = "permission_per_stream",
 ):
     if total_end_s < 2.0 * window_s:
         return None
@@ -283,6 +289,7 @@ def _local_regime_selection(
                 release_window,
                 period=float(period),
                 window_s=window_s,
+                evidence_policy=evidence_policy,
             )
             if phase_structure is None:
                 selected_phase_count = None
@@ -393,7 +400,14 @@ def _local_regime_selection(
     )
 
 
-def _choose_phase_evidence(by_stream, release_streams, event_count: int):
+def _choose_phase_evidence(by_stream, release_streams, event_count: int,
+                           *, evidence_policy="permission_per_stream"):
+    if evidence_policy == "permission_per_stream":
+        # The adapter has selected release/zone proxies per movement. Never
+        # replace missing permission evidence with input-zone demand timestamps.
+        return {m: values for m, values in release_streams.items() if len(values)}, "permission_per_stream"
+    if evidence_policy != "legacy_v9":
+        raise ValueError("unknown evidence policy")
     release_events = sum(len(values) for values in release_streams.values())
     active_streams = sum(bool(values) for values in by_stream.values())
     release_stream_count = sum(bool(values) for values in release_streams.values())
@@ -547,11 +561,16 @@ def _discover_from_stream_views(
     trajectory_count: int = 0,
     event_count: int | None = None,
     source_files=None,
+    permission_streams=None,
+    temporal_events=(),
+    evidence_diagnostics=None,
+    evidence_policy: str = "permission_per_stream",
 ):
     if not by_stream:
         raise ValueError("no traffic events supplied")
     if release_streams is None:
         release_streams = {}
+    effective_permissions = release_streams if permission_streams is None else permission_streams
     original_end_s = max(
         max(float(value) for value in ts)
         for ts in by_stream.values()
@@ -560,13 +579,14 @@ def _discover_from_stream_views(
     regime_detection = None
     working_by_stream = by_stream
     working_entry_streams = entry_streams
-    working_release_streams = release_streams
+    working_release_streams = effective_permissions
     if original_end_s >= 7200.0:
         regime_payload = _local_regime_selection(
             by_stream,
             entry_streams,
-            release_streams,
+            effective_permissions,
             original_end_s,
+            evidence_policy=evidence_policy,
         )
         if regime_payload is not None:
             regime_detection, (
@@ -609,7 +629,12 @@ def _discover_from_stream_views(
         working_by_stream,
         working_release_streams,
         working_event_count,
+        evidence_policy=evidence_policy,
     )
+    if not phase_evidence:
+        raise ValueError("insufficient movement-permission evidence; entry is demand only, phase UNKNOWN")
+    if evidence_policy == "permission_per_stream":
+        end_s = max(end_s, max(max(float(v) for v in values) for values in phase_evidence.values() if len(values)))
     x, names = build_occupancy_matrix(
         phase_evidence,
         end_s,
@@ -665,10 +690,8 @@ def _discover_from_stream_views(
     )
 
     if regime_detection is not None:
-        archive_phase_evidence = (
-            release_streams
-            if phase_evidence_method == "release_only"
-            else by_stream
+        archive_phase_evidence = effective_permissions if evidence_policy == "permission_per_stream" else (
+            release_streams if phase_evidence_method == "release_only" else by_stream
         )
         phase_anchor_calibration = _calibrate_phase_anchor(
             archive_phase_evidence,
@@ -734,6 +757,10 @@ def _discover_from_stream_views(
             ),
         ),
         "event_extraction": {
+            "evidence_policy": evidence_policy,
+            "temporal_evidence_contract": 1 if temporal_events else None,
+            "temporal_events": [event.to_dict() for event in temporal_events],
+            "quality_diagnostics": evidence_diagnostics,
             "methods": method_counts,
             "release_evidence_count": int(
                 sum(release_method_counts.values())
@@ -762,8 +789,17 @@ def _discover_from_stream_views(
         "phase_redundancy": phase_redundancy,
         "phase_evidence": {
             "source": phase_evidence_method,
+            "selection_scope": "per_movement" if evidence_policy == "permission_per_stream" else "legacy_global_gate",
+            "demand_entries_used_for_phase_evidence": phase_evidence_method == "mixed_release_or_entry",
+            "excluded_movements_without_permission": sorted(set(working_by_stream) - set(phase_evidence)),
+            "permission_event_count": int(sum(len(values) for values in phase_evidence.values())),
             "release_event_count": int(
-                sum(len(values) for values in working_release_streams.values())
+                sum(len(values) for values in (
+                    _slice_streams(release_streams,
+                                   float(regime_detection["selected_window_start_s"]),
+                                   float(regime_detection["selected_window_end_s"]))
+                    if regime_detection is not None else release_streams
+                ).values())
             ),
         },
         "phase_model_selection": {
@@ -883,9 +919,16 @@ def discover_records(
     input_name: str = "records",
     dt: float = 1.0,
     marks_path: Optional[Path] = None,
+    evidence_policy: str = "permission_per_stream",
 ) -> dict[str, object]:
     if not tracks:
         raise ValueError("no trajectory records supplied")
+    if evidence_policy == "permission_per_stream":
+        bundle = extract_timing_streams(tracks)
+        return _discover_bundle(bundle, input_name=input_name, dt=dt, marks_path=marks_path,
+                                evidence_policy=evidence_policy)
+    if evidence_policy != "legacy_v9":
+        raise ValueError("unknown evidence policy")
     recording_start_ms = float(_recording_start_ms(tracks))
     events, entry_events, release_evidence, method_counts = extract_event_views(tracks)
     return _discover_from_event_views(
@@ -906,6 +949,7 @@ def discover_path(
     *,
     dt: float = 1.0,
     marks_path: Optional[Path] = None,
+    evidence_policy: str = "permission_per_stream",
 ) -> dict[str, object]:
     path = Path(path)
     if path.is_file() and path.suffix.lower() not in {".json", ".zip"}:
@@ -913,18 +957,25 @@ def discover_path(
     if path.is_dir() and not path.exists():
         raise FileNotFoundError(path)
 
+    bundle = load_event_streams(path, evidence_policy=evidence_policy)
+    return _discover_bundle(bundle, input_name=str(path), dt=dt, marks_path=marks_path,
+                            evidence_policy=evidence_policy,
+                            source_files=[str(path)] if path.is_file() else bundle[5])
+
+
+def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None):
     (
         by_stream,
         entry_streams,
         release_streams,
         method_counts,
         release_method_counts,
-        source_files,
+        _bundle_files,
         recording_start_ms,
         analysis_base_ms,
         trajectory_count,
         event_count,
-    ) = load_event_streams(path)
+    ) = bundle
 
     return _discover_from_stream_views(
         by_stream,
@@ -932,16 +983,16 @@ def discover_path(
         method_counts,
         release_method_counts,
         release_streams=release_streams,
-        input_name=str(path),
+        input_name=input_name,
         dt=dt,
         marks_path=marks_path,
         recording_start_ms=recording_start_ms,
         analysis_base_ms=analysis_base_ms,
         trajectory_count=trajectory_count,
         event_count=event_count,
-        source_files=(
-            [str(path)]
-            if path.is_file()
-            else source_files
-        ),
+        source_files=source_files,
+        permission_streams=getattr(bundle, "permission_streams", None),
+        temporal_events=getattr(bundle, "temporal_events", ()),
+        evidence_diagnostics=getattr(bundle, "diagnostics", None),
+        evidence_policy=evidence_policy,
     )

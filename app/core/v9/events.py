@@ -5,11 +5,12 @@ import itertools
 import codecs
 import zipfile
 from array import array
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
+from app.core.temporal_evidence import EventStreamBundle
 
 from .primitives import norm_zone, _speed_restart_plausible
 from .fit import anonymous_phase_name
@@ -240,6 +241,7 @@ def _track_event_view(tr, ds=None):
 
 
 def load_event_views(path: Path):
+    """Legacy tuple views; lossless canonical ingestion is load_event_streams()."""
     main_events, entry_events, release_evidence = [], [], []
     method_counts = defaultdict(int)
     files = []
@@ -290,7 +292,7 @@ def load_event_views(path: Path):
     )
 
 
-def load_event_streams(path: Path):
+def _load_event_streams_legacy(path: Path):
     """
     Stream a source into the compact representation consumed by V9 discovery.
 
@@ -382,6 +384,71 @@ def load_event_streams(path: Path):
         int(trajectory_count),
         int(event_count),
     )
+
+def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _records=None):
+    """Keep packed tuple compatibility, with lossless vehicle evidence sidecar.
+
+    Legacy policy is explicit and uses the historical extractor/selection rules.
+    The default never replaces movement-permission evidence with demand entries.
+    """
+    if evidence_policy == "legacy_v9":
+        if _records is not None:
+            raise ValueError("legacy records use extract_event_views")
+        return _load_event_streams_legacy(path)
+    if evidence_policy != "permission_per_stream":
+        raise ValueError("unknown evidence policy")
+    from .vehicle_evidence import extract_vehicle_evidence, select_permission_events, diagnostics
+    temporal, files, seen = [], [], set()
+    stats = Counter()
+    trajectory_count, recording_start = 0, None
+    sources = [("records", iter(_records))] if _records is not None else _iter_source_records(Path(path))
+    for source_name, records in sources:
+        files.append(source_name)
+        for track in records:
+            trajectory_count += 1
+            events, quality_stats = extract_vehicle_evidence(track, source_name=source_name)
+            if not events:
+                stats.update(quality_stats)
+                stats["tracks_without_usable_events"] += 1
+                continue
+            key = events[0].provenance["track_fingerprint"]
+            if key in seen:
+                stats["duplicate_tracks"] += 1
+                continue
+            seen.add(key)
+            stats.update(quality_stats)
+            start = events[0].provenance["track_range_ms"][0]
+            recording_start = min(recording_start, start) if recording_start is not None else start
+            temporal.extend(events)
+    temporal.sort(key=lambda e: (e.timestamp_ms, e.event_type, e.movement))
+    entries = [e for e in temporal if e.event_type == "ENTRY"]
+    if not entries:
+        raise ValueError("no usable demand or permission events; evidence is UNKNOWN")
+    base = min(e.timestamp_ms for e in entries)
+    selected, methods = select_permission_events(temporal)
+
+    def packed(events):
+        absolute = defaultdict(list)
+        for e in events:
+            absolute[e.movement].append((e.timestamp_ms - base) / 1000)
+        return {m: array('d', sorted(values)) for m, values in absolute.items()}
+
+    entry_streams = packed(entries)
+    releases = [e for e in temporal if e.event_type == "RELEASE" and e.evidence_quality != "LOW"]
+    diag = diagnostics(temporal, selected, methods, stats)
+    selected_ids = {id(e) for e in selected}
+    diag["selected_event_indices"] = [i for i, e in enumerate(temporal) if id(e) in selected_ids]
+    return EventStreamBundle((entry_streams, entry_streams, packed(releases),
+                              dict(Counter(e.evidence_method for e in entries)),
+                              dict(Counter(e.evidence_method for e in releases)),
+                              files, recording_start, float(base), trajectory_count, len(entries)),
+                             temporal_events=temporal, permission_streams=packed(selected), diagnostics=diag)
+
+
+def extract_timing_streams(tracks):
+    """Use the same streaming adapter for in-memory discovery without a second solver."""
+    return load_event_streams(Path("records"), _records=tracks)
+
 
 def load_tracks(
     path: Path,
@@ -571,6 +638,7 @@ def _kinematic_release_candidate(ds, entry_ms, exit_ms):
     return max(candidates, key=lambda q: (q[2], q[0], -q[1])) if candidates else None
 
 def extract_event_views(tracks):
+    """Legacy tuple adapter retained for evidence_policy='legacy_v9'."""
     main_events, entry_events = [], []
     release_evidence = []
     method_counts = defaultdict(int)
