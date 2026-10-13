@@ -1,0 +1,63 @@
+{
+  "runtime_s": 5.492778600018937,
+  "prediction_sha256": "1f4bdd98dc01131a8d0ff04b1c181c001684edba3125053bb1f439a04f03fc38",
+  "input_event_sha256": "657bd91506bf4f00c78d6eff1f565190ef63a4db0b2fbbebe3b9a86e8bd59e59",
+  "occupancy_shape": [
+    3657,
+    11
+  ],
+  "candidates": [
+    {
+      "k": 2,
+      "objective": -3663.2464523795056,
+      "approx_bic": 7559.743365959862,
+      "parameter_count": 22,
+      "segment_count": 74,
+      "median_segment_duration_s": 38.0,
+      "mean_segment_duration_s": 49.41891891891892,
+      "supported_phase_count": 2,
+      "unsupported_phase_count": 0,
+      "phase_support_by_phase": {
+        "0": 1,
+        "1": 1
+      },
+      "phase_contrast_by_phase": {
+        "0": 0.12520599901676177,
+        "1": 0.13092083275318145
+      },
+      "recurrent_complexity_penalty": 0.0,
+      "selection_score": 7559.743365959862,
+      "topology_cap_applied": true,
+      "degenerate_phase_model": false,
+      "phase_support_penalty": 0.0
+    },
+    {
+      "k": 3,
+      "objective": -3632.0521557159373,
+      "approx_bic": 7613.9800032331505,
+      "parameter_count": 33,
+      "segment_count": 111,
+      "median_segment_duration_s": 36.0,
+      "mean_segment_duration_s": 32.945945945945944,
+      "supported_phase_count": 3,
+      "unsupported_phase_count": 0,
+      "phase_support_by_phase": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "phase_contrast_by_phase": {
+        "0": 0.1509036076068878,
+        "1": 0.1257142925262451,
+        "2": 0.12234370119869709
+      },
+      "recurrent_complexity_penalty": 182.8193880648053,
+      "selection_score": 7796.7993912979555,
+      "topology_cap_applied": true,
+      "degenerate_phase_model": false,
+      "phase_support_penalty": 0.0
+    }
+  ],
+  "raw_selected_k": 2,
+  "common_extent_s": 3656.214
+}

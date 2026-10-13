@@ -1,0 +1,698 @@
+{
+  "base_branch": "fix/stage2b1-temporal-evidence-20261013",
+  "base_head_sha": "afcfaa2b38e106201d7e819570425acfc4c5487f",
+  "runner_head_sha": "9bbaeeb4268464ea90a16406bc95d8a73ee76062",
+  "runner_sha256": "29366499c62fb5e50b814e8d57c0695a1d660f11aac6bbe9a1b546cb45daf6d5",
+  "production_git_blob_hashes": {
+    "app/core/v9/model.py": "13dc327c89ff6a72e775a50cb712f4af8ff8b1120fe7fa1863476c45d26d3412",
+    "app/core/v9/fit.py": "73fd2b9682a5e3cce780e3bd61cf3d477199403996babe4512e5738f46be94d8",
+    "app/core/v9/decoder.py": "d0b9b4b0e8d65c258b8064d726bf56069fe3028ae6bfb1e9c9ec7e319426815b",
+    "app/core/v9/primitives.py": "705ed6a12c9e219e44e6dbedca06f03dbb1c5b7ee0d209e7bf37b9d6639a8627",
+    "app/core/v9/events.py": "9aae97048b34c3b05fb3c9477ff48b805b7964052d768a4629e6ca850e52644a",
+    "app/core/v9/vehicle_evidence.py": "28022ecb3045ae51a92c1bd0ab42916866307522995946cc3f9ea83fec6242c3",
+    "app/core/v10/automatic_physical.py": "a6f47f28253618f6b3ddd79a5ffe355fa641bc110269f8c0778819baf56ca2b3",
+    "app/core/v10/semantic_mapping.py": "0d79e366dd1115054bc663c9fa15c7827119b6db13d486f20fc44dcb32b537fa",
+    "app/core/temporal_evidence.py": "18f768fdd08c3afb701120af20a43f49b91c1c177ef609ed2e7cdc9f97d6d7cc",
+    "app/core/offline_benchmark.py": "80b6bea1f7f754653122c98accd0977b44e213e2ff5d2240ddf2a895d6ab1448"
+  },
+  "source": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\6_2025_2_14_20.json",
+  "source_sha256": "57d04137cc1d8383d89edbd4a88084c1a874f8ee7e6eb2d206954624c2753651",
+  "reference_prediction_sha256": "97e0eab523cc3836b3592212680bb06289849e974701297e5a1589cfe3c82f85",
+  "common_sha256": "449160b47419d15022c2aa1dbc22bc51a51f62eb76c33554adce676cdc270fae",
+  "fixed_config": {
+    "anchor_ms": 1739545137142.0,
+    "recording_start_ms": 1739545136544.0,
+    "period_s": 99.99524773335186,
+    "extent_s": 3656.214,
+    "dt_s": 1.0,
+    "seed": 0
+  },
+  "model_defaults": "(x, by_stream_global, period, kmin=2, kmax=6, dt=1.0, extra_phase_penalty_per_cycle: 'float' = 5.0, recording_end_s: 'Optional[float]' = None, entry_streams=None, topology_streams=None)",
+  "environment": {
+    "PYTHONHASHSEED": "0",
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "packages": {
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "scikit-learn": "1.8.0"
+  },
+  "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "reproduction_fields": [
+    "schedule",
+    "phase_model_selection",
+    "period_inference",
+    "physical_signal_plan",
+    "analysis_base_timestamp_ms",
+    "event_base_timestamp_ms",
+    "schedule_base_timestamp_ms",
+    "recording_start_timestamp_ms",
+    "recording_duration_s",
+    "anomaly_detection"
+  ],
+  "reproduction_numeric_rule": "exact JSON values",
+  "max_fitting_invocations": 4,
+  "timeout_per_variant_s": 90,
+  "annotations_access": "evaluate command only, after all prediction hashes sealed",
+  "boundary_tolerance_s": 2.0,
+  "extent_adapter": "same occupancy extent, K recording_end_s and baseline extent for all variants; functions otherwise delegated unchanged",
+  "variants": {
+    "A": {
+      "description": "saved permission_per_stream selected evidence; control",
+      "events_sha256": "9f184f192d5b2bb2601fdf74481483b0a4f8088a5d9cebe1daae3de006d25979",
+      "composition": {
+        "E->N": {
+          "count": 7,
+          "types": {
+            "RELEASE": 7
+          },
+          "methods": {
+            "kinematic_restart_proxy": 7
+          },
+          "range_ms": [
+            1739545678612.0,
+            1739548293622.0
+          ],
+          "canonical_event_sha256": "c15f86c98ccd4ab8967be2927168450d23531ab0869dc060087349dd95145ca1"
+        },
+        "E->S": {
+          "count": 145,
+          "types": {
+            "RELEASE": 145
+          },
+          "methods": {
+            "kinematic_restart_proxy": 145
+          },
+          "range_ms": [
+            1739545176485.0,
+            1739548768666.0
+          ],
+          "canonical_event_sha256": "5ad9945a899e570bc85b01d014e034fa2bd95accb88f1906be905612744024e2"
+        },
+        "E->W": {
+          "count": 26,
+          "types": {
+            "RELEASE": 26
+          },
+          "methods": {
+            "kinematic_restart_proxy": 26
+          },
+          "range_ms": [
+            1739545268259.0,
+            1739548705667.0
+          ],
+          "canonical_event_sha256": "df461ce2e1ba18bb8f544578ed3ff5de58607f0c6e0931a1c35f462cc5f8bcc3"
+        },
+        "N->E": {
+          "count": 31,
+          "types": {
+            "RELEASE": 31
+          },
+          "methods": {
+            "kinematic_restart_proxy": 31
+          },
+          "range_ms": [
+            1739545270897.0,
+            1739548793356.0
+          ],
+          "canonical_event_sha256": "456763f849131a6b6f6217b860877fd7667f4936d430da3d13d6c66d288ca4d4"
+        },
+        "N->S": {
+          "count": 204,
+          "types": {
+            "RELEASE": 204
+          },
+          "methods": {
+            "kinematic_restart_proxy": 204
+          },
+          "range_ms": [
+            1739545270768.0,
+            1739548780403.0
+          ],
+          "canonical_event_sha256": "d5f3b9f27d3857d9765d304696a1c8b0a865fd3f211c5679f0578a282fbfa29e"
+        },
+        "N->W": {
+          "count": 85,
+          "types": {
+            "RELEASE": 85
+          },
+          "methods": {
+            "kinematic_restart_proxy": 85
+          },
+          "range_ms": [
+            1739545271611.0,
+            1739548771288.0
+          ],
+          "canonical_event_sha256": "e4bb531f89aa777dc3f4379e09a39edeb90f805ed508739f586d3b0c026029c6"
+        },
+        "S->N": {
+          "count": 1,
+          "types": {
+            "RELEASE": 1
+          },
+          "methods": {
+            "kinematic_restart_proxy": 1
+          },
+          "range_ms": [
+            1739545697809.0,
+            1739545697809.0
+          ],
+          "canonical_event_sha256": "fd74b37283df189075f78d45e3e18c84428577aaf861c783c9f37a5e554711e0"
+        },
+        "S->W": {
+          "count": 18,
+          "types": {
+            "RELEASE": 18
+          },
+          "methods": {
+            "kinematic_restart_proxy": 18
+          },
+          "range_ms": [
+            1739545298598.0,
+            1739548193826.0
+          ],
+          "canonical_event_sha256": "3cdee873c33da628dedbcd454c768806be7bbc2827f6c43b2376d7a4fa0286f3"
+        },
+        "W->E": {
+          "count": 386,
+          "types": {
+            "RELEASE": 386
+          },
+          "methods": {
+            "kinematic_restart_proxy": 386
+          },
+          "range_ms": [
+            1739545200832.0,
+            1739548760252.0
+          ],
+          "canonical_event_sha256": "0efaad43161bfd365b0b594796e6b44ec6625650fce9aa9f456fc0e2dc6e0416"
+        },
+        "W->N": {
+          "count": 155,
+          "types": {
+            "RELEASE": 155
+          },
+          "methods": {
+            "kinematic_restart_proxy": 155
+          },
+          "range_ms": [
+            1739545193754.0,
+            1739548767378.0
+          ],
+          "canonical_event_sha256": "70972636c434e992cdb2cfc465b3f92bcb6390c27ea9e210434ba147e6669e99"
+        },
+        "W->S": {
+          "count": 49,
+          "types": {
+            "RELEASE": 49
+          },
+          "methods": {
+            "kinematic_restart_proxy": 49
+          },
+          "range_ms": [
+            1739545213664.0,
+            1739548781362.0
+          ],
+          "canonical_event_sha256": "ff818665594a2fcab3cd7517f89c40016ee11468b62c80f357d2f3f61b7b5e52"
+        }
+      },
+      "count": 1107,
+      "dimension": 11
+    },
+    "B": {
+      "description": "A minus the single S->N selected RELEASE; removes one occupancy dimension",
+      "events_sha256": "70ea236a421ab8b27678efa3ef0a88755732fdb5317770e9bf3a39149b595036",
+      "composition": {
+        "E->N": {
+          "count": 7,
+          "types": {
+            "RELEASE": 7
+          },
+          "methods": {
+            "kinematic_restart_proxy": 7
+          },
+          "range_ms": [
+            1739545678612.0,
+            1739548293622.0
+          ],
+          "canonical_event_sha256": "c15f86c98ccd4ab8967be2927168450d23531ab0869dc060087349dd95145ca1"
+        },
+        "E->S": {
+          "count": 145,
+          "types": {
+            "RELEASE": 145
+          },
+          "methods": {
+            "kinematic_restart_proxy": 145
+          },
+          "range_ms": [
+            1739545176485.0,
+            1739548768666.0
+          ],
+          "canonical_event_sha256": "5ad9945a899e570bc85b01d014e034fa2bd95accb88f1906be905612744024e2"
+        },
+        "E->W": {
+          "count": 26,
+          "types": {
+            "RELEASE": 26
+          },
+          "methods": {
+            "kinematic_restart_proxy": 26
+          },
+          "range_ms": [
+            1739545268259.0,
+            1739548705667.0
+          ],
+          "canonical_event_sha256": "df461ce2e1ba18bb8f544578ed3ff5de58607f0c6e0931a1c35f462cc5f8bcc3"
+        },
+        "N->E": {
+          "count": 31,
+          "types": {
+            "RELEASE": 31
+          },
+          "methods": {
+            "kinematic_restart_proxy": 31
+          },
+          "range_ms": [
+            1739545270897.0,
+            1739548793356.0
+          ],
+          "canonical_event_sha256": "456763f849131a6b6f6217b860877fd7667f4936d430da3d13d6c66d288ca4d4"
+        },
+        "N->S": {
+          "count": 204,
+          "types": {
+            "RELEASE": 204
+          },
+          "methods": {
+            "kinematic_restart_proxy": 204
+          },
+          "range_ms": [
+            1739545270768.0,
+            1739548780403.0
+          ],
+          "canonical_event_sha256": "d5f3b9f27d3857d9765d304696a1c8b0a865fd3f211c5679f0578a282fbfa29e"
+        },
+        "N->W": {
+          "count": 85,
+          "types": {
+            "RELEASE": 85
+          },
+          "methods": {
+            "kinematic_restart_proxy": 85
+          },
+          "range_ms": [
+            1739545271611.0,
+            1739548771288.0
+          ],
+          "canonical_event_sha256": "e4bb531f89aa777dc3f4379e09a39edeb90f805ed508739f586d3b0c026029c6"
+        },
+        "S->W": {
+          "count": 18,
+          "types": {
+            "RELEASE": 18
+          },
+          "methods": {
+            "kinematic_restart_proxy": 18
+          },
+          "range_ms": [
+            1739545298598.0,
+            1739548193826.0
+          ],
+          "canonical_event_sha256": "3cdee873c33da628dedbcd454c768806be7bbc2827f6c43b2376d7a4fa0286f3"
+        },
+        "W->E": {
+          "count": 386,
+          "types": {
+            "RELEASE": 386
+          },
+          "methods": {
+            "kinematic_restart_proxy": 386
+          },
+          "range_ms": [
+            1739545200832.0,
+            1739548760252.0
+          ],
+          "canonical_event_sha256": "0efaad43161bfd365b0b594796e6b44ec6625650fce9aa9f456fc0e2dc6e0416"
+        },
+        "W->N": {
+          "count": 155,
+          "types": {
+            "RELEASE": 155
+          },
+          "methods": {
+            "kinematic_restart_proxy": 155
+          },
+          "range_ms": [
+            1739545193754.0,
+            1739548767378.0
+          ],
+          "canonical_event_sha256": "70972636c434e992cdb2cfc465b3f92bcb6390c27ea9e210434ba147e6669e99"
+        },
+        "W->S": {
+          "count": 49,
+          "types": {
+            "RELEASE": 49
+          },
+          "methods": {
+            "kinematic_restart_proxy": 49
+          },
+          "range_ms": [
+            1739545213664.0,
+            1739548781362.0
+          ],
+          "canonical_event_sha256": "ff818665594a2fcab3cd7517f89c40016ee11468b62c80f357d2f3f61b7b5e52"
+        }
+      },
+      "count": 1106,
+      "dimension": 10
+    },
+    "C": {
+      "description": "same producer guards/selection with first outgoing image upper; induced per-movement fallback retained",
+      "events_sha256": "6c205aa44d3ea43904845684268e12d39d29ca4dc3c51907cb31eef98ff140b7",
+      "composition": {
+        "E->N": {
+          "count": 3,
+          "types": {
+            "RELEASE": 3
+          },
+          "methods": {
+            "kinematic_restart_proxy": 3
+          },
+          "range_ms": [
+            1739546229447.0,
+            1739546449560.0
+          ],
+          "canonical_event_sha256": "9243a8ec493e2148f71f219cec1fcf22ee941271661e60bc96f639315a5e8d5e"
+        },
+        "E->S": {
+          "count": 145,
+          "types": {
+            "RELEASE": 145
+          },
+          "methods": {
+            "kinematic_restart_proxy": 145
+          },
+          "range_ms": [
+            1739545176485.0,
+            1739548768666.0
+          ],
+          "canonical_event_sha256": "5ad9945a899e570bc85b01d014e034fa2bd95accb88f1906be905612744024e2"
+        },
+        "E->W": {
+          "count": 8,
+          "types": {
+            "RELEASE": 8
+          },
+          "methods": {
+            "kinematic_restart_proxy": 8
+          },
+          "range_ms": [
+            1739545405847.0,
+            1739548705667.0
+          ],
+          "canonical_event_sha256": "560083e585738b75f5b55b188a951cae3c4d575827097b1a9fbaa7fe307be7d2"
+        },
+        "N->E": {
+          "count": 31,
+          "types": {
+            "RELEASE": 31
+          },
+          "methods": {
+            "kinematic_restart_proxy": 31
+          },
+          "range_ms": [
+            1739545270897.0,
+            1739548793356.0
+          ],
+          "canonical_event_sha256": "456763f849131a6b6f6217b860877fd7667f4936d430da3d13d6c66d288ca4d4"
+        },
+        "N->S": {
+          "count": 204,
+          "types": {
+            "RELEASE": 204
+          },
+          "methods": {
+            "kinematic_restart_proxy": 204
+          },
+          "range_ms": [
+            1739545270768.0,
+            1739548780403.0
+          ],
+          "canonical_event_sha256": "d5f3b9f27d3857d9765d304696a1c8b0a865fd3f211c5679f0578a282fbfa29e"
+        },
+        "N->W": {
+          "count": 83,
+          "types": {
+            "RELEASE": 83
+          },
+          "methods": {
+            "kinematic_restart_proxy": 83
+          },
+          "range_ms": [
+            1739545271611.0,
+            1739548771288.0
+          ],
+          "canonical_event_sha256": "298362157dbfbc2cb8872a9cf3de0c259d8029f172017866fdb163b01c8ff49b"
+        },
+        "S->N": {
+          "count": 64,
+          "types": {
+            "CROSSING_PROXY": 64
+          },
+          "methods": {
+            "observed_zone_transition_proxy": 64
+          },
+          "range_ms": [
+            1739545278215.0,
+            1739548773926.0
+          ],
+          "canonical_event_sha256": "41a2f61365269e7ce6af40407c52bdf20a43adc8f309328c0515554eaf7cbaef"
+        },
+        "S->W": {
+          "count": 16,
+          "types": {
+            "RELEASE": 16
+          },
+          "methods": {
+            "kinematic_restart_proxy": 16
+          },
+          "range_ms": [
+            1739545298598.0,
+            1739548193826.0
+          ],
+          "canonical_event_sha256": "746b5b7454d7314741031e3b01fb8446b573b6c7b1788e998f17bc7d4e8b1ea2"
+        },
+        "W->E": {
+          "count": 386,
+          "types": {
+            "RELEASE": 386
+          },
+          "methods": {
+            "kinematic_restart_proxy": 386
+          },
+          "range_ms": [
+            1739545200832.0,
+            1739548760252.0
+          ],
+          "canonical_event_sha256": "0efaad43161bfd365b0b594796e6b44ec6625650fce9aa9f456fc0e2dc6e0416"
+        },
+        "W->N": {
+          "count": 154,
+          "types": {
+            "RELEASE": 154
+          },
+          "methods": {
+            "kinematic_restart_proxy": 154
+          },
+          "range_ms": [
+            1739545193754.0,
+            1739548767378.0
+          ],
+          "canonical_event_sha256": "8e2f3efaadf9cc32961fe1b3ea2368e218b65d31c7d0dfa6317c3136b40c0dcf"
+        },
+        "W->S": {
+          "count": 45,
+          "types": {
+            "RELEASE": 45
+          },
+          "methods": {
+            "kinematic_restart_proxy": 45
+          },
+          "range_ms": [
+            1739545213664.0,
+            1739548781362.0
+          ],
+          "canonical_event_sha256": "945da51bcef9fc9839b7f2154e305a41fb31d03a7230cef9d6deb9bc7c7eb607"
+        }
+      },
+      "count": 1139,
+      "dimension": 11
+    },
+    "D": {
+      "description": "A with legacy selected RELEASE timestamps for E->W only; legacy reliability is not interpreted by frozen model",
+      "events_sha256": "657bd91506bf4f00c78d6eff1f565190ef63a4db0b2fbbebe3b9a86e8bd59e59",
+      "composition": {
+        "E->N": {
+          "count": 7,
+          "types": {
+            "RELEASE": 7
+          },
+          "methods": {
+            "kinematic_restart_proxy": 7
+          },
+          "range_ms": [
+            1739545678612.0,
+            1739548293622.0
+          ],
+          "canonical_event_sha256": "c15f86c98ccd4ab8967be2927168450d23531ab0869dc060087349dd95145ca1"
+        },
+        "E->S": {
+          "count": 145,
+          "types": {
+            "RELEASE": 145
+          },
+          "methods": {
+            "kinematic_restart_proxy": 145
+          },
+          "range_ms": [
+            1739545176485.0,
+            1739548768666.0
+          ],
+          "canonical_event_sha256": "5ad9945a899e570bc85b01d014e034fa2bd95accb88f1906be905612744024e2"
+        },
+        "E->W": {
+          "count": 8,
+          "types": {
+            "RELEASE": 8
+          },
+          "methods": {
+            "kinematic_release": 6,
+            "metadata_dwell_end_restart": 2
+          },
+          "range_ms": [
+            1739545405847.0,
+            1739548707047.0
+          ],
+          "canonical_event_sha256": "3fb9b92edecd283be94a8585eeda90d1bd86728708d68add7d441df1119c0c58"
+        },
+        "N->E": {
+          "count": 31,
+          "types": {
+            "RELEASE": 31
+          },
+          "methods": {
+            "kinematic_restart_proxy": 31
+          },
+          "range_ms": [
+            1739545270897.0,
+            1739548793356.0
+          ],
+          "canonical_event_sha256": "456763f849131a6b6f6217b860877fd7667f4936d430da3d13d6c66d288ca4d4"
+        },
+        "N->S": {
+          "count": 204,
+          "types": {
+            "RELEASE": 204
+          },
+          "methods": {
+            "kinematic_restart_proxy": 204
+          },
+          "range_ms": [
+            1739545270768.0,
+            1739548780403.0
+          ],
+          "canonical_event_sha256": "d5f3b9f27d3857d9765d304696a1c8b0a865fd3f211c5679f0578a282fbfa29e"
+        },
+        "N->W": {
+          "count": 85,
+          "types": {
+            "RELEASE": 85
+          },
+          "methods": {
+            "kinematic_restart_proxy": 85
+          },
+          "range_ms": [
+            1739545271611.0,
+            1739548771288.0
+          ],
+          "canonical_event_sha256": "e4bb531f89aa777dc3f4379e09a39edeb90f805ed508739f586d3b0c026029c6"
+        },
+        "S->N": {
+          "count": 1,
+          "types": {
+            "RELEASE": 1
+          },
+          "methods": {
+            "kinematic_restart_proxy": 1
+          },
+          "range_ms": [
+            1739545697809.0,
+            1739545697809.0
+          ],
+          "canonical_event_sha256": "fd74b37283df189075f78d45e3e18c84428577aaf861c783c9f37a5e554711e0"
+        },
+        "S->W": {
+          "count": 18,
+          "types": {
+            "RELEASE": 18
+          },
+          "methods": {
+            "kinematic_restart_proxy": 18
+          },
+          "range_ms": [
+            1739545298598.0,
+            1739548193826.0
+          ],
+          "canonical_event_sha256": "3cdee873c33da628dedbcd454c768806be7bbc2827f6c43b2376d7a4fa0286f3"
+        },
+        "W->E": {
+          "count": 386,
+          "types": {
+            "RELEASE": 386
+          },
+          "methods": {
+            "kinematic_restart_proxy": 386
+          },
+          "range_ms": [
+            1739545200832.0,
+            1739548760252.0
+          ],
+          "canonical_event_sha256": "0efaad43161bfd365b0b594796e6b44ec6625650fce9aa9f456fc0e2dc6e0416"
+        },
+        "W->N": {
+          "count": 155,
+          "types": {
+            "RELEASE": 155
+          },
+          "methods": {
+            "kinematic_restart_proxy": 155
+          },
+          "range_ms": [
+            1739545193754.0,
+            1739548767378.0
+          ],
+          "canonical_event_sha256": "70972636c434e992cdb2cfc465b3f92bcb6390c27ea9e210434ba147e6669e99"
+        },
+        "W->S": {
+          "count": 49,
+          "types": {
+            "RELEASE": 49
+          },
+          "methods": {
+            "kinematic_restart_proxy": 49
+          },
+          "range_ms": [
+            1739545213664.0,
+            1739548781362.0
+          ],
+          "canonical_event_sha256": "ff818665594a2fcab3cd7517f89c40016ee11468b62c80f357d2f3f61b7b5e52"
+        }
+      },
+      "count": 1089,
+      "dimension": 11
+    }
+  }
+}
