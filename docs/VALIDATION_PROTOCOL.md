@@ -32,6 +32,30 @@ annotation version и evidence reference. Не размечать лампы п�
 
 ## 2. Входной контракт и время
 
+Дополнение по найденным данным (2026-10-13): в локальном каталоге
+`data/ручная разметка` доступны 3 trajectory/annotation пары с 40 метками
+начала фаз. `timestamp_ms`, `start_ms`, `offset_s` внутренне согласованы;
+`timestamp_local` совпадает с UTC+5. Расчёты вести по Unix milliseconds,
+отображение — Asia/Yekaterinburg. Это ещё не проверка синхронизации камеры
+с независимо наблюдаемой лампой. Интервалы truth строить между соседними
+метками; не продолжать последнюю фазу до конца записи без её конечной границы.
+
+Пользователь подтвердил отсутствие дополнительных секций для двухфазных
+записей и три movement groups для трёхфазной:
+`N->_S/S->_N`, `E->_W/W->_E`, `N->_S/N->_E/E->_N`.
+Это dataset-specific truth/configuration, а не inference prior для всех
+перекрёстков. Буквы A/B/C в annotation не содержат movement mapping;
+зафиксировать его по независимому описанию/источнику на calibration.
+Старая fixture с W->N не должна автоматически расширять пользовательскую схему.
+Совместное N->_S в двух фазах необходимо сохранить при оценке состояния.
+
+На этих файлах можно независимо проверять размеченные границы/phase agreement
+после фиксации semantics. Полная per-lamp accuracy, yellow/all-red и hardware
+arrow timing требуют более подробной истины. Три известные записи — development
+и regression data, не достаточный untouched holdout для универсальной точности.
+Сначала offline работа над ядром и evaluator; FastAPI/HTML — после приёмки
+алгоритма. Интерфейсы не используются для подбора результата «на глаз».
+
 Manifest каждой записи: intersection_id, camera_id, session_id, source SHA256,
 archive/member identity, UTC диапазон, timezone metadata, firmware/config
 version при наличии, calibration ID, truth source и split.
