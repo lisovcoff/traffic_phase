@@ -4,7 +4,7 @@ import pytest
 
 from app.core.state_contract import logical_phase_at, prepare_logical_query
 from app.core.v9.signal_renderer import build_signal_model, signal_state_at
-from app.core.v10.semantic_mapping import signal_state_at as v10_state_at
+from app.core.v10.semantic_mapping import PhaseSpec, signal_state_at as v10_state_at
 
 
 def result(segments=None):
@@ -116,6 +116,17 @@ def test_configured_malformed_history_also_abstains():
     pred=result();pred["schedule"]["baseline_segments"]=[[0,10,0],[5,15,1]]
     assert signal_state_at(pred,7,mode="configured")["streams"][0]["abstention_reason"]=="INVALID_PHASE_HISTORY"
     assert v10_state_at(pred,7,[],{},mode="configured")["logical_phase"]["estimated_state"]=="UNKNOWN"
+
+
+def test_v10_configured_query_uses_prepared_snapshot_without_second_history_scan(monkeypatch):
+    import app.core.v10.semantic_mapping as semantic
+    pred=result();query=prepare_logical_query(pred,mode="configured")
+    pred["schedule"]["baseline_segments"]=[[0,10,1],[5,15,0]]
+    monkeypatch.setattr(semantic,"normalized_segments",lambda *args:pytest.fail("second mutable history scan"))
+    snap=v10_state_at(pred,7,[PhaseSpec("P",frozenset({"turn"}))],{"A":"P"},
+                      mode="configured",query_model=query)
+    assert snap["logical_phase"]["estimated_state"]=="A"
+    assert snap["phase"]=="P"
 
 
 def test_renaming_movements_preserves_physical_abstention_and_activity():

@@ -283,27 +283,11 @@ def signal_state_at(
                 "logical_phase": logical.to_dict(), "physical_section": physical.to_dict(),
                 "mapping_candidate": mapping.get(logical.estimated_state),
                 "green_movements": [], "red_movements": [], "additional_movements": []}
-    if not math.isfinite(timestamp_s) or timestamp_s < 0:
-        return {"timestamp_s": timestamp_s, "phase": None, "logical_phase": logical.to_dict(),
-                "physical_section": physical.to_dict(), "green_movements": [],
-                "red_movements": [], "additional_movements": []}
-    schedule = result.get("schedule")
-    if not isinstance(schedule, Mapping):
-        raise ValueError("V9 result has no schedule")
-    period = float(schedule.get("period_s", 0.0))
-    if period <= 0:
-        raise ValueError("V9 period must be positive")
-
     specs = {phase.name: phase for phase in physical_phases}
-    segments = normalized_segments(result, mapping)
-    position = float(timestamp_s) % period
-    active: str | None = None
-    for start, end, physical in segments:
-        if float(start) <= position < float(end):
-            active = str(physical)
-            break
+    position = logical.observation_support["query_position_s"]
+    active = mapping.get(logical.estimated_state)
     if active is None:
-        raise ValueError("timestamp is outside the available baseline")
+        raise ValueError(f"no configured mapping for phase {logical.estimated_state!r}")
     spec = specs.get(active)
     if spec is None:
         raise ValueError(f"mapped physical phase {active!r} is not in catalog")
