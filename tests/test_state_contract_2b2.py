@@ -27,6 +27,8 @@ def test_vehicle_proposals_abstain_regardless_of_demand(scenario,events,proposed
     assert section["state"] == section["estimated_state"] == "UNKNOWN"
     assert section["abstention_reason"] == "UNVERIFIED_SECTION_MAPPING"
     assert section["calibrated_lamp_probability"] is None
+    assert section["observation_support"]["supporting_event_count"] == events
+    assert section["provenance"]["proposed_state"] == proposed.value
 
 
 def test_same_restart_cannot_identify_different_lamps_even_with_known_hardware():
@@ -69,6 +71,15 @@ def test_direct_lamp_observation_is_separate_from_vehicle_evidence():
         verified_lamp_observation=True,observation_support={"frame":2},provenance={"video_sha":"example"})
     assert state.estimated_state=="YELLOW"
     assert state.calibrated_lamp_probability is None
+
+
+def test_renderer_cannot_reuse_vehicle_support_as_independent_lamp_observation():
+    payload=build_signal_renderer_data(states=[ApproachState("N",SignalState.GREEN,
+        signal_head_id="N_MAIN",supporting_event_count=1)], evidence_by_head={"N_MAIN":{
+            "mapping_verified":True,"hardware_verified":True,"verified_lamp_observation":True}})
+    section=next(h for h in payload["heads"] if h["id"]=="N_MAIN")["sections"][0]
+    assert section["estimated_state"]=="UNKNOWN"
+    assert section["abstention_reason"]=="PHYSICAL_STATE_NOT_IDENTIFIABLE_FROM_VEHICLE_EVIDENCE"
 
 
 def test_movement_renaming_preserves_contract_without_direction_rules():

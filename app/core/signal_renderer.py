@@ -165,13 +165,20 @@ def build_signal_renderer_data(
         )
         section_source = _source(approach_state, explicit_source=source)
         evidence = (evidence_by_head or {}).get(head.id, {})
+        vehicle_support = ({"kind": "vehicle_model_proposal",
+                            "supporting_event_count": approach_state.supporting_event_count,
+                            "contradictory_event_count": approach_state.contradictory_event_count}
+                           if approach_state is not None else {})
         estimate = physical_estimate(current_state.value, mode=mode,
             source=str(evidence.get("source", "vehicle_state_proposal")),
-            observation_support=evidence.get("observation_support", {}),
-            provenance=evidence.get("provenance", {}),
+            observation_support=evidence.get("observation_support", vehicle_support),
+            provenance=evidence.get("provenance", {"proposed_state": current_state.value,
+                "heuristic_input_confidence": section_confidence,
+                "heuristic_confidence_is_not_lamp_probability": True}),
             mapping_verified=evidence.get("mapping_verified") is True,
             hardware_verified=evidence.get("hardware_verified") is True,
-            verified_lamp_observation=evidence.get("verified_lamp_observation") is True)
+            verified_lamp_observation=(evidence.get("verified_lamp_observation") is True
+                and bool(evidence.get("source") and evidence.get("observation_support") and evidence.get("provenance"))))
         current_state = _state(estimate.estimated_state)
         if estimate.abstention_reason:
             section_source = RendererSignalSource.UNKNOWN

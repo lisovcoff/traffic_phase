@@ -43,7 +43,9 @@ def physical_estimate(state, *, mode="reconstructed", source="vehicle_phase_mode
             reason = "UNVERIFIED_SECTION_MAPPING"
         elif not hardware_verified:
             reason = "UNVERIFIED_HARDWARE"
-        elif not (verified_lamp_observation and support and provenance and source):
+        elif not (verified_lamp_observation and support and provenance and source
+                  and source not in {"vehicle_phase_model", "vehicle_state_proposal"}
+                  and support.get("kind") != "vehicle_model_proposal"):
             reason = "PHYSICAL_STATE_NOT_IDENTIFIABLE_FROM_VEHICLE_EVIDENCE"
     elif mode in {"configured", "simulated"}:
         assumptions = tuple(assumptions) + ("explicit_plan_states_and_transitions_are_assumed",)
