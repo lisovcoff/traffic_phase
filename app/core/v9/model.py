@@ -28,6 +28,7 @@ from .events import (
 )
 from .evaluate import evaluate
 from app.core.v10.automatic_physical import infer_physical_signal_plan
+from app.core.temporal_evidence import EvidenceUnavailable
 
 def _discover_from_event_views(
     events,
@@ -632,7 +633,8 @@ def _discover_from_stream_views(
         evidence_policy=evidence_policy,
     )
     if not phase_evidence:
-        raise ValueError("insufficient movement-permission evidence; entry is demand only, phase UNKNOWN")
+        raise EvidenceUnavailable("insufficient movement-permission evidence; entry is demand only, phase UNKNOWN",
+                                  reason_code="NO_PERMISSION_EVIDENCE")
     if evidence_policy == "permission_per_stream":
         end_s = max(end_s, max(max(float(v) for v in values) for values in phase_evidence.values() if len(values)))
     x, names = build_occupancy_matrix(
@@ -922,7 +924,7 @@ def discover_records(
     evidence_policy: str = "permission_per_stream",
 ) -> dict[str, object]:
     if not tracks:
-        raise ValueError("no trajectory records supplied")
+        raise EvidenceUnavailable("no trajectory records supplied", reason_code="NO_TRAJECTORY_RECORDS")
     if evidence_policy == "permission_per_stream":
         bundle = extract_timing_streams(tracks)
         return _discover_bundle(bundle, input_name=input_name, dt=dt, marks_path=marks_path,

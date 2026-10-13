@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
-from app.core.temporal_evidence import EventStreamBundle
+from app.core.temporal_evidence import EventStreamBundle, EvidenceUnavailable
 
 from .primitives import norm_zone, _speed_restart_plausible
 from .fit import anonymous_phase_name
@@ -423,7 +423,8 @@ def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _
     temporal.sort(key=lambda e: (e.timestamp_ms, e.event_type, e.movement))
     entries = [e for e in temporal if e.event_type == "ENTRY"]
     if not entries:
-        raise ValueError("no usable demand or permission events; evidence is UNKNOWN")
+        raise EvidenceUnavailable("no usable demand or permission events; evidence is UNKNOWN",
+                                  reason_code="NO_USABLE_DEMAND_EVIDENCE")
     base = min(e.timestamp_ms for e in entries)
     selected, methods = select_permission_events(temporal)
 
