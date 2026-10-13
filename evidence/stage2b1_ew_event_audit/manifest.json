@@ -1,0 +1,29 @@
+{
+  "base_head_sha": "6f75e81cf6f22d7e1e14f2fad0c0348e9811f9a1",
+  "runner_head_sha": "8b6c966bc0a1040f2dc4c47916ae320273bab215",
+  "producer_contract_version": 1,
+  "producer_schema_version": 1,
+  "producer_sha256": {
+    "app/core/v9/vehicle_evidence.py": "28022ecb3045ae51a92c1bd0ab42916866307522995946cc3f9ea83fec6242c3",
+    "app/core/v9/events.py": "cd33b5cee73ac6954bc4798a47e9ae86c5b66dfe9e7bad4ba7d2b7028da374c7",
+    "app/core/temporal_evidence.py": "b0c39eb2b534d262cab225d6aed6ff95a53b568fb937fc8db8fcebcf79a7c520",
+    "app/core/trajectory_events.py": "9a55981fd2f403e0c1de7ee0aa48c40191d3360c47fdb37dfd2a0c757625deca"
+  },
+  "config": {
+    "stop_speed_mps": 0.8,
+    "stop_min_duration_s": 3.0,
+    "release_speed_mps": 2.0,
+    "release_min_duration_s": 1.0,
+    "max_detection_gap_s": 2.0,
+    "min_detections": 2,
+    "smoothing_window": 3
+  },
+  "event_input_sha256": {
+    "A": "9f184f192d5b2bb2601fdf74481483b0a4f8088a5d9cebe1daae3de006d25979",
+    "D": "657bd91506bf4f00c78d6eff1f565190ef63a4db0b2fbbebe3b9a86e8bd59e59"
+  },
+  "selection": "all 26 A and all 8 D E->W events; exact ID/fingerprint; no truth or phase errors",
+  "source": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\6_2025_2_14_20.json",
+  "source_pass_limit": 1,
+  "fitting_invocations": 0
+}

@@ -1,0 +1,51 @@
+[
+  {
+    "path": "app/core/v9/events.py",
+    "sha256": "cd33b5cee73ac6954bc4798a47e9ae86c5b66dfe9e7bad4ba7d2b7028da374c7",
+    "start_line": 537,
+    "end_line": 574,
+    "excerpt": "537: def _kinematic_release_candidate(ds, entry_ms, exit_ms):\n538:     pts = []\n539:     for d in ds:\n540:         try:\n541:             if d.get('centroid_x') is None or d.get('centroid_y') is None:\n542:                 continue\n543:             pts.append((\n544:                 float(d['millis']) / 1000.0,\n545:                 float(d['centroid_x']),\n546:                 float(d['centroid_y']),\n547:             ))\n548:         except (TypeError, ValueError):\n549:             continue\n550:     if len(pts) < 14:\n551:         return None\n552: \n553:     t = np.asarray([p[0] for p in pts], dtype=float)\n554:     xy = np.asarray([[p[1], p[2]] for p in pts], dtype=float)\n555:     dt = np.diff(t)\n556:     ok = dt > 0.001\n557:     if int(np.sum(ok)) < 12:\n558:         return None\n559: \n560:     v = np.linalg.norm(np.diff(xy, axis=0), axis=1) / np.maximum(dt, 0.001)\n561:     v = np.where(np.isfinite(v), v, 0.0)\n562:     med_dt = float(np.median(dt[ok]))\n563:     sigma = max(1.0, 0.65 / max(med_dt, 0.001))\n564:     vs = gaussian_filter1d(v, sigma, mode='nearest')\n565:     pos = vs[vs > 1e-7]\n566:     if len(pos) < 10:\n567:         return None\n568: \n569:     z = np.log(pos + 1e-6)\n570:     c = np.percentile(z, [20.0, 80.0]).astype(float)\n571:     for _ in range(12):\n572:         lab = np.argmin(\n573:             np.abs(z[:, None] - c[None, :]),\n574:             axis=1,"
+  },
+  {
+    "path": "app/core/trajectory_geometry.py",
+    "sha256": "be1109cfc8721f6f67d0f71ecb1907d7542243feedb09bb86ad281e627a8d5c5",
+    "start_line": 124,
+    "end_line": 134,
+    "excerpt": "124:         movement=movement,\n125:         speed=float(trajectory[\"speed\"]) if trajectory.get(\"speed\") is not None else None,\n126:         wait_s=max(\n127:             0.0,\n128:             float(trajectory.get(\"stay_duration_millis\") or 0) / 1000.0,\n129:         ),\n130:         move_s=max(\n131:             0.0,\n132:             float(trajectory.get(\"move_duration_millis\") or 0) / 1000.0,\n133:         ),\n134:         distance=("
+  },
+  {
+    "path": "app/core/trajectory_events.py",
+    "sha256": "9a55981fd2f403e0c1de7ee0aa48c40191d3360c47fdb37dfd2a0c757625deca",
+    "start_line": 46,
+    "end_line": 58,
+    "excerpt": "46:             continue\n47:         speeds.append(\n48:             (second.millis, haversine_distance_m(first, second) / dt_s, dt_s)\n49:         )\n50:     return speeds\n51: \n52: \n53: def _median(values: list[float]) -> float:\n54:     ordered = sorted(values)\n55:     middle = len(ordered) // 2\n56:     if len(ordered) % 2:\n57:         return ordered[middle]\n58:     return (ordered[middle - 1] + ordered[middle]) / 2.0"
+  },
+  {
+    "path": "app/core/v9/vehicle_evidence.py",
+    "sha256": "28022ecb3045ae51a92c1bd0ab42916866307522995946cc3f9ea83fec6242c3",
+    "start_line": 108,
+    "end_line": 133,
+    "excerpt": "108:         # Do not invent even a crossing proxy from a track's final detection.\n109:         stats[\"missing_crossing_zone_evidence\"] = 1\n110: \n111:     speeds = [(float(d[\"millis\"]), float(d[\"speed\"])) for d in ds\n112:               if _finite_number(d.get(\"speed\")) and d[\"speed\"] >= 0]\n113:     # Raw speed units are not established. Exact zero is unit-independent;\n114:     # thresholds in m/s from metric geometry must not be applied to raw speed.\n115:     intervals = [(b[0], b[1], (b[0] - a[0]) / 1000) for a, b in zip(speeds, speeds[1:])\n116:                  if b[0] - a[0] <= CONFIG.max_detection_gap_s * 1000]\n117:     # Reset sustained runs across missing observations instead of concatenating\n118:     # them into a fictitious continuous stop.\n119:     stop_ms = None\n120:     chunks = []\n121:     for item in intervals:\n122:         if not chunks or item[0] - item[2] * 1000 > chunks[-1][-1][0]:\n123:             chunks.append([])\n124:         chunks[-1].append(item)\n125:     for chunk in chunks:\n126:         stop_ms = _first_sustained(chunk, lambda speed: speed == 0, CONFIG.stop_min_duration_s)\n127:         if stop_ms is not None:\n128:             break\n129:     if stop_ms is not None:\n130:         bounds = bracket(ds, stop_ms)\n131:         emit(stop_ms, \"STOP\", \"sustained_zero_raw_speed\", .6, \"MEDIUM\",\n132:              (bounds[1] - bounds[0]) if bounds else None,\n133:              role=\"vehicle_stationary_not_proof_of_RED\", observation_interval_ms=bounds,"
+  },
+  {
+    "path": "../src/observability_preprocess.py",
+    "sha256": "832d19c10a9268afb4a3a3a753abdd87c50e61cc9db687f1f56fd18701b2cce4",
+    "start_line": 73,
+    "end_line": 94,
+    "excerpt": "73:     end = track.get(\"millis\")\n74:     if end is None:\n75:         return None\n76:     end_s = float(end) / 1000.0\n77:     if mode == \"track_end\":\n78:         return end_s\n79:     if mode == \"first_detection\":\n80:         return _first_detection_s(track) or end_s\n81:     if mode == \"first_origin_zone\":\n82:         return _first_zone_detection_s(track) or _first_detection_s(track) or end_s\n83:     if mode in (\"virtual_entry\", \"departure\", \"move_start\"):\n84:         move_ms = track.get(\"move_duration_millis\")\n85:         if move_ms is not None and float(move_ms) > 0:\n86:             return end_s - float(move_ms) / 1000.0\n87:         first = _first_detection_s(track)\n88:         stay = float(track.get(\"stay_duration_millis\") or 0.0) / 1000.0\n89:         if first is not None:\n90:             return first + stay\n91:         return end_s\n92:     raise ValueError(f\"Unknown time mode: {mode}\")\n93: \n94: "
+  },
+  {
+    "path": "../V8_OBSERVABILITY_REPORT.md",
+    "sha256": "8648b4c3ec37ed3580c120a80d77169fd78f0c39eaff16f4bb6a6b1a6f422b1f",
+    "start_line": 23,
+    "end_line": 23,
+    "excerpt": "23: The data do not contain an explicit timestamp for virtual entry stop-line crossing. `line_in` is an ID, not a timestamp. Therefore the current `virtual_entry` value is an empirically validated proxy, not a measured stop-line crossing."
+  },
+  {
+    "path": "../README_V1_PROD.md",
+    "sha256": "ea669392c61c90666480b08c0f6bba7127b5587ddd770ce943f325b685e1b4d3",
+    "start_line": 6,
+    "end_line": 6,
+    "excerpt": "6: The default `virtual_entry` mode uses `track_end - move_duration_millis` when available, with a fallback to first detection + stay duration. It is a proxy, not a measured stop-line crossing."
+  }
+]

@@ -1,0 +1,6 @@
+Extraction: python -m scripts.audit_ew_events_2b1
+Single invocation, exit code 0; no stdout/stderr.
+Tests: python -m pytest -q tests/test_temporal_ablation_2b1.py tests/test_ew_event_audit_2b1.py
+10 passed; one pytest cache-write warning.
+Postconditions checked against retained tracks only; original source not reopened.
+No fitting/evaluate/benchmark commands executed.
