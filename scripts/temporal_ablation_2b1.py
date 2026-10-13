@@ -149,7 +149,7 @@ def prepare():
     assert anchor == ref["analysis_base_timestamp_ms"] == ref["event_base_timestamp_ms"]
     entries = [e for e in es if e["event_type"] == "ENTRY"]
     extent = max((e["timestamp_ms"] - anchor) / 1000 for e in entries + a)
-    assert extent < 7200 and ref.get("regime_detection") is None
+    assert extent < 7200 and ref.get("regime_detection", {}).get("method") == "global_fallback"
     common = {"anchor_ms": anchor, "recording_start_ms": ref["recording_start_timestamp_ms"],
               "period_s": ref["period_inference"]["period_s"], "period_info": ref["period_inference"],
               "extent_s": extent, "dt_s": 1.0, "seed": 0, "entries": entries,
