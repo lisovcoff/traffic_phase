@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from scripts.temporal_ablation_2b1 import (
-    drop_sparse, substitute_movement, bound_image_call, deny_annotation_reads, save,
+    drop_sparse, substitute_movement, candidate_upper_hook, deny_annotation_reads, save,
 )
 
 
@@ -36,9 +36,22 @@ def test_c_only_changes_candidate_upper_argument():
     def solver(points, entry, upper):
         seen.append((points, entry, upper))
         return "candidate"
-    assert bound_image_call(solver, ds, 1, "S", lambda z: z) == "candidate"
+    calls = []
+    hook = candidate_upper_hook(solver, "S", lambda z: z, 42, calls)
+    assert hook(ds, 1, 9) == "candidate"
     assert seen == [(ds, 1, 4)]
+    assert seen[0][0] is ds
+    assert calls == [{"track_id": 42, "from_upper_ms": 9, "to_upper_ms": 4, "changed": True}]
     assert ds[-1]["millis"] == 9
+
+
+def test_c_actual_hook_falls_back_to_end_without_outgoing_observation():
+    ds = [{"millis": 1, "zone": "N"}, {"millis": 9, "zone": None}]
+    calls = []
+    hook = candidate_upper_hook(lambda points, entry, upper: (points, entry, upper),
+                                "S", lambda z: z, 43, calls)
+    assert hook(ds, 1, 9) == (ds, 1, 9)
+    assert calls[0]["changed"] is False
 
 
 def test_annotation_read_guard_rejects_truth_before_fit(tmp_path):

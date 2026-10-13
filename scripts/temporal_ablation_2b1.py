@@ -83,6 +83,17 @@ def bound_image_call(solver, detections, entry, target, norm):
     return solver(detections, entry, upper)
 
 
+def candidate_upper_hook(solver, target, norm, track_id, calls):
+    """Actual C interception, shared with the diagnostic regression test."""
+    def hook(ds, entry, supplied_upper):
+        def recorded_solver(points, anchor, upper):
+            calls.append({"track_id": track_id, "from_upper_ms": supplied_upper,
+                          "to_upper_ms": upper, "changed": upper != supplied_upper})
+            return solver(points, anchor, upper)
+        return bound_image_call(recorded_solver, ds, entry, target, norm)
+    return hook
+
+
 def composition(events):
     result = {}
     for m in sorted({e["movement"] for e in events}):
@@ -117,11 +128,7 @@ def prepare():
     image_calls = []
     def extract_c(track, *, source_name="records"):
         target = norm_zone(track.get("zone_out"))
-        def old_upper(ds, entry, supplied_upper):
-            chosen_upper = next((d["millis"] for d in ds if norm_zone(d.get("zone")) == target), ds[-1]["millis"])
-            image_calls.append({"track_id": track.get("id"), "from_upper_ms": supplied_upper,
-                                "to_upper_ms": chosen_upper, "changed": chosen_upper != supplied_upper})
-            return image_solver(ds, entry, chosen_upper)
+        old_upper = candidate_upper_hook(image_solver, target, norm_zone, track.get("id"), image_calls)
         # Same producer extractor, guards, dedup and selection; only image upper changes.
         with patch.object(ev, "_kinematic_release_candidate", old_upper):
             result = extractor(track, source_name=source_name)
