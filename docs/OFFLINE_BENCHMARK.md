@@ -106,3 +106,59 @@ inference output отвергается. Они фиксируют ограни�
 
 Этот этап не изменяет HSMM/discovery/mapping, не разрабатывает API/UI и не
 применяет existing visualizer fix. Следующий этап 2B требует отдельного задания.
+
+## Фактический baseline 2026-10-13
+
+Артефакты: `benchmarks/stage2a_20261013/baseline_metrics.json` и три исходных
+prediction JSON в соседнем каталоге `predictions/`. Версия inference/evaluator
+на момент запуска: `a9a3523d531e5f195486da127c067713b082d592`, рабочее дерево
+чистое. Данные и config hashes находятся в отчёте. Все три inference завершились
+за 15,577 / 9,331 / 12,023s, суммарно 36,931s без таймаутов. Префиксы схемы
+содержали 13 / 7 / 14 треков; сам V9 обработал полные JSON streaming:
+2735 / 1154 / 1901 trajectories, 2728 / 1104 / 1844 usable events.
+
+| Запись | Truth labels / V9 K / V10 plan K | Предсказанный T, s | Absolute recurrence-period error, s (n возвращений) | Truth duration, s |
+| --- | --- | --- | --- | --- |
+| 17_2025_2_19_10 | 3 / 3 / 3 | 99,842813 | 0,018187 (16) | 597,936 |
+| 19_2025_2_24_16 | 2 / 3 / 2 | 120,028500 | 0,299500 (8) | 524,962 |
+| 6_2025_2_14_20 | 2 / 2 / 2 | 99,995248 | 0,129248 (9) | 500,107 |
+
+V9 K совпал в 2/3 сеансов, V10 plan count — в 3/3. Это малый development
+набор; такие числа не являются оценкой реальных ламп или generalization.
+
+| Запись / history | Matches / truth / predicted boundaries | Precision / recall, ±2s | MAE / p95 matched, s | Nearest MAE diagnostic, s |
+| --- | --- | --- | --- | --- |
+| 17 / raw HSMM | 3 / 17 / 18 | 16,67% / 17,65% | 1,257 / 1,7284 | 6,4222 |
+| 17 / baseline | 5 / 17 / 18 | 27,78% / 29,41% | 1,3372 / 1,7236 | 2,9450 |
+| 19 / raw HSMM | 1 / 8 / 13 | 7,69% / 12,50% | 1,347 / 1,347 | 5,6570 |
+| 19 / baseline | 2 / 8 / 13 | 15,38% / 25,00% | 1,2655 / 1,6921 | 6,3045 |
+| 6 / raw HSMM | 2 / 9 / 10 | 20,00% / 22,22% | 1,881 / 1,9422 | 3,0281 |
+| 6 / baseline | 1 / 9 / 10 | 10,00% / 11,11% | 1,7309 / 1,7309 | 3,6181 |
+
+Raw HSMM: 6/34 truth boundaries matched, precision=6/41=14,63%, recall=17,65%.
+Baseline: 8/34 matched, precision=8/41=19,51%, recall=23,53%. Это micro sums
+для описания данного набора; не независимая CI по 34 границам. MAE условен на
+совпадениях, поэтому маленький MAE не компенсирует низкую recall.
+Все временные диапазоны и individual boundary errors сохранены в JSON.
+
+Temporal coverage raw и baseline — 100% на всех трёх размеченных интервалах.
+Это лишь заполненный timeline. Diagnostic phase agreement raw/baseline:
+17 — 76,42%/91,14%; 6 — 94,40%/93,20%; 19 — unavailable из-за unequal K.
+Здесь используются оптимальные перестановки исключительно в диагностике,
+никакого физического A/B/C mapping не назначено. Physical lamp accuracy
+unavailable во всех трёх случаях.
+
+Проверки: 21 новых unit-case (включая parametrized cases), совместно с
+существующими V9 renderer/V10 semantic mapping — **41 passed**. Исходные
+predictions сохранены до evaluation; SHA256 проверены неизменными после неё.
+Все 40 ручных меток прошли validator, с completeness warnings для неизвестных
+краёв. Пересечение timestamps с Git manual fixture — 0 во всех трёх записях;
+данные по происхождению остаются development regression.
+
+Выявленные baseline limitations: лишняя третья фаза V9 на записи 19 при K2 truth;
+низкая boundary recall на всех записях; periodic baseline и raw history могут
+давать разные локальные границы при почти одинаковом периоде; 100% timeline
+coverage не обеспечивает evidence confidence; no-demand renderer counterexample
+выдаёт RED с confidence=0. В этапе 2B начинать с происхождения/качества entry
+и release events, задержек очереди, uncertainty и сохранения UNKNOWN.
+Не подгонять глобальный offset или tolerance по результатам этого benchmark.
