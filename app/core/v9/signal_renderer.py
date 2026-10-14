@@ -18,11 +18,11 @@ class SignalQueryModel(dict):
 
 
 def build_signal_model(result: Mapping[str, Any], *, activity_threshold=DEFAULT_ACTIVITY_THRESHOLD,
-                       mode="reconstructed") -> SignalQueryModel:
+                       mode="reconstructed", history_source="accepted") -> SignalQueryModel:
     schedule = result.get("schedule")
     if not isinstance(schedule, Mapping):
         raise ValueError("V9 result has no schedule")
-    query = prepare_logical_query(result, mode=mode)
+    query = prepare_logical_query(result, mode=mode, history_source=history_source)
     names = query.phase_names
     name_ids = {name:index for index,name in enumerate(names)}
     activity = defaultdict(dict)
@@ -55,7 +55,7 @@ def build_signal_model(result: Mapping[str, Any], *, activity_threshold=DEFAULT_
 def signal_state_at(result: Mapping[str, Any], timestamp_s: float, *,
                     yellow_duration_seconds=DEFAULT_YELLOW_DURATION_SECONDS,
                     red_yellow_duration_seconds=DEFAULT_RED_YELLOW_DURATION_SECONDS,
-                    activity_threshold=DEFAULT_ACTIVITY_THRESHOLD, mode=None) -> dict[str, Any]:
+                    activity_threshold=DEFAULT_ACTIVITY_THRESHOLD, mode=None, history_source=None) -> dict[str, Any]:
     """Default physical abstention; pass build_signal_model output for bulk queries."""
     if yellow_duration_seconds < 0 or red_yellow_duration_seconds < 0:
         raise ValueError("transition durations must be non-negative")
@@ -63,8 +63,11 @@ def signal_state_at(result: Mapping[str, Any], timestamp_s: float, *,
         model=result
         if mode is not None and mode != model.logical_query.mode:
             raise ValueError("query mode differs from prepared model")
+        if history_source is not None:
+            logical_phase_at(model.logical_query,timestamp_s,history_source=history_source)
     else:
-        model=build_signal_model(result,activity_threshold=activity_threshold,mode=mode or "reconstructed")
+        model=build_signal_model(result,activity_threshold=activity_threshold,mode=mode or "reconstructed",
+                                 history_source=history_source or "accepted")
     mode=model.logical_query.mode
     logical=logical_phase_at(model.logical_query,timestamp_s)
     phase_id=logical.observation_support.get("phase_id")

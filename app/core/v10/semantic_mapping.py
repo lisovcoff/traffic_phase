@@ -274,8 +274,10 @@ def signal_state_at(
     *,
     mode: str = "reconstructed",
     query_model: LogicalPhaseQuery | None = None,
+    history_source: str | None = None,
 ) -> dict[str, Any]:
-    logical = logical_phase_at(query_model if query_model is not None else result, timestamp_s, mode=mode)
+    logical = logical_phase_at(query_model if query_model is not None else result, timestamp_s, mode=mode,
+                               history_source=history_source)
     physical = physical_estimate("UNKNOWN", mode=mode, logical_support=logical)
     if mode == "reconstructed" or logical.abstention_reason:
         # A heuristic catalog assignment does not establish lamp or arrow states.

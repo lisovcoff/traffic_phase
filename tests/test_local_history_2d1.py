@@ -41,7 +41,7 @@ def test_unidentifiable_silence_is_censored_not_red(scenario):
     pred={'schedule':{'phase_names':['A','B'],'period_s':80.,'raw_hsmm_segments':[[0,320,0]],
         'stream_activity_by_phase':[{'stream':'turn','event_probability_by_phase':{'A':.98,'B':.02}}]},
         'reconstruction_history':history}
-    state=signal_state_at(pred,100.)
+    state=signal_state_at(pred,100.,history_source="experimental")
     assert state['logical_phase']['estimated_state']=='UNKNOWN'
     assert state['logical_phase']['abstention_reason']=='NO_LOCAL_VEHICLE_EVIDENCE'
     assert state['streams'][0]['state']=='UNKNOWN'
@@ -52,7 +52,7 @@ def test_explicit_gap_and_cropped_input_do_not_claim_camera_coverage():
     x,templates,_=generated();mask=np.ones(len(x),dtype=bool);mask[85:100]=False;mask[:5]=False;mask[-5:]=False
     history=decode_local_history(x,templates,80.,[40.,40.],coverage_mask=mask)
     pred={'schedule':{'phase_names':['A','B'],'raw_hsmm_segments':[[0,320,0]]},'reconstruction_history':history}
-    query=prepare_logical_query(pred)
+    query=prepare_logical_query(pred,history_source="experimental")
     for t in (0,90,319):
         assert query.at(t).abstention_reason=='EXPLICIT_INPUT_COVERAGE_GAP'
     for t in (-1,320):
@@ -66,13 +66,13 @@ def test_zero_demand_and_budget_exhaustion_have_no_fabricated_history():
     assert empty['status']=='unavailable' and empty['segments']==[]
     budget=decode_local_history(x,templates,80.,[40.,40.],config=LocalHistoryConfig(max_bins=1))
     pred={'schedule':{'phase_names':['A','B'],'raw_hsmm_segments':[[0,320,0]]},'reconstruction_history':budget}
-    assert prepare_logical_query(pred).at(30).abstention_reason=='LOCAL_DECODE_WORK_BUDGET_EXCEEDED'
+    assert prepare_logical_query(pred,history_source="experimental").at(30).abstention_reason=='LOCAL_DECODE_WORK_BUDGET_EXCEEDED'
 
 
 def test_new_history_never_falls_back_to_raw_in_its_gaps():
     pred={'schedule':{'phase_names':['A','B'],'raw_hsmm_segments':[[0,20,0]],'baseline_segments':[[0,20,0]],'period_s':20},
           'reconstruction_history':{'source':'test','status':'ok','segments':[[0,5,0],[10,15,1]]}}
-    query=prepare_logical_query(pred)
+    query=prepare_logical_query(pred,history_source="experimental")
     assert query.at(7).estimated_state=='UNKNOWN'
     assert query.at(12).estimated_state=='B'
     assert query.at(15).estimated_state=='UNKNOWN'

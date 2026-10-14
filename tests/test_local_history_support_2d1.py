@@ -20,7 +20,7 @@ def test_deadline_is_enforced_inside_decoder():
 def test_new_history_cannot_assert_support_and_abstention_at_same_time():
     pred={'schedule':{'phase_names':['A','B']},'reconstruction_history':{
         'segments':[[0,10,0]],'abstention_intervals':[[5,15,'UNKNOWN_SUPPORT']]}}
-    assert prepare_logical_query(pred).validation_error=='CONTRADICTORY_OBSERVATION_SUPPORT'
+    assert prepare_logical_query(pred,history_source="experimental").validation_error=='CONTRADICTORY_OBSERVATION_SUPPORT'
 
 
 @pytest.mark.parametrize('kwargs',[{'max_seconds':float('inf')},{'max_bins':-1},{'duration_min_factor':0}])
@@ -43,7 +43,7 @@ def test_uncompensated_hold_has_only_the_generated_delay_not_a_fitted_global_off
 def test_no_unavailable_history_can_secretly_supply_a_phase():
     result={'schedule':{'phase_names':['A','B']},'reconstruction_history':{
         'status':'unavailable','reason':'TIMEOUT','segments':[[0,80,0]]}}
-    assert prepare_logical_query(result).at(30).abstention_reason=='INVALID_PHASE_HISTORY'
+    assert prepare_logical_query(result,history_source="experimental").at(30).abstention_reason=='INVALID_PHASE_HISTORY'
 
 
 def test_default_decoder_equals_all_observed_legacy_path():

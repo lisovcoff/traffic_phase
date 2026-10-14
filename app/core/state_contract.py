@@ -111,16 +111,21 @@ class LogicalPhaseQuery:
             {"schedule_anchor_ms": self.anchor_ms}, self.mode)
 
 
-def prepare_logical_query(result, *, mode="reconstructed"):
+def prepare_logical_query(result, *, mode="reconstructed", history_source="accepted"):
     """Validate once, fail closed for the entire malformed history. No sorting/repair."""
     if mode not in {"reconstructed", "configured", "simulated"}:
         raise ValueError("invalid result mode")
     schedule = result.get("schedule", {})
     key = "raw_hsmm_segments" if mode == "reconstructed" else "baseline_segments"
-    history=result.get("reconstruction_history") if mode=="reconstructed" else None
-    if mode=="reconstructed" and "reconstruction_history" in result:
+    if history_source not in {"accepted","experimental"}:
+        raise ValueError("invalid history source")
+    if mode!="reconstructed" and history_source=="experimental":
+        raise ValueError("experimental history requires reconstructed mode")
+    experimental=mode=="reconstructed" and history_source=="experimental"
+    history=result.get("reconstruction_history") if experimental else None
+    if experimental:
         key="reconstruction_history.segments"
-        raw=history.get("segments",[]) if isinstance(history,Mapping) else None
+        raw=history.get("segments",[]) if isinstance(history,Mapping) else []
     else:
         raw=schedule.get(key,[])
     raw_names = schedule.get("phase_names", [])
@@ -156,7 +161,7 @@ def prepare_logical_query(result, *, mode="reconstructed"):
         error = error or "INVALID_CONFIGURED_PERIOD"
     if error:
         segments = []
-    gaps=[];unavailable=None
+    gaps=[];unavailable="EXPERIMENTAL_HISTORY_UNAVAILABLE" if experimental and history is None else None
     if isinstance(history,Mapping):
         unavailable=(history.get("reason") or "RECONSTRUCTION_UNAVAILABLE") if history.get("status")=="unavailable" else None
         if unavailable and segments:error="UNAVAILABLE_HISTORY_WITH_SEGMENTS"
@@ -177,13 +182,17 @@ def prepare_logical_query(result, *, mode="reconstructed"):
         key,result.get("schedule_base_timestamp_ms"),period,mode,error,tuple(gaps),tuple(g[0] for g in gaps),unavailable)
 
 
-def logical_phase_at(result, timestamp_s, *, mode=None):
+def logical_phase_at(result, timestamp_s, *, mode=None, history_source=None):
     """Accept a result for one-off queries or a prepared snapshot for bulk queries."""
     if isinstance(result,LogicalPhaseQuery):
+        if history_source not in {None,"accepted","experimental"}:
+            raise ValueError("invalid history source")
         if mode is not None and mode != result.mode:
             raise ValueError("query mode differs from prepared history")
+        if history_source is not None and (result.segment_source=="reconstruction_history.segments") != (history_source=="experimental"):
+            raise ValueError("history source differs from prepared query")
         return result.at(timestamp_s)
-    return prepare_logical_query(result,mode=mode or "reconstructed").at(timestamp_s)
+    return prepare_logical_query(result,mode=mode or "reconstructed",history_source=history_source or "accepted").at(timestamp_s)
 
 
 def attach_state_contract(result):
@@ -194,9 +203,8 @@ def attach_state_contract(result):
         "version": 1,
         "logical_phase": {"level": "logical_phase", "source": schedule.get("model"),
             "estimated_state": "QUERY_AT_TIMESTAMP", "assumptions": ["anonymous_latent_phase_NOT_lamp"],
-            "observation_support": {"coverage_segments_s": result.get("reconstruction_history",{}).get(
-                "segments",[]) if "reconstruction_history" in result else schedule.get("raw_hsmm_segments", []),
-                "history_field":"reconstruction_history.segments" if "reconstruction_history" in result else "raw_hsmm_segments"},
+            "observation_support": {"coverage_segments_s": schedule.get("raw_hsmm_segments", []),
+                "history_field":"raw_hsmm_segments"},
             "abstention_reason": None, "calibrated_lamp_probability": None},
         "activity": [{"movement": row["stream"], "scores": row.get("event_probability_by_phase", {}),
             "estimate": StateEstimate("MODELLED_EVENT_ACTIVITY", "activity", "bernoulli_event_occupancy",

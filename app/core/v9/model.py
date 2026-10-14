@@ -57,6 +57,7 @@ def _discover_from_event_views(
     trajectory_count: int = 0,
     evidence_policy: str = "legacy_v9",
     phase_search_config: PhaseSearchConfig | None = None,
+    experimental_local_history: bool = False,
 ):
     if not events:
         raise ValueError("no traffic events supplied")
@@ -88,6 +89,7 @@ def _discover_from_event_views(
         analysis_base_ms=float(events[0][0]),
         trajectory_count=trajectory_count,
         event_count=len(events),
+        experimental_local_history=experimental_local_history,
         evidence_policy=evidence_policy, phase_search_config=phase_search_config,
     )
 
@@ -592,6 +594,7 @@ def _discover_from_stream_views(
     evidence_diagnostics=None,
     evidence_policy: str = "permission_per_stream",
     phase_search_config: PhaseSearchConfig | None = None,
+    experimental_local_history: bool = False,
 ):
     if not by_stream:
         raise ValueError("no traffic events supplied")
@@ -925,13 +928,16 @@ def _discover_from_stream_views(
             "source_file_count": len(source_files),
             "source_files": [str(value) for value in source_files],
         }
-    if regime_detection is None:
-        result["reconstruction_history"] = decode_local_history(
-            x,fit["probs"],period,baseline_durations,dt=dt,initial_phase=int(fit["labels"][0]))
-    else:
-        result["reconstruction_history"] = {"status":"unavailable","segments":[],
-            "source":"fixed_templates_local_cyclic_hsmm","reason":"MULTIPLE_REGIME_SCOPE_UNSUPPORTED",
-            "level":"logical_phase","calibrated_lamp_probability":None}
+    if experimental_local_history:
+        if regime_detection is None:
+            result["reconstruction_history"] = decode_local_history(
+                x,fit["probs"],period,baseline_durations,dt=dt,initial_phase=int(fit["labels"][0]))
+        else:
+            result["reconstruction_history"] = {"status":"unavailable","segments":[],
+                "source":"fixed_templates_local_cyclic_hsmm","reason":"MULTIPLE_REGIME_SCOPE_UNSUPPORTED",
+                "level":"logical_phase","calibrated_lamp_probability":None}
+        result["reconstruction_history"]["experimental"] = True
+        result["reconstruction_history"]["validation_status"] = "FAIL_2D1_NOT_ACCEPTED"
     return attach_state_contract(result)
 
 
@@ -943,13 +949,14 @@ def discover_records(
     marks_path: Optional[Path] = None,
     evidence_policy: str = "permission_per_stream",
     phase_search_config: PhaseSearchConfig | None = None,
+    experimental_local_history: bool = False,
 ) -> dict[str, object]:
     if not tracks:
         raise EvidenceUnavailable("no trajectory records supplied", reason_code="NO_TRAJECTORY_RECORDS")
     if evidence_policy == "permission_per_stream":
         bundle = extract_timing_streams(tracks)
         return _discover_bundle(bundle, input_name=input_name, dt=dt, marks_path=marks_path,
-                                evidence_policy=evidence_policy, phase_search_config=phase_search_config)
+                                evidence_policy=evidence_policy, phase_search_config=phase_search_config, experimental_local_history=experimental_local_history)
     if evidence_policy != "legacy_v9":
         raise ValueError("unknown evidence policy")
     recording_start_ms = float(_recording_start_ms(tracks))
@@ -964,6 +971,7 @@ def discover_records(
         marks_path=marks_path,
         recording_start_ms=recording_start_ms,
         trajectory_count=len(tracks),
+        experimental_local_history=experimental_local_history,
         phase_search_config=phase_search_config,
     )
 
@@ -975,6 +983,7 @@ def discover_path(
     marks_path: Optional[Path] = None,
     evidence_policy: str = "permission_per_stream",
     phase_search_config: PhaseSearchConfig | None = None,
+    experimental_local_history: bool = False,
 ) -> dict[str, object]:
     path = Path(path)
     if path.is_file() and path.suffix.lower() not in {".json", ".zip"}:
@@ -985,10 +994,10 @@ def discover_path(
     bundle = load_event_streams(path, evidence_policy=evidence_policy)
     return _discover_bundle(bundle, input_name=str(path), dt=dt, marks_path=marks_path,
                             evidence_policy=evidence_policy, phase_search_config=phase_search_config,
-                            source_files=[str(path)] if path.is_file() else bundle[5])
+                            experimental_local_history=experimental_local_history, source_files=[str(path)] if path.is_file() else bundle[5])
 
 
-def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None, phase_search_config=None):
+def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None, phase_search_config=None, experimental_local_history=False):
     (
         by_stream,
         entry_streams,
@@ -1019,5 +1028,6 @@ def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, sou
         permission_streams=getattr(bundle, "permission_streams", None),
         temporal_events=getattr(bundle, "temporal_events", ()),
         evidence_diagnostics=getattr(bundle, "diagnostics", None),
+        experimental_local_history=experimental_local_history,
         evidence_policy=evidence_policy, phase_search_config=phase_search_config,
     )
