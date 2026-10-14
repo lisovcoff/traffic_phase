@@ -1,5 +1,8 @@
 from __future__ import annotations
 import math
+import time
+from dataclasses import dataclass, asdict
+import hashlib
 import json
 import itertools
 from collections import defaultdict
@@ -67,7 +70,7 @@ def _boundary_coherence(segments, period, evidence_grid, evidence_values):
     vals = np.interp(np.asarray(starts) % period, evidence_grid, evidence_values, period=period)
     return float(np.mean(vals))
 
-def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, dt: float=1.0, min_duration_s: Optional[float]=None, max_duration_s: Optional[float]=None, transition_penalty: float=0.25, duration_targets: Optional[Sequence[float]]=None, initial_phase: Optional[int]=None, duration_min_factor: float=0.65, duration_max_factor: float=1.35):
+def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, dt: float=1.0, min_duration_s: Optional[float]=None, max_duration_s: Optional[float]=None, transition_penalty: float=0.25, duration_targets: Optional[Sequence[float]]=None, initial_phase: Optional[int]=None, duration_min_factor: float=0.65, duration_max_factor: float=1.35, observation_mask=None, duration_penalty_strength: float=2.0, deadline_monotonic=None):
     n, _ = x.shape
     expected = float(period) / float(k)
     if duration_targets is None:
@@ -86,8 +89,10 @@ def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, 
     prob = probs.T[np.newaxis, :, :]
     xx = x[:, :, np.newaxis]
     emissions = np.sum(xx * np.log(prob) + (1.0 - xx) * np.log(1.0 - prob), axis=1)
+    if observation_mask is not None:
+        emissions[~np.asarray(observation_mask,dtype=bool)] = 0.0
     prefix = np.vstack([np.zeros((1, k)), np.cumsum(emissions, axis=0)])
-    dpen = _duration_penalty(period, k, int(np.max(max_d_by_state)), targets, strength=2.0)
+    dpen = _duration_penalty(period, k, int(np.max(max_d_by_state)), targets, strength=duration_penalty_strength)
     best_total = -float('inf')
     best_payload = None
     initials = range(k) if initial_phase is None else [int(initial_phase) % k]
@@ -97,6 +102,8 @@ def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, 
         prev_d = np.zeros((n + 1, k), dtype=np.int16)
         dp[0, initial] = 0.0
         for t in range(1, n + 1):
+            if deadline_monotonic is not None and (t==1 or t%128==0) and time.monotonic()>=deadline_monotonic:
+                raise TimeoutError('local decoding wall-time budget exceeded')
             first_max = int(max_d_by_state[initial])
             if 2 <= t <= first_max:
                 dp[t, initial] = prefix[t, initial]
@@ -147,3 +154,105 @@ def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, 
         'transition_penalty': float(transition_penalty),
         'initial_phase_constraint': None if initial_phase is None else int(initial_phase) % k,
     }
+
+
+@dataclass(frozen=True)
+class LocalHistoryConfig:
+    min_duration_s: float = 2.0
+    max_duration_s: float = 180.0
+    duration_min_factor: float = 0.1
+    duration_max_factor: float = 4.0
+    duration_penalty_strength: float = 2.0
+    transition_penalty: float = 0.25
+    max_bins: int = 10000
+    max_work_units: int = 5000000
+    max_seconds: float = 15.0
+
+    def __post_init__(self):
+        if any(not math.isfinite(v) or v<=0 for v in (self.min_duration_s,self.max_duration_s,
+            self.duration_min_factor,self.duration_max_factor)):
+            raise ValueError('finite positive duration bounds required')
+        if self.max_duration_s<self.min_duration_s or self.duration_max_factor<self.duration_min_factor:
+            raise ValueError('inverted duration bounds')
+        if any(not math.isfinite(v) or v<0 for v in (self.max_seconds,self.duration_penalty_strength,self.transition_penalty)):
+            raise ValueError('finite nonnegative budget/penalties required')
+        if any(isinstance(v,bool) or not isinstance(v,int) or v<0 for v in (self.max_bins,self.max_work_units)):
+            raise ValueError('nonnegative integer work budgets required')
+
+
+def decode_local_history(x, probs, period, duration_targets, *, dt=1., initial_phase=0,
+                         config=None, observation_mask=None, coverage_mask=None):
+    """One fixed-order/fixed-template decode. Silence is censored, not negative evidence."""
+    config=config or LocalHistoryConfig(); started=time.monotonic()
+    x=np.asarray(x);probs=np.asarray(probs);n=len(x);k=len(probs)
+    model={"K":k,"period_s":float(period),"duration_targets_s":list(map(float,duration_targets)),
+           "initial_phase":int(initial_phase),"templates_sha256":hashlib.sha256(probs.tobytes()).hexdigest()}
+    base={"level":"logical_phase","source":"fixed_templates_local_cyclic_hsmm",
+          "fixed_model":model,"config":asdict(config),"calibrated_lamp_probability":None,
+          "assumptions":["fixed_K_and_cyclic_order","duration_prior_NOT_observed_controller_timing",
+                         "vehicle_evidence_NOT_lamp_switch_observation"],
+          "coverage_semantics":"local_positive_vehicle_evidence_support_NOT_camera_coverage",
+          "cause_of_deviation":"UNKNOWN"}
+    def unavailable(reason):
+        return {**base,"status":"unavailable","reason":reason,"segments":[],"boundaries":[],
+                "coverage_s":0.,"runtime_s":time.monotonic()-started}
+    if (x.ndim!=2 or probs.ndim!=2 or probs.shape[1]!=x.shape[1] or k<2 or n==0
+            or not math.isfinite(dt) or dt<=0 or not math.isfinite(period) or period<=0 or len(duration_targets)!=k
+            or np.any(~np.isfinite(x)) or np.any(~np.isfinite(probs))
+            or np.any(probs<=0) or np.any(probs>=1) or np.any(x<0) or np.any(x>1)
+            or np.any(~np.isfinite(duration_targets)) or np.any(np.asarray(duration_targets)<=0)):
+        return unavailable("INVALID_FIXED_MODEL_OR_OBSERVATIONS")
+    targets=np.maximum(2.,np.asarray(duration_targets,dtype=float))
+    min_by_state=np.maximum(config.min_duration_s,config.duration_min_factor*targets)
+    max_by_state=np.maximum(np.minimum(config.max_duration_s,config.duration_max_factor*targets),min_by_state+1.)
+    work=n*k*int(max(3,np.max(np.round(max_by_state/dt))+1))
+    if n>config.max_bins or work>config.max_work_units:
+        return unavailable("LOCAL_DECODE_WORK_BUDGET_EXCEEDED")
+    if config.max_seconds<=0:
+        return unavailable("LOCAL_DECODE_TIME_BUDGET_EXCEEDED")
+    support=np.any(x>0,axis=1) if observation_mask is None else np.asarray(observation_mask,dtype=bool)
+    coverage=np.ones(n,dtype=bool) if coverage_mask is None else np.asarray(coverage_mask,dtype=bool)
+    if support.shape!=(n,) or coverage.shape!=(n,):return unavailable("INVALID_SUPPORT_MASK")
+    observed=support & coverage
+    emissions=x@np.log(probs).T+(1-x)@np.log(1-probs).T
+    top=np.max(emissions,axis=1)
+    identifiable=np.sum(emissions==top[:,None],axis=1)==1
+    observed &= identifiable
+    abstentions=[];left=0
+    reasons=[None if observed[i] else "EXPLICIT_INPUT_COVERAGE_GAP" if not coverage[i]
+             else "NO_LOCAL_VEHICLE_EVIDENCE" if not support[i] else "NON_IDENTIFIABLE_PHASE_EMISSIONS" for i in range(n)]
+    for i in range(1,n+1):
+        if i==n or reasons[i]!=reasons[left]:
+            if reasons[left]:abstentions.append([left*dt,i*dt,reasons[left]])
+            left=i
+    if not np.any(observed):
+        return {**unavailable("NO_IDENTIFIABLE_LOCAL_EVIDENCE" if np.any(support & coverage)
+                            else "NO_LOCAL_VEHICLE_EVIDENCE"),"abstention_intervals":abstentions}
+    try:
+        labels,score,candidates,diagnostics=decode_cyclic_hsmm(x,probs,period,k,dt=dt,
+            min_duration_s=config.min_duration_s,max_duration_s=config.max_duration_s,
+            duration_targets=duration_targets,initial_phase=initial_phase,
+            duration_min_factor=config.duration_min_factor,duration_max_factor=config.duration_max_factor,
+            duration_penalty_strength=config.duration_penalty_strength,transition_penalty=config.transition_penalty,
+            observation_mask=observed,deadline_monotonic=started+config.max_seconds)
+    except TimeoutError:
+        return unavailable("LOCAL_DECODE_TIME_BUDGET_EXCEEDED")
+    except RuntimeError as exc:
+        return {**unavailable("NO_VALID_FIXED_ORDER_PATH"),"detail":str(exc)}
+    if time.monotonic()-started>config.max_seconds:return unavailable("LOCAL_DECODE_TIME_BUDGET_EXCEEDED")
+    segments=[];left=0
+    for i in range(1,n+1):
+        if i==n or observed[i]!=observed[left] or labels[i]!=labels[left]:
+            if observed[left]:segments.append([left*dt,i*dt,int(labels[left])])
+            left=i
+    boundaries=[]
+    for a,b in zip(candidates,candidates[1:]):
+        i=int(round(b[0]/dt))
+        boundaries.append({"timestamp_s":b[0],"from_phase":int(a[2]),"to_phase":int(b[2]),
+            "adjacent_observation_support":bool(0<i<n and observed[i-1] and observed[i]),
+            "temporal_resolution_s":dt,"event_to_lamp_switch_relation":"UNKNOWN",
+            "uncertainty_semantics":"grid_and_vehicle_proxy_localization_NOT_calibrated_lamp_interval"})
+    return {**base,"status":"ok","reason":None,"segments":segments,"candidate_segments":candidates,
+        "abstention_intervals":abstentions,"boundaries":boundaries,"decoder":diagnostics,
+        "score":score,"coverage_s":int(np.sum(observed))*dt,"input_extent_s":[0.,n*dt],
+        "runtime_s":time.monotonic()-started}

@@ -1,0 +1,44 @@
+{
+  "base_sha": "b248b4c7bac27def4a131ba61301f2678cd0b05a",
+  "config": {
+    "min_duration_s": 2.0,
+    "max_duration_s": 180.0,
+    "duration_min_factor": 0.1,
+    "duration_max_factor": 4.0,
+    "duration_penalty_strength": 2.0,
+    "transition_penalty": 0.25,
+    "max_bins": 10000,
+    "max_work_units": 5000000,
+    "max_seconds": 15.0
+  },
+  "protected_paths": [
+    "app/core/v9/fit.py",
+    "app/core/v9/primitives.py",
+    "app/core/v9/events.py",
+    "app/core/v9/vehicle_evidence.py",
+    "app/core/temporal_evidence.py",
+    "app/core/v10",
+    "app/core/offline_benchmark.py",
+    "scripts/offline_benchmark.py",
+    "benchmarks",
+    "app/api",
+    "app/templates",
+    "app/static"
+  ],
+  "unchanged_model_functions": [
+    "_discover_from_event_views",
+    "_slice_streams",
+    "_regime_phase_structure",
+    "_cluster_local_regime_windows",
+    "_local_regime_selection",
+    "_choose_phase_evidence",
+    "_calibrate_phase_anchor",
+    "discover_records",
+    "discover_path",
+    "_discover_bundle"
+  ],
+  "additional_tests_sha256": "5ffbaf6905feef5563e8363c6ab18e6d149f1833ee91a4eddc8abfc10fab791f",
+  "additional_cases": "uncompensated+10/+30 holds, exact emission ties, deadline, default decoder equivalence, annotation rejection",
+  "development_command": "python -m scripts.local_history_2d1 run",
+  "max_runs": 1
+}

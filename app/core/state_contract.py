@@ -75,6 +75,9 @@ class LogicalPhaseQuery:
     period_s: float | None
     mode: str
     validation_error: str | None = None
+    abstention_intervals: tuple = ()
+    abstention_starts: tuple = ()
+    unavailable_reason: str | None = None
 
     def at(self, timestamp_s):
         t = float(timestamp_s)
@@ -84,6 +87,8 @@ class LogicalPhaseQuery:
             "local_vehicle_observation_support": "UNKNOWN",
             "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability"}
         reason = "INVALID_PHASE_HISTORY" if self.validation_error else "NO_TEMPORAL_COVERAGE"
+        if self.unavailable_reason and not self.validation_error:
+            reason = self.unavailable_reason
         phase = "UNKNOWN"
         if self.validation_error:
             support["history_validation_error"] = self.validation_error
@@ -97,6 +102,10 @@ class LogicalPhaseQuery:
                     phase, reason = self.phase_names[phase_id], None
                     support.update(temporally_covered=True, segment_interval_s=[start,end],
                                    segment_index=index, phase_id=phase_id, query_position_s=t)
+            if phase=="UNKNOWN":
+                gap=bisect_right(self.abstention_starts,t)-1
+                if gap>=0 and self.abstention_intervals[gap][0]<=t<self.abstention_intervals[gap][1]:
+                    reason=self.abstention_intervals[gap][2]
         return StateEstimate(phase, "logical_phase", self.source,
             ("latent_phase_estimate_NOT_lamp_state",), support, reason,
             {"schedule_anchor_ms": self.anchor_ms}, self.mode)
@@ -108,7 +117,13 @@ def prepare_logical_query(result, *, mode="reconstructed"):
         raise ValueError("invalid result mode")
     schedule = result.get("schedule", {})
     key = "raw_hsmm_segments" if mode == "reconstructed" else "baseline_segments"
-    raw_names, raw = schedule.get("phase_names", []), schedule.get(key, [])
+    history=result.get("reconstruction_history") if mode=="reconstructed" else None
+    if mode=="reconstructed" and "reconstruction_history" in result:
+        key="reconstruction_history.segments"
+        raw=history.get("segments",[]) if isinstance(history,Mapping) else None
+    else:
+        raw=schedule.get(key,[])
+    raw_names = schedule.get("phase_names", [])
     names, segments, error = (), [], None
     if (not isinstance(raw_names,(list,tuple)) or any(not isinstance(n,str) or not n.strip() for n in raw_names)
             or len(set(raw_names)) != len(raw_names)):
@@ -141,9 +156,25 @@ def prepare_logical_query(result, *, mode="reconstructed"):
         error = error or "INVALID_CONFIGURED_PERIOD"
     if error:
         segments = []
+    gaps=[];unavailable=None
+    if isinstance(history,Mapping):
+        unavailable=(history.get("reason") or "RECONSTRUCTION_UNAVAILABLE") if history.get("status")=="unavailable" else None
+        if unavailable and segments:error="UNAVAILABLE_HISTORY_WITH_SEGMENTS"
+        for row in history.get("abstention_intervals",[]):
+            if (not isinstance(row,(list,tuple)) or len(row)!=3 or not isinstance(row[2],str)
+                or any(isinstance(v,bool) or not isinstance(v,Real) or not math.isfinite(v) for v in row[:2])
+                or row[0]<0 or row[1]<=row[0] or (gaps and row[0]<gaps[-1][1])):
+                error="INVALID_ABSTENTION_INTERVALS";break
+            gaps.append(tuple(row))
+        i=0
+        for a,b,_ in gaps:
+            while i<len(segments) and segments[i][1]<=a:i+=1
+            if i<len(segments) and segments[i][0]<b:
+                error="CONTRADICTORY_OBSERVATION_SUPPORT";break
+        if error:segments=[];gaps=[]
     return LogicalPhaseQuery(names,tuple(segments),tuple(s[0] for s in segments),
-        schedule.get("model", "anonymous_phase_model"),key,result.get("schedule_base_timestamp_ms"),
-        period,mode,error)
+        history.get("source","local_history") if isinstance(history,Mapping) else schedule.get("model", "anonymous_phase_model"),
+        key,result.get("schedule_base_timestamp_ms"),period,mode,error,tuple(gaps),tuple(g[0] for g in gaps),unavailable)
 
 
 def logical_phase_at(result, timestamp_s, *, mode=None):
@@ -163,7 +194,9 @@ def attach_state_contract(result):
         "version": 1,
         "logical_phase": {"level": "logical_phase", "source": schedule.get("model"),
             "estimated_state": "QUERY_AT_TIMESTAMP", "assumptions": ["anonymous_latent_phase_NOT_lamp"],
-            "observation_support": {"coverage_segments_s": schedule.get("raw_hsmm_segments", [])},
+            "observation_support": {"coverage_segments_s": result.get("reconstruction_history",{}).get(
+                "segments",[]) if "reconstruction_history" in result else schedule.get("raw_hsmm_segments", []),
+                "history_field":"reconstruction_history.segments" if "reconstruction_history" in result else "raw_hsmm_segments"},
             "abstention_reason": None, "calibrated_lamp_probability": None},
         "activity": [{"movement": row["stream"], "scores": row.get("event_probability_by_phase", {}),
             "estimate": StateEstimate("MODELLED_EVENT_ACTIVITY", "activity", "bernoulli_event_occupancy",

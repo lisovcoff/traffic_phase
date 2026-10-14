@@ -1,4 +1,4 @@
-# Project status — 2C, 2026-10-14
+# Project status — 2D.1, 2026-10-14
 
 Stages 1 and 2A are accepted as audit/planning and a reproducible offline baseline.
 Stage 2B.1 is accepted as an engineering improvement in temporal evidence,
@@ -32,8 +32,15 @@ queries give UNKNOWN/NO_TEMPORAL_COVERAGE. Explicit configured/simulated modes
 remain distinct from reconstructed physical states. Follow-up base:
 `8bb7ca1a9d8137001028f2c6b6e8e6af98d42201`.
 
-2B.2 including canonical V9 query follow-up is accepted. 2C is the current stage:
+2B.2 including canonical V9 query follow-up is accepted. 2C completed:
 universal candidate admission and bounded, transparent phase-count comparison.
 Base: `36b6752a4794e482570944b22656d6cc58f0db31`. Prior baseline/regressions remain
 preserved; any new development metrics do not close independent event/lamp
-validation. No progress to 2D is implied.
+validation.
+
+2D.1 is the current limited stage: a single fixed-model local duration decoding,
+separate from recurring-plan discovery. Raw/baseline fields are preserved.
+No-demand/missing local evidence remains UNKNOWN; camera coverage and lamp
+switch timing are not inferred. External validation and known development
+regressions remain open. Base `b248b4c7bac27def4a131ba61301f2678cd0b05a`.
+No 2D.2, skip/reorder, multiple-regime extension or online work is authorized.

@@ -32,6 +32,7 @@ from app.core.temporal_evidence import EvidenceUnavailable
 from app.core.state_contract import attach_state_contract
 from dataclasses import asdict
 from .fit import PhaseSearchConfig
+from .decoder import decode_local_history
 
 
 class PhaseSearchUnavailable(EvidenceUnavailable):
@@ -924,6 +925,13 @@ def _discover_from_stream_views(
             "source_file_count": len(source_files),
             "source_files": [str(value) for value in source_files],
         }
+    if regime_detection is None:
+        result["reconstruction_history"] = decode_local_history(
+            x,fit["probs"],period,baseline_durations,dt=dt,initial_phase=int(fit["labels"][0]))
+    else:
+        result["reconstruction_history"] = {"status":"unavailable","segments":[],
+            "source":"fixed_templates_local_cyclic_hsmm","reason":"MULTIPLE_REGIME_SCOPE_UNSUPPORTED",
+            "level":"logical_phase","calibrated_lamp_probability":None}
     return attach_state_contract(result)
 
 
