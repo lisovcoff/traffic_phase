@@ -1,0 +1,4883 @@
+{
+  "aggregate": {
+    "conditional_brackets": 180,
+    "median_width_s": 5.5920000000000005,
+    "p95_width_s": 17.086349999999992,
+    "width_le_4s_count": 48,
+    "width_le_4s_fraction": 0.26666666666666666,
+    "truth_scored": 166,
+    "truth_inside_count": 166,
+    "midpoint_within_2s_count": 110,
+    "midpoint_diagnostic_fraction": 0.6626506024096386,
+    "unconditional_identified_boundaries": 0
+  },
+  "rows": [
+    {
+      "case": "stable_K2",
+      "seed": 11,
+      "range_s": [
+        0,
+        240
+      ],
+      "event_count": 67,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [
+        {
+          "width_s": 4.284,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.154,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.58,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.664,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.4,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.013,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 4.148,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                82855.5,
+                93435.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                116657.5,
+                121321.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                148927.5,
+                153327.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                171225.5,
+                182238.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                206221.5,
+                210369.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 67,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                82855.5,
+                93435.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                116657.5,
+                121321.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                148927.5,
+                153327.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                171225.5,
+                182238.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                206221.5,
+                210369.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 67,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "stable_K2",
+      "seed": 29,
+      "range_s": [
+        0,
+        240
+      ],
+      "event_count": 75,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [
+        {
+          "width_s": 1.781,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 5.485,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 0.729,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.095,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 24.766,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.14,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 7.312,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                89543.5,
+                90272.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                116857.5,
+                120952.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                133077.5,
+                157843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                174219.5,
+                180359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                208212.5,
+                215524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 75,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                89543.5,
+                90272.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                116857.5,
+                120952.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                133077.5,
+                157843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                174219.5,
+                180359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                208212.5,
+                215524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 75,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "hold10_K2",
+      "seed": 11,
+      "range_s": [
+        0,
+        250
+      ],
+      "event_count": 68,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [
+        {
+          "width_s": 4.284,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.154,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 20.124,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 8.334,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 8.968,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 3.097,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.901,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 34000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 65000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 96000.0,
+              "interval_ms": [
+                95695.5,
+                115819.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 127000.0,
+              "interval_ms": [
+                123613.5,
+                131947.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 158000.0,
+              "interval_ms": [
+                153232.5,
+                162200.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 189000.0,
+              "interval_ms": [
+                188899.5,
+                191996.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 220000.0,
+              "interval_ms": [
+                210624.5,
+                222525.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 68,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 34000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 65000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 96000.0,
+              "interval_ms": [
+                95695.5,
+                115819.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 127000.0,
+              "interval_ms": [
+                123613.5,
+                131947.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 158000.0,
+              "interval_ms": [
+                153232.5,
+                162200.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 189000.0,
+              "interval_ms": [
+                188899.5,
+                191996.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 220000.0,
+              "interval_ms": [
+                210624.5,
+                222525.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 68,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "hold10_K2",
+      "seed": 29,
+      "range_s": [
+        0,
+        250
+      ],
+      "event_count": 75,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [
+        {
+          "width_s": 1.781,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 5.485,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 1.0,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 3.641,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 29.892,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.14,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 7.312,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 62000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 100000.0,
+              "interval_ms": [
+                99390.5,
+                100390.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 130000.0,
+              "interval_ms": [
+                129244.5,
+                132885.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 160000.0,
+              "interval_ms": [
+                137951.5,
+                167843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 190000.0,
+              "interval_ms": [
+                184219.5,
+                190359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 220000.0,
+              "interval_ms": [
+                218212.5,
+                225524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 75,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 62000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 100000.0,
+              "interval_ms": [
+                99390.5,
+                100390.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 130000.0,
+              "interval_ms": [
+                129244.5,
+                132885.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 160000.0,
+              "interval_ms": [
+                137951.5,
+                167843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 190000.0,
+              "interval_ms": [
+                184219.5,
+                190359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 220000.0,
+              "interval_ms": [
+                218212.5,
+                225524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 75,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "hold30_K2",
+      "seed": 11,
+      "range_s": [
+        0,
+        270
+      ],
+      "event_count": 76,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [
+        {
+          "width_s": 4.284,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.154,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 2.403,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.4,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.013,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 4.148,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.823,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 76,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 5,
+          "event_count": 76,
+          "violating_event_indices": [
+            11,
+            12,
+            13,
+            14,
+            15
+          ],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "hold30_K2",
+      "seed": 29,
+      "range_s": [
+        0,
+        270
+      ],
+      "event_count": 88,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [
+        {
+          "width_s": 1.781,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 5.485,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 1.925,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 24.766,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.14,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 7.312,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 0.815,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 88,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 62000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 109000.0,
+              "interval_ms": [
+                119027.5,
+                120952.5
+              ],
+              "position": "before",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 142000.0,
+              "interval_ms": [
+                133077.5,
+                157843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 175000.0,
+              "interval_ms": [
+                174219.5,
+                180359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 209000.0,
+              "interval_ms": [
+                208212.5,
+                215524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                239907.5,
+                240722.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 2,
+          "event_count": 88,
+          "violating_event_indices": [
+            37,
+            38
+          ],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "shorten10_K2",
+      "seed": 11,
+      "range_s": [
+        0,
+        230
+      ],
+      "event_count": 67,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [
+        {
+          "width_s": 4.284,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.154,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.203,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 12.031,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 1.296,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 2.754,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.148,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 57000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 83000.0,
+              "interval_ms": [
+                79202.5,
+                89405.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 110000.0,
+              "interval_ms": [
+                98119.5,
+                110150.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 140000.0,
+              "interval_ms": [
+                139302.5,
+                140598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 170000.0,
+              "interval_ms": [
+                169484.5,
+                172238.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 200000.0,
+              "interval_ms": [
+                196221.5,
+                200369.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 67,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 57000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 83000.0,
+              "interval_ms": [
+                79202.5,
+                89405.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 110000.0,
+              "interval_ms": [
+                98119.5,
+                110150.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 140000.0,
+              "interval_ms": [
+                139302.5,
+                140598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 170000.0,
+              "interval_ms": [
+                169484.5,
+                172238.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 200000.0,
+              "interval_ms": [
+                196221.5,
+                200369.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 67,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "shorten10_K2",
+      "seed": 29,
+      "range_s": [
+        0,
+        230
+      ],
+      "event_count": 75,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [
+        {
+          "width_s": 1.781,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 5.485,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 1.502,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 8.826,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.424,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.14,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 7.312,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 29000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 57000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 81000.0,
+              "interval_ms": [
+                79684.5,
+                81186.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 111000.0,
+              "interval_ms": [
+                106984.5,
+                115810.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 141000.0,
+              "interval_ms": [
+                136419.5,
+                147843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 170000.0,
+              "interval_ms": [
+                164219.5,
+                170359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 200000.0,
+              "interval_ms": [
+                198212.5,
+                205524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 75,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 29000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 57000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 81000.0,
+              "interval_ms": [
+                79684.5,
+                81186.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 110000.0,
+              "interval_ms": [
+                106984.5,
+                115810.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 140000.0,
+              "interval_ms": [
+                136419.5,
+                147843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 170000.0,
+              "interval_ms": [
+                164219.5,
+                170359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 201000.0,
+              "interval_ms": [
+                198212.5,
+                205524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 75,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "stable_K3",
+      "seed": 11,
+      "range_s": [
+        0,
+        360
+      ],
+      "event_count": 94,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 4.284,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.154,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.58,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.664,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.4,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.013,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 4.148,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.823,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.345,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.133,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 8.719,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                82855.5,
+                93435.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                116657.5,
+                121321.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                148927.5,
+                153327.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                171225.5,
+                182238.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                206221.5,
+                210369.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                236086.5,
+                240909.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                259006.5,
+                270351.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                297393.5,
+                303526.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                328360.5,
+                337079.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 94,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                82855.5,
+                93435.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                116657.5,
+                121321.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                148927.5,
+                153327.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                171225.5,
+                182238.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                206221.5,
+                210369.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                236086.5,
+                240909.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                259006.5,
+                270351.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                297393.5,
+                303526.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                328360.5,
+                337079.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 94,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "stable_K3",
+      "seed": 29,
+      "range_s": [
+        0,
+        360
+      ],
+      "event_count": 112,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 1.781,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 5.485,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 0.729,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.095,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 24.766,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.14,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 7.312,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 0.815,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 3.397,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 8.546,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 7.919,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                89543.5,
+                90272.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                116857.5,
+                120952.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                133077.5,
+                157843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                174219.5,
+                180359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                208212.5,
+                215524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                239907.5,
+                240722.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                267279.5,
+                270676.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                299052.5,
+                307598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                322908.5,
+                330827.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 112,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                89543.5,
+                90272.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                116857.5,
+                120952.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                133077.5,
+                157843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                174219.5,
+                180359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                208212.5,
+                215524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                239907.5,
+                240722.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                267279.5,
+                270676.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                299052.5,
+                307598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                322908.5,
+                330827.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 112,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "hold10_K3",
+      "seed": 11,
+      "range_s": [
+        0,
+        370
+      ],
+      "event_count": 94,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 4.284,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.154,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.58,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 9.62,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 8.968,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 3.097,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.901,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 1.263,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 12.254,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.133,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 8.719,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 33000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 63000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 93000.0,
+              "interval_ms": [
+                82855.5,
+                93435.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 125000.0,
+              "interval_ms": [
+                122327.5,
+                131947.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 157000.0,
+              "interval_ms": [
+                153232.5,
+                162200.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 189000.0,
+              "interval_ms": [
+                188899.5,
+                191996.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 219000.0,
+              "interval_ms": [
+                210624.5,
+                222525.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 250000.0,
+              "interval_ms": [
+                249988.5,
+                251251.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 280000.0,
+              "interval_ms": [
+                268097.5,
+                280351.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 310000.0,
+              "interval_ms": [
+                307393.5,
+                313526.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 340000.0,
+              "interval_ms": [
+                338360.5,
+                347079.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 94,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 33000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 63000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 93000.0,
+              "interval_ms": [
+                82855.5,
+                93435.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 125000.0,
+              "interval_ms": [
+                122327.5,
+                131947.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 157000.0,
+              "interval_ms": [
+                153232.5,
+                162200.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 189000.0,
+              "interval_ms": [
+                188899.5,
+                191996.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 220000.0,
+              "interval_ms": [
+                210624.5,
+                222525.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 250000.0,
+              "interval_ms": [
+                249988.5,
+                251251.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 280000.0,
+              "interval_ms": [
+                268097.5,
+                280351.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 310000.0,
+              "interval_ms": [
+                307393.5,
+                313526.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 340000.0,
+              "interval_ms": [
+                338360.5,
+                347079.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 94,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "hold10_K3",
+      "seed": 29,
+      "range_s": [
+        0,
+        370
+      ],
+      "event_count": 112,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 1.781,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 5.485,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 0.729,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 0.916,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 2.993,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 5.049,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 5.699,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 5.061,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 6.83,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 8.546,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 7.919,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                89543.5,
+                90272.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 130000.0,
+              "interval_ms": [
+                129516.5,
+                130432.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 160000.0,
+              "interval_ms": [
+                157352.5,
+                160345.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 190000.0,
+              "interval_ms": [
+                189974.5,
+                195023.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 220000.0,
+              "interval_ms": [
+                216704.5,
+                222403.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 250000.0,
+              "interval_ms": [
+                247320.5,
+                252381.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 280000.0,
+              "interval_ms": [
+                273846.5,
+                280676.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 310000.0,
+              "interval_ms": [
+                309052.5,
+                317598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 340000.0,
+              "interval_ms": [
+                332908.5,
+                340827.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 112,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                89543.5,
+                90272.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 130000.0,
+              "interval_ms": [
+                129516.5,
+                130432.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 160000.0,
+              "interval_ms": [
+                157352.5,
+                160345.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 190000.0,
+              "interval_ms": [
+                189974.5,
+                195023.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 220000.0,
+              "interval_ms": [
+                216704.5,
+                222403.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 250000.0,
+              "interval_ms": [
+                247320.5,
+                252381.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 280000.0,
+              "interval_ms": [
+                273846.5,
+                280676.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 310000.0,
+              "interval_ms": [
+                309052.5,
+                317598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 340000.0,
+              "interval_ms": [
+                332908.5,
+                340827.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 112,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "hold30_K3",
+      "seed": 11,
+      "range_s": [
+        0,
+        390
+      ],
+      "event_count": 101,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 4.284,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.154,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.58,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 3.393,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.013,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 4.148,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.823,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.345,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.133,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 8.719,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 5.313,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 34000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 66000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 108000.0,
+              "interval_ms": [
+                82855.5,
+                93435.5
+              ],
+              "position": "after",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                149934.5,
+                153327.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                171225.5,
+                182238.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                206221.5,
+                210369.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                236086.5,
+                240909.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                259006.5,
+                270351.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                297393.5,
+                303526.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                328360.5,
+                337079.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 360000.0,
+              "interval_ms": [
+                358992.5,
+                364305.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 2,
+          "event_count": 101,
+          "violating_event_indices": [
+            22,
+            23
+          ],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 34000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 66000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 108000.0,
+              "interval_ms": [
+                82855.5,
+                93435.5
+              ],
+              "position": "after",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                149934.5,
+                153327.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                171225.5,
+                182238.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                206221.5,
+                210369.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                236086.5,
+                240909.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                259006.5,
+                270351.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                297393.5,
+                303526.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                328360.5,
+                337079.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 360000.0,
+              "interval_ms": [
+                358992.5,
+                364305.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 2,
+          "event_count": 101,
+          "violating_event_indices": [
+            22,
+            23
+          ],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "hold30_K3",
+      "seed": 29,
+      "range_s": [
+        0,
+        390
+      ],
+      "event_count": 119,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 1.781,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 5.485,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 0.729,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 20.375,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.14,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 7.312,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 0.815,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 3.397,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 8.546,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 7.919,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 1.352,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                89543.5,
+                90272.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 138000.0,
+              "interval_ms": [
+                137468.5,
+                157843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 175000.0,
+              "interval_ms": [
+                174219.5,
+                180359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 209000.0,
+              "interval_ms": [
+                208212.5,
+                215524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                239907.5,
+                240722.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                267279.5,
+                270676.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                299052.5,
+                307598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                322908.5,
+                330827.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 360000.0,
+              "interval_ms": [
+                359532.5,
+                360884.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 119,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 62000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 95000.0,
+              "interval_ms": [
+                89543.5,
+                90272.5
+              ],
+              "position": "after",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 138000.0,
+              "interval_ms": [
+                137468.5,
+                157843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 175000.0,
+              "interval_ms": [
+                174219.5,
+                180359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 209000.0,
+              "interval_ms": [
+                208212.5,
+                215524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                239907.5,
+                240722.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                267279.5,
+                270676.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                299052.5,
+                307598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                322908.5,
+                330827.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 360000.0,
+              "interval_ms": [
+                359532.5,
+                360884.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 1,
+          "event_count": 119,
+          "violating_event_indices": [
+            28
+          ],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "shorten10_K3",
+      "seed": 11,
+      "range_s": [
+        0,
+        350
+      ],
+      "event_count": 94,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 4.284,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.154,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.58,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.436,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 1.296,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 2.754,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.148,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.823,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.345,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.133,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 8.719,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 57000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 83000.0,
+              "interval_ms": [
+                82855.5,
+                93435.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 110000.0,
+              "interval_ms": [
+                98714.5,
+                110150.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 140000.0,
+              "interval_ms": [
+                139302.5,
+                140598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 170000.0,
+              "interval_ms": [
+                169484.5,
+                172238.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 200000.0,
+              "interval_ms": [
+                196221.5,
+                200369.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 230000.0,
+              "interval_ms": [
+                226086.5,
+                230909.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 260000.0,
+              "interval_ms": [
+                249006.5,
+                260351.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 290000.0,
+              "interval_ms": [
+                287393.5,
+                293526.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 320000.0,
+              "interval_ms": [
+                318360.5,
+                327079.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 94,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                29781.5,
+                34065.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 57000.0,
+              "interval_ms": [
+                56795.5,
+                66949.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 83000.0,
+              "interval_ms": [
+                82855.5,
+                93435.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 110000.0,
+              "interval_ms": [
+                98714.5,
+                110150.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 140000.0,
+              "interval_ms": [
+                139302.5,
+                140598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 170000.0,
+              "interval_ms": [
+                169484.5,
+                172238.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 200000.0,
+              "interval_ms": [
+                196221.5,
+                200369.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 230000.0,
+              "interval_ms": [
+                226086.5,
+                230909.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 260000.0,
+              "interval_ms": [
+                249006.5,
+                260351.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 290000.0,
+              "interval_ms": [
+                287393.5,
+                293526.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 320000.0,
+              "interval_ms": [
+                318360.5,
+                327079.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 94,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "shorten10_K3",
+      "seed": 29,
+      "range_s": [
+        0,
+        350
+      ],
+      "event_count": 112,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 1.781,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 5.485,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 0.729,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 9.064,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.424,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.14,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 7.312,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 0.815,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 3.397,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 8.546,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 7.919,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                89543.5,
+                90272.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 115000.0,
+              "interval_ms": [
+                106746.5,
+                115810.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 142000.0,
+              "interval_ms": [
+                136419.5,
+                147843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 170000.0,
+              "interval_ms": [
+                164219.5,
+                170359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 200000.0,
+              "interval_ms": [
+                198212.5,
+                205524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 230000.0,
+              "interval_ms": [
+                229907.5,
+                230722.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 260000.0,
+              "interval_ms": [
+                257279.5,
+                260676.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 290000.0,
+              "interval_ms": [
+                289052.5,
+                297598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 320000.0,
+              "interval_ms": [
+                312908.5,
+                320827.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 112,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                28907.5,
+                30688.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                56581.5,
+                62066.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                89543.5,
+                90272.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 115000.0,
+              "interval_ms": [
+                106746.5,
+                115810.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 142000.0,
+              "interval_ms": [
+                136419.5,
+                147843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 170000.0,
+              "interval_ms": [
+                164219.5,
+                170359.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 200000.0,
+              "interval_ms": [
+                198212.5,
+                205524.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 230000.0,
+              "interval_ms": [
+                229907.5,
+                230722.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 260000.0,
+              "interval_ms": [
+                257279.5,
+                260676.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 290000.0,
+              "interval_ms": [
+                289052.5,
+                297598.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 320000.0,
+              "interval_ms": [
+                312908.5,
+                320827.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 112,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "unequal_demand_K3",
+      "seed": 11,
+      "range_s": [
+        0,
+        360
+      ],
+      "event_count": 88,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 14.419,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 30.497,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 4.189,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 4.386,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 3.133,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.285,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 17.549,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 15.762,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 0.906,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 12.428,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 3.58,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                26874.5,
+                41293.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                41292.5,
+                71789.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                88420.5,
+                92609.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                118367.5,
+                122753.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                148292.5,
+                151425.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                171286.5,
+                181571.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                208447.5,
+                225996.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                226763.5,
+                242525.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                269988.5,
+                270894.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                297142.5,
+                309570.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                329946.5,
+                333526.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 88,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                26874.5,
+                41293.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                41292.5,
+                71789.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                88420.5,
+                92609.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                118367.5,
+                122753.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                148292.5,
+                151425.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                171286.5,
+                181571.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                208447.5,
+                225996.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                226763.5,
+                242525.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                269988.5,
+                270894.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                297142.5,
+                309570.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                329946.5,
+                333526.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 88,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "unequal_demand_K3",
+      "seed": 29,
+      "range_s": [
+        0,
+        360
+      ],
+      "event_count": 108,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 1.379,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 11.315,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 2.821,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 3.882,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 10.598,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 6.037,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 2.006,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 17.062,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        },
+        {
+          "width_s": 2.374,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 1.169,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": true
+        },
+        {
+          "width_s": 19.888,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ordinal_equal_sequences",
+          "truth_inside": true,
+          "midpoint_within_2s": false
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                29082.5,
+                30461.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                52683.5,
+                63998.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                88785.5,
+                91606.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                118102.5,
+                121984.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                147245.5,
+                157843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                174219.5,
+                180256.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                208296.5,
+                210302.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                227828.5,
+                244890.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                268191.5,
+                270565.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                299686.5,
+                300855.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                317549.5,
+                337437.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 108,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ordinal_equal_phase_sequences_conditional_on_no_hidden_cycles",
+          "boundary_positions": [
+            {
+              "timestamp_ms": 30000.0,
+              "interval_ms": [
+                29082.5,
+                30461.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 60000.0,
+              "interval_ms": [
+                52683.5,
+                63998.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 90000.0,
+              "interval_ms": [
+                88785.5,
+                91606.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 120000.0,
+              "interval_ms": [
+                118102.5,
+                121984.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 150000.0,
+              "interval_ms": [
+                147245.5,
+                157843.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 180000.0,
+              "interval_ms": [
+                174219.5,
+                180256.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 210000.0,
+              "interval_ms": [
+                208296.5,
+                210302.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 240000.0,
+              "interval_ms": [
+                227828.5,
+                244890.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 270000.0,
+              "interval_ms": [
+                268191.5,
+                270565.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 300000.0,
+              "interval_ms": [
+                299686.5,
+                300855.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            },
+            {
+              "timestamp_ms": 330000.0,
+              "interval_ms": [
+                317549.5,
+                337437.5
+              ],
+              "position": "inside",
+              "reference_status": "conditional_bracket"
+            }
+          ],
+          "event_constraint_violations": 0,
+          "event_count": 108,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "no_demand_K2",
+      "seed": 11,
+      "range_s": [
+        0,
+        240
+      ],
+      "event_count": 0,
+      "reference_status": "unavailable",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [],
+      "candidates": {
+        "legacy": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 0,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 0,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "no_demand_K2",
+      "seed": 29,
+      "range_s": [
+        0,
+        240
+      ],
+      "event_count": 0,
+      "reference_status": "unavailable",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [],
+      "candidates": {
+        "legacy": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 0,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 0,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "blockage_K2",
+      "seed": 11,
+      "range_s": [
+        0,
+        240
+      ],
+      "event_count": 0,
+      "reference_status": "unavailable",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [],
+      "candidates": {
+        "legacy": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 0,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 0,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "blockage_K2",
+      "seed": 29,
+      "range_s": [
+        0,
+        240
+      ],
+      "event_count": 0,
+      "reference_status": "unavailable",
+      "truth_internal_boundaries": 7,
+      "interval_checks": [],
+      "candidates": {
+        "legacy": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 0,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 0,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "observation_gap_K3",
+      "seed": 11,
+      "range_s": [
+        0,
+        360
+      ],
+      "event_count": 69,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 4.284,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 10.154,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 99.383,
+          "reference_status": "ambiguous",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 4.148,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 4.823,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 11.345,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 6.133,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 8.719,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 69,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 69,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    },
+    {
+      "case": "observation_gap_K3",
+      "seed": 29,
+      "range_s": [
+        0,
+        360
+      ],
+      "event_count": 83,
+      "reference_status": "ambiguous",
+      "truth_internal_boundaries": 11,
+      "interval_checks": [
+        {
+          "width_s": 1.781,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 5.485,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 90.816,
+          "reference_status": "ambiguous",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 7.312,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 0.815,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 3.397,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 8.546,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        },
+        {
+          "width_s": 7.919,
+          "reference_status": "conditional_bracket",
+          "truth_match": "ambiguous_not_scored",
+          "truth_inside": null,
+          "midpoint_within_2s": null
+        }
+      ],
+      "candidates": {
+        "legacy": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 83,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        },
+        "conditional_mark": {
+          "alignment": "ambiguous_or_missing_sequence",
+          "boundary_positions": [],
+          "event_constraint_violations": 0,
+          "event_count": 83,
+          "violating_event_indices": [],
+          "interpretation": "ideal exclusive mark constraints only; not real RELEASE validity"
+        }
+      }
+    }
+  ],
+  "old_recovery_gate": "FAIL_UNCHANGED",
+  "real_replays": 0,
+  "decoding_runs": 0,
+  "truth_suite_sha256": "f10b743c06ef530335197b460546370f484669168b00dce25fd0c87cc3063bdd"
+}

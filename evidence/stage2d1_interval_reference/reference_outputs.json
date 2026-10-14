@@ -1,0 +1,3754 @@
+[
+  {
+    "case": "stable_K2",
+    "seed": 11,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 918.0,
+          "last_ms": 29782.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 34065.0,
+          "last_ms": 56796.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 66949.0,
+          "last_ms": 82856.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 93435.0,
+          "last_ms": 116658.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 121321.0,
+          "last_ms": 148928.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 153327.0,
+          "last_ms": 171226.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 182238.0,
+          "last_ms": 206222.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 210369.0,
+          "last_ms": 236087.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            29781.5,
+            34065.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            56795.5,
+            66949.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            82855.5,
+            93435.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            116657.5,
+            121321.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            148927.5,
+            153327.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            171225.5,
+            182238.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            206221.5,
+            210369.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "stable_K2",
+    "seed": 29,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 775.0,
+          "last_ms": 28908.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 30688.0,
+          "last_ms": 56582.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 62066.0,
+          "last_ms": 89544.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 90272.0,
+          "last_ms": 116858.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 120952.0,
+          "last_ms": 133078.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 157843.0,
+          "last_ms": 174220.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 180359.0,
+          "last_ms": 208213.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 215524.0,
+          "last_ms": 239908.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            28907.5,
+            30688.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            56581.5,
+            62066.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            89543.5,
+            90272.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            116857.5,
+            120952.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            133077.5,
+            157843.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            174219.5,
+            180359.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            208212.5,
+            215524.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "hold10_K2",
+    "seed": 11,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 918.0,
+          "last_ms": 29782.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 34065.0,
+          "last_ms": 56796.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 66949.0,
+          "last_ms": 95696.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 115819.0,
+          "last_ms": 123614.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 131947.0,
+          "last_ms": 153233.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 162200.0,
+          "last_ms": 188900.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 191996.0,
+          "last_ms": 210625.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 222525.0,
+          "last_ms": 249989.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            29781.5,
+            34065.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            56795.5,
+            66949.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            95695.5,
+            115819.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            123613.5,
+            131947.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            153232.5,
+            162200.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            188899.5,
+            191996.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            210624.5,
+            222525.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "hold10_K2",
+    "seed": 29,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 775.0,
+          "last_ms": 28908.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 30688.0,
+          "last_ms": 56582.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 62066.0,
+          "last_ms": 99391.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 100390.0,
+          "last_ms": 129245.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 132885.0,
+          "last_ms": 137952.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 167843.0,
+          "last_ms": 184220.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 190359.0,
+          "last_ms": 218213.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 225524.0,
+          "last_ms": 249908.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            28907.5,
+            30688.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            56581.5,
+            62066.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            99390.5,
+            100390.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            129244.5,
+            132885.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            137951.5,
+            167843.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            184219.5,
+            190359.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            218212.5,
+            225524.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "hold30_K2",
+    "seed": 11,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 918.0,
+          "last_ms": 29782.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 34065.0,
+          "last_ms": 56796.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 66949.0,
+          "last_ms": 118919.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 121321.0,
+          "last_ms": 148928.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 153327.0,
+          "last_ms": 171226.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 182238.0,
+          "last_ms": 206222.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 210369.0,
+          "last_ms": 236087.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 240909.0,
+          "last_ms": 259007.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            29781.5,
+            34065.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            56795.5,
+            66949.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            118918.5,
+            121321.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            148927.5,
+            153327.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            171225.5,
+            182238.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            206221.5,
+            210369.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            236086.5,
+            240909.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "hold30_K2",
+    "seed": 29,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 775.0,
+          "last_ms": 28908.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 30688.0,
+          "last_ms": 56582.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 62066.0,
+          "last_ms": 119028.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 120952.0,
+          "last_ms": 133078.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 157843.0,
+          "last_ms": 174220.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 180359.0,
+          "last_ms": 208213.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 215524.0,
+          "last_ms": 239908.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 240722.0,
+          "last_ms": 267280.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            28907.5,
+            30688.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            56581.5,
+            62066.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            119027.5,
+            120952.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            133077.5,
+            157843.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            174219.5,
+            180359.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            208212.5,
+            215524.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            239907.5,
+            240722.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "shorten10_K2",
+    "seed": 11,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 918.0,
+          "last_ms": 29782.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 34065.0,
+          "last_ms": 56796.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 66949.0,
+          "last_ms": 79203.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 89405.0,
+          "last_ms": 98120.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 110150.0,
+          "last_ms": 139303.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 140598.0,
+          "last_ms": 169485.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 172238.0,
+          "last_ms": 196222.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 200369.0,
+          "last_ms": 226087.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            29781.5,
+            34065.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            56795.5,
+            66949.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            79202.5,
+            89405.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            98119.5,
+            110150.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            139302.5,
+            140598.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            169484.5,
+            172238.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            196221.5,
+            200369.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "shorten10_K2",
+    "seed": 29,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 775.0,
+          "last_ms": 28908.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 30688.0,
+          "last_ms": 56582.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 62066.0,
+          "last_ms": 79685.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 81186.0,
+          "last_ms": 106985.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 115810.0,
+          "last_ms": 136420.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 147843.0,
+          "last_ms": 164220.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 170359.0,
+          "last_ms": 198213.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 205524.0,
+          "last_ms": 229908.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            28907.5,
+            30688.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            56581.5,
+            62066.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            79684.5,
+            81186.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            106984.5,
+            115810.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            136419.5,
+            147843.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 0,
+          "interval_ms": [
+            164219.5,
+            170359.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            198212.5,
+            205524.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "stable_K3",
+    "seed": 11,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 918.0,
+          "last_ms": 29782.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 34065.0,
+          "last_ms": 56796.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 66949.0,
+          "last_ms": 82856.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 93435.0,
+          "last_ms": 116658.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 121321.0,
+          "last_ms": 148928.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 153327.0,
+          "last_ms": 171226.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 182238.0,
+          "last_ms": 206222.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 210369.0,
+          "last_ms": 236087.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 240909.0,
+          "last_ms": 259007.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 270351.0,
+          "last_ms": 297394.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 303526.0,
+          "last_ms": 328361.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 337079.0,
+          "last_ms": 358993.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            29781.5,
+            34065.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            56795.5,
+            66949.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            82855.5,
+            93435.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            116657.5,
+            121321.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            148927.5,
+            153327.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            171225.5,
+            182238.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            206221.5,
+            210369.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            236086.5,
+            240909.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            259006.5,
+            270351.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            297393.5,
+            303526.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            328360.5,
+            337079.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "stable_K3",
+    "seed": 29,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 775.0,
+          "last_ms": 28908.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 30688.0,
+          "last_ms": 56582.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 62066.0,
+          "last_ms": 89544.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 90272.0,
+          "last_ms": 116858.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 120952.0,
+          "last_ms": 133078.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 157843.0,
+          "last_ms": 174220.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 180359.0,
+          "last_ms": 208213.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 215524.0,
+          "last_ms": 239908.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 240722.0,
+          "last_ms": 267280.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 270676.0,
+          "last_ms": 299053.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 307598.0,
+          "last_ms": 322909.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 330827.0,
+          "last_ms": 359533.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            28907.5,
+            30688.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            56581.5,
+            62066.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            89543.5,
+            90272.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            116857.5,
+            120952.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            133077.5,
+            157843.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            174219.5,
+            180359.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            208212.5,
+            215524.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            239907.5,
+            240722.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            267279.5,
+            270676.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            299052.5,
+            307598.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            322908.5,
+            330827.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "hold10_K3",
+    "seed": 11,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 918.0,
+          "last_ms": 29782.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 34065.0,
+          "last_ms": 56796.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 66949.0,
+          "last_ms": 82856.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 93435.0,
+          "last_ms": 122328.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 131947.0,
+          "last_ms": 153233.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 162200.0,
+          "last_ms": 188900.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 191996.0,
+          "last_ms": 210625.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 222525.0,
+          "last_ms": 249989.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 251251.0,
+          "last_ms": 268098.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 280351.0,
+          "last_ms": 307394.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 313526.0,
+          "last_ms": 338361.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 347079.0,
+          "last_ms": 368993.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            29781.5,
+            34065.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            56795.5,
+            66949.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            82855.5,
+            93435.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            122327.5,
+            131947.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            153232.5,
+            162200.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            188899.5,
+            191996.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            210624.5,
+            222525.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            249988.5,
+            251251.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            268097.5,
+            280351.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            307393.5,
+            313526.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            338360.5,
+            347079.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "hold10_K3",
+    "seed": 29,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 775.0,
+          "last_ms": 28908.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 30688.0,
+          "last_ms": 56582.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 62066.0,
+          "last_ms": 89544.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 90272.0,
+          "last_ms": 129517.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 130432.0,
+          "last_ms": 157353.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 160345.0,
+          "last_ms": 189975.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 195023.0,
+          "last_ms": 216705.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 222403.0,
+          "last_ms": 247321.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 252381.0,
+          "last_ms": 273847.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 280676.0,
+          "last_ms": 309053.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 317598.0,
+          "last_ms": 332909.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 340827.0,
+          "last_ms": 369533.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            28907.5,
+            30688.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            56581.5,
+            62066.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            89543.5,
+            90272.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            129516.5,
+            130432.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            157352.5,
+            160345.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            189974.5,
+            195023.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            216704.5,
+            222403.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            247320.5,
+            252381.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            273846.5,
+            280676.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            309052.5,
+            317598.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            332908.5,
+            340827.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "hold30_K3",
+    "seed": 11,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 918.0,
+          "last_ms": 29782.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 34065.0,
+          "last_ms": 56796.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 66949.0,
+          "last_ms": 82856.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 93435.0,
+          "last_ms": 149935.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 153327.0,
+          "last_ms": 171226.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 182238.0,
+          "last_ms": 206222.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 210369.0,
+          "last_ms": 236087.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 240909.0,
+          "last_ms": 259007.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 270351.0,
+          "last_ms": 297394.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 303526.0,
+          "last_ms": 328361.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 337079.0,
+          "last_ms": 358993.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 364305.0,
+          "last_ms": 382138.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            29781.5,
+            34065.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            56795.5,
+            66949.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            82855.5,
+            93435.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            149934.5,
+            153327.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            171225.5,
+            182238.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            206221.5,
+            210369.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            236086.5,
+            240909.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            259006.5,
+            270351.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            297393.5,
+            303526.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            328360.5,
+            337079.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            358992.5,
+            364305.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "hold30_K3",
+    "seed": 29,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 775.0,
+          "last_ms": 28908.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 30688.0,
+          "last_ms": 56582.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 62066.0,
+          "last_ms": 89544.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 90272.0,
+          "last_ms": 137469.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 157843.0,
+          "last_ms": 174220.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 180359.0,
+          "last_ms": 208213.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 215524.0,
+          "last_ms": 239908.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 240722.0,
+          "last_ms": 267280.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 270676.0,
+          "last_ms": 299053.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 307598.0,
+          "last_ms": 322909.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 330827.0,
+          "last_ms": 359533.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 360884.0,
+          "last_ms": 387040.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            28907.5,
+            30688.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            56581.5,
+            62066.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            89543.5,
+            90272.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            137468.5,
+            157843.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            174219.5,
+            180359.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            208212.5,
+            215524.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            239907.5,
+            240722.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            267279.5,
+            270676.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            299052.5,
+            307598.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            322908.5,
+            330827.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            359532.5,
+            360884.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "shorten10_K3",
+    "seed": 11,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 918.0,
+          "last_ms": 29782.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 34065.0,
+          "last_ms": 56796.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 66949.0,
+          "last_ms": 82856.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 93435.0,
+          "last_ms": 98715.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 110150.0,
+          "last_ms": 139303.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 140598.0,
+          "last_ms": 169485.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 172238.0,
+          "last_ms": 196222.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 200369.0,
+          "last_ms": 226087.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 230909.0,
+          "last_ms": 249007.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 260351.0,
+          "last_ms": 287394.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 293526.0,
+          "last_ms": 318361.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 327079.0,
+          "last_ms": 348993.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            29781.5,
+            34065.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            56795.5,
+            66949.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            82855.5,
+            93435.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            98714.5,
+            110150.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            139302.5,
+            140598.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            169484.5,
+            172238.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            196221.5,
+            200369.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            226086.5,
+            230909.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            249006.5,
+            260351.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            287393.5,
+            293526.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            318360.5,
+            327079.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "shorten10_K3",
+    "seed": 29,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 775.0,
+          "last_ms": 28908.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 30688.0,
+          "last_ms": 56582.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 62066.0,
+          "last_ms": 89544.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 90272.0,
+          "last_ms": 106747.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 115810.0,
+          "last_ms": 136420.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 147843.0,
+          "last_ms": 164220.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 170359.0,
+          "last_ms": 198213.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 205524.0,
+          "last_ms": 229908.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 230722.0,
+          "last_ms": 257280.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 260676.0,
+          "last_ms": 289053.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 297598.0,
+          "last_ms": 312909.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 320827.0,
+          "last_ms": 349533.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            28907.5,
+            30688.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            56581.5,
+            62066.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            89543.5,
+            90272.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            106746.5,
+            115810.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            136419.5,
+            147843.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            164219.5,
+            170359.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            198212.5,
+            205524.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            229907.5,
+            230722.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            257279.5,
+            260676.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            289052.5,
+            297598.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            312908.5,
+            320827.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "unequal_demand_K3",
+    "seed": 11,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 656.0,
+          "last_ms": 26875.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 41293.0,
+          "last_ms": 41293.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 71789.0,
+          "last_ms": 88421.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 92609.0,
+          "last_ms": 118368.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 122753.0,
+          "last_ms": 148293.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 151425.0,
+          "last_ms": 171287.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 181571.0,
+          "last_ms": 208448.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 225996.0,
+          "last_ms": 226764.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 242525.0,
+          "last_ms": 269989.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 270894.0,
+          "last_ms": 297143.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 309570.0,
+          "last_ms": 329947.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 333526.0,
+          "last_ms": 358361.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            26874.5,
+            41293.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            41292.5,
+            71789.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            88420.5,
+            92609.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            118367.5,
+            122753.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            148292.5,
+            151425.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            171286.5,
+            181571.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            208447.5,
+            225996.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            226763.5,
+            242525.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            269988.5,
+            270894.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            297142.5,
+            309570.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            329946.5,
+            333526.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "unequal_demand_K3",
+    "seed": 29,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 554.0,
+          "last_ms": 29083.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 30461.0,
+          "last_ms": 52684.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 63998.0,
+          "last_ms": 88786.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 91606.0,
+          "last_ms": 118103.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 121984.0,
+          "last_ms": 147246.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 157843.0,
+          "last_ms": 174220.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 180256.0,
+          "last_ms": 208297.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 210302.0,
+          "last_ms": 227829.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 244890.0,
+          "last_ms": 268192.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 270565.0,
+          "last_ms": 299687.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 300855.0,
+          "last_ms": 317550.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 337437.0,
+          "last_ms": 358947.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            29082.5,
+            30461.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            52683.5,
+            63998.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            88785.5,
+            91606.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            118102.5,
+            121984.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            147245.5,
+            157843.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            174219.5,
+            180256.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            208296.5,
+            210302.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            227828.5,
+            244890.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            268191.5,
+            270565.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            299686.5,
+            300855.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            317549.5,
+            337437.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "no_demand_K2",
+    "seed": 11,
+    "reference": {
+      "status": "unavailable",
+      "reason": "NO_EVENTS",
+      "timestamp_resolution_ms": 1,
+      "runs": [],
+      "edges": [],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "no_demand_K2",
+    "seed": 29,
+    "reference": {
+      "status": "unavailable",
+      "reason": "NO_EVENTS",
+      "timestamp_resolution_ms": 1,
+      "runs": [],
+      "edges": [],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "blockage_K2",
+    "seed": 11,
+    "reference": {
+      "status": "unavailable",
+      "reason": "NO_EVENTS",
+      "timestamp_resolution_ms": 1,
+      "runs": [],
+      "edges": [],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "blockage_K2",
+    "seed": 29,
+    "reference": {
+      "status": "unavailable",
+      "reason": "NO_EVENTS",
+      "timestamp_resolution_ms": 1,
+      "runs": [],
+      "edges": [],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "observation_gap_K3",
+    "seed": 11,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 918.0,
+          "last_ms": 29782.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 34065.0,
+          "last_ms": 56796.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 66949.0,
+          "last_ms": 82856.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 182238.0,
+          "last_ms": 206222.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 210369.0,
+          "last_ms": 236087.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 240909.0,
+          "last_ms": 259007.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 270351.0,
+          "last_ms": 297394.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 303526.0,
+          "last_ms": 328361.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 337079.0,
+          "last_ms": 358993.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            29781.5,
+            34065.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            56795.5,
+            66949.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            82855.5,
+            182238.5
+          ],
+          "minimum_transitions": 1,
+          "status": "ambiguous",
+          "reason": "OBSERVATION_GAP",
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            206221.5,
+            210369.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            236086.5,
+            240909.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            259006.5,
+            270351.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            297393.5,
+            303526.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            328360.5,
+            337079.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  },
+  {
+    "case": "observation_gap_K3",
+    "seed": 29,
+    "reference": {
+      "status": "ambiguous",
+      "reason": "HIDDEN_CYCLES_NOT_EXCLUDED",
+      "timestamp_resolution_ms": 1,
+      "runs": [
+        {
+          "phase": 0,
+          "first_ms": 775.0,
+          "last_ms": 28908.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 30688.0,
+          "last_ms": 56582.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 62066.0,
+          "last_ms": 89544.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 180359.0,
+          "last_ms": 208213.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 215524.0,
+          "last_ms": 239908.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 240722.0,
+          "last_ms": 267280.0
+        },
+        {
+          "phase": 0,
+          "first_ms": 270676.0,
+          "last_ms": 299053.0
+        },
+        {
+          "phase": 1,
+          "first_ms": 307598.0,
+          "last_ms": 322909.0
+        },
+        {
+          "phase": 2,
+          "first_ms": 330827.0,
+          "last_ms": 359533.0
+        }
+      ],
+      "edges": [
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            28907.5,
+            30688.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            56581.5,
+            62066.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            89543.5,
+            180359.5
+          ],
+          "minimum_transitions": 1,
+          "status": "ambiguous",
+          "reason": "OBSERVATION_GAP",
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            208212.5,
+            215524.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            239907.5,
+            240722.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 2,
+          "to_phase": 0,
+          "interval_ms": [
+            267279.5,
+            270676.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 0,
+          "to_phase": 1,
+          "interval_ms": [
+            299052.5,
+            307598.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        },
+        {
+          "from_phase": 1,
+          "to_phase": 2,
+          "interval_ms": [
+            322908.5,
+            330827.5
+          ],
+          "minimum_transitions": 1,
+          "status": "conditional_bracket",
+          "reason": null,
+          "hidden_full_cycles_possible": true,
+          "single_boundary_assumption": "no unobserved transitions between these runs"
+        }
+      ],
+      "endpoint_boundaries": "unavailable",
+      "calibrated_interval": false,
+      "semantics": "ideal exclusive vehicle marks, NOT lamp switches"
+    }
+  }
+]
