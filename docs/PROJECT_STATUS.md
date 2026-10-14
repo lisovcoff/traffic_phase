@@ -1,5 +1,18 @@
 # Project status — 2D.1, 2026-10-14
 
+Checkpoint base: `c99268b700b2b46bc0202a2a37f635e3af93f70d`.
+2C and the protective state/query contract are accepted. **2D.1 remains FAIL**,
+experimental opt-in/default-off. The event-time prototype was checked only in
+its declared finite synthetic model; neither prior is selected for production.
+Exclusive-mark constraints must not be transferred to real RELEASE evidence.
+Unchanged real development results: predicted K **3/2/3**, truth **3/2/2**,
+raw boundaries **19/34 within +/-2s**. The three familiar recordings are
+development data, not an untouched holdout; these are not lamp-accuracy scores.
+Next step: an independent calibration pilot with a separate validation session,
+as specified in VALIDATION_PROTOCOL.md, section 8. Work is paused pending those
+materials: no new decoder/likelihood/prior experiments or real replay.
+Main and production defaults remain unchanged. The history below is retained.
+
 Stages 1 and 2A are accepted as audit/planning and a reproducible offline baseline.
 Stage 2B.1 is accepted as an engineering improvement in temporal evidence,
 provenance and per-stream selection. Its event timing and lamp semantics have
@@ -32,13 +45,13 @@ queries give UNKNOWN/NO_TEMPORAL_COVERAGE. Explicit configured/simulated modes
 remain distinct from reconstructed physical states. Follow-up base:
 `8bb7ca1a9d8137001028f2c6b6e8e6af98d42201`.
 
-2B.2 including canonical V9 query follow-up is accepted. 2C completed:
+2B.2 including canonical V9 query follow-up is accepted. 2C is accepted:
 universal candidate admission and bounded, transparent phase-count comparison.
 Base: `36b6752a4794e482570944b22656d6cc58f0db31`. Prior baseline/regressions remain
 preserved; any new development metrics do not close independent event/lamp
 validation.
 
-2D.1 is the current limited stage: a single fixed-model local duration decoding,
+The original 2D.1 scope was a single fixed-model local duration decoding,
 separate from recurring-plan discovery. Raw/baseline fields are preserved.
 No-demand/missing local evidence remains UNKNOWN; camera coverage and lamp
 switch timing are not inferred. External validation and known development
