@@ -30,6 +30,18 @@ from .evaluate import evaluate
 from app.core.v10.automatic_physical import infer_physical_signal_plan
 from app.core.temporal_evidence import EvidenceUnavailable
 from app.core.state_contract import attach_state_contract
+from dataclasses import asdict
+from .fit import PhaseSearchConfig
+
+
+class PhaseSearchUnavailable(EvidenceUnavailable):
+    def __init__(self, diagnostics):
+        super().__init__("no phase candidate evaluated within resource/evidence contract",
+                         reason_code="PHASE_SEARCH_UNAVAILABLE")
+        self.diagnostics=diagnostics
+
+    def to_dict(self):
+        return {**super().to_dict(), "phase_search":self.diagnostics}
 
 def _discover_from_event_views(
     events,
@@ -43,6 +55,7 @@ def _discover_from_event_views(
     recording_start_ms: float | None = None,
     trajectory_count: int = 0,
     evidence_policy: str = "legacy_v9",
+    phase_search_config: PhaseSearchConfig | None = None,
 ):
     if not events:
         raise ValueError("no traffic events supplied")
@@ -74,7 +87,7 @@ def _discover_from_event_views(
         analysis_base_ms=float(events[0][0]),
         trajectory_count=trajectory_count,
         event_count=len(events),
-        evidence_policy=evidence_policy,
+        evidence_policy=evidence_policy, phase_search_config=phase_search_config,
     )
 
 def _slice_streams(streams, start_s: float, end_s: float):
@@ -103,6 +116,7 @@ def _regime_phase_structure(
     period: float,
     window_s: float,
     evidence_policy: str = "permission_per_stream",
+    phase_search_config: PhaseSearchConfig | None = None,
 ) -> dict[str, object] | None:
     """Fit phase structure for one local regime window.
 
@@ -138,17 +152,21 @@ def _regime_phase_structure(
         dt=1.0,
     )
     try:
-        selected_k, candidates, fits = discover_phase_count(
+        local_search = discover_phase_count(
             x,
             phase_evidence,
             float(period),
             dt=1.0,
             recording_end_s=max(1.0, float(window_s)),
             entry_streams=entry_streams,
-            topology_streams=by_stream,
+            **asdict(phase_search_config or PhaseSearchConfig()),
         )
     except Exception:
         return None
+
+    selected_k, candidates, fits = local_search
+    if selected_k is None:
+        return {"phase_count": None, "phase_search": getattr(local_search, "diagnostics", {})}
 
     selected_candidate = next(
         (
@@ -171,6 +189,7 @@ def _regime_phase_structure(
     )
     return {
         "phase_count": int(selected_k),
+        "phase_search": getattr(local_search, "diagnostics", {}),
         "phase_evidence_source": evidence_method,
         "boundary_coherence": coherence,
         "supported_phase_count": int(
@@ -262,6 +281,7 @@ def _local_regime_selection(
     window_s: float = 3600.0,
     min_events: int = 120,
     evidence_policy: str = "permission_per_stream",
+    phase_search_config: PhaseSearchConfig | None = None,
 ):
     if total_end_s < 2.0 * window_s:
         return None
@@ -291,9 +311,9 @@ def _local_regime_selection(
                 release_window,
                 period=float(period),
                 window_s=window_s,
-                evidence_policy=evidence_policy,
+                evidence_policy=evidence_policy, phase_search_config=phase_search_config,
             )
-            if phase_structure is None:
+            if phase_structure is None or phase_structure.get("phase_count") is None:
                 selected_phase_count = None
                 boundary_coherence = 0.0
                 supported_phase_count = 0
@@ -322,6 +342,7 @@ def _local_regime_selection(
                     "score": float(score),
                     "confidence": float(confidence),
                     "selected_phase_count": selected_phase_count,
+                    "phase_search": phase_structure.get("phase_search") if phase_structure else None,
                     "boundary_coherence": boundary_coherence,
                     "supported_phase_count": supported_phase_count,
                     "unsupported_phase_count": unsupported_phase_count,
@@ -357,6 +378,8 @@ def _local_regime_selection(
 
     regime_detection = {
         "method": "hourly_local_period_consensus",
+        "phase_search_windows": [{"start_s": w["start_s"], "end_s": w["end_s"],
+                                  "search": w.get("phase_search")} for w in windows],
         "window_s": float(window_s),
         "windows_evaluated": int(len(windows)),
         "candidate_regimes": [
@@ -567,6 +590,7 @@ def _discover_from_stream_views(
     temporal_events=(),
     evidence_diagnostics=None,
     evidence_policy: str = "permission_per_stream",
+    phase_search_config: PhaseSearchConfig | None = None,
 ):
     if not by_stream:
         raise ValueError("no traffic events supplied")
@@ -588,7 +612,7 @@ def _discover_from_stream_views(
             entry_streams,
             effective_permissions,
             original_end_s,
-            evidence_policy=evidence_policy,
+            evidence_policy=evidence_policy, phase_search_config=phase_search_config,
         )
         if regime_payload is not None:
             regime_detection, (
@@ -643,15 +667,18 @@ def _discover_from_stream_views(
         end_s,
         dt=dt,
     )
-    selected_k, count_candidates, all_fits = discover_phase_count(
+    phase_search = discover_phase_count(
         x,
         phase_evidence,
         period,
         dt=dt,
         recording_end_s=end_s,
         entry_streams=working_entry_streams,
-        topology_streams=working_by_stream,
+        **asdict(phase_search_config or PhaseSearchConfig()),
     )
+    selected_k, count_candidates, all_fits = phase_search
+    if selected_k is None:
+        raise PhaseSearchUnavailable(getattr(phase_search, "diagnostics", {}))
     raw_selected_k = int(selected_k)
     phase_redundancy = {
         "detected": False,
@@ -812,38 +839,22 @@ def _discover_from_stream_views(
                 "method",
                 "not_evaluated",
             ),
-            "topology_prior": {
-                "canonical_four_leg_cap_applied": bool(
-                    any(
-                        stream in working_by_stream
-                        for stream in (
-                            "N->S", "S->N", "E->W", "W->E"
-                        )
-                    )
-                    and all(
-                        stream in working_by_stream
-                        for stream in (
-                            "N->S", "S->N", "E->W", "W->E"
-                        )
-                    )
-                ),
-            },
+            "topology_prior": {"canonical_four_leg_cap_applied": False,
+                               "source": "none; no verified topology supplied"},
+            "search": getattr(phase_search, "diagnostics", {}),
+            "effective_selection": {"selected_k": int(selected_k),
+                "raw_search_selected_k": int(raw_selected_k),
+                "redundancy_override": bool(phase_redundancy.get("detected")),
+                "certainty": "uncalibrated_model_selection_NOT_lamp_confidence"},
+            "selected_candidate_after_redundancy": next((
+                {key: (None if isinstance(value,float) and not math.isfinite(value) else value)
+                 for key,value in c.items()} for c in count_candidates if c['k']==selected_k), None),
             "criterion": (
                 "approximate_BIC_plus_recurrent_phase_complexity_penalty"
             ),
             "candidates": [
-                {
-                    "k": int(candidate["k"]),
-                    "objective": float(candidate["objective"]),
-                    "approx_bic": float(candidate["approx_bic"]),
-                    "selection_score": float(
-                        candidate["selection_score"]
-                    ),
-                    "segment_count": int(
-                        candidate["segment_count"]
-                    ),
-                }
-                for candidate in count_candidates
+                {key: (None if isinstance(value,float) and not math.isfinite(value) else value)
+                 for key,value in candidate.items()} for candidate in count_candidates
             ],
         },
         "schedule": {
@@ -923,13 +934,14 @@ def discover_records(
     dt: float = 1.0,
     marks_path: Optional[Path] = None,
     evidence_policy: str = "permission_per_stream",
+    phase_search_config: PhaseSearchConfig | None = None,
 ) -> dict[str, object]:
     if not tracks:
         raise EvidenceUnavailable("no trajectory records supplied", reason_code="NO_TRAJECTORY_RECORDS")
     if evidence_policy == "permission_per_stream":
         bundle = extract_timing_streams(tracks)
         return _discover_bundle(bundle, input_name=input_name, dt=dt, marks_path=marks_path,
-                                evidence_policy=evidence_policy)
+                                evidence_policy=evidence_policy, phase_search_config=phase_search_config)
     if evidence_policy != "legacy_v9":
         raise ValueError("unknown evidence policy")
     recording_start_ms = float(_recording_start_ms(tracks))
@@ -944,6 +956,7 @@ def discover_records(
         marks_path=marks_path,
         recording_start_ms=recording_start_ms,
         trajectory_count=len(tracks),
+        phase_search_config=phase_search_config,
     )
 
 
@@ -953,6 +966,7 @@ def discover_path(
     dt: float = 1.0,
     marks_path: Optional[Path] = None,
     evidence_policy: str = "permission_per_stream",
+    phase_search_config: PhaseSearchConfig | None = None,
 ) -> dict[str, object]:
     path = Path(path)
     if path.is_file() and path.suffix.lower() not in {".json", ".zip"}:
@@ -962,11 +976,11 @@ def discover_path(
 
     bundle = load_event_streams(path, evidence_policy=evidence_policy)
     return _discover_bundle(bundle, input_name=str(path), dt=dt, marks_path=marks_path,
-                            evidence_policy=evidence_policy,
+                            evidence_policy=evidence_policy, phase_search_config=phase_search_config,
                             source_files=[str(path)] if path.is_file() else bundle[5])
 
 
-def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None):
+def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None, phase_search_config=None):
     (
         by_stream,
         entry_streams,
@@ -997,5 +1011,5 @@ def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, sou
         permission_streams=getattr(bundle, "permission_streams", None),
         temporal_events=getattr(bundle, "temporal_events", ()),
         evidence_diagnostics=getattr(bundle, "diagnostics", None),
-        evidence_policy=evidence_policy,
+        evidence_policy=evidence_policy, phase_search_config=phase_search_config,
     )

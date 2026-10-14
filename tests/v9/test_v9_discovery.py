@@ -340,7 +340,7 @@ def test_v9_includes_non_car_road_users_in_phase_evidence():
     assert with_bus["event_count"] == baseline["event_count"] + 1
 
 
-def test_v9_canonical_four_leg_phase_cap():
+def test_v9_canonical_four_leg_names_do_not_cap_phase_search():
     result = discover_records(
         _tracks(
             [
@@ -352,8 +352,8 @@ def test_v9_canonical_four_leg_phase_cap():
             cycles=8,
         )
     )
-    assert result["phase_model_selection"]["selected_phase_count"] <= 3
-    assert result["phase_model_selection"]["topology_prior"]["canonical_four_leg_cap_applied"] is True
+    assert any(c["k"]==4 for c in result["phase_model_selection"]["candidates"])
+    assert result["phase_model_selection"]["topology_prior"]["canonical_four_leg_cap_applied"] is False
 
 
 def test_v9_local_regime_schedule_base_uses_selected_window_start() -> None:

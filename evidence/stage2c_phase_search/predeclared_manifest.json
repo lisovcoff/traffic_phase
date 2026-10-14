@@ -1,0 +1,19 @@
+{
+  "base_sha": "36b6752a4794e482570944b22656d6cc58f0db31",
+  "default_config": {
+    "kmin": 2,
+    "kmax": 6,
+    "max_candidates": 5,
+    "max_seconds": 60.0
+  },
+  "benchmark_config": "unchanged scripts.offline_benchmark.DEFAULT_CONFIG; 90s/file; dt=1; boundary tolerance=2s; seed=0",
+  "cases": {
+    "K4_recovery": "period80; six cycles; four protected20s intervals; dense occupancy eye4; k2..4; two bijective name sets; max3 calls/30s each",
+    "K5_8": "fake_fit only; canonical names; occupancy4 columns; max4 calls",
+    "sparse_no_demand": "synthetic empty/one event; fake_fit only",
+    "budget": "max1 call or zero seconds; fakefit timeout",
+    "redundancy": "period60; four cycles; three exclusive20s subphases plus one shared movement; handcrafted labels/templates; no fitting"
+  },
+  "test_source_sha256": "451a36dcf666ea2ce7d601ba76aa8e240ea0fc2283360b554751428ee3cb55f1",
+  "annotations_access": "evaluator only after implementation/config sealed; no tuning"
+}

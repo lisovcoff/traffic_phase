@@ -1,5 +1,7 @@
 from __future__ import annotations
 import math
+import time
+from dataclasses import dataclass
 import json
 import itertools
 from collections import defaultdict
@@ -988,100 +990,118 @@ def candidate_metrics(fit, x_shape):
         **_phase_support_metrics(fit),
     }
 
+@dataclass(frozen=True)
+class PhaseSearchConfig:
+    kmin: int = 2
+    kmax: int = 6
+    max_candidates: int = 5
+    max_seconds: float = 60.0
+
+    def __post_init__(self):
+        if any(isinstance(v,bool) or not isinstance(v,int) for v in (self.kmin,self.kmax,self.max_candidates)):
+            raise ValueError("integer search bounds and candidate budget required")
+        if not 1 <= self.kmin <= self.kmax or self.max_candidates < 0:
+            raise ValueError("invalid phase search range/budget")
+        if not math.isfinite(self.max_seconds) or self.max_seconds < 0:
+            raise ValueError("finite nonnegative search time budget required")
+
+
+class PhaseCountSearch(tuple):
+    """Three-item legacy API plus complete search/evidence diagnostics."""
+    def __new__(cls, selected, candidates, fits, diagnostics):
+        obj=super().__new__(cls,(selected,candidates,fits))
+        obj.diagnostics=diagnostics
+        return obj
+
+
 def discover_phase_count(
-    x,
-    by_stream_global,
-    period,
-    kmin=2,
-    kmax=6,
-    dt=1.0,
-    # BIC already penalizes extra phase templates. Keep the recurrent boundary
-    # penalty modest so sparse/uneven multi-phase patterns are not collapsed into k=2.
+    x, by_stream_global, period, kmin=2, kmax=6, dt=1.0,
     extra_phase_penalty_per_cycle: float=5.0,
-    recording_end_s: Optional[float]=None,
-    entry_streams=None,
-    topology_streams=None,
+    recording_end_s: Optional[float]=None, entry_streams=None, topology_streams=None,
+    *, max_candidates=5, max_seconds=60.0,
 ):
-    upper = min(
-        int(kmax),
-        max(2, x.shape[1] + 1),
-    )
-    topology_source = topology_streams if topology_streams is not None else by_stream_global
-    canonical = {
-        str(name).upper().replace("_", "")
-        for name in topology_source
-    }
-    has_ns_axis = {"N->S", "S->N"} <= canonical
-    has_ew_axis = {"E->W", "W->E"} <= canonical
-    topology_cap_applied = bool(has_ns_axis and has_ew_axis)
-    if topology_cap_applied:
-        upper = min(upper, 3)
-    candidates = []
-    fits = {}
-    for k in range(int(kmin), upper + 1):
-        fit = em_fit(
-            x,
-            period,
-            k,
-            by_stream_global=by_stream_global,
-            entry_streams=entry_streams,
-            dt=dt,
-            iterations=2,
-        )
-        fits[k] = fit
-        candidates.append(
-            candidate_metrics(
-                fit,
-                x.shape,
-            )
-        )
+    """Topology-free candidate comparison, bounded by calls and cooperative time.
 
-    cycle_count = max(
-        1.0,
-        float(
-            recording_end_s
-            or len(x) * dt
-        ) / max(float(period), 1e-06),
-    )
-    for candidate in candidates:
-        candidate['recurrent_complexity_penalty'] = float(
-            extra_phase_penalty_per_cycle
-            * max(
-                0,
-                candidate['k'] - 2,
-            )
-            * cycle_count
-        )
-        candidate['selection_score'] = float(
-            candidate['approx_bic']
-            + candidate['recurrent_complexity_penalty']
-        )
+    Names/cardinality never cap K. Time is checked between unchanged em_fit calls;
+    an in-flight call may overrun. The offline worker supplies a hard file timeout.
+    No calibrated confidence or global optimum follows from this finite search.
+    """
+    config=PhaseSearchConfig(kmin,kmax,max_candidates,max_seconds)
+    started=time.monotonic(); candidates=[]; fits={}; ledger=[]
+    event_count=sum(len(v) for v in by_stream_global.values())
+    cycle_count=max(1.,float(recording_end_s or len(x)*dt)/max(float(period),1e-6))
+    attempted=0
+    for k in range(config.kmin,config.kmax+1):
+        reason=None
+        if not event_count and not np.any(x):
+            reason="NO_DEMAND_OR_PERMISSION_OBSERVATIONS"
+        elif attempted >= config.max_candidates:
+            reason="CANDIDATE_BUDGET_EXHAUSTED"
+        elif time.monotonic()-started >= config.max_seconds:
+            reason="TIME_BUDGET_EXHAUSTED"
+        if reason:
+            ledger.append({"k":k,"status":"skipped","reason":reason}); continue
+        attempted+=1; before=time.monotonic()
+        try:
+            fit=em_fit(x,period,k,by_stream_global=by_stream_global,
+                       entry_streams=entry_streams,dt=dt,iterations=2)
+        except TimeoutError as exc:
+            ledger.append({"k":k,"status":"timeout","reason":str(exc),"runtime_s":time.monotonic()-before})
+            continue
+        except (ValueError, RuntimeError, FloatingPointError) as exc:
+            ledger.append({"k":k,"status":"failed","reason":type(exc).__name__+": "+str(exc),
+                           "runtime_s":time.monotonic()-before})
+            continue
+        metrics=candidate_metrics(fit,x.shape)
+        metrics['recurrent_complexity_penalty']=float(extra_phase_penalty_per_cycle*max(0,k-2)*cycle_count)
+        metrics['criterion_score']=float(metrics['approx_bic']+metrics['recurrent_complexity_penalty'])
+        metrics['degenerate_phase_model']=metrics.get('unsupported_phase_count',0)>1 and k>2
+        metrics['phase_support_penalty']=float('inf') if metrics['degenerate_phase_model'] else 0.
+        metrics['selection_score']=float('inf') if metrics['degenerate_phase_model'] else metrics['criterion_score']
+        metrics['topology_cap_applied']=False
+        metrics['eligibility_reason']='MULTIPLE_UNSUPPORTED_PHASES' if metrics['degenerate_phase_model'] else None
+        labels=fit.get('labels')
+        support={str(z):0 for z in range(k)}
+        for values in by_stream_global.values():
+            for t in values:
+                i=int(float(t)/dt)
+                if labels is not None and 0<=i<len(labels):
+                    z=int(labels[i])
+                else:
+                    z=next((int(z) for a,b,z in fit['segments'] if a<=float(t)<b),-1)
+                if 0<=z<k:
+                    support[str(z)]+=1
+        metrics['event_support_by_phase']=support
+        metrics['runtime_s']=time.monotonic()-before
+        fits[k]=fit; candidates.append(metrics)
+        ledger.append({"k":k,"status":"evaluated","reason":metrics['eligibility_reason'],
+                       "runtime_s":metrics['runtime_s']})
+    eligible=[c for c in candidates if math.isfinite(c['selection_score'])]
+    ranked=sorted(eligible,key=lambda c:c['selection_score'])
+    selected=ranked[0]['k'] if ranked else None
+    elapsed=time.monotonic()-started
+    complete=all(row['status']=='evaluated' for row in ledger) and elapsed<=config.max_seconds
+    chosen=ranked[0] if ranked else None
+    weak=bool(chosen and (chosen['unsupported_phase_count'] or any(v==0 for v in chosen['event_support_by_phase'].values())))
+    diagnostics={"requested_range":[config.kmin,config.kmax],
+        "budget":{"max_candidates":config.max_candidates,"max_seconds":config.max_seconds,
+                  "enforcement":"candidate-call bound; cooperative wall time; no in-flight preemption"},
+        "candidate_ledger":ledger,"search_status":"complete" if complete else "partial_or_unavailable",
+        "attempted_candidate_count":attempted,"evaluated_candidate_count":len(candidates),
+        "elapsed_s":elapsed,"selected_k":selected,"alternatives_ranked":[c['k'] for c in ranked],
+        "budget_overrun_s":max(0.,elapsed-config.max_seconds),
+        "score_margin":ranked[1]['selection_score']-ranked[0]['selection_score'] if len(ranked)>1 else None,
+        "score_margin_semantics":"uncalibrated_criterion_difference_NOT_confidence",
+        "optimality":"best_eligible_evaluated_candidate_NOT_proven_global_optimum",
+        "event_count":event_count,
+        "evidence_status":'NO_EVALUABLE_CANDIDATE' if chosen is None else
+            'UNSUPPORTED_PHASES_OR_NO_EVENTS' if weak else 'MODEL_SIGNATURE_SUPPORTED_NOT_EXTERNAL_VALIDATION',
+        "ambiguity":"PARTIAL_SEARCH" if not complete else 'UNSUPPORTED_PHASES' if weak else
+            'EQUAL_SELECTION_SCORES' if len(ranked)>1 and ranked[0]['selection_score']==ranked[1]['selection_score'] else
+            'ALTERNATIVES_RETAINED_NO_CALIBRATED_CERTAINTY',
+        "topology_prior":"none; stream names are not verified geometry"}
+    return PhaseCountSearch(selected,candidates,fits,diagnostics)
 
-    for candidate in candidates:
-        candidate["topology_cap_applied"] = topology_cap_applied
-        candidate["degenerate_phase_model"] = (
-            candidate.get("unsupported_phase_count", 0) > 1
-            and candidate["k"] > 2
-        )
-        candidate["phase_support_penalty"] = (
-            float("inf")
-            if candidate["degenerate_phase_model"]
-            else 0.0
-        )
-        if topology_cap_applied and candidate["k"] > 3:
-            candidate["selection_score"] = float("inf")
-        elif candidate["degenerate_phase_model"]:
-            candidate["selection_score"] = float("inf")
-
-    selected = min(
-        candidates,
-        key=lambda candidate: candidate['selection_score'],
-    )
-    return (
-        int(selected['k']),
-        candidates,
-        fits,
-    )
 
 def anonymous_phase_name(i: int) -> str:
     x = i + 1
