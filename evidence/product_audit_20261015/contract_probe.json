@@ -1,0 +1,32 @@
+﻿{
+  "base_sha": "fc3f5f51c8c9d4c0aa7f83d5b7d67d17df290190",
+  "source_sha256": "e388af055192767b3cc59ffcdf82b9083e15c7dfc5602128a66dc8e3ac7f4044",
+  "no_fitting": true,
+  "core_reconstructed_states": {
+    "10": "UNKNOWN",
+    "29": "UNKNOWN",
+    "61": "UNKNOWN"
+  },
+  "existing_html_functions": {
+    "inside": {
+      "movement": "N->S",
+      "state": "GREEN",
+      "probability": 0.9,
+      "peak": 0.9,
+      "dominant_ratio": 1,
+      "transition": false,
+      "source": "INFERRED_MODEL"
+    },
+    "near_end": {
+      "movement": "N->S",
+      "state": "YELLOW",
+      "probability": 0.9,
+      "peak": 0.9,
+      "dominant_ratio": 1,
+      "transition": true,
+      "source": "INFERRED_MODEL"
+    },
+    "unknown_input_section": "RED"
+  },
+  "finding": "HTML activity color/transition path does not enforce shared reconstructed UNKNOWN contract"
+}

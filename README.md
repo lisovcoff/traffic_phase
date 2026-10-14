@@ -4,6 +4,12 @@ Research/prototype module for estimating traffic-signal phase structure when
 the physical signal is not directly visible and only vehicle trajectories are
 available.
 
+Product objective and completion criteria: [PRODUCT_GOAL](docs/PRODUCT_GOAL.md).
+Current acceptance status: [PROJECT_STATUS](docs/PROJECT_STATUS.md).
+The [2026-10-15 readiness audit](docs/PROJECT_AUDIT_20261015.md) records remaining
+algorithm/physical-validation and HTML-contract gaps. The historical viewer and
+baseline descriptions below do not establish verified lamp reconstruction.
+
 ## V9 direction-agnostic discovery
 
 V9 is the discovery core. It does not require phase names, compass-direction

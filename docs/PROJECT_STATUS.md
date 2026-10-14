@@ -1,5 +1,11 @@
 # Project status — 2D.1, 2026-10-14
 
+Product goal reaffirmed 2026-10-15: see PRODUCT_GOAL.md (JSON/archive -> phase
+count/composition -> approach signal sections -> local history -> HTML, including
+nonstandard intersections and RF operating scenarios). Readiness audit:
+PROJECT_AUDIT_20261015.md. Core acceptance does not imply HTML contract parity;
+confirmed integration defects remain open. No new decoder or real replay run.
+
 Checkpoint base: `c99268b700b2b46bc0202a2a37f635e3af93f70d`.
 2C and the protective state/query contract are accepted. **2D.1 remains FAIL**,
 experimental opt-in/default-off. The event-time prototype was checked only in

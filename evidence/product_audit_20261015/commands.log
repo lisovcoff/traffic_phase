@@ -1,0 +1,17 @@
+﻿Audit base: fc3f5f51c8c9d4c0aa7f83d5b7d67d17df290190
+Working directory: D:\Code\PythonProjects\traffic_phase\audit_checkout
+Read-only code/docs review plus existing-function counterexample; no discovery/fitting/replay.
+
+C:\Python314\python.exe -m scripts.audit_product_contract
+Result: existing core reconstructed queries UNKNOWN; existing JS GREEN/YELLOW and UNKNOWN->RED.
+
+C:\Python314\python.exe -m pytest -p no:cacheprovider tests/test_state_contract_2b2.py tests/test_v9_query_contract_followup.py tests/v9/test_v9_signal_renderer.py tests/v9/test_v9_spatial.py tests/test_preprocessing_payload.py tests/test_history_optin_2d1.py -k 'not actual_discovery_call_site' -q
+69 passed, 2 deselected in 2.27s. No model fitting test paths selected.
+
+git rev-parse origin/fix/respect-explicit-physical-plan-20261012
+cb104669384fc67af05723854568fe5206d4380c
+git diff origin/fix/respect-explicit-physical-plan-20261012 HEAD -- scripts/v9_spatial_visualizer.py
+Existing explicit-plan preservation fix is absent from current branch; no fix reapplied here.
+
+git diff --check
+Production code unchanged (git diff base -- app scripts/v9_spatial_visualizer.py).
