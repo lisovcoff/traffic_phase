@@ -1,0 +1,959 @@
+diff --git a/.gitattributes b/.gitattributes
+index a353dd3..3e1965f 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -5,3 +5,4 @@ evidence/stage2c_phase_search/** -text -whitespace
+ benchmarks/stage2c_20261014/** -text -whitespace
+ evidence/stage2d1_local_history/** -text -whitespace
+ benchmarks/stage2d1_20261014/** -text -whitespace
++evidence/stage2d1_sparse_review/** -text -whitespace
+diff --git a/app/core/state_contract.py b/app/core/state_contract.py
+index 82b8679..e129e5a 100644
+--- a/app/core/state_contract.py
++++ b/app/core/state_contract.py
+@@ -78,6 +78,7 @@ class LogicalPhaseQuery:
+     abstention_intervals: tuple = ()
+     abstention_starts: tuple = ()
+     unavailable_reason: str | None = None
++    experimental_validation_status: str | None = None
+ 
+     def at(self, timestamp_s):
+         t = float(timestamp_s)
+@@ -86,6 +87,9 @@ class LogicalPhaseQuery:
+             "vehicle_demand_is_not_lamp_observation": True,
+             "local_vehicle_observation_support": "UNKNOWN",
+             "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability"}
++        if self.experimental_validation_status is not None:
++            support["experimental_validation_status"]=self.experimental_validation_status
++            support["support_interpretation"]="rejected_experimental_policy_NOT_identified_intervals"
+         reason = "INVALID_PHASE_HISTORY" if self.validation_error else "NO_TEMPORAL_COVERAGE"
+         if self.unavailable_reason and not self.validation_error:
+             reason = self.unavailable_reason
+@@ -111,16 +115,21 @@ class LogicalPhaseQuery:
+             {"schedule_anchor_ms": self.anchor_ms}, self.mode)
+ 
+ 
+-def prepare_logical_query(result, *, mode="reconstructed"):
++def prepare_logical_query(result, *, mode="reconstructed", history_source="accepted"):
+     """Validate once, fail closed for the entire malformed history. No sorting/repair."""
+     if mode not in {"reconstructed", "configured", "simulated"}:
+         raise ValueError("invalid result mode")
+     schedule = result.get("schedule", {})
+     key = "raw_hsmm_segments" if mode == "reconstructed" else "baseline_segments"
+-    history=result.get("reconstruction_history") if mode=="reconstructed" else None
+-    if mode=="reconstructed" and "reconstruction_history" in result:
++    if history_source not in {"accepted","experimental"}:
++        raise ValueError("invalid history source")
++    if mode!="reconstructed" and history_source=="experimental":
++        raise ValueError("experimental history requires reconstructed mode")
++    experimental=mode=="reconstructed" and history_source=="experimental"
++    history=result.get("reconstruction_history") if experimental else None
++    if experimental:
+         key="reconstruction_history.segments"
+-        raw=history.get("segments",[]) if isinstance(history,Mapping) else None
++        raw=history.get("segments",[]) if isinstance(history,Mapping) else []
+     else:
+         raw=schedule.get(key,[])
+     raw_names = schedule.get("phase_names", [])
+@@ -156,7 +165,7 @@ def prepare_logical_query(result, *, mode="reconstructed"):
+         error = error or "INVALID_CONFIGURED_PERIOD"
+     if error:
+         segments = []
+-    gaps=[];unavailable=None
++    gaps=[];unavailable="EXPERIMENTAL_HISTORY_UNAVAILABLE" if experimental and history is None else None
+     if isinstance(history,Mapping):
+         unavailable=(history.get("reason") or "RECONSTRUCTION_UNAVAILABLE") if history.get("status")=="unavailable" else None
+         if unavailable and segments:error="UNAVAILABLE_HISTORY_WITH_SEGMENTS"
+@@ -174,16 +183,21 @@ def prepare_logical_query(result, *, mode="reconstructed"):
+         if error:segments=[];gaps=[]
+     return LogicalPhaseQuery(names,tuple(segments),tuple(s[0] for s in segments),
+         history.get("source","local_history") if isinstance(history,Mapping) else schedule.get("model", "anonymous_phase_model"),
+-        key,result.get("schedule_base_timestamp_ms"),period,mode,error,tuple(gaps),tuple(g[0] for g in gaps),unavailable)
++        key,result.get("schedule_base_timestamp_ms"),period,mode,error,tuple(gaps),tuple(g[0] for g in gaps),unavailable,
++        history.get("validation_status","NOT_APPROVED") if experimental and isinstance(history,Mapping) else None)
+ 
+ 
+-def logical_phase_at(result, timestamp_s, *, mode=None):
++def logical_phase_at(result, timestamp_s, *, mode=None, history_source=None):
+     """Accept a result for one-off queries or a prepared snapshot for bulk queries."""
+     if isinstance(result,LogicalPhaseQuery):
++        if history_source not in {None,"accepted","experimental"}:
++            raise ValueError("invalid history source")
+         if mode is not None and mode != result.mode:
+             raise ValueError("query mode differs from prepared history")
++        if history_source is not None and (result.segment_source=="reconstruction_history.segments") != (history_source=="experimental"):
++            raise ValueError("history source differs from prepared query")
+         return result.at(timestamp_s)
+-    return prepare_logical_query(result,mode=mode or "reconstructed").at(timestamp_s)
++    return prepare_logical_query(result,mode=mode or "reconstructed",history_source=history_source or "accepted").at(timestamp_s)
+ 
+ 
+ def attach_state_contract(result):
+@@ -194,9 +208,8 @@ def attach_state_contract(result):
+         "version": 1,
+         "logical_phase": {"level": "logical_phase", "source": schedule.get("model"),
+             "estimated_state": "QUERY_AT_TIMESTAMP", "assumptions": ["anonymous_latent_phase_NOT_lamp"],
+-            "observation_support": {"coverage_segments_s": result.get("reconstruction_history",{}).get(
+-                "segments",[]) if "reconstruction_history" in result else schedule.get("raw_hsmm_segments", []),
+-                "history_field":"reconstruction_history.segments" if "reconstruction_history" in result else "raw_hsmm_segments"},
++            "observation_support": {"coverage_segments_s": schedule.get("raw_hsmm_segments", []),
++                "history_field":"raw_hsmm_segments"},
+             "abstention_reason": None, "calibrated_lamp_probability": None},
+         "activity": [{"movement": row["stream"], "scores": row.get("event_probability_by_phase", {}),
+             "estimate": StateEstimate("MODELLED_EVENT_ACTIVITY", "activity", "bernoulli_event_occupancy",
+diff --git a/app/core/v10/semantic_mapping.py b/app/core/v10/semantic_mapping.py
+index 2752bda..19bbefb 100644
+--- a/app/core/v10/semantic_mapping.py
++++ b/app/core/v10/semantic_mapping.py
+@@ -274,8 +274,10 @@ def signal_state_at(
+     *,
+     mode: str = "reconstructed",
+     query_model: LogicalPhaseQuery | None = None,
++    history_source: str | None = None,
+ ) -> dict[str, Any]:
+-    logical = logical_phase_at(query_model if query_model is not None else result, timestamp_s, mode=mode)
++    logical = logical_phase_at(query_model if query_model is not None else result, timestamp_s, mode=mode,
++                               history_source=history_source)
+     physical = physical_estimate("UNKNOWN", mode=mode, logical_support=logical)
+     if mode == "reconstructed" or logical.abstention_reason:
+         # A heuristic catalog assignment does not establish lamp or arrow states.
+diff --git a/app/core/v9/decoder.py b/app/core/v9/decoder.py
+index 40093b3..cfa377f 100644
+--- a/app/core/v9/decoder.py
++++ b/app/core/v9/decoder.py
+@@ -70,7 +70,7 @@ def _boundary_coherence(segments, period, evidence_grid, evidence_values):
+     vals = np.interp(np.asarray(starts) % period, evidence_grid, evidence_values, period=period)
+     return float(np.mean(vals))
+ 
+-def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, dt: float=1.0, min_duration_s: Optional[float]=None, max_duration_s: Optional[float]=None, transition_penalty: float=0.25, duration_targets: Optional[Sequence[float]]=None, initial_phase: Optional[int]=None, duration_min_factor: float=0.65, duration_max_factor: float=1.35, observation_mask=None, duration_penalty_strength: float=2.0, deadline_monotonic=None):
++def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, dt: float=1.0, min_duration_s: Optional[float]=None, max_duration_s: Optional[float]=None, transition_penalty: float=0.25, duration_targets: Optional[Sequence[float]]=None, initial_phase: Optional[int]=None, duration_min_factor: float=0.65, duration_max_factor: float=1.35, observation_mask=None, duration_penalty_strength: float=2.0, deadline_monotonic=None, diagnostic_emissions=None):
+     n, _ = x.shape
+     expected = float(period) / float(k)
+     if duration_targets is None:
+@@ -89,6 +89,11 @@ def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int,
+     prob = probs.T[np.newaxis, :, :]
+     xx = x[:, :, np.newaxis]
+     emissions = np.sum(xx * np.log(prob) + (1.0 - xx) * np.log(1.0 - prob), axis=1)
++    if diagnostic_emissions is not None:
++        supplied=np.asarray(diagnostic_emissions,dtype=float)
++        if supplied.shape!=(n,k) or np.any(~np.isfinite(supplied)):
++            raise ValueError('invalid diagnostic emission matrix')
++        emissions=supplied.copy()
+     if observation_mask is not None:
+         emissions[~np.asarray(observation_mask,dtype=bool)] = 0.0
+     prefix = np.vstack([np.zeros((1, k)), np.cumsum(emissions, axis=0)])
+diff --git a/app/core/v9/model.py b/app/core/v9/model.py
+index 9dd782c..359cd27 100644
+--- a/app/core/v9/model.py
++++ b/app/core/v9/model.py
+@@ -57,6 +57,7 @@ def _discover_from_event_views(
+     trajectory_count: int = 0,
+     evidence_policy: str = "legacy_v9",
+     phase_search_config: PhaseSearchConfig | None = None,
++    experimental_local_history: bool = False,
+ ):
+     if not events:
+         raise ValueError("no traffic events supplied")
+@@ -88,6 +89,7 @@ def _discover_from_event_views(
+         analysis_base_ms=float(events[0][0]),
+         trajectory_count=trajectory_count,
+         event_count=len(events),
++        experimental_local_history=experimental_local_history,
+         evidence_policy=evidence_policy, phase_search_config=phase_search_config,
+     )
+ 
+@@ -592,7 +594,10 @@ def _discover_from_stream_views(
+     evidence_diagnostics=None,
+     evidence_policy: str = "permission_per_stream",
+     phase_search_config: PhaseSearchConfig | None = None,
++    experimental_local_history: bool = False,
+ ):
++    if not isinstance(experimental_local_history,bool):
++        raise ValueError("experimental_local_history requires an explicit boolean")
+     if not by_stream:
+         raise ValueError("no traffic events supplied")
+     if release_streams is None:
+@@ -925,13 +930,16 @@ def _discover_from_stream_views(
+             "source_file_count": len(source_files),
+             "source_files": [str(value) for value in source_files],
+         }
+-    if regime_detection is None:
+-        result["reconstruction_history"] = decode_local_history(
+-            x,fit["probs"],period,baseline_durations,dt=dt,initial_phase=int(fit["labels"][0]))
+-    else:
+-        result["reconstruction_history"] = {"status":"unavailable","segments":[],
+-            "source":"fixed_templates_local_cyclic_hsmm","reason":"MULTIPLE_REGIME_SCOPE_UNSUPPORTED",
+-            "level":"logical_phase","calibrated_lamp_probability":None}
++    if experimental_local_history:
++        if regime_detection is None:
++            result["reconstruction_history"] = decode_local_history(
++                x,fit["probs"],period,baseline_durations,dt=dt,initial_phase=int(fit["labels"][0]))
++        else:
++            result["reconstruction_history"] = {"status":"unavailable","segments":[],
++                "source":"fixed_templates_local_cyclic_hsmm","reason":"MULTIPLE_REGIME_SCOPE_UNSUPPORTED",
++                "level":"logical_phase","calibrated_lamp_probability":None}
++        result["reconstruction_history"]["experimental"] = True
++        result["reconstruction_history"]["validation_status"] = "FAIL_2D1_NOT_ACCEPTED"
+     return attach_state_contract(result)
+ 
+ 
+@@ -943,13 +951,16 @@ def discover_records(
+     marks_path: Optional[Path] = None,
+     evidence_policy: str = "permission_per_stream",
+     phase_search_config: PhaseSearchConfig | None = None,
++    experimental_local_history: bool = False,
+ ) -> dict[str, object]:
++    if not isinstance(experimental_local_history,bool):
++        raise ValueError("experimental_local_history requires an explicit boolean")
+     if not tracks:
+         raise EvidenceUnavailable("no trajectory records supplied", reason_code="NO_TRAJECTORY_RECORDS")
+     if evidence_policy == "permission_per_stream":
+         bundle = extract_timing_streams(tracks)
+         return _discover_bundle(bundle, input_name=input_name, dt=dt, marks_path=marks_path,
+-                                evidence_policy=evidence_policy, phase_search_config=phase_search_config)
++                                evidence_policy=evidence_policy, phase_search_config=phase_search_config, experimental_local_history=experimental_local_history)
+     if evidence_policy != "legacy_v9":
+         raise ValueError("unknown evidence policy")
+     recording_start_ms = float(_recording_start_ms(tracks))
+@@ -964,6 +975,7 @@ def discover_records(
+         marks_path=marks_path,
+         recording_start_ms=recording_start_ms,
+         trajectory_count=len(tracks),
++        experimental_local_history=experimental_local_history,
+         phase_search_config=phase_search_config,
+     )
+ 
+@@ -975,7 +987,10 @@ def discover_path(
+     marks_path: Optional[Path] = None,
+     evidence_policy: str = "permission_per_stream",
+     phase_search_config: PhaseSearchConfig | None = None,
++    experimental_local_history: bool = False,
+ ) -> dict[str, object]:
++    if not isinstance(experimental_local_history,bool):
++        raise ValueError("experimental_local_history requires an explicit boolean")
+     path = Path(path)
+     if path.is_file() and path.suffix.lower() not in {".json", ".zip"}:
+         raise ValueError(f"unsupported V9 source: {path}")
+@@ -985,10 +1000,10 @@ def discover_path(
+     bundle = load_event_streams(path, evidence_policy=evidence_policy)
+     return _discover_bundle(bundle, input_name=str(path), dt=dt, marks_path=marks_path,
+                             evidence_policy=evidence_policy, phase_search_config=phase_search_config,
+-                            source_files=[str(path)] if path.is_file() else bundle[5])
++                            experimental_local_history=experimental_local_history, source_files=[str(path)] if path.is_file() else bundle[5])
+ 
+ 
+-def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None, phase_search_config=None):
++def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None, phase_search_config=None, experimental_local_history=False):
+     (
+         by_stream,
+         entry_streams,
+@@ -1019,5 +1034,6 @@ def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, sou
+         permission_streams=getattr(bundle, "permission_streams", None),
+         temporal_events=getattr(bundle, "temporal_events", ()),
+         evidence_diagnostics=getattr(bundle, "diagnostics", None),
++        experimental_local_history=experimental_local_history,
+         evidence_policy=evidence_policy, phase_search_config=phase_search_config,
+     )
+diff --git a/app/core/v9/signal_renderer.py b/app/core/v9/signal_renderer.py
+index 58fb014..da6d30e 100644
+--- a/app/core/v9/signal_renderer.py
++++ b/app/core/v9/signal_renderer.py
+@@ -18,11 +18,11 @@ class SignalQueryModel(dict):
+ 
+ 
+ def build_signal_model(result: Mapping[str, Any], *, activity_threshold=DEFAULT_ACTIVITY_THRESHOLD,
+-                       mode="reconstructed") -> SignalQueryModel:
++                       mode="reconstructed", history_source="accepted") -> SignalQueryModel:
+     schedule = result.get("schedule")
+     if not isinstance(schedule, Mapping):
+         raise ValueError("V9 result has no schedule")
+-    query = prepare_logical_query(result, mode=mode)
++    query = prepare_logical_query(result, mode=mode, history_source=history_source)
+     names = query.phase_names
+     name_ids = {name:index for index,name in enumerate(names)}
+     activity = defaultdict(dict)
+@@ -55,7 +55,7 @@ def build_signal_model(result: Mapping[str, Any], *, activity_threshold=DEFAULT_
+ def signal_state_at(result: Mapping[str, Any], timestamp_s: float, *,
+                     yellow_duration_seconds=DEFAULT_YELLOW_DURATION_SECONDS,
+                     red_yellow_duration_seconds=DEFAULT_RED_YELLOW_DURATION_SECONDS,
+-                    activity_threshold=DEFAULT_ACTIVITY_THRESHOLD, mode=None) -> dict[str, Any]:
++                    activity_threshold=DEFAULT_ACTIVITY_THRESHOLD, mode=None, history_source=None) -> dict[str, Any]:
+     """Default physical abstention; pass build_signal_model output for bulk queries."""
+     if yellow_duration_seconds < 0 or red_yellow_duration_seconds < 0:
+         raise ValueError("transition durations must be non-negative")
+@@ -63,8 +63,11 @@ def signal_state_at(result: Mapping[str, Any], timestamp_s: float, *,
+         model=result
+         if mode is not None and mode != model.logical_query.mode:
+             raise ValueError("query mode differs from prepared model")
++        if history_source is not None:
++            logical_phase_at(model.logical_query,timestamp_s,history_source=history_source)
+     else:
+-        model=build_signal_model(result,activity_threshold=activity_threshold,mode=mode or "reconstructed")
++        model=build_signal_model(result,activity_threshold=activity_threshold,mode=mode or "reconstructed",
++                                 history_source=history_source or "accepted")
+     mode=model.logical_query.mode
+     logical=logical_phase_at(model.logical_query,timestamp_s)
+     phase_id=logical.observation_support.get("phase_id")
+diff --git a/docs/LOCAL_HISTORY_2D1.md b/docs/LOCAL_HISTORY_2D1.md
+index bd6ccff..d73bfe3 100644
+--- a/docs/LOCAL_HISTORY_2D1.md
++++ b/docs/LOCAL_HISTORY_2D1.md
+@@ -1,5 +1,10 @@
+ # Fixed-model local history — 2D.1, 2026-10-14
+ 
++**Historical failed experiment, not accepted.** The later sparse review disables
++this reconstruction by default. Discovery now requires explicit
++experimental_local_history=True; queries require history_source='experimental'.
++Accepted2C raw history remains the default. See SPARSE_OBSERVATION_2D1_REVIEW.md.
++
+ Base `b248b4c7bac27def4a131ba61301f2678cd0b05a`, separate branch. No K-search,
+ period, extraction/selection, mapping, offset or evaluator changes. No skip,
+ reorder, K change, regime segmentation or online decoding is introduced.
+@@ -39,7 +44,7 @@ are still an explicit model assumption, not observations of red lamps. Missing
+ bins may be traversed by the prior internally; that candidate path is retained
+ only as a diagnostic and is not exposed as supported reconstruction.
+ 
+-Reconstructed core queries prefer `reconstruction_history.segments` when present,
++In this rejected version reconstructed core queries preferred `reconstruction_history.segments` when present,
+ including when it is unavailable or has gaps: there is no fallback to old raw
+ segments. Prepared immutable queries retain gap reasons and validate contradictory
+ support/abstention. Outside the history they abstain. Configured/simulated queries
+diff --git a/docs/LOCAL_HISTORY_2D1_RESULTS.md b/docs/LOCAL_HISTORY_2D1_RESULTS.md
+index 3d8269c..e930678 100644
+--- a/docs/LOCAL_HISTORY_2D1_RESULTS.md
++++ b/docs/LOCAL_HISTORY_2D1_RESULTS.md
+@@ -1,5 +1,9 @@
+ # 2D.1 development results and limits
+ 
++**FAIL / NOT ACCEPTED.** Later confirmed diagnostic-candidate matches are7/34
++(3/17,1/8,3/9), also worse than raw19/34. The sparse review restores accepted2C
++defaults and makes this history explicitly opt-in; see SPARSE_OBSERVATION_2D1_REVIEW.md.
++
+ Base `b248b4c7bac27def4a131ba61301f2678cd0b05a`; implementation/config sealed at
+ `400dad78f7276ac025427e7cef02af9ef3d58fb6` before the sole development run.
+ No code or configuration was tuned after reading its results. No K search,
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index 3df53e3..b40b092 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -45,10 +45,17 @@ switch timing are not inferred. External validation and known development
+ regressions remain open. Base `b248b4c7bac27def4a131ba61301f2678cd0b05a`.
+ No 2D.2, skip/reorder, multiple-regime extension or online work is authorized.
+ 
+-2D.1's sole frozen-model development run is complete. Dense synthetic duration
+-recovery passes; real reconstruction regresses to0/34 matched boundaries, with
+-annotated-range support15.208%/33.526%/25.216% for recordings17/19/6. Sparse positive
+-bins produce fragmented history. Raw/baseline and K/period remain unchanged;
+-strict abstention is preserved rather than tuned using development annotations.
+-The result is engineering evidence, not usable independently validated real
+-signal reconstruction. See LOCAL_HISTORY_2D1_RESULTS.md. Await further instruction.
++2D.1 is **FAIL / NOT ACCEPTED**. Its supported real history has0/34 matched
++boundaries; its diagnostic candidate has7/34, versus accepted raw19/34. Removing
++the UNKNOWN mask does not fix the candidate failure. Historical results remain
++unchanged. Local reconstruction is now explicitly opt-in/default-off; accepted
++2C discovery/query behavior is restored. Experimental queries require explicit
++source selection and abstain in gaps/unavailable results without raw fallback.
++
++A single predeclared sparse-event review also failed its per-case recovery gate
++(7/16 core cases fail) and publishing/identifiability gate. No real replay was
++allowed or performed. The conditional-mark candidate is diagnostic only; no
++replacement history is approved. A justified observation/demand/exposure model
++and interval-uncertainty/support method are required before further publication.
++See SPARSE_OBSERVATION_2D1_REVIEW.md. External event/lamp validation remains open;
++no2D.2/online work is started. Await further instruction.
+diff --git a/docs/SPARSE_OBSERVATION_2D1_REVIEW.md b/docs/SPARSE_OBSERVATION_2D1_REVIEW.md
+new file mode 100644
+index 0000000..ab8e533
+--- /dev/null
++++ b/docs/SPARSE_OBSERVATION_2D1_REVIEW.md
+@@ -0,0 +1,117 @@
++# Rejected 2D.1: isolated sparse-event review
++
++Base `714a0917bfe4f46ab5022e25e88cc4410a9539ea`. 2D.1 is **FAIL**, not accepted.
++Previously confirmed real counts: supported0/34, diagnostic candidate7/34
++(3/17,1/8,3/9), versus accepted raw19/34. These user-confirmed results are retained
++as historical evidence; no new real decoding/evaluation was run in this review.
++
++## Isolation and accepted default
++
++`discover_records`/`discover_path` now default to experimental_local_history=False.
++Only an explicit boolean True enables the rejected experimental decoder. Ordinary
++discovery does not call it. Ordinary reconstructed queries select accepted raw
++history even if a serialized experimental payload exists. Its physical states
++remain UNKNOWN under the accepted2C contract.
++
++Choose history_source='experimental' explicitly in prepare_logical_query,
++build_signal_model or signal_state_at to inspect experimental history. V10's
++core caller forwards the same selection. Unavailable/missing experimental
++history and its gaps remain UNKNOWN, without raw fallback. A prepared query's
++source cannot be silently changed. Producing experimental history and selecting
++it are intentionally separate decisions. Existing experimental output is marked
++FAIL_2D1_NOT_ACCEPTED; it is not an approved reconstruction.
++
++## Predeclared sparse experiment
++
++Declaration commit `2917b28` predates decoding; proposal seal `50a05e6` predates
++results. Seeds11 and29,24 cases, four cycles, fixed30s phase durations and K2/K3.
++The independent generator samples timestamps/movements with exponential waiting
++times at rate.25/s. Cases cover stable, hold+10/+30, shortening−10, unequal demand
++rates.35/.12/.25, no-demand/blockage and explicit observation gaps. It does not
++emit dense active columns or insert boundary-probe events. The real unchanged
++occupancy builder bins these timestamps. Truth is generated independently and
++never passed to either decoder.
++
++Exactly one synthetic review compares the rejected legacy candidate/support
++with one declared conditional-mark candidate. K/templates/order/period, duration
++prior strength2, bounds, transitions and budgets are fixed. No fitting, seed
++search, confidence weighting or real-label tuning occurs. Publication is not
++implemented for the new hypothesis until interval support and uncertainty are
++validated; it stays unavailable/UNKNOWN rather than copying its candidate.
++
++Predeclared recovery gate: every core case candidate recall≥.8 at ±2s. Publishing
++also requires recall/coverage≥.8 and identifiability checks. The engineering
++contract tests pass, but the actual scientific recovery gate **FAILS**. Seven of
++16 core cases fail the candidate threshold. Aggregate core results:
++
++| Output | Matched/truth/predicted | Recall | Temporal coverage meaning |
++|---|---|---|---|
++| Rejected legacy supported | 15/144/15 | .104 | sparse positive-bin mask; not observation exposure |
++| Rejected legacy candidate | 122/144/148 | .847 | full diagnostic path; not approved support |
++| Conditional-mark candidate | 118/144/142 | .819 | full diagnostic path; not approved support |
++| Proposed published history | unavailable, empty | unavailable | 0 returned intervals,100% UNKNOWN; evaluator reports missing_history |
++
++An aggregate passing.8 does not pass the per-case gate. Failed cases are
++hold10_K2/seed11, both hold30_K2 seeds, shorten10_K2/seed11, hold10_K3/seed11,
++and both hold30_K3 seeds. The new candidate is worse in aggregate than the old
++candidate. Removing the mask does not repair the decoder. Dense tests remain
++technical controls, not proof of sparse recovery. Every synthetic prediction and
++separate evaluator adapter is preserved and hashed; comparison.json/compact CSV
++include denominators, coverage, UNKNOWN and missing metric reasons.
++
++## Observation likelihood and concrete blocker
++
++The previous likelihood includes `(1-x_m) log(1-p_zm)` for other zero movements
++even in a bin containing a vehicle. Masking only all-zero rows does not remove
++that negative evidence. Under unknown demand a zero can mean no arrival, no
++observation, obstruction or low detection exposure; it is not a lamp observation.
++One unique floating-point emission maximum is not identifiability.
++
++The single diagnostic hypothesis uses `x @ log(q).T`, where
++q_zm=p_zm/sum_j(p_zj). Zero counts contribute no likelihood term. This treats
++frozen occupancy templates as a proxy for a stationary conditional mark mix,
++conditional on event count. A common unknown intensity multiplier cancels,
++but unknown movement-specific demand/exposure does not. No probability of a
++lamp or calibrated phase error interval is implied.
++
++A concrete generative model would use marked counts with
++lambda_m(t)=E_m(t) D_m(t) r_zm and an independently justified duration prior:
++`sum_m [N_m log(lambda_m) - lambda_m*dt]` up to count constants. The zero-count
++term is justified only when exposure is known and demand constrained. Missing
++observation requires censoring/marginalization. No-demand/obstruction requires
++latent arrival/service assumptions, not a RED assignment. Conditioning on marks
++gives `E_m D_m r_zm / sum_j E_j D_j r_zj`; relative demand must still be constrained.
++
++The unit-test witness uses two different boundaries,30s and40s, and strictly
++positive demands D2=D1*r_z1/r_z2. Both yield exactly the same marked-Poisson
++intensity. Thus vehicle data alone cannot distinguish those histories under
++unrestricted unknown demand. Frozen Bernoulli occupancy templates supply neither
++exposure nor demand ratios or a calibrated duration distribution. Sparse event
++likelihood also changes the relative scale of the old uncalibrated duration
++penalty. Its effect cannot be repaired by inventing a confidence weight after
++the failed experiment.
++
++**BLOCKED only for publishing a new local-history model**: it requires explicit
++approved demand/exposure assumptions or independent inputs/calibration and a
++sequence-level uncertainty/support method. For example, forward/backward
++posterior or censored-boundary sets could express ambiguity under a specified
++observation model; a Viterbi path/unique emission is insufficient. Choosing such
++assumptions, recalibrating the duration prior or adding latent demand states goes
++beyond this single sealed hypothesis and needs a separately agreed experiment.
++No gap-fill thresholds, emission weights or prior parameters were tried next.
++
++## Gate outcome and reproducibility
++
++Real replay count is **0**, because both sparse readiness and publishing gates
++did not pass. check_sparse_gate_2d1 returns exit1 deliberately. CI contract/dense
++checks passed (60 isolation,87 preexperiment,53 postreview,8 boolean-safety checks;
++selections overlap). Existing K solver, extraction/selection, period, mapping
++objective, offsets, evaluator and historical artifacts are unchanged. Read-only
++queries on the three saved models verify accepted2C default behavior and explicit
++experimental abstention without decoding or phase annotation reads. No inference
++or output correctness claim is made for recording6's incorrect fixed K3.
++
++All seeds/config/source hashes, generated events/truth, candidate predictions,
++unavailable published output, evaluation adapters, gate reasons and logs are in
++evidence/stage2d1_sparse_review. No2D.2/online work is started. Accepted2C remains
++the default while the local-history publication problem is open.
+diff --git a/scripts/check_sparse_gate_2d1.py b/scripts/check_sparse_gate_2d1.py
+new file mode 100644
+index 0000000..d385033
+--- /dev/null
++++ b/scripts/check_sparse_gate_2d1.py
+@@ -0,0 +1,17 @@
++"""Read-only feature readiness gate. Nonzero exit is a rejected experiment, not a CI unit test."""
++import json
++from pathlib import Path
++
++
++def main():
++    folder=Path(__file__).resolve().parents[1]/'evidence/stage2d1_sparse_review'
++    report=json.loads((folder/'comparison.json').read_text())
++    failed=[f"{r['case']}/seed{r['seed']}" for r in report['rows'] if not r['candidate_recovery_pass']]
++    print('Sparse candidate recovery gate:',report['candidate_sparse_recovery_gate'])
++    print('Failed predeclared cases:',', '.join(failed))
++    print('Publishing/identifiability gate:',report['publication_identifiability_gate'])
++    print('Real replay count:',report['real_replays'])
++    return 0 if report['overall_gate']=='PASS' else 1
++
++
++if __name__=='__main__':raise SystemExit(main())
+diff --git a/scripts/sparse_event_suite_2d1.py b/scripts/sparse_event_suite_2d1.py
+new file mode 100644
+index 0000000..af91708
+--- /dev/null
++++ b/scripts/sparse_event_suite_2d1.py
+@@ -0,0 +1,59 @@
++"""Independent timestamp/movement generator. No decoder imports or fitted truth."""
++import json
++from pathlib import Path
++import numpy as np
++
++SEEDS=(11,29)
++CASES=[(f'{change}_K{k}',k,delta) for k in (2,3) for change,delta in
++       [('stable',0),('hold10',10),('hold30',30),('shorten10',-10)]]
++CASES += [('unequal_demand_K3',3,0),('no_demand_K2',2,0),('blockage_K2',2,0),('observation_gap_K3',3,0)]
++
++
++def generate(name,k,delta,seed):
++    rng=np.random.default_rng(seed);durations=[30]* (4*k)
++    durations[k]+=delta
++    starts=np.cumsum([0]+durations)
++    truth=[[int(a),int(b),i%k] for i,(a,b) in enumerate(zip(starts,starts[1:]))]
++    rates=[.25]*k
++    if name=='unequal_demand_K3':rates=[.35,.12,.25]
++    events=[]
++    for a,b,z in truth:
++        t=a+rng.exponential(1/rates[z])
++        while t<b:
++            events.append({'timestamp_ms':int(round(t*1000)),'movement':f'M{z}'})
++            t+=rng.exponential(1/rates[z])
++    coverage=[[0,int(starts[-1])]]
++    if name in {'no_demand_K2','blockage_K2'}:events=[]
++    if name=='observation_gap_K3':
++        events=[e for e in events if not 90000<=e['timestamp_ms']<180000]
++        coverage=[[0,90],[180,int(starts[-1])]]
++    return {'case':name,'seed':seed,'K':k,'period_s':30*k,'duration_targets_s':[30]*k,
++        'truth_segments':truth,'events':sorted(events,key=lambda e:e['timestamp_ms']),
++        'provided_input_intervals_s':coverage,'extent_s':int(starts[-1]),
++        'rates_per_s':rates,'initial_phase':0,'model_movements':[f'M{i}' for i in range(k)],
++        'templates':(np.eye(k)*.88+.02).tolist()}
++
++
++def materialize(folder):
++    folder=Path(folder);folder.mkdir(parents=True,exist_ok=True)
++    suite=[generate(name,k,delta,seed) for name,k,delta in CASES for seed in SEEDS]
++    manifest={'base_sha':'714a0917bfe4f46ab5022e25e88cc4410a9539ea','seeds':SEEDS,
++        'cases':CASES,'dt_s':1,'cycles':4,'generator':'Poisson arrivals only in corresponding logical phase; ideal event model, not lamps',
++        'rates_per_s':.25,'unequal_rates_per_s':[.35,.12,.25],
++        'boundary_tolerance_s':2,'core_candidate_recall_min':.8,'core_published_recall_min':.8,
++        'core_published_coverage_min':.8,
++        'identifiability_requirements':['no-demand/blockage observations indistinguishable; no cause claim',
++            'explicit missing observations distinct from no arrival','no physical state from event emissions',
++            'no identification claim from unique float maximum'],
++        'one_predeclared_diagnostic_proposal':'conditional mark likelihood x@log(row_normalized_templates); absence neutral; existing duration prior/config unchanged',
++        'proposal_status':'diagnostic only; publishing needs validated interval-support/ambiguity model',
++        'max_suite_runs':1,'max_real_replays':1,'real_replay_condition':'sparse recovery AND publishing/identifiability gate PASS',
++        'config':{'min_duration_s':2.,'max_duration_s':180.,'duration_min_factor':.1,'duration_max_factor':4.,
++                  'duration_penalty_strength':2.,'transition_penalty':.25,'max_bins':10000,
++                  'max_work_units':5000000,'max_seconds':15.}}
++    for name,value in [('predeclared_manifest.json',manifest),('sparse_suite.json',suite)]:
++        with (folder/name).open('x',encoding='utf-8',newline='\n') as f:
++            json.dump(value,f,indent=2);f.write('\n')
++
++
++if __name__=='__main__':materialize('evidence/stage2d1_sparse_review')
+diff --git a/scripts/sparse_observation_review_2d1.py b/scripts/sparse_observation_review_2d1.py
+new file mode 100644
+index 0000000..e67888b
+--- /dev/null
++++ b/scripts/sparse_observation_review_2d1.py
+@@ -0,0 +1,139 @@
++"""One predeclared synthetic review; no real data/annotations/refitting access."""
++from collections import defaultdict
++from dataclasses import asdict
++import hashlib
++import json
++from pathlib import Path
++import subprocess
++import time
++
++import numpy as np
++from app.core.v9.primitives import build_occupancy_matrix
++from app.core.v9.decoder import LocalHistoryConfig,decode_cyclic_hsmm,decode_local_history
++from app.core.offline_benchmark import evaluate_history,validate_annotation
++from app.core.state_contract import physical_estimate
++
++ROOT=Path(__file__).resolve().parents[1]
++OUT=ROOT/'evidence/stage2d1_sparse_review'
++
++
++def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++def save(path,obj):
++    path.parent.mkdir(parents=True,exist_ok=True)
++    with path.open('x',encoding='utf-8',newline='\n') as f:
++        json.dump(obj,f,ensure_ascii=False,indent=2,allow_nan=False);f.write('\n')
++
++
++def occupancy(case):
++    streams={name:[] for name in case['model_movements']}
++    for event in case['events']:streams[event['movement']].append(event['timestamp_ms']/1000.)
++    x,names=build_occupancy_matrix(streams,case['extent_s'],dt=1.)
++    source=np.array(case['templates']);templates=source[:,[case['model_movements'].index(m) for m in names]]
++    coverage=np.array([any(a<=t<b for a,b in case['provided_input_intervals_s']) for t in range(len(x))])
++    return x,templates,coverage,names
++
++
++def conditional_mark_emissions(x,templates):
++    """Conditional on event count; assumes stable mark mix/exposure. Zeros add no term."""
++    templates=np.asarray(templates,dtype=float)
++    distribution=templates/np.sum(templates,axis=1,keepdims=True)
++    return np.asarray(x)@np.log(distribution).T
++
++
++def diagnostic_candidate(x,templates,coverage,period,targets,config):
++    started=time.monotonic();k=len(templates);n=len(x)
++    work=n*k*int(max(3,np.max(np.round(np.maximum(np.minimum(config.max_duration_s,
++        config.duration_max_factor*np.asarray(targets)),
++        np.maximum(config.min_duration_s,config.duration_min_factor*np.asarray(targets))+1)))+1))
++    if n>config.max_bins or work>config.max_work_units:
++        return {'status':'unavailable','reason':'WORK_BUDGET','candidate_segments':[]}
++    if not np.any(x[coverage]):
++        return {'status':'unavailable','reason':'NO_EVENTS; prior alone is not evidence','candidate_segments':[]}
++    try:
++        labels,score,segments,decoder=decode_cyclic_hsmm(x,templates,period,k,initial_phase=0,
++            duration_targets=targets,min_duration_s=config.min_duration_s,max_duration_s=config.max_duration_s,
++            duration_min_factor=config.duration_min_factor,duration_max_factor=config.duration_max_factor,
++            duration_penalty_strength=config.duration_penalty_strength,transition_penalty=config.transition_penalty,
++            observation_mask=coverage,deadline_monotonic=started+config.max_seconds,
++            diagnostic_emissions=conditional_mark_emissions(x,templates))
++    except (TimeoutError,RuntimeError) as error:
++        return {'status':'unavailable','reason':type(error).__name__+': '+str(error),'candidate_segments':[]}
++    if time.monotonic()-started>config.max_seconds:
++        return {'status':'unavailable','reason':'TIME_BUDGET','candidate_segments':[]}
++    return {'status':'diagnostic_only','candidate_segments':segments,'score':score,'decoder':decoder,
++        'runtime_s':time.monotonic()-started,'assumptions':['stable conditional mark mix and observation exposure',
++        'frozen occupancy templates treated as conditional mark proxy','unchanged uncalibrated duration prior'],
++        'support_kind':'temporal_sequence_plus_duration_prior; NOT independently identified intervals',
++        'publication_approved':False,'cause':'UNKNOWN','calibrated_lamp_probability':None}
++
++
++def summary(hist):
++    b=hist['boundaries'];m=b['mae_s']
++    return {'matched':m['matched_boundaries'],'truth':m['truth_boundaries'],'predicted':m['predicted_boundaries'],
++        'recall':b['recall'],'precision':b['precision'],'MAE':m,'p95':b['p95_s'],
++        'nearest_MAE':b['nearest_truth_boundary_mae_s_diagnostic'],'coverage':hist['coverage']}
++
++
++def review():
++    if (OUT/'experiment_started.json').exists():raise RuntimeError('suite already started; no repeat/tuning')
++    manifest=json.loads((OUT/'predeclared_manifest.json').read_text(encoding='utf-8'))
++    suite=json.loads((OUT/'sparse_suite.json').read_text(encoding='utf-8'))
++    config=LocalHistoryConfig(**manifest['config']);assert asdict(config)==manifest['config']
++    save(OUT/'experiment_started.json',{'code_sha':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
++        'suite_sha256':sha(OUT/'sparse_suite.json'),'manifest_sha256':sha(OUT/'predeclared_manifest.json'),
++        'config':asdict(config),'max_suite_runs':1,'real_files_read':0})
++    ledger=[];suite_started=time.monotonic()
++    for case in suite:
++        if time.monotonic()-suite_started>60:
++            raise TimeoutError('synthetic suite cooperative 60s budget exceeded; gate unavailable, no real replay')
++        x,templates,coverage,names=occupancy(case)
++        legacy=decode_local_history(x,templates,case['period_s'],case['duration_targets_s'],coverage_mask=coverage)
++        proposal=diagnostic_candidate(x,templates,coverage,case['period_s'],case['duration_targets_s'],config)
++        published={'status':'unavailable','reason':'VALIDATED_INTERVAL_SUPPORT_MODEL_NOT_IMPLEMENTED',
++                   'segments':[],'cause':'UNKNOWN','calibrated_lamp_probability':None}
++        prediction={'case':case['case'],'seed':case['seed'],'fixed_K':case['K'],'fixed_period_s':case['period_s'],
++            'events':case['events'],'local_event_bin_count':int(np.sum(np.any(x>0,axis=1))),
++            'provided_input_coverage':case['provided_input_intervals_s'],'templates_sha256':hashlib.sha256(templates.tobytes()).hexdigest(),
++            'legacy_rejected_history':legacy,'proposal_diagnostic':proposal,'proposed_published_history':published,
++            'physical_section':physical_estimate('UNKNOWN').to_dict()}
++        name=f"{case['case']}_seed{case['seed']}.json";path=OUT/'synthetic_predictions'/name;save(path,prediction)
++        ledger.append({'case':case['case'],'seed':case['seed'],'prediction_sha256':sha(path)})
++    save(OUT/'predictions_sealed.json',ledger)
++    # Generated truth stays outside the candidate/decoder interfaces.
++    rows=[];core_pass=True
++    for case,entry in zip(suite,ledger):
++        name=f"{case['case']}_seed{case['seed']}.json";path=OUT/'synthetic_predictions'/name
++        assert sha(path)==entry['prediction_sha256'];pred=json.loads(path.read_text(encoding='utf-8'))
++        segments=case['truth_segments'];marks=[{'timestamp_ms':a*1000,'kind':str(z),'offset_s':a} for a,b,z in segments]
++        marks.append({'timestamp_ms':case['extent_s']*1000,'kind':str((segments[-1][2]+1)%case['K']),'offset_s':case['extent_s']})
++        annotation=validate_annotation({'start_ms':0,'marks':marks});assert annotation['valid']
++        adapter={'schedule_base_timestamp_ms':0,'schedule':{
++            'legacy_supported':pred['legacy_rejected_history']['segments'],
++            'legacy_candidate':pred['legacy_rejected_history'].get('candidate_segments',[]),
++            'proposal_candidate':pred['proposal_diagnostic']['candidate_segments'],
++            'proposal_published':pred['proposed_published_history']['segments']},
++            'source_prediction_sha256':sha(path),'tolerance_s':manifest['boundary_tolerance_s']}
++        artifact=OUT/'evaluation_adapters'/name;save(artifact,adapter);h=sha(artifact)
++        metrics={field:summary(evaluate_history(adapter,annotation,field,manifest['boundary_tolerance_s']))
++                 for field in adapter['schedule']}
++        core=case['case'].startswith(('stable','hold','shorten'))
++        recall=metrics['proposal_candidate']['recall']['value']
++        recovery_pass=not core or (recall is not None and recall>=manifest['core_candidate_recall_min'])
++        core_pass &= recovery_pass
++        rows.append({'case':case['case'],'seed':case['seed'],'events':len(case['events']),
++            'core_recovery_case':core,'candidate_recovery_pass':recovery_pass,'metrics':metrics,
++            'prediction_sha256':sha(path),'adapter_sha256':h,
++            'published_UNKNOWN_fraction':1.,'published_unknown_reason':pred['proposed_published_history']['reason']})
++        assert h==sha(artifact)
++    result={'base_sha':manifest['base_sha'],'rows':rows,'candidate_sparse_recovery_gate':'PASS' if core_pass else 'FAIL',
++        'publication_identifiability_gate':'FAIL: interval support/latent demand ambiguity unvalidated',
++        'overall_gate':'FAIL','real_replays':0,'real_replay_reason':'predeclared sparse recovery AND identifiability gate not passed',
++        'no_post_result_tuning':True,'interpretation':'synthetic diagnostic candidates, not approved history or lamp accuracy'}
++    save(OUT/'comparison.json',result)
++    print('Sparse suite complete. Candidate recovery:',result['candidate_sparse_recovery_gate'])
++    print('Overall gate FAIL. Real replay prohibited; no parameters/seeds retried.')
++
++
++if __name__=='__main__':review()
+diff --git a/tests/test_history_optin_2d1.py b/tests/test_history_optin_2d1.py
+new file mode 100644
+index 0000000..4bd27bc
+--- /dev/null
++++ b/tests/test_history_optin_2d1.py
+@@ -0,0 +1,72 @@
++import numpy as np
++import pytest
++from app.core.state_contract import prepare_logical_query
++from app.core.v9.signal_renderer import build_signal_model,signal_state_at
++from app.core.v10.semantic_mapping import signal_state_at as v10_state
++from app.core.v9 import model
++
++
++def prediction():
++    return {'schedule':{'phase_names':['A','B'],'period_s':80,'phase_count':2,
++        'raw_hsmm_segments':[[0,40,0],[40,80,1]],'baseline_segments':[[0,40,0],[40,80,1]],
++        'stream_activity_by_phase':[{'stream':'m','event_probability_by_phase':{'A':.8,'B':.1}}]},
++        'reconstruction_history':{'status':'ok','segments':[[0,5,1],[10,15,0]],
++            'abstention_intervals':[[5,10,'NO_LOCAL_VEHICLE_EVIDENCE']]}}
++
++
++def test_default_queries_preserve_accepted_raw_even_if_experimental_payload_exists():
++    p=prediction()
++    assert prepare_logical_query(p).at(7).estimated_state=='A'
++    assert signal_state_at(p,7)['logical_phase']['estimated_state']=='A'
++    assert v10_state(p,7,[],{})['logical_phase']['estimated_state']=='A'
++    assert signal_state_at(p,7)['streams'][0]['state']=='UNKNOWN'
++
++
++def test_explicit_experimental_selection_has_no_hidden_fallback():
++    p=prediction();query=prepare_logical_query(p,history_source='experimental')
++    assert query.at(2).estimated_state=='B'
++    assert query.at(2).observation_support['experimental_validation_status']=='NOT_APPROVED'
++    assert 'NOT_identified' in query.at(2).observation_support['support_interpretation']
++    assert query.at(7).abstention_reason=='NO_LOCAL_VEHICLE_EVIDENCE'
++    assert query.at(15).estimated_state=='UNKNOWN'
++    m=build_signal_model(p,history_source='experimental')
++    assert signal_state_at(m,7)['logical_phase']['estimated_state']=='UNKNOWN'
++    with pytest.raises(ValueError,match='source differs'):
++        signal_state_at(m,7,history_source='accepted')
++    p['reconstruction_history']={'status':'unavailable','reason':'TIMEOUT','segments':[]}
++    assert signal_state_at(p,7,history_source='experimental')['logical_phase']['abstention_reason']=='TIMEOUT'
++    del p['reconstruction_history']
++    assert signal_state_at(p,7,history_source='experimental')['logical_phase']['abstention_reason']=='EXPERIMENTAL_HISTORY_UNAVAILABLE'
++
++
++@pytest.mark.parametrize('enabled',[False,True])
++def test_actual_discovery_call_site_runs_local_decoder_only_on_optin(monkeypatch,enabled):
++    fit={'labels':np.repeat([0,1,0],[20,20,23]),'probs':np.array([[.9,.1],[.1,.9]]),
++         'segments':[(0.,20.,0),(20.,40.,1),(40.,63.,0)],'decoder_info':{}}
++    monkeypatch.setattr(model,'infer_period',lambda *a:(40.,{}))
++    monkeypatch.setattr(model,'discover_phase_count',lambda *a,**kw:(2,[{'k':2}],{2:fit}))
++    seen=[]
++    def local(*a,**kw):
++        seen.append(True);return {'status':'unavailable','reason':'TEST','segments':[]}
++    monkeypatch.setattr(model,'decode_local_history',local)
++    streams={'a':[1.,2.,41.,42.],'b':[21.,22.,61.,62.]}
++    kwargs={'experimental_local_history':True} if enabled else {}
++    output=model._discover_from_stream_views(streams,streams,{},{},release_streams=streams,**kwargs)
++    assert len(seen)==int(enabled)
++    assert ('reconstruction_history' in output)==enabled
++
++
++def test_public_discovery_defaults_are_disabled_and_forward_explicit_choice(monkeypatch,tmp_path):
++    monkeypatch.setattr(model,'extract_timing_streams',lambda tracks:())
++    monkeypatch.setattr(model,'load_event_streams',lambda *a,**k:())
++    monkeypatch.setattr(model,'_discover_bundle',lambda bundle,**kwargs:kwargs['experimental_local_history'])
++    assert model.discover_records([{}]) is False
++    assert model.discover_records([{}],experimental_local_history=True) is True
++    source=tmp_path/'source.json';source.write_text('[]')
++    assert model.discover_path(source) is False
++
++
++@pytest.mark.parametrize('value',['false',1,None])
++def test_accidental_truthy_values_cannot_enable_experiment(value):
++    with pytest.raises(ValueError,match='explicit boolean'):
++        model.discover_records([{}],experimental_local_history=value)
+diff --git a/tests/test_local_history_2d1.py b/tests/test_local_history_2d1.py
+index f27e3b5..1400a42 100644
+--- a/tests/test_local_history_2d1.py
++++ b/tests/test_local_history_2d1.py
+@@ -41,7 +41,7 @@ def test_unidentifiable_silence_is_censored_not_red(scenario):
+     pred={'schedule':{'phase_names':['A','B'],'period_s':80.,'raw_hsmm_segments':[[0,320,0]],
+         'stream_activity_by_phase':[{'stream':'turn','event_probability_by_phase':{'A':.98,'B':.02}}]},
+         'reconstruction_history':history}
+-    state=signal_state_at(pred,100.)
++    state=signal_state_at(pred,100.,history_source="experimental")
+     assert state['logical_phase']['estimated_state']=='UNKNOWN'
+     assert state['logical_phase']['abstention_reason']=='NO_LOCAL_VEHICLE_EVIDENCE'
+     assert state['streams'][0]['state']=='UNKNOWN'
+@@ -52,7 +52,7 @@ def test_explicit_gap_and_cropped_input_do_not_claim_camera_coverage():
+     x,templates,_=generated();mask=np.ones(len(x),dtype=bool);mask[85:100]=False;mask[:5]=False;mask[-5:]=False
+     history=decode_local_history(x,templates,80.,[40.,40.],coverage_mask=mask)
+     pred={'schedule':{'phase_names':['A','B'],'raw_hsmm_segments':[[0,320,0]]},'reconstruction_history':history}
+-    query=prepare_logical_query(pred)
++    query=prepare_logical_query(pred,history_source="experimental")
+     for t in (0,90,319):
+         assert query.at(t).abstention_reason=='EXPLICIT_INPUT_COVERAGE_GAP'
+     for t in (-1,320):
+@@ -66,13 +66,13 @@ def test_zero_demand_and_budget_exhaustion_have_no_fabricated_history():
+     assert empty['status']=='unavailable' and empty['segments']==[]
+     budget=decode_local_history(x,templates,80.,[40.,40.],config=LocalHistoryConfig(max_bins=1))
+     pred={'schedule':{'phase_names':['A','B'],'raw_hsmm_segments':[[0,320,0]]},'reconstruction_history':budget}
+-    assert prepare_logical_query(pred).at(30).abstention_reason=='LOCAL_DECODE_WORK_BUDGET_EXCEEDED'
++    assert prepare_logical_query(pred,history_source="experimental").at(30).abstention_reason=='LOCAL_DECODE_WORK_BUDGET_EXCEEDED'
+ 
+ 
+ def test_new_history_never_falls_back_to_raw_in_its_gaps():
+     pred={'schedule':{'phase_names':['A','B'],'raw_hsmm_segments':[[0,20,0]],'baseline_segments':[[0,20,0]],'period_s':20},
+           'reconstruction_history':{'source':'test','status':'ok','segments':[[0,5,0],[10,15,1]]}}
+-    query=prepare_logical_query(pred)
++    query=prepare_logical_query(pred,history_source="experimental")
+     assert query.at(7).estimated_state=='UNKNOWN'
+     assert query.at(12).estimated_state=='B'
+     assert query.at(15).estimated_state=='UNKNOWN'
+diff --git a/tests/test_local_history_support_2d1.py b/tests/test_local_history_support_2d1.py
+index 6e69fde..ec25098 100644
+--- a/tests/test_local_history_support_2d1.py
++++ b/tests/test_local_history_support_2d1.py
+@@ -20,7 +20,7 @@ def test_deadline_is_enforced_inside_decoder():
+ def test_new_history_cannot_assert_support_and_abstention_at_same_time():
+     pred={'schedule':{'phase_names':['A','B']},'reconstruction_history':{
+         'segments':[[0,10,0]],'abstention_intervals':[[5,15,'UNKNOWN_SUPPORT']]}}
+-    assert prepare_logical_query(pred).validation_error=='CONTRADICTORY_OBSERVATION_SUPPORT'
++    assert prepare_logical_query(pred,history_source="experimental").validation_error=='CONTRADICTORY_OBSERVATION_SUPPORT'
+ 
+ 
+ @pytest.mark.parametrize('kwargs',[{'max_seconds':float('inf')},{'max_bins':-1},{'duration_min_factor':0}])
+@@ -43,7 +43,7 @@ def test_uncompensated_hold_has_only_the_generated_delay_not_a_fitted_global_off
+ def test_no_unavailable_history_can_secretly_supply_a_phase():
+     result={'schedule':{'phase_names':['A','B']},'reconstruction_history':{
+         'status':'unavailable','reason':'TIMEOUT','segments':[[0,80,0]]}}
+-    assert prepare_logical_query(result).at(30).abstention_reason=='INVALID_PHASE_HISTORY'
++    assert prepare_logical_query(result,history_source="experimental").at(30).abstention_reason=='INVALID_PHASE_HISTORY'
+ 
+ 
+ def test_default_decoder_equals_all_observed_legacy_path():
+diff --git a/tests/test_sparse_observation_contract_2d1.py b/tests/test_sparse_observation_contract_2d1.py
+new file mode 100644
+index 0000000..a434ade
+--- /dev/null
++++ b/tests/test_sparse_observation_contract_2d1.py
+@@ -0,0 +1,64 @@
++import json
++from pathlib import Path
++import numpy as np
++from app.core.v9.primitives import build_occupancy_matrix
++from scripts.sparse_event_suite_2d1 import generate
++from scripts.sparse_observation_review_2d1 import conditional_mark_emissions,occupancy
++
++
++def test_sparse_generator_returns_events_and_uses_real_builder():
++    case=generate('stable_K2',2,0,11)
++    assert len(case['events'])<case['extent_s']//2
++    x,templates,coverage,names=occupancy(case)
++    streams={m:[e['timestamp_ms']/1000 for e in case['events'] if e['movement']==m] for m in case['model_movements']}
++    expected,order=build_occupancy_matrix(streams,case['extent_s'])
++    assert names==order and np.array_equal(x,expected)
++    assert coverage[-1]==False and all(coverage[:-1])
++
++
++def test_absence_of_events_is_neutral_not_negative_permission_evidence():
++    templates=np.array([[.9,.1],[.1,.9]])
++    x=np.array([[0,0],[1,0],[0,1]])
++    emissions=conditional_mark_emissions(x,templates)
++    assert np.array_equal(emissions[0],[0,0])
++    assert np.allclose(emissions[1],np.log([.9,.1]))
++    assert np.allclose(emissions[2],np.log([.1,.9]))
++    # Neither zero movement contributes log(1-p) or a RED observation.
++
++
++def test_conditional_marks_remove_common_intensity_but_assume_relative_demand():
++    templates=np.array([[.8,.1],[.1,.8]])
++    x=np.array([[1,0],[0,1]])
++    scaled=templates*np.array([[.5],[.25]])
++    assert np.allclose(conditional_mark_emissions(x,templates),conditional_mark_emissions(x,scaled))
++
++
++def test_unknown_movement_specific_demand_makes_different_boundaries_observationally_equivalent():
++    rates=np.array([[1.,.2],[.2,1.]])
++    z1=np.repeat([0,1],[30,30]);z2=np.repeat([0,1],[40,20])
++    intensity1=rates[z1]
++    demand2=intensity1/rates[z2]
++    intensity2=demand2*rates[z2]
++    assert not np.array_equal(z1,z2)
++    assert np.allclose(intensity1,intensity2)
++    # Identical marked-Poisson intensity => same observation law, different histories.
++
++
++def test_no_demand_and_blockage_are_indistinguishable_but_missing_input_is_explicit():
++    a=generate('no_demand_K2',2,0,11);b=generate('blockage_K2',2,0,11)
++    assert a['events']==b['events']==[]
++    assert a['provided_input_intervals_s']==b['provided_input_intervals_s']
++    missing=generate('observation_gap_K3',3,0,11)
++    x,p,coverage,names=occupancy(missing)
++    assert not np.any(coverage[90:180]) and np.all(coverage[180:-1])
++
++
++def test_suite_truth_preexists_decoder_and_config_seeds_are_frozen():
++    root=Path(__file__).resolve().parents[1]/'evidence/stage2d1_sparse_review'
++    suite=json.loads((root/'sparse_suite.json').read_text())
++    manifest=json.loads((root/'predeclared_manifest.json').read_text())
++    assert manifest['seeds']==[11,29]
++    for case in suite:
++        assert case==generate(case['case'],case['K'],
++            30 if case['case'].startswith('hold30') else 10 if case['case'].startswith('hold10') else
++            -10 if case['case'].startswith('shorten') else 0,case['seed'])
+diff --git a/tests/test_sparse_review_artifacts_2d1.py b/tests/test_sparse_review_artifacts_2d1.py
+new file mode 100644
+index 0000000..e1d19d1
+--- /dev/null
++++ b/tests/test_sparse_review_artifacts_2d1.py
+@@ -0,0 +1,26 @@
++import json
++import hashlib
++from pathlib import Path
++
++ROOT=Path(__file__).resolve().parents[1]/'evidence/stage2d1_sparse_review'
++
++
++def test_failed_gate_prevents_real_replay_and_no_candidate_is_published():
++    report=json.loads((ROOT/'comparison.json').read_text())
++    assert report['overall_gate']=='FAIL' and report['real_replays']==0
++    assert report['candidate_sparse_recovery_gate']=='FAIL'
++    assert all(r['published_UNKNOWN_fraction']==1 for r in report['rows'])
++    assert any(not r['candidate_recovery_pass'] for r in report['rows'])
++
++
++def test_saved_predictions_and_adapters_match_hashes_without_new_decoding():
++    report=json.loads((ROOT/'comparison.json').read_text())
++    for row in report['rows']:
++        name=f"{row['case']}_seed{row['seed']}.json"
++        pred=ROOT/'synthetic_predictions'/name;adapter=ROOT/'evaluation_adapters'/name
++        assert hashlib.sha256(pred.read_bytes()).hexdigest()==row['prediction_sha256']
++        assert hashlib.sha256(adapter.read_bytes()).hexdigest()==row['adapter_sha256']
++        result=json.loads(pred.read_text())
++        assert result['proposed_published_history']['segments']==[]
++        assert result['physical_section']['estimated_state']=='UNKNOWN'
++        assert result['physical_section']['calibrated_lamp_probability'] is None
