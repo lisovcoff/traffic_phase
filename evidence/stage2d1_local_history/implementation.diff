@@ -1,0 +1,816 @@
+diff --git a/app/core/state_contract.py b/app/core/state_contract.py
+index 60e098a..82b8679 100644
+--- a/app/core/state_contract.py
++++ b/app/core/state_contract.py
+@@ -75,6 +75,9 @@ class LogicalPhaseQuery:
+     period_s: float | None
+     mode: str
+     validation_error: str | None = None
++    abstention_intervals: tuple = ()
++    abstention_starts: tuple = ()
++    unavailable_reason: str | None = None
+ 
+     def at(self, timestamp_s):
+         t = float(timestamp_s)
+@@ -84,6 +87,8 @@ class LogicalPhaseQuery:
+             "local_vehicle_observation_support": "UNKNOWN",
+             "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability"}
+         reason = "INVALID_PHASE_HISTORY" if self.validation_error else "NO_TEMPORAL_COVERAGE"
++        if self.unavailable_reason and not self.validation_error:
++            reason = self.unavailable_reason
+         phase = "UNKNOWN"
+         if self.validation_error:
+             support["history_validation_error"] = self.validation_error
+@@ -97,6 +102,10 @@ class LogicalPhaseQuery:
+                     phase, reason = self.phase_names[phase_id], None
+                     support.update(temporally_covered=True, segment_interval_s=[start,end],
+                                    segment_index=index, phase_id=phase_id, query_position_s=t)
++            if phase=="UNKNOWN":
++                gap=bisect_right(self.abstention_starts,t)-1
++                if gap>=0 and self.abstention_intervals[gap][0]<=t<self.abstention_intervals[gap][1]:
++                    reason=self.abstention_intervals[gap][2]
+         return StateEstimate(phase, "logical_phase", self.source,
+             ("latent_phase_estimate_NOT_lamp_state",), support, reason,
+             {"schedule_anchor_ms": self.anchor_ms}, self.mode)
+@@ -108,7 +117,13 @@ def prepare_logical_query(result, *, mode="reconstructed"):
+         raise ValueError("invalid result mode")
+     schedule = result.get("schedule", {})
+     key = "raw_hsmm_segments" if mode == "reconstructed" else "baseline_segments"
+-    raw_names, raw = schedule.get("phase_names", []), schedule.get(key, [])
++    history=result.get("reconstruction_history") if mode=="reconstructed" else None
++    if mode=="reconstructed" and "reconstruction_history" in result:
++        key="reconstruction_history.segments"
++        raw=history.get("segments",[]) if isinstance(history,Mapping) else None
++    else:
++        raw=schedule.get(key,[])
++    raw_names = schedule.get("phase_names", [])
+     names, segments, error = (), [], None
+     if (not isinstance(raw_names,(list,tuple)) or any(not isinstance(n,str) or not n.strip() for n in raw_names)
+             or len(set(raw_names)) != len(raw_names)):
+@@ -141,9 +156,25 @@ def prepare_logical_query(result, *, mode="reconstructed"):
+         error = error or "INVALID_CONFIGURED_PERIOD"
+     if error:
+         segments = []
++    gaps=[];unavailable=None
++    if isinstance(history,Mapping):
++        unavailable=(history.get("reason") or "RECONSTRUCTION_UNAVAILABLE") if history.get("status")=="unavailable" else None
++        if unavailable and segments:error="UNAVAILABLE_HISTORY_WITH_SEGMENTS"
++        for row in history.get("abstention_intervals",[]):
++            if (not isinstance(row,(list,tuple)) or len(row)!=3 or not isinstance(row[2],str)
++                or any(isinstance(v,bool) or not isinstance(v,Real) or not math.isfinite(v) for v in row[:2])
++                or row[0]<0 or row[1]<=row[0] or (gaps and row[0]<gaps[-1][1])):
++                error="INVALID_ABSTENTION_INTERVALS";break
++            gaps.append(tuple(row))
++        i=0
++        for a,b,_ in gaps:
++            while i<len(segments) and segments[i][1]<=a:i+=1
++            if i<len(segments) and segments[i][0]<b:
++                error="CONTRADICTORY_OBSERVATION_SUPPORT";break
++        if error:segments=[];gaps=[]
+     return LogicalPhaseQuery(names,tuple(segments),tuple(s[0] for s in segments),
+-        schedule.get("model", "anonymous_phase_model"),key,result.get("schedule_base_timestamp_ms"),
+-        period,mode,error)
++        history.get("source","local_history") if isinstance(history,Mapping) else schedule.get("model", "anonymous_phase_model"),
++        key,result.get("schedule_base_timestamp_ms"),period,mode,error,tuple(gaps),tuple(g[0] for g in gaps),unavailable)
+ 
+ 
+ def logical_phase_at(result, timestamp_s, *, mode=None):
+@@ -163,7 +194,9 @@ def attach_state_contract(result):
+         "version": 1,
+         "logical_phase": {"level": "logical_phase", "source": schedule.get("model"),
+             "estimated_state": "QUERY_AT_TIMESTAMP", "assumptions": ["anonymous_latent_phase_NOT_lamp"],
+-            "observation_support": {"coverage_segments_s": schedule.get("raw_hsmm_segments", [])},
++            "observation_support": {"coverage_segments_s": result.get("reconstruction_history",{}).get(
++                "segments",[]) if "reconstruction_history" in result else schedule.get("raw_hsmm_segments", []),
++                "history_field":"reconstruction_history.segments" if "reconstruction_history" in result else "raw_hsmm_segments"},
+             "abstention_reason": None, "calibrated_lamp_probability": None},
+         "activity": [{"movement": row["stream"], "scores": row.get("event_probability_by_phase", {}),
+             "estimate": StateEstimate("MODELLED_EVENT_ACTIVITY", "activity", "bernoulli_event_occupancy",
+diff --git a/app/core/v9/decoder.py b/app/core/v9/decoder.py
+index 1d3f82f..40093b3 100644
+--- a/app/core/v9/decoder.py
++++ b/app/core/v9/decoder.py
+@@ -1,5 +1,8 @@
+ from __future__ import annotations
+ import math
++import time
++from dataclasses import dataclass, asdict
++import hashlib
+ import json
+ import itertools
+ from collections import defaultdict
+@@ -67,7 +70,7 @@ def _boundary_coherence(segments, period, evidence_grid, evidence_values):
+     vals = np.interp(np.asarray(starts) % period, evidence_grid, evidence_values, period=period)
+     return float(np.mean(vals))
+ 
+-def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, dt: float=1.0, min_duration_s: Optional[float]=None, max_duration_s: Optional[float]=None, transition_penalty: float=0.25, duration_targets: Optional[Sequence[float]]=None, initial_phase: Optional[int]=None, duration_min_factor: float=0.65, duration_max_factor: float=1.35):
++def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, dt: float=1.0, min_duration_s: Optional[float]=None, max_duration_s: Optional[float]=None, transition_penalty: float=0.25, duration_targets: Optional[Sequence[float]]=None, initial_phase: Optional[int]=None, duration_min_factor: float=0.65, duration_max_factor: float=1.35, observation_mask=None, duration_penalty_strength: float=2.0, deadline_monotonic=None):
+     n, _ = x.shape
+     expected = float(period) / float(k)
+     if duration_targets is None:
+@@ -86,8 +89,10 @@ def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int,
+     prob = probs.T[np.newaxis, :, :]
+     xx = x[:, :, np.newaxis]
+     emissions = np.sum(xx * np.log(prob) + (1.0 - xx) * np.log(1.0 - prob), axis=1)
++    if observation_mask is not None:
++        emissions[~np.asarray(observation_mask,dtype=bool)] = 0.0
+     prefix = np.vstack([np.zeros((1, k)), np.cumsum(emissions, axis=0)])
+-    dpen = _duration_penalty(period, k, int(np.max(max_d_by_state)), targets, strength=2.0)
++    dpen = _duration_penalty(period, k, int(np.max(max_d_by_state)), targets, strength=duration_penalty_strength)
+     best_total = -float('inf')
+     best_payload = None
+     initials = range(k) if initial_phase is None else [int(initial_phase) % k]
+@@ -97,6 +102,8 @@ def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int,
+         prev_d = np.zeros((n + 1, k), dtype=np.int16)
+         dp[0, initial] = 0.0
+         for t in range(1, n + 1):
++            if deadline_monotonic is not None and (t==1 or t%128==0) and time.monotonic()>=deadline_monotonic:
++                raise TimeoutError('local decoding wall-time budget exceeded')
+             first_max = int(max_d_by_state[initial])
+             if 2 <= t <= first_max:
+                 dp[t, initial] = prefix[t, initial]
+@@ -147,3 +154,105 @@ def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int,
+         'transition_penalty': float(transition_penalty),
+         'initial_phase_constraint': None if initial_phase is None else int(initial_phase) % k,
+     }
++
++
++@dataclass(frozen=True)
++class LocalHistoryConfig:
++    min_duration_s: float = 2.0
++    max_duration_s: float = 180.0
++    duration_min_factor: float = 0.1
++    duration_max_factor: float = 4.0
++    duration_penalty_strength: float = 2.0
++    transition_penalty: float = 0.25
++    max_bins: int = 10000
++    max_work_units: int = 5000000
++    max_seconds: float = 15.0
++
++    def __post_init__(self):
++        if any(not math.isfinite(v) or v<=0 for v in (self.min_duration_s,self.max_duration_s,
++            self.duration_min_factor,self.duration_max_factor)):
++            raise ValueError('finite positive duration bounds required')
++        if self.max_duration_s<self.min_duration_s or self.duration_max_factor<self.duration_min_factor:
++            raise ValueError('inverted duration bounds')
++        if any(not math.isfinite(v) or v<0 for v in (self.max_seconds,self.duration_penalty_strength,self.transition_penalty)):
++            raise ValueError('finite nonnegative budget/penalties required')
++        if any(isinstance(v,bool) or not isinstance(v,int) or v<0 for v in (self.max_bins,self.max_work_units)):
++            raise ValueError('nonnegative integer work budgets required')
++
++
++def decode_local_history(x, probs, period, duration_targets, *, dt=1., initial_phase=0,
++                         config=None, observation_mask=None, coverage_mask=None):
++    """One fixed-order/fixed-template decode. Silence is censored, not negative evidence."""
++    config=config or LocalHistoryConfig(); started=time.monotonic()
++    x=np.asarray(x);probs=np.asarray(probs);n=len(x);k=len(probs)
++    model={"K":k,"period_s":float(period),"duration_targets_s":list(map(float,duration_targets)),
++           "initial_phase":int(initial_phase),"templates_sha256":hashlib.sha256(probs.tobytes()).hexdigest()}
++    base={"level":"logical_phase","source":"fixed_templates_local_cyclic_hsmm",
++          "fixed_model":model,"config":asdict(config),"calibrated_lamp_probability":None,
++          "assumptions":["fixed_K_and_cyclic_order","duration_prior_NOT_observed_controller_timing",
++                         "vehicle_evidence_NOT_lamp_switch_observation"],
++          "coverage_semantics":"local_positive_vehicle_evidence_support_NOT_camera_coverage",
++          "cause_of_deviation":"UNKNOWN"}
++    def unavailable(reason):
++        return {**base,"status":"unavailable","reason":reason,"segments":[],"boundaries":[],
++                "coverage_s":0.,"runtime_s":time.monotonic()-started}
++    if (x.ndim!=2 or probs.ndim!=2 or probs.shape[1]!=x.shape[1] or k<2 or n==0
++            or not math.isfinite(dt) or dt<=0 or not math.isfinite(period) or period<=0 or len(duration_targets)!=k
++            or np.any(~np.isfinite(x)) or np.any(~np.isfinite(probs))
++            or np.any(probs<=0) or np.any(probs>=1) or np.any(x<0) or np.any(x>1)
++            or np.any(~np.isfinite(duration_targets)) or np.any(np.asarray(duration_targets)<=0)):
++        return unavailable("INVALID_FIXED_MODEL_OR_OBSERVATIONS")
++    targets=np.maximum(2.,np.asarray(duration_targets,dtype=float))
++    min_by_state=np.maximum(config.min_duration_s,config.duration_min_factor*targets)
++    max_by_state=np.maximum(np.minimum(config.max_duration_s,config.duration_max_factor*targets),min_by_state+1.)
++    work=n*k*int(max(3,np.max(np.round(max_by_state/dt))+1))
++    if n>config.max_bins or work>config.max_work_units:
++        return unavailable("LOCAL_DECODE_WORK_BUDGET_EXCEEDED")
++    if config.max_seconds<=0:
++        return unavailable("LOCAL_DECODE_TIME_BUDGET_EXCEEDED")
++    support=np.any(x>0,axis=1) if observation_mask is None else np.asarray(observation_mask,dtype=bool)
++    coverage=np.ones(n,dtype=bool) if coverage_mask is None else np.asarray(coverage_mask,dtype=bool)
++    if support.shape!=(n,) or coverage.shape!=(n,):return unavailable("INVALID_SUPPORT_MASK")
++    observed=support & coverage
++    emissions=x@np.log(probs).T+(1-x)@np.log(1-probs).T
++    top=np.max(emissions,axis=1)
++    identifiable=np.sum(emissions==top[:,None],axis=1)==1
++    observed &= identifiable
++    abstentions=[];left=0
++    reasons=[None if observed[i] else "EXPLICIT_INPUT_COVERAGE_GAP" if not coverage[i]
++             else "NO_LOCAL_VEHICLE_EVIDENCE" if not support[i] else "NON_IDENTIFIABLE_PHASE_EMISSIONS" for i in range(n)]
++    for i in range(1,n+1):
++        if i==n or reasons[i]!=reasons[left]:
++            if reasons[left]:abstentions.append([left*dt,i*dt,reasons[left]])
++            left=i
++    if not np.any(observed):
++        return {**unavailable("NO_IDENTIFIABLE_LOCAL_EVIDENCE" if np.any(support & coverage)
++                            else "NO_LOCAL_VEHICLE_EVIDENCE"),"abstention_intervals":abstentions}
++    try:
++        labels,score,candidates,diagnostics=decode_cyclic_hsmm(x,probs,period,k,dt=dt,
++            min_duration_s=config.min_duration_s,max_duration_s=config.max_duration_s,
++            duration_targets=duration_targets,initial_phase=initial_phase,
++            duration_min_factor=config.duration_min_factor,duration_max_factor=config.duration_max_factor,
++            duration_penalty_strength=config.duration_penalty_strength,transition_penalty=config.transition_penalty,
++            observation_mask=observed,deadline_monotonic=started+config.max_seconds)
++    except TimeoutError:
++        return unavailable("LOCAL_DECODE_TIME_BUDGET_EXCEEDED")
++    except RuntimeError as exc:
++        return {**unavailable("NO_VALID_FIXED_ORDER_PATH"),"detail":str(exc)}
++    if time.monotonic()-started>config.max_seconds:return unavailable("LOCAL_DECODE_TIME_BUDGET_EXCEEDED")
++    segments=[];left=0
++    for i in range(1,n+1):
++        if i==n or observed[i]!=observed[left] or labels[i]!=labels[left]:
++            if observed[left]:segments.append([left*dt,i*dt,int(labels[left])])
++            left=i
++    boundaries=[]
++    for a,b in zip(candidates,candidates[1:]):
++        i=int(round(b[0]/dt))
++        boundaries.append({"timestamp_s":b[0],"from_phase":int(a[2]),"to_phase":int(b[2]),
++            "adjacent_observation_support":bool(0<i<n and observed[i-1] and observed[i]),
++            "temporal_resolution_s":dt,"event_to_lamp_switch_relation":"UNKNOWN",
++            "uncertainty_semantics":"grid_and_vehicle_proxy_localization_NOT_calibrated_lamp_interval"})
++    return {**base,"status":"ok","reason":None,"segments":segments,"candidate_segments":candidates,
++        "abstention_intervals":abstentions,"boundaries":boundaries,"decoder":diagnostics,
++        "score":score,"coverage_s":int(np.sum(observed))*dt,"input_extent_s":[0.,n*dt],
++        "runtime_s":time.monotonic()-started}
+diff --git a/app/core/v9/model.py b/app/core/v9/model.py
+index 3144967..9dd782c 100644
+--- a/app/core/v9/model.py
++++ b/app/core/v9/model.py
+@@ -32,6 +32,7 @@ from app.core.temporal_evidence import EvidenceUnavailable
+ from app.core.state_contract import attach_state_contract
+ from dataclasses import asdict
+ from .fit import PhaseSearchConfig
++from .decoder import decode_local_history
+ 
+ 
+ class PhaseSearchUnavailable(EvidenceUnavailable):
+@@ -924,6 +925,13 @@ def _discover_from_stream_views(
+             "source_file_count": len(source_files),
+             "source_files": [str(value) for value in source_files],
+         }
++    if regime_detection is None:
++        result["reconstruction_history"] = decode_local_history(
++            x,fit["probs"],period,baseline_durations,dt=dt,initial_phase=int(fit["labels"][0]))
++    else:
++        result["reconstruction_history"] = {"status":"unavailable","segments":[],
++            "source":"fixed_templates_local_cyclic_hsmm","reason":"MULTIPLE_REGIME_SCOPE_UNSUPPORTED",
++            "level":"logical_phase","calibrated_lamp_probability":None}
+     return attach_state_contract(result)
+ 
+ 
+diff --git a/docs/LOCAL_HISTORY_2D1.md b/docs/LOCAL_HISTORY_2D1.md
+new file mode 100644
+index 0000000..bd6ccff
+--- /dev/null
++++ b/docs/LOCAL_HISTORY_2D1.md
+@@ -0,0 +1,76 @@
++# Fixed-model local history — 2D.1, 2026-10-14
++
++Base `b248b4c7bac27def4a131ba61301f2678cd0b05a`, separate branch. No K-search,
++period, extraction/selection, mapping, offset or evaluator changes. No skip,
++reorder, K change, regime segmentation or online decoding is introduced.
++
++Confirmed discovery mechanism: em_fit compares seed/refinement quality including
++periodic boundary coherence. Refinement must exceed seed quality by .0001; ensemble
++seed preference also uses .002. Therefore the chosen `raw_hsmm_segments` may be
++periodic seed labels. That existing selection remains untouched.
++
++Actual-history estimation is now a separate single `decode_local_history` call.
++K, templates, cyclic order, initial phase, period and duration targets are frozen
++from discovery. The baseline is a duration prior/reference; no global offset or
++templates are optimized. Cyclic-HSMM decoding is reused, with wider local duration
++bounds, an observation mask and cooperative deadline. Defaults of the original
++decoder callers remain unchanged, including penalty strength2. Masked emissions
++are neutral rather than negative observations. Bounds are explicit engineering
++scope assumptions, not learned from manual marks: min2s, max180s, factors .1/4,
++duration penalty2, transition penalty.25; max10,000 bins, 5M conservative work
++units, 15s local deadline, 90s development worker timeout. Durations below two
++bins or outside bounds are not promised. Budget failure is unavailable/UNKNOWN.
++
++`reconstruction_history` is additive and separately labelled logical_phase. It
++contains model/config provenance, candidate path, supported segments, coverage,
++explicit abstention intervals, local boundary diagnostics and runtime. Raw and
++baseline schedules remain unchanged. A boundary's grid resolution is not a
++calibrated event error interval or measured lamp-switch time. Physical outputs
++remain UNKNOWN. The cause of extension/shortening remains UNKNOWN.
++
++Support is deliberately conservative: only positive occupancy bins with a unique
++maximum fixed-template emission are returned as local history. All-zero bins
++give NO_LOCAL_VEHICLE_EVIDENCE, exact tied maxima give NON_IDENTIFIABLE_PHASE_EMISSIONS,
++and caller-supplied missing-input masks give EXPLICIT_INPUT_COVERAGE_GAP. No numeric
++observability threshold is fitted. Silence may reflect no demand or blockage;
++it identifies neither RED nor a skipped phase. These masks do not establish
++camera visibility/coverage. Negative terms in a supported-bin Bernoulli emission
++are still an explicit model assumption, not observations of red lamps. Missing
++bins may be traversed by the prior internally; that candidate path is retained
++only as a diagnostic and is not exposed as supported reconstruction.
++
++Reconstructed core queries prefer `reconstruction_history.segments` when present,
++including when it is unavailable or has gaps: there is no fallback to old raw
++segments. Prepared immutable queries retain gap reasons and validate contradictory
++support/abstention. Outside the history they abstain. Configured/simulated queries
++continue to use explicit baseline semantics. Legacy raw estimates remain accessible
++in their original schedule fields. The current local scope explicitly abstains
++for existing multiple-regime discovery results instead of extending scope.
++
++## Predeclared synthetic evidence
++
++The independent generator uses K2, period80, fixed templates [.98,.02]/[.02,.98],
++four cycles of40/40 seconds. The second cycle has hold+10, hold+30 or shortening−10.
++Compensated cases retain starts160/240 by adjusting the other positive duration;
++additional uncompensated holds retain naturally delayed later starts and40s
++neighbor durations. The generation truth precedes decoding, tolerance is ±1s.
++Tests establish no artificial global shift of earlier cycles. No-demand and
++blocked-GREEN use the same unchanged plan with missing vehicle observations;
++their cause is not recoverable. Explicit gaps and cropped intervals remain UNKNOWN.
++Synthetic success establishes logical structural behavior, not lamp accuracy.
++
++Initial declaration and additive support tests are sealed before any real
++comparison; no hyperparameter search occurs. Logs include66 initial tests,65
++regression tests,18 final decoder tests and63 final contract tests, with overlap
++among selections. The current code/config is committed before the sole three-file
++development run. That run reuses frozen2C predictions, so K search/fitting count is
++zero and each recording receives one local decoding. No raw JSON/ZIP is reopened.
++
++All output predictions and hashes are sealed before opening annotation files.
++The unchanged evaluator sees separate hashed adapter artifacts: source
++`reconstruction_history.segments` is projected into
++`schedule.reconstruction_segments`, without rewriting original predictions or
++baseline. Raw, baseline and new metrics include counts, ranges, missing reasons,
++coverage and timing. This is a development logical-phase comparison; annotations
++never enter the worker. Sparse real evidence may yield low coverage and worse
++boundary recall; that is reported rather than filled by periodic assumptions.
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index 1fe82a7..6fe580b 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,4 +1,4 @@
+-# Project status — 2C, 2026-10-14
++# Project status — 2D.1, 2026-10-14
+ 
+ Stages 1 and 2A are accepted as audit/planning and a reproducible offline baseline.
+ Stage 2B.1 is accepted as an engineering improvement in temporal evidence,
+@@ -32,8 +32,15 @@ queries give UNKNOWN/NO_TEMPORAL_COVERAGE. Explicit configured/simulated modes
+ remain distinct from reconstructed physical states. Follow-up base:
+ `8bb7ca1a9d8137001028f2c6b6e8e6af98d42201`.
+ 
+-2B.2 including canonical V9 query follow-up is accepted. 2C is the current stage:
++2B.2 including canonical V9 query follow-up is accepted. 2C completed:
+ universal candidate admission and bounded, transparent phase-count comparison.
+ Base: `36b6752a4794e482570944b22656d6cc58f0db31`. Prior baseline/regressions remain
+ preserved; any new development metrics do not close independent event/lamp
+-validation. No progress to 2D is implied.
++validation.
++
++2D.1 is the current limited stage: a single fixed-model local duration decoding,
++separate from recurring-plan discovery. Raw/baseline fields are preserved.
++No-demand/missing local evidence remains UNKNOWN; camera coverage and lamp
++switch timing are not inferred. External validation and known development
++regressions remain open. Base `b248b4c7bac27def4a131ba61301f2678cd0b05a`.
++No 2D.2, skip/reorder, multiple-regime extension or online work is authorized.
+diff --git a/evidence/stage2d1_local_history/final_contract_tests.log b/evidence/stage2d1_local_history/final_contract_tests.log
+new file mode 100644
+index 0000000..7ad505b
+Binary files /dev/null and b/evidence/stage2d1_local_history/final_contract_tests.log differ
+diff --git a/evidence/stage2d1_local_history/final_decoder_tests.log b/evidence/stage2d1_local_history/final_decoder_tests.log
+new file mode 100644
+index 0000000..219ea16
+Binary files /dev/null and b/evidence/stage2d1_local_history/final_decoder_tests.log differ
+diff --git a/evidence/stage2d1_local_history/prebenchmark_seal.json b/evidence/stage2d1_local_history/prebenchmark_seal.json
+new file mode 100644
+index 0000000..dc0b308
+--- /dev/null
++++ b/evidence/stage2d1_local_history/prebenchmark_seal.json
+@@ -0,0 +1,44 @@
++{
++  "base_sha": "b248b4c7bac27def4a131ba61301f2678cd0b05a",
++  "config": {
++    "min_duration_s": 2.0,
++    "max_duration_s": 180.0,
++    "duration_min_factor": 0.1,
++    "duration_max_factor": 4.0,
++    "duration_penalty_strength": 2.0,
++    "transition_penalty": 0.25,
++    "max_bins": 10000,
++    "max_work_units": 5000000,
++    "max_seconds": 15.0
++  },
++  "protected_paths": [
++    "app/core/v9/fit.py",
++    "app/core/v9/primitives.py",
++    "app/core/v9/events.py",
++    "app/core/v9/vehicle_evidence.py",
++    "app/core/temporal_evidence.py",
++    "app/core/v10",
++    "app/core/offline_benchmark.py",
++    "scripts/offline_benchmark.py",
++    "benchmarks",
++    "app/api",
++    "app/templates",
++    "app/static"
++  ],
++  "unchanged_model_functions": [
++    "_discover_from_event_views",
++    "_slice_streams",
++    "_regime_phase_structure",
++    "_cluster_local_regime_windows",
++    "_local_regime_selection",
++    "_choose_phase_evidence",
++    "_calibrate_phase_anchor",
++    "discover_records",
++    "discover_path",
++    "_discover_bundle"
++  ],
++  "additional_tests_sha256": "5ffbaf6905feef5563e8363c6ab18e6d149f1833ee91a4eddc8abfc10fab791f",
++  "additional_cases": "uncompensated+10/+30 holds, exact emission ties, deadline, default decoder equivalence, annotation rejection",
++  "development_command": "python -m scripts.local_history_2d1 run",
++  "max_runs": 1
++}
+diff --git a/evidence/stage2d1_local_history/predeclared_manifest.json b/evidence/stage2d1_local_history/predeclared_manifest.json
+new file mode 100644
+index 0000000..34bf249
+--- /dev/null
++++ b/evidence/stage2d1_local_history/predeclared_manifest.json
+@@ -0,0 +1,62 @@
++{
++  "base_sha": "b248b4c7bac27def4a131ba61301f2678cd0b05a",
++  "config": {
++    "min_duration_s": 2.0,
++    "max_duration_s": 180.0,
++    "duration_min_factor": 0.1,
++    "duration_max_factor": 4.0,
++    "duration_penalty_strength": 2.0,
++    "transition_penalty": 0.25,
++    "max_bins": 10000,
++    "max_work_units": 5000000,
++    "max_seconds": 15.0
++  },
++  "synthetic": {
++    "period_s": 80,
++    "phases": 2,
++    "templates": [
++      [
++        0.98,
++        0.02
++      ],
++      [
++        0.02,
++        0.98
++      ]
++    ],
++    "base_durations_s": [
++      40,
++      40
++    ],
++    "cycles": 4,
++    "modified_cycle_index": 1,
++    "deltas_s": [
++      0,
++      10,
++      30,
++      -10
++    ],
++    "compensation": "B duration40-delta, always positive; adjacent cycles retain starts160/240",
++    "boundary_tolerance_s": 1,
++    "silence_interval_s": [
++      90,
++      110
++    ],
++    "explicit_gaps_s": [
++      [
++        0,
++        5
++      ],
++      [
++        85,
++        100
++      ],
++      [
++        315,
++        320
++      ]
++    ]
++  },
++  "test_source_sha256": "1eed823c9f52cea49b3db9328aced058c9142c5dce018cbf1a1d917c12f2589f",
++  "development": "at most one three-file run on frozen2C predictions; one fixed-model decode per file; no discovery/fitting; evaluator2s unchanged"
++}
+diff --git a/evidence/stage2d1_local_history/regression_tests.log b/evidence/stage2d1_local_history/regression_tests.log
+new file mode 100644
+index 0000000..b7ef779
+Binary files /dev/null and b/evidence/stage2d1_local_history/regression_tests.log differ
+diff --git a/evidence/stage2d1_local_history/tests_initial.log b/evidence/stage2d1_local_history/tests_initial.log
+new file mode 100644
+index 0000000..5612bb4
+Binary files /dev/null and b/evidence/stage2d1_local_history/tests_initial.log differ
+diff --git a/scripts/local_history_2d1.py b/scripts/local_history_2d1.py
+new file mode 100644
+index 0000000..8340831
+--- /dev/null
++++ b/scripts/local_history_2d1.py
+@@ -0,0 +1,138 @@
++"""One bounded development reconstruction run from frozen models, never refitting."""
++import argparse
++from collections import defaultdict
++from dataclasses import asdict
++import hashlib
++import json
++import os
++from pathlib import Path
++import subprocess
++import sys
++import time
++
++import numpy as np
++from app.core.v9.decoder import LocalHistoryConfig, decode_local_history
++from app.core.v9.primitives import build_occupancy_matrix
++from app.core.offline_benchmark import evaluate_history, validate_annotation
++
++ROOT=Path(__file__).resolve().parents[1]
++BASE='b248b4c7bac27def4a131ba61301f2678cd0b05a'
++OUT=ROOT/'benchmarks/stage2d1_20261014'
++INPUT=ROOT/'benchmarks/stage2c_20261014'
++WORKER_TIMEOUT_S=90.
++DT=1.
++
++
++def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++def save(path,value):
++    path.parent.mkdir(parents=True,exist_ok=True)
++    with path.open('x',encoding='utf-8',newline='\n') as f:
++        json.dump(value,f,ensure_ascii=False,indent=2,allow_nan=False);f.write('\n')
++
++
++def reconstruct_frozen(source,output):
++    # No annotation path or payload in this worker interface.
++    if 'manual_marks' in source.name or 'annotation' in source.name:
++        raise ValueError('annotation files are forbidden as reconstruction inputs')
++    pred=json.loads(source.read_text(encoding='utf-8'))
++    if 'evaluation' in pred:raise ValueError('label-bearing prediction cannot be an inference input')
++    schedule=pred['schedule'];streams=defaultdict(list)
++    extraction=pred['event_extraction'];events=extraction['temporal_events']
++    for i in extraction['quality_diagnostics']['selected_event_indices']:
++        event=events[i];streams[event['movement']].append((event['timestamp_ms']-pred['schedule_base_timestamp_ms'])/1000)
++    if pred.get('regime_detection',{}).get('method')=='hourly_local_period_consensus':
++        pred['reconstruction_history']={'status':'unavailable','segments':[],'source':'fixed_templates_local_cyclic_hsmm',
++            'reason':'MULTIPLE_REGIME_SCOPE_UNSUPPORTED','calibrated_lamp_probability':None}
++    else:
++        extent=schedule['raw_hsmm_segments'][-1][1]-DT
++        x,names=build_occupancy_matrix(streams,extent,dt=DT)
++        activity={row['stream']:row['event_probability_by_phase'] for row in schedule['stream_activity_by_phase']}
++        templates=np.array([[activity[name][phase] for name in names] for phase in schedule['phase_names']])
++        targets=[schedule['baseline_duration_targets_s'][phase] for phase in schedule['phase_names']]
++        pred['reconstruction_history']=decode_local_history(x,templates,schedule['period_s'],targets,
++            dt=DT,initial_phase=int(schedule['raw_hsmm_segments'][0][2]))
++    pred['reconstruction_history']['provenance']={'fixed_prediction_sha256':sha(source),
++        'observations':'unchanged selected temporal events; saved schedule anchor; binary occupancy',
++        'annotations_used':False,'global_offset_fitted':False,'templates_refitted':False}
++    save(output,pred)
++
++
++def summarize(metric):
++    b=metric['boundaries'];m=b['mae_s']
++    return {'status':metric['status'],'reason':metric.get('reason'),
++        'matched_count':m['matched_boundaries'],'truth_count':m['truth_boundaries'],'predicted_count':m['predicted_boundaries'],
++        **{k:b[k] for k in ('precision','recall','mae_s','p95_s','nearest_truth_boundary_mae_s_diagnostic')},
++        'coverage':metric['coverage']}
++
++
++def run():
++    if OUT.exists():raise RuntimeError('single development run already started; no retrial')
++    OUT.mkdir(parents=True)
++    files=sorted((INPUT/'predictions').glob('*_v9.json'));assert len(files)==3
++    save(OUT/'run_manifest.json',{'base_sha':BASE,'code_sha':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
++        'local_config':asdict(LocalHistoryConfig()),'dt_s':DT,'worker_timeout_s':WORKER_TIMEOUT_S,
++        'boundary_tolerance_s':2.,'max_runs':1,'K_search_runs':0,'fitting_runs':0,
++        'input_hashes':{p.name:sha(p) for p in files}})
++    ledger=[]
++    for source in files:
++        target=OUT/'predictions'/source.name;started=time.monotonic()
++        env={**os.environ,'PYTHONHASHSEED':'0','OMP_NUM_THREADS':'1','OPENBLAS_NUM_THREADS':'1','MKL_NUM_THREADS':'1'}
++        print('Reconstruct fixed model:',source.name,flush=True)
++        try:
++            result=subprocess.run([sys.executable,'-m','scripts.local_history_2d1','infer',str(source),str(target)],
++                cwd=ROOT,env=env,capture_output=True,text=True,timeout=WORKER_TIMEOUT_S)
++            reason=None if result.returncode==0 else 'WORKER_FAILED: '+result.stderr[-2000:]
++        except subprocess.TimeoutExpired:
++            reason='WORKER_TIMEOUT'
++        if reason:
++            pred=json.loads(source.read_text(encoding='utf-8'))
++            pred['reconstruction_history']={'status':'unavailable','reason':reason,'segments':[],
++                'source':'fixed_templates_local_cyclic_hsmm','calibrated_lamp_probability':None}
++            if not target.exists():save(target,pred)
++        ledger.append({'input':source.name,'prediction_sha256':sha(target),'runtime_s':time.monotonic()-started,'reason':reason})
++    save(OUT/'predictions_sealed.json',ledger)
++    # All predictions/hashes fixed before any annotation file is opened.
++    rows=[]
++    old_report=json.loads((INPUT/'baseline_metrics.json').read_text(encoding='utf-8'))
++    old_rows={r['source_name']:r for r in old_report['rows']}
++    for source,entry in zip(files,ledger):
++        target=OUT/'predictions'/source.name;assert sha(target)==entry['prediction_sha256']
++        pred=json.loads(target.read_text(encoding='utf-8'));old=json.loads(source.read_text(encoding='utf-8'))
++        for field in ('schedule','phase_model_selection','period_inference','event_extraction'):
++            assert pred[field]==old[field]
++        name=source.name.removesuffix('_v9.json')+'.json'
++        marks=ROOT.parent/'data'/'ручная разметка'/(name+'_manual_marks.json')
++        annotation=validate_annotation(json.loads(marks.read_text(encoding='utf-8')))
++        assert sha(marks)==old_rows[name]['annotation_sha256'] and annotation['valid']
++        adapter={'schedule_base_timestamp_ms':pred['schedule_base_timestamp_ms'],
++            'schedule':{**pred['schedule'],'reconstruction_segments':pred['reconstruction_history']['segments']},
++            'adapter_metadata':{'source_prediction_sha256':sha(target),'source_field':'reconstruction_history.segments',
++                'evaluated_field':'schedule.reconstruction_segments','boundary_tolerance_s':2.}}
++        artifact=OUT/'evaluation_artifacts'/source.name;save(artifact,adapter);adapter_hash=sha(artifact)
++        histories={field:summarize(evaluate_history(adapter,annotation,field,2.))
++            for field in ('raw_hsmm_segments','baseline_segments','reconstruction_segments')}
++        assert sha(artifact)==adapter_hash and sha(target)==entry['prediction_sha256']
++        rows.append({'source':name,'K':pred['schedule']['phase_count'],'period_s':pred['schedule']['period_s'],
++            'period_error_s':old_rows[name]['metrics']['period_absolute_error_s'],
++            'invariants':'exact schedule/selection/period/event extraction equality with frozen2C prediction',
++            'runtime_s':entry['runtime_s'],'reference_full_discovery_runtime_s':old_rows[name]['inference_runtime_s'],
++            'runtime_interpretation':'local-only run, not directly comparable to full discovery',
++            'history_status':pred['reconstruction_history']['status'],'reason':pred['reconstruction_history'].get('reason'),
++            'abstention_intervals':pred['reconstruction_history'].get('abstention_intervals',[]),
++            'history_coverage_s':pred['reconstruction_history'].get('coverage_s',0),
++            'local_decoder_runtime_s':pred['reconstruction_history'].get('runtime_s'),
++            'adapter_sha256':adapter_hash,'prediction_sha256':sha(target),'histories':histories})
++    save(OUT/'comparison.json',{'interpretation':'development logical-phase histories, NOT lamp accuracy',
++        'evaluated_new_field':'schedule.reconstruction_segments; hashed adapter from reconstruction_history.segments',
++        'rows':rows})
++    print('One development run completed; predictions sealed before evaluation.',flush=True)
++
++
++if __name__=='__main__':
++    parser=argparse.ArgumentParser();sub=parser.add_subparsers(dest='command',required=True)
++    worker=sub.add_parser('infer');worker.add_argument('source',type=Path);worker.add_argument('output',type=Path)
++    sub.add_parser('run');args=parser.parse_args()
++    if args.command=='infer':reconstruct_frozen(args.source,args.output)
++    else:run()
+diff --git a/tests/test_local_history_2d1.py b/tests/test_local_history_2d1.py
+new file mode 100644
+index 0000000..f27e3b5
+--- /dev/null
++++ b/tests/test_local_history_2d1.py
+@@ -0,0 +1,90 @@
++import numpy as np
++import pytest
++from app.core.v9.decoder import LocalHistoryConfig, decode_local_history
++from app.core.v9.signal_renderer import signal_state_at
++from app.core.state_contract import prepare_logical_query
++
++
++def generated(delta=0):
++    # Independent generation truth: four 80s cycles. Cycle1 A hold is offset by
++    # positive shortening of its B interval; subsequent cycles start at160/240.
++    durations=[40,40,40+delta,40-delta,40,40,40,40]
++    labels=np.repeat(np.tile([0,1],4),durations)
++    starts=np.cumsum([0]+durations)
++    truth=[[int(a),int(b),i%2] for i,(a,b) in enumerate(zip(starts,starts[1:]))]
++    x=np.eye(2)[labels];templates=np.array([[.98,.02],[.02,.98]])
++    return x,templates,truth
++
++
++@pytest.mark.parametrize('delta',[0,10,30,-10])
++def test_fixed_templates_recover_independent_duration_changes(delta):
++    x,templates,truth=generated(delta)
++    result=decode_local_history(x,templates,80.,[40.,40.])
++    assert result['status']=='ok'
++    recovered=[s[0] for s in result['segments'][1:]]
++    expected=[s[0] for s in truth[1:]]
++    assert len(recovered)==len(expected)
++    # Prespecified boundary tolerance1s, not generated by decoding.
++    assert all(abs(a-b)<=1 for a,b in zip(recovered,expected))
++    assert recovered[:2]==[40.,80.] and recovered[-4:]==[160.,200.,240.,280.]
++    if delta:
++        assert abs(recovered[2]-120.)>=9
++    assert result['cause_of_deviation']=='UNKNOWN'
++    assert result['calibrated_lamp_probability'] is None
++
++
++@pytest.mark.parametrize('scenario',['no_demand','blocked_green'])
++def test_unidentifiable_silence_is_censored_not_red(scenario):
++    x,templates,_=generated();x[90:110]=0
++    history=decode_local_history(x,templates,80.,[40.,40.])
++    assert history['abstention_intervals']==[[90.,110.,'NO_LOCAL_VEHICLE_EVIDENCE']]
++    pred={'schedule':{'phase_names':['A','B'],'period_s':80.,'raw_hsmm_segments':[[0,320,0]],
++        'stream_activity_by_phase':[{'stream':'turn','event_probability_by_phase':{'A':.98,'B':.02}}]},
++        'reconstruction_history':history}
++    state=signal_state_at(pred,100.)
++    assert state['logical_phase']['estimated_state']=='UNKNOWN'
++    assert state['logical_phase']['abstention_reason']=='NO_LOCAL_VEHICLE_EVIDENCE'
++    assert state['streams'][0]['state']=='UNKNOWN'
++    assert history['cause_of_deviation']=='UNKNOWN'
++
++
++def test_explicit_gap_and_cropped_input_do_not_claim_camera_coverage():
++    x,templates,_=generated();mask=np.ones(len(x),dtype=bool);mask[85:100]=False;mask[:5]=False;mask[-5:]=False
++    history=decode_local_history(x,templates,80.,[40.,40.],coverage_mask=mask)
++    pred={'schedule':{'phase_names':['A','B'],'raw_hsmm_segments':[[0,320,0]]},'reconstruction_history':history}
++    query=prepare_logical_query(pred)
++    for t in (0,90,319):
++        assert query.at(t).abstention_reason=='EXPLICIT_INPUT_COVERAGE_GAP'
++    for t in (-1,320):
++        assert query.at(t).abstention_reason=='NO_TEMPORAL_COVERAGE'
++    assert 'NOT_camera_coverage' in history['coverage_semantics']
++
++
++def test_zero_demand_and_budget_exhaustion_have_no_fabricated_history():
++    x,templates,_=generated()
++    empty=decode_local_history(x*0,templates,80.,[40.,40.])
++    assert empty['status']=='unavailable' and empty['segments']==[]
++    budget=decode_local_history(x,templates,80.,[40.,40.],config=LocalHistoryConfig(max_bins=1))
++    pred={'schedule':{'phase_names':['A','B'],'raw_hsmm_segments':[[0,320,0]]},'reconstruction_history':budget}
++    assert prepare_logical_query(pred).at(30).abstention_reason=='LOCAL_DECODE_WORK_BUDGET_EXCEEDED'
++
++
++def test_new_history_never_falls_back_to_raw_in_its_gaps():
++    pred={'schedule':{'phase_names':['A','B'],'raw_hsmm_segments':[[0,20,0]],'baseline_segments':[[0,20,0]],'period_s':20},
++          'reconstruction_history':{'source':'test','status':'ok','segments':[[0,5,0],[10,15,1]]}}
++    query=prepare_logical_query(pred)
++    assert query.at(7).estimated_state=='UNKNOWN'
++    assert query.at(12).estimated_state=='B'
++    assert query.at(15).estimated_state=='UNKNOWN'
++    assert prepare_logical_query(pred,mode='configured').at(7).estimated_state=='A'
++
++
++def test_existing_decoder_defaults_are_unchanged(monkeypatch):
++    import app.core.v9.decoder as decoder
++    x,templates,_=generated();before=templates.copy();seen=[]
++    original=decoder.decode_cyclic_hsmm
++    def one(*args,**kw):seen.append(kw);return original(*args,**kw)
++    monkeypatch.setattr(decoder,'decode_cyclic_hsmm',one)
++    decode_local_history(x,templates,80.,[40.,40.])
++    assert len(seen)==1 and seen[0]['initial_phase']==0
++    assert np.array_equal(before,templates)
+diff --git a/tests/test_local_history_support_2d1.py b/tests/test_local_history_support_2d1.py
+new file mode 100644
+index 0000000..6e69fde
+--- /dev/null
++++ b/tests/test_local_history_support_2d1.py
+@@ -0,0 +1,63 @@
++import numpy as np
++import pytest
++from app.core.v9.decoder import decode_local_history, decode_cyclic_hsmm, LocalHistoryConfig
++from app.core.state_contract import prepare_logical_query
++
++
++def test_identical_emissions_do_not_turn_prior_into_observed_history():
++    history=decode_local_history(np.ones((80,1)),np.array([[.5],[.5]]),80.,[40,40])
++    assert history['segments']==[] and history['status']=='unavailable'
++    assert history['reason']=='NO_IDENTIFIABLE_LOCAL_EVIDENCE'
++    assert history['abstention_intervals']==[[0.,80.,'NON_IDENTIFIABLE_PHASE_EMISSIONS']]
++
++
++def test_deadline_is_enforced_inside_decoder():
++    with pytest.raises(TimeoutError):
++        decode_cyclic_hsmm(np.eye(2)[np.tile([0,1],40)],np.array([[.9,.1],[.1,.9]]),80.,2,
++                           initial_phase=0,deadline_monotonic=0.)
++
++
++def test_new_history_cannot_assert_support_and_abstention_at_same_time():
++    pred={'schedule':{'phase_names':['A','B']},'reconstruction_history':{
++        'segments':[[0,10,0]],'abstention_intervals':[[5,15,'UNKNOWN_SUPPORT']]}}
++    assert prepare_logical_query(pred).validation_error=='CONTRADICTORY_OBSERVATION_SUPPORT'
++
++
++@pytest.mark.parametrize('kwargs',[{'max_seconds':float('inf')},{'max_bins':-1},{'duration_min_factor':0}])
++def test_invalid_resource_contract_is_rejected(kwargs):
++    with pytest.raises(ValueError):LocalHistoryConfig(**kwargs)
++
++
++@pytest.mark.parametrize('hold',[10,30])
++def test_uncompensated_hold_has_only_the_generated_delay_not_a_fitted_global_offset(hold):
++    durations=[40,40,40+hold,40,40,40,40,40]
++    truth=np.cumsum([0]+durations)
++    labels=np.repeat(np.tile([0,1],4),durations)
++    history=decode_local_history(np.eye(2)[labels],np.array([[.98,.02],[.02,.98]]),80.,[40,40])
++    recovered=[s[0] for s in history['segments'][1:]]
++    assert np.max(np.abs(np.array(recovered)-truth[1:-1]))<=1
++    assert recovered[:2]==[40.,80.]
++    assert np.diff(recovered[-4:]).tolist()==[40.,40.,40.]
++
++
++def test_no_unavailable_history_can_secretly_supply_a_phase():
++    result={'schedule':{'phase_names':['A','B']},'reconstruction_history':{
++        'status':'unavailable','reason':'TIMEOUT','segments':[[0,80,0]]}}
++    assert prepare_logical_query(result).at(30).abstention_reason=='INVALID_PHASE_HISTORY'
++
++
++def test_default_decoder_equals_all_observed_legacy_path():
++    x=np.eye(2)[np.repeat([0,1],40)];templates=np.array([[.9,.1],[.1,.9]])
++    default=decode_cyclic_hsmm(x,templates,80.,2,initial_phase=0)
++    explicit=decode_cyclic_hsmm(x,templates,80.,2,initial_phase=0,
++        observation_mask=np.ones(80,dtype=bool),duration_penalty_strength=2.)
++    assert np.array_equal(default[0],explicit[0]) and default[1:]==explicit[1:]
++
++
++def test_reconstruction_worker_rejects_annotations_before_open(tmp_path,monkeypatch):
++    from scripts.local_history_2d1 import reconstruct_frozen
++    from pathlib import Path
++    source=tmp_path/'record.json_manual_marks.json'
++    monkeypatch.setattr(Path,'read_text',lambda *a,**k:pytest.fail('label file was read'))
++    with pytest.raises(ValueError,match='annotation files are forbidden'):
++        reconstruct_frozen(source,tmp_path/'output.json')

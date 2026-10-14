@@ -1,0 +1,5776 @@
+{
+  "interpretation": "development logical-phase histories, NOT lamp accuracy",
+  "evaluated_new_field": "schedule.reconstruction_segments; hashed adapter from reconstruction_history.segments",
+  "rows": [
+    {
+      "source": "17_2025_2_19_10.json",
+      "K": 3,
+      "period_s": 99.84281321021679,
+      "period_error_s": {
+        "value": 0.018186789783200652,
+        "n_observations": 16,
+        "range_ms": [
+          1739941438144,
+          1739942036080
+        ],
+        "reason": null,
+        "predicted_s": 99.84281321021679,
+        "truth_recurrence_median_s": 99.86099999999999,
+        "recurrence_intervals_s": [
+          98.62,
+          98.667,
+          100.836,
+          101.067,
+          100.608,
+          97.518,
+          98.917,
+          104.427,
+          101.61,
+          100.61,
+          93.499,
+          99.722,
+          98.722,
+          104.722,
+          99.0,
+          100.0
+        ],
+        "relative_error_percent": 0.018212104608606616,
+        "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
+      },
+      "invariants": "exact schedule/selection/period/event extraction equality with frozen2C prediction",
+      "runtime_s": 6.336101999999755,
+      "reference_full_discovery_runtime_s": 32.488,
+      "runtime_interpretation": "local-only run, not directly comparable to full discovery",
+      "history_status": "ok",
+      "reason": null,
+      "abstention_intervals": [
+        [
+          0.0,
+          160.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          161.0,
+          164.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          165.0,
+          182.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          189.0,
+          190.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          191.0,
+          195.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          196.0,
+          200.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          201.0,
+          241.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          242.0,
+          244.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          246.0,
+          261.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          265.0,
+          268.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          269.0,
+          271.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          272.0,
+          303.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          304.0,
+          337.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          338.0,
+          339.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          340.0,
+          359.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          363.0,
+          364.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          366.0,
+          389.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          390.0,
+          411.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          412.0,
+          415.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          416.0,
+          428.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          429.0,
+          436.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          438.0,
+          439.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          441.0,
+          458.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          464.0,
+          465.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          466.0,
+          492.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          493.0,
+          499.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          500.0,
+          523.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          524.0,
+          536.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          540.0,
+          557.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          563.0,
+          588.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          589.0,
+          590.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          591.0,
+          635.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          640.0,
+          653.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          654.0,
+          658.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          659.0,
+          660.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          662.0,
+          664.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          665.0,
+          666.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          667.0,
+          722.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          724.0,
+          726.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          727.0,
+          734.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          735.0,
+          736.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          740.0,
+          757.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          764.0,
+          788.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          789.0,
+          790.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          793.0,
+          820.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          823.0,
+          830.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          832.0,
+          837.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          841.0,
+          857.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          861.0,
+          862.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          863.0,
+          879.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          880.0,
+          888.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          889.0,
+          891.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          892.0,
+          927.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          929.0,
+          935.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          936.0,
+          937.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          941.0,
+          956.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          960.0,
+          962.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          963.0,
+          1019.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1021.0,
+          1036.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1039.0,
+          1057.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1058.0,
+          1059.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1065.0,
+          1066.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1067.0,
+          1089.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1090.0,
+          1092.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1093.0,
+          1134.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1135.0,
+          1138.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1139.0,
+          1140.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1141.0,
+          1156.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1159.0,
+          1160.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1161.0,
+          1163.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1164.0,
+          1185.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1186.0,
+          1207.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1208.0,
+          1235.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1241.0,
+          1242.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1243.0,
+          1257.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1263.0,
+          1264.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1266.0,
+          1325.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1327.0,
+          1336.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1337.0,
+          1338.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1339.0,
+          1356.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1361.0,
+          1369.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1370.0,
+          1390.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1391.0,
+          1393.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1394.0,
+          1429.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1430.0,
+          1436.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1439.0,
+          1455.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1460.0,
+          1461.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1462.0,
+          1463.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1465.0,
+          1492.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1493.0,
+          1500.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1501.0,
+          1536.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1538.0,
+          1539.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1540.0,
+          1549.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1550.0,
+          1558.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1562.0,
+          1564.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1565.0,
+          1567.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1569.0,
+          1602.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1603.0,
+          1617.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1618.0,
+          1634.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1635.0,
+          1636.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1637.0,
+          1638.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1641.0,
+          1658.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1664.0,
+          1665.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1666.0,
+          1668.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1669.0,
+          1677.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1678.0,
+          1681.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1683.0,
+          1687.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1688.0,
+          1689.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1690.0,
+          1691.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1692.0,
+          1693.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1694.0,
+          1737.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1739.0,
+          1748.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1749.0,
+          1752.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1753.0,
+          1756.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1757.0,
+          1758.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1763.0,
+          1764.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1765.0,
+          1767.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1768.0,
+          1816.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1818.0,
+          1822.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1823.0,
+          1827.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1828.0,
+          1836.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1838.0,
+          1839.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1840.0,
+          1857.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1861.0,
+          1862.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1863.0,
+          1866.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1867.0,
+          1869.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1870.0,
+          1880.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1881.0,
+          1891.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1892.0,
+          1900.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1901.0,
+          1902.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1903.0,
+          1926.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1927.0,
+          1937.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1941.0,
+          1955.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1956.0,
+          1959.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1961.0,
+          1962.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1964.0,
+          1968.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1969.0,
+          1980.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1981.0,
+          1984.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1985.0,
+          1988.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1991.0,
+          2038.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2039.0,
+          2040.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2041.0,
+          2057.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2059.0,
+          2060.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2063.0,
+          2064.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2066.0,
+          2067.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2068.0,
+          2091.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2093.0,
+          2100.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2101.0,
+          2103.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2104.0,
+          2128.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2129.0,
+          2136.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2140.0,
+          2144.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2145.0,
+          2157.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2159.0,
+          2160.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2162.0,
+          2163.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2165.0,
+          2166.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2167.0,
+          2170.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2172.0,
+          2182.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2183.0,
+          2189.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2192.0,
+          2210.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2211.0,
+          2236.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2240.0,
+          2257.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2263.0,
+          2264.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2265.0,
+          2268.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2269.0,
+          2286.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2287.0,
+          2293.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2294.0,
+          2319.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2320.0,
+          2336.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2338.0,
+          2339.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2341.0,
+          2357.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2361.0,
+          2362.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2365.0,
+          2372.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2374.0,
+          2383.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2384.0,
+          2390.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2391.0,
+          2412.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2413.0,
+          2434.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2435.0,
+          2436.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2439.0,
+          2456.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2458.0,
+          2459.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2461.0,
+          2463.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2464.0,
+          2465.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2466.0,
+          2473.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2474.0,
+          2488.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2489.0,
+          2492.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2493.0,
+          2536.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2540.0,
+          2558.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2560.0,
+          2562.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2563.0,
+          2591.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2592.0,
+          2636.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2637.0,
+          2638.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2640.0,
+          2657.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2661.0,
+          2675.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2676.0,
+          2684.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2685.0,
+          2689.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2690.0,
+          2719.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2720.0,
+          2736.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2739.0,
+          2740.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2741.0,
+          2754.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2755.0,
+          2758.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2762.0,
+          2764.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2765.0,
+          2784.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2785.0,
+          2789.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2791.0,
+          2794.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2795.0,
+          2806.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2807.0,
+          2833.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2834.0,
+          2836.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2839.0,
+          2857.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2859.0,
+          2861.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2865.0,
+          2867.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2868.0,
+          2890.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2891.0,
+          2925.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2926.0,
+          2929.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2931.0,
+          2936.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2937.0,
+          2938.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2939.0,
+          2941.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2942.0,
+          2958.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2963.0,
+          2965.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2966.0,
+          3002.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3003.0,
+          3004.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3005.0,
+          3023.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3024.0,
+          3039.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3041.0,
+          3058.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3059.0,
+          3060.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3062.0,
+          3063.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3065.0,
+          3066.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3067.0,
+          3082.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3083.0,
+          3088.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3092.0,
+          3099.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3100.0,
+          3135.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3136.0,
+          3137.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3138.0,
+          3151.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3153.0,
+          3155.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3156.0,
+          3157.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3159.0,
+          3160.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3162.0,
+          3163.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3164.0,
+          3175.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3177.0,
+          3181.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3182.0,
+          3186.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3188.0,
+          3199.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3200.0,
+          3207.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3208.0,
+          3217.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3218.0,
+          3235.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3240.0,
+          3252.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3255.0,
+          3256.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3260.0,
+          3261.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3262.0,
+          3288.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3291.0,
+          3296.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3297.0,
+          3319.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3321.0,
+          3334.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3339.0,
+          3349.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3350.0,
+          3351.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3352.0,
+          3357.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3359.0,
+          3360.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3364.0,
+          3391.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3393.0,
+          3436.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3439.0,
+          3449.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3450.0,
+          3456.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3458.0,
+          3460.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3462.0,
+          3467.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3468.0,
+          3474.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3476.0,
+          3480.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3481.0,
+          3483.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3484.0,
+          3516.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3517.0,
+          3536.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3537.0,
+          3538.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3539.0,
+          3544.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3545.0,
+          3555.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3560.0,
+          3561.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3562.0,
+          3564.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3565.0,
+          3587.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3589.0,
+          3599.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3600.0,
+          3616.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3618.0,
+          3636.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3639.0,
+          3648.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3649.0,
+          3655.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3656.0,
+          3657.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3660.0,
+          3665.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3666.0,
+          3668.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3669.0,
+          3681.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3682.0,
+          3688.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3689.0,
+          3690.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3693.0,
+          3697.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3698.0,
+          3711.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ]
+      ],
+      "history_coverage_s": 514.0,
+      "local_decoder_runtime_s": 0.8018416999998408,
+      "adapter_sha256": "df5486fd04df8223bca525d270c7554bd82a4d65d03add9dfcc8564b22a0a562",
+      "prediction_sha256": "74b448c31e995c2c9e6996a36fee537fe18d3f82890065e0af7050463de2ac94",
+      "histories": {
+        "raw_hsmm_segments": {
+          "status": "ok",
+          "reason": null,
+          "matched_count": 15,
+          "truth_count": 17,
+          "predicted_count": 18,
+          "precision": {
+            "value": 0.8333333333333334,
+            "n_observations": 18,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "truth_boundaries": 17,
+            "predicted_boundaries": 18,
+            "matched_boundaries": 15,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "recall": {
+            "value": 0.8823529411764706,
+            "n_observations": 17,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "truth_boundaries": 17,
+            "predicted_boundaries": 18,
+            "matched_boundaries": 15,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "mae_s": {
+            "value": 0.7092666666666667,
+            "n_observations": 15,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "truth_boundaries": 17,
+            "predicted_boundaries": 18,
+            "matched_boundaries": 15,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "p95_s": {
+            "value": 1.4851999999999999,
+            "n_observations": 15,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "truth_boundaries": 17,
+            "predicted_boundaries": 18,
+            "matched_boundaries": 15,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "nearest_truth_boundary_mae_s_diagnostic": {
+            "value": 1.1051764705882354,
+            "n_observations": 17,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
+          },
+          "coverage": {
+            "value": 1.0,
+            "n_observations": 18,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "covered_duration_s": 597.936,
+            "truth_duration_s": 597.936,
+            "interpretation": "temporal_support_not_correctness_or_lamp_observability"
+          }
+        },
+        "baseline_segments": {
+          "status": "ok",
+          "reason": null,
+          "matched_count": 15,
+          "truth_count": 17,
+          "predicted_count": 17,
+          "precision": {
+            "value": 0.8823529411764706,
+            "n_observations": 17,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "truth_boundaries": 17,
+            "predicted_boundaries": 17,
+            "matched_boundaries": 15,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "recall": {
+            "value": 0.8823529411764706,
+            "n_observations": 17,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "truth_boundaries": 17,
+            "predicted_boundaries": 17,
+            "matched_boundaries": 15,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "mae_s": {
+            "value": 0.7483207845052083,
+            "n_observations": 15,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "truth_boundaries": 17,
+            "predicted_boundaries": 17,
+            "matched_boundaries": 15,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "p95_s": {
+            "value": 1.7859468994140622,
+            "n_observations": 15,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "truth_boundaries": 17,
+            "predicted_boundaries": 17,
+            "matched_boundaries": 15,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "nearest_truth_boundary_mae_s_diagnostic": {
+            "value": 1.0859252211626838,
+            "n_observations": 17,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
+          },
+          "coverage": {
+            "value": 1.0,
+            "n_observations": 18,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "covered_duration_s": 597.936,
+            "truth_duration_s": 597.936,
+            "interpretation": "temporal_support_not_correctness_or_lamp_observability"
+          }
+        },
+        "reconstruction_segments": {
+          "status": "ok",
+          "reason": null,
+          "matched_count": 0,
+          "truth_count": 17,
+          "predicted_count": 0,
+          "precision": {
+            "value": null,
+            "n_observations": 0,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": "no_predicted_boundaries",
+            "truth_boundaries": 17,
+            "predicted_boundaries": 0,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "recall": {
+            "value": 0.0,
+            "n_observations": 17,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "truth_boundaries": 17,
+            "predicted_boundaries": 0,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "mae_s": {
+            "value": null,
+            "n_observations": 0,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": "no_matches_within_tolerance",
+            "truth_boundaries": 17,
+            "predicted_boundaries": 0,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "p95_s": {
+            "value": null,
+            "n_observations": 0,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": "no_matches_within_tolerance",
+            "truth_boundaries": 17,
+            "predicted_boundaries": 0,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "nearest_truth_boundary_mae_s_diagnostic": {
+            "value": null,
+            "n_observations": 0,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": "no_boundary_pairs",
+            "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
+          },
+          "coverage": {
+            "value": 0.15208316609135425,
+            "n_observations": 18,
+            "range_ms": [
+              1739941438144,
+              1739942036080
+            ],
+            "reason": null,
+            "covered_duration_s": 90.936,
+            "truth_duration_s": 597.936,
+            "interpretation": "temporal_support_not_correctness_or_lamp_observability"
+          }
+        }
+      }
+    },
+    {
+      "source": "19_2025_2_24_16.json",
+      "K": 2,
+      "period_s": 120.02849954941996,
+      "period_error_s": {
+        "value": 0.2994995494199628,
+        "n_observations": 8,
+        "range_ms": [
+          1740397207758,
+          1740397732720
+        ],
+        "reason": null,
+        "predicted_s": 120.02849954941996,
+        "truth_recurrence_median_s": 119.729,
+        "recurrence_intervals_s": [
+          118.238,
+          121.775,
+          122.112,
+          118.834,
+          116.997,
+          120.624,
+          122.273,
+          115.958
+        ],
+        "relative_error_percent": 0.2501478751346481,
+        "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
+      },
+      "invariants": "exact schedule/selection/period/event extraction equality with frozen2C prediction",
+      "runtime_s": 4.894764600000144,
+      "reference_full_discovery_runtime_s": 19.112,
+      "runtime_interpretation": "local-only run, not directly comparable to full discovery",
+      "history_status": "ok",
+      "reason": null,
+      "abstention_intervals": [
+        [
+          0.0,
+          5.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          8.0,
+          14.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          16.0,
+          24.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          27.0,
+          30.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          32.0,
+          33.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          34.0,
+          35.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          36.0,
+          45.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          57.0,
+          59.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          60.0,
+          75.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          76.0,
+          78.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          79.0,
+          80.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          82.0,
+          90.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          92.0,
+          93.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          95.0,
+          96.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          97.0,
+          100.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          101.0,
+          102.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          103.0,
+          107.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          108.0,
+          112.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          115.0,
+          116.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          118.0,
+          119.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          121.0,
+          122.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          124.0,
+          125.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          126.0,
+          127.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          128.0,
+          136.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          137.0,
+          145.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          149.0,
+          157.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          159.0,
+          168.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          176.0,
+          179.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          180.0,
+          186.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          187.0,
+          195.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          196.0,
+          198.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          199.0,
+          200.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          202.0,
+          213.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          214.0,
+          216.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          217.0,
+          222.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          223.0,
+          226.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          227.0,
+          228.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          229.0,
+          232.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          233.0,
+          235.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          245.0,
+          246.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          247.0,
+          249.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          250.0,
+          260.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          266.0,
+          267.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          269.0,
+          275.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          276.0,
+          279.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          280.0,
+          282.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          283.0,
+          286.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          294.0,
+          295.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          298.0,
+          299.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          300.0,
+          315.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          317.0,
+          319.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          321.0,
+          324.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          327.0,
+          329.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          331.0,
+          334.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          336.0,
+          338.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          339.0,
+          356.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          366.0,
+          367.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          368.0,
+          391.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          392.0,
+          393.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          395.0,
+          398.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          399.0,
+          400.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          401.0,
+          402.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          404.0,
+          405.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          410.0,
+          411.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          417.0,
+          418.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          419.0,
+          420.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          421.0,
+          432.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          433.0,
+          461.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          463.0,
+          465.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          466.0,
+          474.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          486.0,
+          499.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          500.0,
+          511.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          516.0,
+          522.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          523.0,
+          526.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          535.0,
+          549.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          550.0,
+          555.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          556.0,
+          560.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          561.0,
+          576.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          579.0,
+          591.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          593.0,
+          597.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          603.0,
+          604.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          605.0,
+          613.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          614.0,
+          615.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          616.0,
+          629.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          632.0,
+          633.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          635.0,
+          637.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          638.0,
+          645.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          654.0,
+          677.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          678.0,
+          679.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          680.0,
+          683.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          685.0,
+          689.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          690.0,
+          695.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          696.0,
+          709.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          710.0,
+          716.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          726.0,
+          743.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          744.0,
+          748.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          749.0,
+          755.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          757.0,
+          759.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          761.0,
+          766.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          774.0,
+          775.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          776.0,
+          777.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          779.0,
+          780.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          781.0,
+          788.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          789.0,
+          792.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          794.0,
+          808.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          809.0,
+          810.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          811.0,
+          813.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          814.0,
+          822.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          823.0,
+          825.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          826.0,
+          827.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          828.0,
+          834.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          844.0,
+          845.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          849.0,
+          860.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          861.0,
+          870.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          875.0,
+          880.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          881.0,
+          886.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          895.0,
+          897.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          898.0,
+          913.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          914.0,
+          917.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          918.0,
+          919.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          920.0,
+          921.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          922.0,
+          924.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          926.0,
+          931.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          932.0,
+          937.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          938.0,
+          939.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          940.0,
+          943.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          944.0,
+          945.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          946.0,
+          948.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          949.0,
+          954.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          966.0,
+          968.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          969.0,
+          981.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          982.0,
+          983.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          984.0,
+          985.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          986.0,
+          988.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          989.0,
+          1007.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1015.0,
+          1016.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1020.0,
+          1036.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1037.0,
+          1045.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1046.0,
+          1056.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1058.0,
+          1073.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1075.0,
+          1076.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1077.0,
+          1078.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1084.0,
+          1086.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1087.0,
+          1092.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1093.0,
+          1100.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1101.0,
+          1102.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1103.0,
+          1104.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1105.0,
+          1110.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1112.0,
+          1113.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1115.0,
+          1121.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1122.0,
+          1127.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1135.0,
+          1136.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1137.0,
+          1138.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1139.0,
+          1155.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1156.0,
+          1161.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1162.0,
+          1165.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1166.0,
+          1170.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1171.0,
+          1172.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1173.0,
+          1179.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1180.0,
+          1184.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ]
+      ],
+      "history_coverage_s": 373.0,
+      "local_decoder_runtime_s": 0.12775739999960933,
+      "adapter_sha256": "930db1ad412bc2f9a9b25f26c7146e76660ff03deded8b49761bc346df565d27",
+      "prediction_sha256": "1ab336f511b6eaa468b9f545400d9d1907a3617a634a099607a3a748821f4b5b",
+      "histories": {
+        "raw_hsmm_segments": {
+          "status": "ok",
+          "reason": null,
+          "matched_count": 1,
+          "truth_count": 8,
+          "predicted_count": 8,
+          "precision": {
+            "value": 0.125,
+            "n_observations": 8,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "truth_boundaries": 8,
+            "predicted_boundaries": 8,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "recall": {
+            "value": 0.125,
+            "n_observations": 8,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "truth_boundaries": 8,
+            "predicted_boundaries": 8,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "mae_s": {
+            "value": 1.546,
+            "n_observations": 1,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "truth_boundaries": 8,
+            "predicted_boundaries": 8,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "p95_s": {
+            "value": 1.546,
+            "n_observations": 1,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "truth_boundaries": 8,
+            "predicted_boundaries": 8,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "nearest_truth_boundary_mae_s_diagnostic": {
+            "value": 4.782,
+            "n_observations": 8,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
+          },
+          "coverage": {
+            "value": 1.0,
+            "n_observations": 9,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "covered_duration_s": 524.962,
+            "truth_duration_s": 524.962,
+            "interpretation": "temporal_support_not_correctness_or_lamp_observability"
+          }
+        },
+        "baseline_segments": {
+          "status": "ok",
+          "reason": null,
+          "matched_count": 1,
+          "truth_count": 8,
+          "predicted_count": 8,
+          "precision": {
+            "value": 0.125,
+            "n_observations": 8,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "truth_boundaries": 8,
+            "predicted_boundaries": 8,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "recall": {
+            "value": 0.125,
+            "n_observations": 8,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "truth_boundaries": 8,
+            "predicted_boundaries": 8,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "mae_s": {
+            "value": 1.599451171875,
+            "n_observations": 1,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "truth_boundaries": 8,
+            "predicted_boundaries": 8,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "p95_s": {
+            "value": 1.599451171875,
+            "n_observations": 1,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "truth_boundaries": 8,
+            "predicted_boundaries": 8,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "nearest_truth_boundary_mae_s_diagnostic": {
+            "value": 3.9515511169433593,
+            "n_observations": 8,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
+          },
+          "coverage": {
+            "value": 1.0,
+            "n_observations": 9,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "covered_duration_s": 524.962,
+            "truth_duration_s": 524.962,
+            "interpretation": "temporal_support_not_correctness_or_lamp_observability"
+          }
+        },
+        "reconstruction_segments": {
+          "status": "ok",
+          "reason": null,
+          "matched_count": 0,
+          "truth_count": 8,
+          "predicted_count": 3,
+          "precision": {
+            "value": 0.0,
+            "n_observations": 3,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "truth_boundaries": 8,
+            "predicted_boundaries": 3,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "recall": {
+            "value": 0.0,
+            "n_observations": 8,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "truth_boundaries": 8,
+            "predicted_boundaries": 3,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "mae_s": {
+            "value": null,
+            "n_observations": 0,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": "no_matches_within_tolerance",
+            "truth_boundaries": 8,
+            "predicted_boundaries": 3,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "p95_s": {
+            "value": null,
+            "n_observations": 0,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": "no_matches_within_tolerance",
+            "truth_boundaries": 8,
+            "predicted_boundaries": 3,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "nearest_truth_boundary_mae_s_diagnostic": {
+            "value": 60.8065,
+            "n_observations": 8,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
+          },
+          "coverage": {
+            "value": 0.3352623618471432,
+            "n_observations": 9,
+            "range_ms": [
+              1740397207758,
+              1740397732720
+            ],
+            "reason": null,
+            "covered_duration_s": 176.0,
+            "truth_duration_s": 524.962,
+            "interpretation": "temporal_support_not_correctness_or_lamp_observability"
+          }
+        }
+      }
+    },
+    {
+      "source": "6_2025_2_14_20.json",
+      "K": 3,
+      "period_s": 99.99524773335186,
+      "period_error_s": {
+        "value": 0.12924773335186046,
+        "n_observations": 9,
+        "range_ms": [
+          1739545472172,
+          1739545972279
+        ],
+        "reason": null,
+        "predicted_s": 99.99524773335186,
+        "truth_recurrence_median_s": 99.866,
+        "recurrence_intervals_s": [
+          98.756,
+          99.606,
+          99.866,
+          98.583,
+          100.581,
+          100.864,
+          101.637,
+          101.011,
+          99.267
+        ],
+        "relative_error_percent": 0.12942115770318272,
+        "interpretation": "median_same_label_recurrence; skip_hold_can_change_recurrence"
+      },
+      "invariants": "exact schedule/selection/period/event extraction equality with frozen2C prediction",
+      "runtime_s": 6.056727799999862,
+      "reference_full_discovery_runtime_s": 23.858,
+      "runtime_interpretation": "local-only run, not directly comparable to full discovery",
+      "history_status": "ok",
+      "reason": null,
+      "abstention_intervals": [
+        [
+          0.0,
+          39.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          40.0,
+          55.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          57.0,
+          59.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          62.0,
+          63.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          64.0,
+          66.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          67.0,
+          74.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          75.0,
+          76.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          77.0,
+          78.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          79.0,
+          108.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          109.0,
+          112.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          113.0,
+          116.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          117.0,
+          131.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          132.0,
+          133.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          137.0,
+          146.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          149.0,
+          155.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          157.0,
+          161.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          162.0,
+          164.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          165.0,
+          169.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          173.0,
+          177.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          178.0,
+          181.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          182.0,
+          187.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          188.0,
+          190.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          191.0,
+          192.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          193.0,
+          194.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          195.0,
+          200.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          201.0,
+          223.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          224.0,
+          225.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          226.0,
+          231.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          232.0,
+          233.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          237.0,
+          244.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          245.0,
+          251.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          252.0,
+          257.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          258.0,
+          259.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          260.0,
+          267.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          272.0,
+          275.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          277.0,
+          282.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          285.0,
+          286.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          287.0,
+          289.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          290.0,
+          292.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          293.0,
+          294.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          295.0,
+          312.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          313.0,
+          318.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          319.0,
+          321.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          324.0,
+          325.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          328.0,
+          331.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          338.0,
+          340.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          342.0,
+          352.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          353.0,
+          365.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          367.0,
+          368.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          369.0,
+          370.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          371.0,
+          374.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          376.0,
+          377.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          378.0,
+          381.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          383.0,
+          392.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          393.0,
+          397.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          398.0,
+          417.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          418.0,
+          424.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          425.0,
+          427.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          428.0,
+          431.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          432.0,
+          433.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          438.0,
+          452.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          453.0,
+          467.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          472.0,
+          473.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          474.0,
+          475.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          476.0,
+          479.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          480.0,
+          485.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          486.0,
+          488.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          489.0,
+          490.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          492.0,
+          493.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          495.0,
+          498.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          500.0,
+          506.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          507.0,
+          519.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          520.0,
+          521.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          523.0,
+          526.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          528.0,
+          529.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          530.0,
+          532.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          534.0,
+          535.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          536.0,
+          541.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          542.0,
+          560.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          561.0,
+          562.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          564.0,
+          568.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          570.0,
+          571.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          573.0,
+          580.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          581.0,
+          583.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          584.0,
+          588.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          591.0,
+          596.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          598.0,
+          622.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          623.0,
+          626.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          627.0,
+          629.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          630.0,
+          632.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          638.0,
+          664.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          665.0,
+          666.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          667.0,
+          668.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          671.0,
+          672.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          673.0,
+          675.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          676.0,
+          677.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          680.0,
+          681.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          682.0,
+          685.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          686.0,
+          698.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          699.0,
+          722.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          723.0,
+          731.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          732.0,
+          734.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          737.0,
+          741.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          742.0,
+          746.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          747.0,
+          748.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          749.0,
+          755.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          756.0,
+          757.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          758.0,
+          759.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          762.0,
+          763.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          764.0,
+          766.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          767.0,
+          768.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          773.0,
+          775.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          777.0,
+          784.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          785.0,
+          786.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          788.0,
+          796.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          797.0,
+          798.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          800.0,
+          804.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          806.0,
+          817.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          819.0,
+          820.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          821.0,
+          826.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          827.0,
+          833.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          836.0,
+          838.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          839.0,
+          840.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          841.0,
+          849.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          850.0,
+          851.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          852.0,
+          860.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          861.0,
+          867.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          870.0,
+          871.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          872.0,
+          873.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          874.0,
+          880.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          881.0,
+          884.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          886.0,
+          890.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          892.0,
+          894.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          895.0,
+          897.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          899.0,
+          900.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          901.0,
+          904.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          907.0,
+          915.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          916.0,
+          920.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          921.0,
+          922.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          924.0,
+          932.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          933.0,
+          937.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          939.0,
+          940.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          941.0,
+          944.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          946.0,
+          952.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          954.0,
+          963.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          964.0,
+          969.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          970.0,
+          972.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          977.0,
+          982.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          983.0,
+          985.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          987.0,
+          989.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          991.0,
+          994.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          996.0,
+          997.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          999.0,
+          1016.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1017.0,
+          1023.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1024.0,
+          1026.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1027.0,
+          1029.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1031.0,
+          1033.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1038.0,
+          1040.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1041.0,
+          1046.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1047.0,
+          1068.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1070.0,
+          1071.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1074.0,
+          1081.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1083.0,
+          1085.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1086.0,
+          1087.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1090.0,
+          1091.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1095.0,
+          1097.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1098.0,
+          1101.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1104.0,
+          1117.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1118.0,
+          1125.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1127.0,
+          1128.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1129.0,
+          1132.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1137.0,
+          1141.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1142.0,
+          1156.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1157.0,
+          1159.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1160.0,
+          1167.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1171.0,
+          1173.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1174.0,
+          1179.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1180.0,
+          1183.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1185.0,
+          1186.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1188.0,
+          1191.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1194.0,
+          1196.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1198.0,
+          1209.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1210.0,
+          1217.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1218.0,
+          1224.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1226.0,
+          1228.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1229.0,
+          1230.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1233.0,
+          1236.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1237.0,
+          1242.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1243.0,
+          1245.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1247.0,
+          1250.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1251.0,
+          1255.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1256.0,
+          1258.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1260.0,
+          1263.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1264.0,
+          1267.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1271.0,
+          1273.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1274.0,
+          1278.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1279.0,
+          1285.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1286.0,
+          1290.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1291.0,
+          1292.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1293.0,
+          1295.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1297.0,
+          1298.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1299.0,
+          1312.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1313.0,
+          1318.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1320.0,
+          1322.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1323.0,
+          1333.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1336.0,
+          1341.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1342.0,
+          1348.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1353.0,
+          1368.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1370.0,
+          1372.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1373.0,
+          1374.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1377.0,
+          1379.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1380.0,
+          1385.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1387.0,
+          1389.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1391.0,
+          1393.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1394.0,
+          1396.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1397.0,
+          1410.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1412.0,
+          1428.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1429.0,
+          1434.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1437.0,
+          1445.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1446.0,
+          1452.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1453.0,
+          1469.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1471.0,
+          1474.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1478.0,
+          1483.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1484.0,
+          1495.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1496.0,
+          1498.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1499.0,
+          1508.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1509.0,
+          1515.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1516.0,
+          1517.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1518.0,
+          1520.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1523.0,
+          1528.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1529.0,
+          1530.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1536.0,
+          1541.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1542.0,
+          1545.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1546.0,
+          1548.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1549.0,
+          1555.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1556.0,
+          1557.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1558.0,
+          1559.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1561.0,
+          1565.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1566.0,
+          1569.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1572.0,
+          1574.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1575.0,
+          1577.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1580.0,
+          1584.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1585.0,
+          1589.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1591.0,
+          1593.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1594.0,
+          1609.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1610.0,
+          1628.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1629.0,
+          1631.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1634.0,
+          1635.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1637.0,
+          1639.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1641.0,
+          1657.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1658.0,
+          1667.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1669.0,
+          1671.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1673.0,
+          1677.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1679.0,
+          1683.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1684.0,
+          1687.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1688.0,
+          1691.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1692.0,
+          1699.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1700.0,
+          1701.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1702.0,
+          1705.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1706.0,
+          1718.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1719.0,
+          1726.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1728.0,
+          1729.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1731.0,
+          1732.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1736.0,
+          1737.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1738.0,
+          1752.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1753.0,
+          1766.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1769.0,
+          1772.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1774.0,
+          1776.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1778.0,
+          1781.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1782.0,
+          1785.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1789.0,
+          1799.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1800.0,
+          1815.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1817.0,
+          1819.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1822.0,
+          1826.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1830.0,
+          1831.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1836.0,
+          1839.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1840.0,
+          1859.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1860.0,
+          1868.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1870.0,
+          1871.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1872.0,
+          1877.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1878.0,
+          1880.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1883.0,
+          1886.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1890.0,
+          1892.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1893.0,
+          1896.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1897.0,
+          1918.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1919.0,
+          1925.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1926.0,
+          1929.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1930.0,
+          1933.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1935.0,
+          1937.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1939.0,
+          1953.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1954.0,
+          1958.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1959.0,
+          1960.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1961.0,
+          1966.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1967.0,
+          1969.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1971.0,
+          1972.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1973.0,
+          1975.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1977.0,
+          1989.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1991.0,
+          1993.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1995.0,
+          1996.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          1997.0,
+          2001.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2002.0,
+          2009.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2010.0,
+          2018.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2019.0,
+          2029.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2030.0,
+          2032.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2036.0,
+          2042.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2043.0,
+          2046.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2047.0,
+          2051.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2052.0,
+          2057.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2058.0,
+          2067.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2068.0,
+          2069.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2074.0,
+          2079.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2081.0,
+          2085.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2087.0,
+          2088.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2090.0,
+          2098.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2099.0,
+          2101.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2102.0,
+          2125.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2126.0,
+          2130.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2131.0,
+          2133.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2134.0,
+          2135.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2136.0,
+          2150.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2151.0,
+          2170.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2172.0,
+          2174.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2178.0,
+          2183.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2184.0,
+          2187.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2188.0,
+          2189.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2190.0,
+          2191.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2193.0,
+          2199.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2200.0,
+          2202.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2203.0,
+          2207.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2208.0,
+          2226.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2227.0,
+          2229.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2231.0,
+          2232.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2238.0,
+          2240.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2242.0,
+          2246.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2247.0,
+          2268.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2269.0,
+          2270.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2273.0,
+          2276.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2277.0,
+          2279.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2280.0,
+          2283.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2284.0,
+          2288.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2289.0,
+          2305.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2306.0,
+          2325.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2326.0,
+          2332.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2333.0,
+          2335.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2336.0,
+          2337.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2338.0,
+          2341.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2342.0,
+          2370.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2374.0,
+          2375.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2377.0,
+          2381.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2382.0,
+          2385.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2390.0,
+          2392.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2393.0,
+          2416.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2417.0,
+          2420.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2422.0,
+          2424.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2425.0,
+          2430.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2431.0,
+          2433.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2434.0,
+          2435.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2437.0,
+          2452.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2454.0,
+          2467.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2468.0,
+          2470.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2471.0,
+          2472.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2473.0,
+          2475.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2476.0,
+          2477.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2478.0,
+          2481.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2482.0,
+          2487.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2488.0,
+          2490.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2491.0,
+          2492.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2495.0,
+          2503.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2504.0,
+          2515.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2516.0,
+          2526.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2527.0,
+          2531.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2532.0,
+          2533.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2534.0,
+          2544.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2545.0,
+          2560.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2561.0,
+          2563.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2564.0,
+          2569.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2570.0,
+          2571.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2572.0,
+          2579.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2580.0,
+          2583.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2584.0,
+          2586.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2587.0,
+          2592.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2593.0,
+          2596.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2597.0,
+          2598.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2599.0,
+          2609.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2610.0,
+          2613.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2614.0,
+          2618.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2619.0,
+          2623.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2625.0,
+          2627.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2628.0,
+          2629.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2630.0,
+          2631.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2635.0,
+          2659.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2660.0,
+          2668.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2669.0,
+          2670.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2671.0,
+          2672.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2673.0,
+          2676.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2678.0,
+          2681.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2683.0,
+          2691.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2693.0,
+          2696.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2697.0,
+          2699.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2700.0,
+          2703.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2704.0,
+          2705.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2706.0,
+          2712.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2713.0,
+          2720.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2721.0,
+          2727.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2728.0,
+          2730.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2732.0,
+          2733.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2734.0,
+          2735.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2736.0,
+          2739.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2740.0,
+          2743.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2744.0,
+          2746.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2748.0,
+          2758.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2759.0,
+          2769.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2771.0,
+          2772.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2773.0,
+          2777.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2780.0,
+          2782.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2784.0,
+          2787.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2788.0,
+          2789.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2793.0,
+          2802.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2803.0,
+          2818.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2819.0,
+          2824.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2825.0,
+          2833.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2835.0,
+          2836.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2837.0,
+          2863.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2864.0,
+          2868.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2870.0,
+          2873.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2875.0,
+          2880.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2881.0,
+          2883.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2884.0,
+          2885.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2886.0,
+          2897.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2898.0,
+          2913.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2914.0,
+          2915.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2916.0,
+          2921.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2922.0,
+          2924.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2925.0,
+          2926.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2927.0,
+          2928.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2929.0,
+          2932.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2935.0,
+          2937.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2938.0,
+          2944.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2945.0,
+          2967.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2968.0,
+          2974.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2977.0,
+          2981.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2983.0,
+          2985.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2988.0,
+          2989.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2990.0,
+          2991.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          2993.0,
+          2999.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3000.0,
+          3001.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3002.0,
+          3010.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3011.0,
+          3012.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3013.0,
+          3020.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3021.0,
+          3031.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3033.0,
+          3034.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3037.0,
+          3042.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3043.0,
+          3051.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3052.0,
+          3055.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3057.0,
+          3067.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3068.0,
+          3071.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3074.0,
+          3088.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3089.0,
+          3090.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3091.0,
+          3108.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3109.0,
+          3114.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3115.0,
+          3120.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3121.0,
+          3123.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3124.0,
+          3125.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3126.0,
+          3132.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3135.0,
+          3136.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3138.0,
+          3144.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3145.0,
+          3154.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3155.0,
+          3156.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3157.0,
+          3167.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3169.0,
+          3170.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3171.0,
+          3173.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3174.0,
+          3178.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3179.0,
+          3182.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3183.0,
+          3184.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3185.0,
+          3188.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3189.0,
+          3190.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3191.0,
+          3198.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3199.0,
+          3220.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3221.0,
+          3223.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3226.0,
+          3227.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3228.0,
+          3232.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3236.0,
+          3258.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3259.0,
+          3269.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3271.0,
+          3273.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3274.0,
+          3282.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3283.0,
+          3288.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3289.0,
+          3295.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3296.0,
+          3301.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3302.0,
+          3313.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3316.0,
+          3317.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3318.0,
+          3321.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3323.0,
+          3327.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3328.0,
+          3329.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3330.0,
+          3331.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3332.0,
+          3333.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3335.0,
+          3336.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3337.0,
+          3340.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3341.0,
+          3358.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3360.0,
+          3368.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3372.0,
+          3374.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3376.0,
+          3384.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3386.0,
+          3388.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3390.0,
+          3392.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3393.0,
+          3395.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3398.0,
+          3404.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3405.0,
+          3425.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3426.0,
+          3431.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3433.0,
+          3434.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3436.0,
+          3438.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3439.0,
+          3441.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3442.0,
+          3448.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3449.0,
+          3463.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3464.0,
+          3468.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3469.0,
+          3470.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3471.0,
+          3473.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3474.0,
+          3475.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3476.0,
+          3510.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3511.0,
+          3525.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3526.0,
+          3533.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3535.0,
+          3539.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3540.0,
+          3544.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3545.0,
+          3567.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3571.0,
+          3572.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3573.0,
+          3575.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3578.0,
+          3584.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3585.0,
+          3586.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3589.0,
+          3602.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3603.0,
+          3613.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3614.0,
+          3623.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3626.0,
+          3630.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3636.0,
+          3643.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ],
+        [
+          3645.0,
+          3656.0,
+          "NO_LOCAL_VEHICLE_EVIDENCE"
+        ]
+      ],
+      "history_coverage_s": 853.0,
+      "local_decoder_runtime_s": 0.6692242999997688,
+      "adapter_sha256": "3d1e2d8db6f7b90d2ac24eddbd27ba3be4bfed1353c5e66fe135ea75aee70871",
+      "prediction_sha256": "395431b18646e30f4930b7d62629db1976a8537a5d5faebdeccce2067190fc2b",
+      "histories": {
+        "raw_hsmm_segments": {
+          "status": "ok",
+          "reason": null,
+          "matched_count": 3,
+          "truth_count": 9,
+          "predicted_count": 15,
+          "precision": {
+            "value": 0.2,
+            "n_observations": 15,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "truth_boundaries": 9,
+            "predicted_boundaries": 15,
+            "matched_boundaries": 3,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "recall": {
+            "value": 0.3333333333333333,
+            "n_observations": 9,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "truth_boundaries": 9,
+            "predicted_boundaries": 15,
+            "matched_boundaries": 3,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "mae_s": {
+            "value": 1.4713333333333334,
+            "n_observations": 3,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "truth_boundaries": 9,
+            "predicted_boundaries": 15,
+            "matched_boundaries": 3,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "p95_s": {
+            "value": 1.7969,
+            "n_observations": 3,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "truth_boundaries": 9,
+            "predicted_boundaries": 15,
+            "matched_boundaries": 3,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "nearest_truth_boundary_mae_s_diagnostic": {
+            "value": 2.8058888888888887,
+            "n_observations": 9,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
+          },
+          "coverage": {
+            "value": 1.0,
+            "n_observations": 10,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "covered_duration_s": 500.107,
+            "truth_duration_s": 500.107,
+            "interpretation": "temporal_support_not_correctness_or_lamp_observability"
+          }
+        },
+        "baseline_segments": {
+          "status": "ok",
+          "reason": null,
+          "matched_count": 1,
+          "truth_count": 9,
+          "predicted_count": 15,
+          "precision": {
+            "value": 0.06666666666666667,
+            "n_observations": 15,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "truth_boundaries": 9,
+            "predicted_boundaries": 15,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "recall": {
+            "value": 0.1111111111111111,
+            "n_observations": 9,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "truth_boundaries": 9,
+            "predicted_boundaries": 15,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "mae_s": {
+            "value": 1.418416015625,
+            "n_observations": 1,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "truth_boundaries": 9,
+            "predicted_boundaries": 15,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "p95_s": {
+            "value": 1.418416015625,
+            "n_observations": 1,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "truth_boundaries": 9,
+            "predicted_boundaries": 15,
+            "matched_boundaries": 1,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "nearest_truth_boundary_mae_s_diagnostic": {
+            "value": 2.751939398871528,
+            "n_observations": 9,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
+          },
+          "coverage": {
+            "value": 1.0,
+            "n_observations": 10,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "covered_duration_s": 500.107,
+            "truth_duration_s": 500.107,
+            "interpretation": "temporal_support_not_correctness_or_lamp_observability"
+          }
+        },
+        "reconstruction_segments": {
+          "status": "ok",
+          "reason": null,
+          "matched_count": 0,
+          "truth_count": 9,
+          "predicted_count": 1,
+          "precision": {
+            "value": 0.0,
+            "n_observations": 1,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "truth_boundaries": 9,
+            "predicted_boundaries": 1,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "recall": {
+            "value": 0.0,
+            "n_observations": 9,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "truth_boundaries": 9,
+            "predicted_boundaries": 1,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "mae_s": {
+            "value": null,
+            "n_observations": 0,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": "no_matches_within_tolerance",
+            "truth_boundaries": 9,
+            "predicted_boundaries": 1,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "p95_s": {
+            "value": null,
+            "n_observations": 0,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": "no_matches_within_tolerance",
+            "truth_boundaries": 9,
+            "predicted_boundaries": 1,
+            "matched_boundaries": 0,
+            "tolerance_s": 2.0,
+            "matching": "untyped_absolute_one_to_one_no_offset_fit"
+          },
+          "nearest_truth_boundary_mae_s_diagnostic": {
+            "value": 210.52744444444446,
+            "n_observations": 9,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "interpretation": "unbounded_nearest_prediction; may_reuse_prediction; not_one_to_one"
+          },
+          "coverage": {
+            "value": 0.2521600377519211,
+            "n_observations": 10,
+            "range_ms": [
+              1739545472172,
+              1739545972279
+            ],
+            "reason": null,
+            "covered_duration_s": 126.107,
+            "truth_duration_s": 500.107,
+            "interpretation": "temporal_support_not_correctness_or_lamp_observability"
+          }
+        }
+      }
+    }
+  ]
+}

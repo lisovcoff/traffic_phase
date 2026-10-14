@@ -44,3 +44,11 @@ No-demand/missing local evidence remains UNKNOWN; camera coverage and lamp
 switch timing are not inferred. External validation and known development
 regressions remain open. Base `b248b4c7bac27def4a131ba61301f2678cd0b05a`.
 No 2D.2, skip/reorder, multiple-regime extension or online work is authorized.
+
+2D.1's sole frozen-model development run is complete. Dense synthetic duration
+recovery passes; real reconstruction regresses to0/34 matched boundaries, with
+annotated-range support15.208%/33.526%/25.216% for recordings17/19/6. Sparse positive
+bins produce fragmented history. Raw/baseline and K/period remain unchanged;
+strict abstention is preserved rather than tuned using development annotations.
+The result is engineering evidence, not usable independently validated real
+signal reconstruction. See LOCAL_HISTORY_2D1_RESULTS.md. Await further instruction.
