@@ -1,0 +1,29 @@
+{
+  "interval_type": "finite_grid_feasible_sets",
+  "grid_s": 1,
+  "timestamp_resolution_ms": 1,
+  "physical_state": "UNKNOWN",
+  "cause": "UNKNOWN",
+  "prior": {
+    "min_s": 2,
+    "max_s": 40,
+    "family": "uniform"
+  },
+  "complete": false,
+  "calibrated_probability": null,
+  "initial_phase": 0,
+  "initial_phase_start_s": 0,
+  "right_endpoint": "censored",
+  "assumptions": [
+    "ideal exclusive marks",
+    "known observation windows",
+    "supplied stationary positive phase-specific Poisson rates",
+    "fixed cyclic order; integer boundaries; durations 2..40s"
+  ],
+  "status": "unavailable",
+  "reason": "NO_FEASIBLE_PATH_UNDER_DECLARED_MODEL",
+  "diagnostic_segments": [],
+  "boundary_sets": [],
+  "unknown_fraction": 1.0,
+  "cpu_s": 0.0
+}

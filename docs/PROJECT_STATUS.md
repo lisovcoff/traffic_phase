@@ -59,3 +59,11 @@ replacement history is approved. A justified observation/demand/exposure model
 and interval-uncertainty/support method are required before further publication.
 See SPARSE_OBSERVATION_2D1_REVIEW.md. External event/lamp validation remains open;
 no2D.2/online work is started. Await further instruction.
+
+An isolated event-time feasible-set prototype (2026-10-14) was evaluated once
+on 18 new synthetic cases with two preregistered priors, outside production.
+All 12 correctly specified truth paths are feasible, but sets remain broad and
+transition counts ambiguous. The unchanged per-case point-recovery criterion
+fails for both priors (4/10 and 1/10 core cases). Historical 2D.1 remains FAIL;
+default/production, old gates, results and evaluator are unchanged. No real
+replay, fitting, K search or 2D.2 work occurred. See EVENT_TIME_PROTOTYPE_2D1.md.
