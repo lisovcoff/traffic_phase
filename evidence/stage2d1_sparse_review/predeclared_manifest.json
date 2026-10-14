@@ -1,0 +1,104 @@
+{
+  "base_sha": "714a0917bfe4f46ab5022e25e88cc4410a9539ea",
+  "seeds": [
+    11,
+    29
+  ],
+  "cases": [
+    [
+      "stable_K2",
+      2,
+      0
+    ],
+    [
+      "hold10_K2",
+      2,
+      10
+    ],
+    [
+      "hold30_K2",
+      2,
+      30
+    ],
+    [
+      "shorten10_K2",
+      2,
+      -10
+    ],
+    [
+      "stable_K3",
+      3,
+      0
+    ],
+    [
+      "hold10_K3",
+      3,
+      10
+    ],
+    [
+      "hold30_K3",
+      3,
+      30
+    ],
+    [
+      "shorten10_K3",
+      3,
+      -10
+    ],
+    [
+      "unequal_demand_K3",
+      3,
+      0
+    ],
+    [
+      "no_demand_K2",
+      2,
+      0
+    ],
+    [
+      "blockage_K2",
+      2,
+      0
+    ],
+    [
+      "observation_gap_K3",
+      3,
+      0
+    ]
+  ],
+  "dt_s": 1,
+  "cycles": 4,
+  "generator": "Poisson arrivals only in corresponding logical phase; ideal event model, not lamps",
+  "rates_per_s": 0.25,
+  "unequal_rates_per_s": [
+    0.35,
+    0.12,
+    0.25
+  ],
+  "boundary_tolerance_s": 2,
+  "core_candidate_recall_min": 0.8,
+  "core_published_recall_min": 0.8,
+  "core_published_coverage_min": 0.8,
+  "identifiability_requirements": [
+    "no-demand/blockage observations indistinguishable; no cause claim",
+    "explicit missing observations distinct from no arrival",
+    "no physical state from event emissions",
+    "no identification claim from unique float maximum"
+  ],
+  "one_predeclared_diagnostic_proposal": "conditional mark likelihood x@log(row_normalized_templates); absence neutral; existing duration prior/config unchanged",
+  "proposal_status": "diagnostic only; publishing needs validated interval-support/ambiguity model",
+  "max_suite_runs": 1,
+  "max_real_replays": 1,
+  "real_replay_condition": "sparse recovery AND publishing/identifiability gate PASS",
+  "config": {
+    "min_duration_s": 2.0,
+    "max_duration_s": 180.0,
+    "duration_min_factor": 0.1,
+    "duration_max_factor": 4.0,
+    "duration_penalty_strength": 2.0,
+    "transition_penalty": 0.25,
+    "max_bins": 10000,
+    "max_work_units": 5000000,
+    "max_seconds": 15.0
+  }
+}
