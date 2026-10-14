@@ -25,6 +25,8 @@ def test_default_queries_preserve_accepted_raw_even_if_experimental_payload_exis
 def test_explicit_experimental_selection_has_no_hidden_fallback():
     p=prediction();query=prepare_logical_query(p,history_source='experimental')
     assert query.at(2).estimated_state=='B'
+    assert query.at(2).observation_support['experimental_validation_status']=='NOT_APPROVED'
+    assert 'NOT_identified' in query.at(2).observation_support['support_interpretation']
     assert query.at(7).abstention_reason=='NO_LOCAL_VEHICLE_EVIDENCE'
     assert query.at(15).estimated_state=='UNKNOWN'
     m=build_signal_model(p,history_source='experimental')
@@ -62,3 +64,9 @@ def test_public_discovery_defaults_are_disabled_and_forward_explicit_choice(monk
     assert model.discover_records([{}],experimental_local_history=True) is True
     source=tmp_path/'source.json';source.write_text('[]')
     assert model.discover_path(source) is False
+
+
+@pytest.mark.parametrize('value',['false',1,None])
+def test_accidental_truthy_values_cannot_enable_experiment(value):
+    with pytest.raises(ValueError,match='explicit boolean'):
+        model.discover_records([{}],experimental_local_history=value)

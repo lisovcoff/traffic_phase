@@ -1,0 +1,83 @@
+{
+  "base_sha": "714a0917bfe4f46ab5022e25e88cc4410a9539ea",
+  "protected_paths_unchanged": [
+    "app/core/v9/fit.py",
+    "app/core/v9/primitives.py",
+    "app/core/v9/events.py",
+    "app/core/v9/vehicle_evidence.py",
+    "app/core/temporal_evidence.py",
+    "app/core/v10/automatic_physical.py",
+    "app/core/offline_benchmark.py",
+    "scripts/offline_benchmark.py",
+    "benchmarks",
+    "app/api",
+    "app/templates",
+    "app/static"
+  ],
+  "mapping_objective_unchanged": true,
+  "real_replays": 0,
+  "real_annotations_opened": 0,
+  "queries": [
+    {
+      "prediction": "17_2025_2_19_10_v9.json",
+      "accepted_2c_sha256": "096318d037ff68cd56be1a845fe7861449429d4ca107930aef63ac42f14cf040",
+      "historical_failed_2d1_sha256": "74b448c31e995c2c9e6996a36fee537fe18d3f82890065e0af7050463de2ac94",
+      "default_queries_equal_accepted_2c": true,
+      "experimental_gaps_checked": 282,
+      "query_probe_count": 114,
+      "new_decoding_runs": 0
+    },
+    {
+      "prediction": "19_2025_2_24_16_v9.json",
+      "accepted_2c_sha256": "cefed42efeab33674a97ba7d94d6e839beafd8176e23ea24d8436414a7c270f7",
+      "historical_failed_2d1_sha256": "1ab336f511b6eaa468b9f545400d9d1907a3617a634a099607a3a748821f4b5b",
+      "default_queries_equal_accepted_2c": true,
+      "experimental_gaps_checked": 160,
+      "query_probe_count": 22,
+      "new_decoding_runs": 0
+    },
+    {
+      "prediction": "6_2025_2_14_20_v9.json",
+      "accepted_2c_sha256": "7dae8417c17148331a2ff6a34cab97a4d2c7505ceec5d2770f05279a0f9f4dd1",
+      "historical_failed_2d1_sha256": "395431b18646e30f4930b7d62629db1976a8537a5d5faebdeccce2067190fc2b",
+      "default_queries_equal_accepted_2c": true,
+      "experimental_gaps_checked": 532,
+      "query_probe_count": 112,
+      "new_decoding_runs": 0
+    }
+  ],
+  "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "packages": {
+    "numpy": "2.4.6",
+    "scipy": "1.17.1"
+  },
+  "previous_failure": {
+    "source": "user-confirmed existing2D.1 results; not re-evaluated",
+    "supported_matched_truth": [
+      0,
+      34
+    ],
+    "candidate_matched_truth": [
+      7,
+      34
+    ],
+    "candidate_per_recording": [
+      [
+        3,
+        17
+      ],
+      [
+        1,
+        8
+      ],
+      [
+        3,
+        9
+      ]
+    ],
+    "accepted_raw_matched_truth": [
+      19,
+      34
+    ]
+  }
+}

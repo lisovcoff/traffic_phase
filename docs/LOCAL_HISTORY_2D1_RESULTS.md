@@ -1,5 +1,9 @@
 # 2D.1 development results and limits
 
+**FAIL / NOT ACCEPTED.** Later confirmed diagnostic-candidate matches are7/34
+(3/17,1/8,3/9), also worse than raw19/34. The sparse review restores accepted2C
+defaults and makes this history explicitly opt-in; see SPARSE_OBSERVATION_2D1_REVIEW.md.
+
 Base `b248b4c7bac27def4a131ba61301f2678cd0b05a`; implementation/config sealed at
 `400dad78f7276ac025427e7cef02af9ef3d58fb6` before the sole development run.
 No code or configuration was tuned after reading its results. No K search,

@@ -1,5 +1,10 @@
 # Fixed-model local history — 2D.1, 2026-10-14
 
+**Historical failed experiment, not accepted.** The later sparse review disables
+this reconstruction by default. Discovery now requires explicit
+experimental_local_history=True; queries require history_source='experimental'.
+Accepted2C raw history remains the default. See SPARSE_OBSERVATION_2D1_REVIEW.md.
+
 Base `b248b4c7bac27def4a131ba61301f2678cd0b05a`, separate branch. No K-search,
 period, extraction/selection, mapping, offset or evaluator changes. No skip,
 reorder, K change, regime segmentation or online decoding is introduced.
@@ -39,7 +44,7 @@ are still an explicit model assumption, not observations of red lamps. Missing
 bins may be traversed by the prior internally; that candidate path is retained
 only as a diagnostic and is not exposed as supported reconstruction.
 
-Reconstructed core queries prefer `reconstruction_history.segments` when present,
+In this rejected version reconstructed core queries preferred `reconstruction_history.segments` when present,
 including when it is unavailable or has gaps: there is no fallback to old raw
 segments. Prepared immutable queries retain gap reasons and validate contradictory
 support/abstention. Outside the history they abstain. Configured/simulated queries

@@ -78,6 +78,7 @@ class LogicalPhaseQuery:
     abstention_intervals: tuple = ()
     abstention_starts: tuple = ()
     unavailable_reason: str | None = None
+    experimental_validation_status: str | None = None
 
     def at(self, timestamp_s):
         t = float(timestamp_s)
@@ -86,6 +87,9 @@ class LogicalPhaseQuery:
             "vehicle_demand_is_not_lamp_observation": True,
             "local_vehicle_observation_support": "UNKNOWN",
             "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability"}
+        if self.experimental_validation_status is not None:
+            support["experimental_validation_status"]=self.experimental_validation_status
+            support["support_interpretation"]="rejected_experimental_policy_NOT_identified_intervals"
         reason = "INVALID_PHASE_HISTORY" if self.validation_error else "NO_TEMPORAL_COVERAGE"
         if self.unavailable_reason and not self.validation_error:
             reason = self.unavailable_reason
@@ -179,7 +183,8 @@ def prepare_logical_query(result, *, mode="reconstructed", history_source="accep
         if error:segments=[];gaps=[]
     return LogicalPhaseQuery(names,tuple(segments),tuple(s[0] for s in segments),
         history.get("source","local_history") if isinstance(history,Mapping) else schedule.get("model", "anonymous_phase_model"),
-        key,result.get("schedule_base_timestamp_ms"),period,mode,error,tuple(gaps),tuple(g[0] for g in gaps),unavailable)
+        key,result.get("schedule_base_timestamp_ms"),period,mode,error,tuple(gaps),tuple(g[0] for g in gaps),unavailable,
+        history.get("validation_status","NOT_APPROVED") if experimental and isinstance(history,Mapping) else None)
 
 
 def logical_phase_at(result, timestamp_s, *, mode=None, history_source=None):

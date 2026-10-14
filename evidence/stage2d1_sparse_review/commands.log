@@ -1,0 +1,13 @@
+Base 714a0917bfe4f46ab5022e25e88cc4410a9539ea
+Branch fix/stage2d1-isolated-sparse-evidence-20261014
+python -m pytest -q -p no:cacheprovider tests/test_history_optin_2d1.py tests/test_local_history_2d1.py tests/test_local_history_support_2d1.py tests/test_v9_query_contract_followup.py tests/test_phase_search_config_2c.py
+python -m scripts.sparse_event_suite_2d1 (generation only; no decoding)
+Declaration commit2917b28; proposal/code seal50a05e62007baa8c504f073a8ed95b02d0b864c9
+python -m pytest -q -p no:cacheprovider tests/test_sparse_observation_contract_2d1.py tests/test_history_optin_2d1.py tests/test_local_history_2d1.py tests/test_local_history_support_2d1.py tests/test_v9_query_contract_followup.py tests/test_phase_search_config_2c.py tests/test_offline_benchmark.py
+EXACTLY ONCE: python -m scripts.sparse_observation_review_2d1
+python -m scripts.check_sparse_gate_2d1 => exit1, FAIL; subsequent call reads results only
+python -m pytest -q -p no:cacheprovider tests/test_sparse_review_artifacts_2d1.py tests/test_history_optin_2d1.py tests/test_sparse_observation_contract_2d1.py tests/test_state_contract_2b2.py tests/v10/test_v10_semantic_mapping.py tests/test_phase_search_config_2c.py
+python -m pytest -q -p no:cacheprovider tests/test_history_optin_2d1.py (strict boolean safety only)
+Read-only saved-model checks: default queries exactly accepted2C; explicit experimental gaps abstain. Zero local decoding in these checks.
+Protected K/period/extraction/mapping objective/evaluator/offsets/historical artifacts verified unchanged. Main unchanged.
+NO REAL REPLAY: sparse recovery AND publishing/identifiability gate did not pass. No parameters/seeds retried.

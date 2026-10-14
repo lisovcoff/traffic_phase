@@ -1,0 +1,89 @@
+{
+  "case": "blockage_K2",
+  "seed": 29,
+  "fixed_K": 2,
+  "fixed_period_s": 60,
+  "events": [],
+  "local_event_bin_count": 0,
+  "provided_input_coverage": [
+    [
+      0,
+      240
+    ]
+  ],
+  "templates_sha256": "dc63ff2352c2aac31fdaeaed4dfcfd5c2cea7bf6d0849a46bb52a27a92749d18",
+  "legacy_rejected_history": {
+    "level": "logical_phase",
+    "source": "fixed_templates_local_cyclic_hsmm",
+    "fixed_model": {
+      "K": 2,
+      "period_s": 60.0,
+      "duration_targets_s": [
+        30.0,
+        30.0
+      ],
+      "initial_phase": 0,
+      "templates_sha256": "dc63ff2352c2aac31fdaeaed4dfcfd5c2cea7bf6d0849a46bb52a27a92749d18"
+    },
+    "config": {
+      "min_duration_s": 2.0,
+      "max_duration_s": 180.0,
+      "duration_min_factor": 0.1,
+      "duration_max_factor": 4.0,
+      "duration_penalty_strength": 2.0,
+      "transition_penalty": 0.25,
+      "max_bins": 10000,
+      "max_work_units": 5000000,
+      "max_seconds": 15.0
+    },
+    "calibrated_lamp_probability": null,
+    "assumptions": [
+      "fixed_K_and_cyclic_order",
+      "duration_prior_NOT_observed_controller_timing",
+      "vehicle_evidence_NOT_lamp_switch_observation"
+    ],
+    "coverage_semantics": "local_positive_vehicle_evidence_support_NOT_camera_coverage",
+    "cause_of_deviation": "UNKNOWN",
+    "status": "unavailable",
+    "reason": "NO_LOCAL_VEHICLE_EVIDENCE",
+    "segments": [],
+    "boundaries": [],
+    "coverage_s": 0.0,
+    "runtime_s": 0.0004930000013700919,
+    "abstention_intervals": [
+      [
+        0.0,
+        240.0,
+        "NO_LOCAL_VEHICLE_EVIDENCE"
+      ],
+      [
+        240.0,
+        241.0,
+        "EXPLICIT_INPUT_COVERAGE_GAP"
+      ]
+    ]
+  },
+  "proposal_diagnostic": {
+    "status": "unavailable",
+    "reason": "NO_EVENTS; prior alone is not evidence",
+    "candidate_segments": []
+  },
+  "proposed_published_history": {
+    "status": "unavailable",
+    "reason": "VALIDATED_INTERVAL_SUPPORT_MODEL_NOT_IMPLEMENTED",
+    "segments": [],
+    "cause": "UNKNOWN",
+    "calibrated_lamp_probability": null
+  },
+  "physical_section": {
+    "estimated_state": "UNKNOWN",
+    "level": "physical_section",
+    "source": "vehicle_phase_model",
+    "assumptions": [],
+    "observation_support": {},
+    "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+    "provenance": {},
+    "mode": "reconstructed",
+    "calibrated_lamp_probability": null
+  }
+}

@@ -596,6 +596,8 @@ def _discover_from_stream_views(
     phase_search_config: PhaseSearchConfig | None = None,
     experimental_local_history: bool = False,
 ):
+    if not isinstance(experimental_local_history,bool):
+        raise ValueError("experimental_local_history requires an explicit boolean")
     if not by_stream:
         raise ValueError("no traffic events supplied")
     if release_streams is None:
@@ -951,6 +953,8 @@ def discover_records(
     phase_search_config: PhaseSearchConfig | None = None,
     experimental_local_history: bool = False,
 ) -> dict[str, object]:
+    if not isinstance(experimental_local_history,bool):
+        raise ValueError("experimental_local_history requires an explicit boolean")
     if not tracks:
         raise EvidenceUnavailable("no trajectory records supplied", reason_code="NO_TRAJECTORY_RECORDS")
     if evidence_policy == "permission_per_stream":
@@ -985,6 +989,8 @@ def discover_path(
     phase_search_config: PhaseSearchConfig | None = None,
     experimental_local_history: bool = False,
 ) -> dict[str, object]:
+    if not isinstance(experimental_local_history,bool):
+        raise ValueError("experimental_local_history requires an explicit boolean")
     path = Path(path)
     if path.is_file() and path.suffix.lower() not in {".json", ".zip"}:
         raise ValueError(f"unsupported V9 source: {path}")
