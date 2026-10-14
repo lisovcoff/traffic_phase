@@ -1,0 +1,45 @@
+{
+  "base_sha": "36b6752a4794e482570944b22656d6cc58f0db31",
+  "implementation_sha": "25db3dfbaa9c852fb9644d8a934285ba2cf3a47a",
+  "protected_paths_unchanged": [
+    "app/core/v9/decoder.py",
+    "app/core/v9/primitives.py",
+    "app/core/v9/events.py",
+    "app/core/v9/vehicle_evidence.py",
+    "app/core/temporal_evidence.py",
+    "app/core/state_contract.py",
+    "app/core/v9/signal_renderer.py",
+    "app/core/v10",
+    "app/core/offline_benchmark.py",
+    "scripts/offline_benchmark.py",
+    "benchmarks",
+    "app/api",
+    "app/templates",
+    "app/static"
+  ],
+  "unchanged_fit_functions": [
+    "_seed_labels_to_fit",
+    "_fit_from_initial_labels",
+    "_fit_quality",
+    "em_fit",
+    "_phase_support_metrics",
+    "_phase_boundary_stats",
+    "_duration_balance_by_pair",
+    "_rank_correlation",
+    "_template_similarity_features",
+    "_cosine_vector",
+    "evaluate_phase_redundancy",
+    "candidate_metrics",
+    "anonymous_phase_name",
+    "phase_activity_summary"
+  ],
+  "production_defaults": {
+    "kmin": 2,
+    "kmax": 6,
+    "max_candidates": 5,
+    "max_seconds": 60
+  },
+  "benchmark_command": "python -m scripts.offline_benchmark run --data-dir ../data/?????? ???????? --out benchmarks/stage2c_20261014",
+  "max_development_runs": 1,
+  "post_result_tuning": false
+}
