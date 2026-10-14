@@ -70,7 +70,7 @@ def _boundary_coherence(segments, period, evidence_grid, evidence_values):
     vals = np.interp(np.asarray(starts) % period, evidence_grid, evidence_values, period=period)
     return float(np.mean(vals))
 
-def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, dt: float=1.0, min_duration_s: Optional[float]=None, max_duration_s: Optional[float]=None, transition_penalty: float=0.25, duration_targets: Optional[Sequence[float]]=None, initial_phase: Optional[int]=None, duration_min_factor: float=0.65, duration_max_factor: float=1.35, observation_mask=None, duration_penalty_strength: float=2.0, deadline_monotonic=None):
+def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, dt: float=1.0, min_duration_s: Optional[float]=None, max_duration_s: Optional[float]=None, transition_penalty: float=0.25, duration_targets: Optional[Sequence[float]]=None, initial_phase: Optional[int]=None, duration_min_factor: float=0.65, duration_max_factor: float=1.35, observation_mask=None, duration_penalty_strength: float=2.0, deadline_monotonic=None, diagnostic_emissions=None):
     n, _ = x.shape
     expected = float(period) / float(k)
     if duration_targets is None:
@@ -89,6 +89,11 @@ def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, 
     prob = probs.T[np.newaxis, :, :]
     xx = x[:, :, np.newaxis]
     emissions = np.sum(xx * np.log(prob) + (1.0 - xx) * np.log(1.0 - prob), axis=1)
+    if diagnostic_emissions is not None:
+        supplied=np.asarray(diagnostic_emissions,dtype=float)
+        if supplied.shape!=(n,k) or np.any(~np.isfinite(supplied)):
+            raise ValueError('invalid diagnostic emission matrix')
+        emissions=supplied.copy()
     if observation_mask is not None:
         emissions[~np.asarray(observation_mask,dtype=bool)] = 0.0
     prefix = np.vstack([np.zeros((1, k)), np.cumsum(emissions, axis=0)])
