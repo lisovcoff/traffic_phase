@@ -1,0 +1,2322 @@
+[
+  {
+    "case": "stable_K2",
+    "seed": 101,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        0
+      ],
+      [
+        30,
+        40,
+        1
+      ],
+      [
+        40,
+        50,
+        0
+      ],
+      [
+        50,
+        60,
+        1
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 6816,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7780,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 9374,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 11600,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 12552,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 19366,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 26785,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 28168,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 28855,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 28929,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 39954,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 41943,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 44525,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 47116,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 49112,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 50131,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 50963,
+          "movement": "M1"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1
+      },
+      "order": [
+        0,
+        1
+      ],
+      "windows": [
+        [
+          0,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "stable_K2",
+    "seed": 307,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        0
+      ],
+      [
+        30,
+        40,
+        1
+      ],
+      [
+        40,
+        50,
+        0
+      ],
+      [
+        50,
+        60,
+        1
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 991,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1519,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1892,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7797,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8068,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8352,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 16612,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17626,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17657,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 33929,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 34040,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 42300,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 42602,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 44056,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 49085,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 49936,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 50068,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 53124,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 58774,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 59178,
+          "movement": "M1"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1
+      },
+      "order": [
+        0,
+        1
+      ],
+      "windows": [
+        [
+          0,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "stable_K3",
+    "seed": 101,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        40,
+        0
+      ],
+      [
+        40,
+        50,
+        1
+      ],
+      [
+        50,
+        60,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 6816,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7780,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 9374,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 11600,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 12552,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 19366,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 28142,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 29802,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 30073,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 49954,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 52331,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 55430,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 58540,
+          "movement": "M2"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "stable_K3",
+    "seed": 307,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        40,
+        0
+      ],
+      [
+        40,
+        50,
+        1
+      ],
+      [
+        50,
+        60,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 991,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1519,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1892,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7797,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8068,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8352,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 16612,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17626,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17657,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 32619,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 32693,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 36895,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 39194,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 39497,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 47544,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 48820,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 50054,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 52499,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 57019,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 57342,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 59205,
+          "movement": "M2"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "hold10_K2",
+    "seed": 101,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        40,
+        0
+      ],
+      [
+        40,
+        50,
+        1
+      ],
+      [
+        50,
+        60,
+        0
+      ],
+      [
+        60,
+        70,
+        1
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 6816,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7780,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 9374,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 11600,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 12552,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 19366,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 26785,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 28168,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 28855,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 28929,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 39280,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 40638,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 43552,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 47426,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 51995,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 53059,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 53147,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 53701,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 62052,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 65143,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 68865,
+          "movement": "M1"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1
+      },
+      "order": [
+        0,
+        1
+      ],
+      "windows": [
+        [
+          0,
+          70
+        ]
+      ],
+      "horizon": 70,
+      "rates": [
+        0.6,
+        0.4
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "hold10_K2",
+    "seed": 307,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        40,
+        0
+      ],
+      [
+        40,
+        50,
+        1
+      ],
+      [
+        50,
+        60,
+        0
+      ],
+      [
+        60,
+        70,
+        1
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 991,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1519,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1892,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7797,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8068,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8352,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 16612,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17626,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17657,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 30491,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 33110,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 33184,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 37385,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 39685,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 39988,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 47544,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 48820,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 50045,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 52083,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 55849,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 56119,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 57671,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 59040,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 60602,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 65232,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 65798,
+          "movement": "M1"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1
+      },
+      "order": [
+        0,
+        1
+      ],
+      "windows": [
+        [
+          0,
+          70
+        ]
+      ],
+      "horizon": 70,
+      "rates": [
+        0.6,
+        0.4
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "hold20_K3",
+    "seed": 101,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        60,
+        0
+      ],
+      [
+        60,
+        70,
+        1
+      ],
+      [
+        70,
+        80,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 6816,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7780,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 9374,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 11600,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 12552,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 19366,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 28142,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 29802,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 30073,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 40425,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 47061,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 47486,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 49429,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 52011,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 54603,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 56598,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 57662,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 57749,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 58304,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 62052,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 65143,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 68865,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 71686,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 72083,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 75063,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 76591,
+          "movement": "M2"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          80
+        ]
+      ],
+      "horizon": 80,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "hold20_K3",
+    "seed": 307,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        60,
+        0
+      ],
+      [
+        60,
+        70,
+        1
+      ],
+      [
+        70,
+        80,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 991,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1519,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1892,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7797,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8068,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8352,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 16612,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17626,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17657,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 32619,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 32693,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 36895,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 39194,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 39497,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 40951,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 45980,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 46831,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 47669,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 47714,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 49752,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 53519,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 53788,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 55340,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 56709,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 58443,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 58844,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 60565,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 65370,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 65528,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 66930,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 71022,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 71574,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 71673,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 73272,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 74336,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 76481,
+          "movement": "M2"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          80
+        ]
+      ],
+      "horizon": 80,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "shorten5_K3",
+    "seed": 101,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        35,
+        0
+      ],
+      [
+        35,
+        45,
+        1
+      ],
+      [
+        45,
+        55,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 6816,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7780,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 9374,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 11600,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 12552,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 19366,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 28142,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 29802,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 30073,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 44954,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 47331,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 50430,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 53540,
+          "movement": "M2"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          55
+        ]
+      ],
+      "horizon": 55,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "shorten5_K3",
+    "seed": 307,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        35,
+        0
+      ],
+      [
+        35,
+        45,
+        1
+      ],
+      [
+        45,
+        55,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 991,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1519,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1892,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7797,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8068,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8352,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 16612,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17626,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17657,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 32619,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 32693,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 38450,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 38903,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 41084,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 46021,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 47027,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 47081,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 49527,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 54046,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 54369,
+          "movement": "M2"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          55
+        ]
+      ],
+      "horizon": 55,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "changing_rate_K3",
+    "seed": 101,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        40,
+        0
+      ],
+      [
+        40,
+        50,
+        1
+      ],
+      [
+        50,
+        60,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 6816,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7780,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 9374,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 11600,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 12552,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 19366,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 28142,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 29802,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 30490,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 53402,
+          "movement": "M2"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": false,
+    "misspecification": "changing_rate_K3"
+  },
+  {
+    "case": "changing_rate_K3",
+    "seed": 307,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        40,
+        0
+      ],
+      [
+        40,
+        50,
+        1
+      ],
+      [
+        50,
+        60,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 991,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1519,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1892,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7797,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8068,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8352,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 16612,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17626,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17657,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 40739,
+          "movement": "M1"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": false,
+    "misspecification": "changing_rate_K3"
+  },
+  {
+    "case": "permissive_K3",
+    "seed": 101,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        40,
+        0
+      ],
+      [
+        40,
+        50,
+        1
+      ],
+      [
+        50,
+        60,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 5250,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 6816,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7780,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 9374,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 11600,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 12552,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 19366,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 28142,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 29802,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 30073,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 49954,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 52331,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 55430,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 58540,
+          "movement": "M2"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": false,
+    "misspecification": "permissive_K3"
+  },
+  {
+    "case": "permissive_K3",
+    "seed": 307,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        40,
+        0
+      ],
+      [
+        40,
+        50,
+        1
+      ],
+      [
+        50,
+        60,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 991,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1519,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1892,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 5250,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 7797,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8068,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8352,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 16612,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17626,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17657,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 32619,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 32693,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 36895,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 39194,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 39497,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 47544,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 48820,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 50054,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 52499,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 57019,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 57342,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 59205,
+          "movement": "M2"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": false,
+    "misspecification": "permissive_K3"
+  },
+  {
+    "case": "observation_gap_K3",
+    "seed": 101,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        40,
+        0
+      ],
+      [
+        40,
+        50,
+        1
+      ],
+      [
+        50,
+        60,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 6816,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7780,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 9374,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 11600,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 12552,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 19366,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 49954,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 52331,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 55430,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 58540,
+          "movement": "M2"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          20
+        ],
+        [
+          40,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "observation_gap_K3",
+    "seed": 307,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        2
+      ],
+      [
+        30,
+        40,
+        0
+      ],
+      [
+        40,
+        50,
+        1
+      ],
+      [
+        50,
+        60,
+        2
+      ]
+    ],
+    "inference_input": {
+      "events": [
+        {
+          "timestamp_ms": 991,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1519,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 1892,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 7797,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8068,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 8352,
+          "movement": "M0"
+        },
+        {
+          "timestamp_ms": 16612,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17626,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 17657,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 47544,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 48820,
+          "movement": "M1"
+        },
+        {
+          "timestamp_ms": 50054,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 52499,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 57019,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 57342,
+          "movement": "M2"
+        },
+        {
+          "timestamp_ms": 59205,
+          "movement": "M2"
+        }
+      ],
+      "mapping": {
+        "M0": 0,
+        "M1": 1,
+        "M2": 2
+      },
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "windows": [
+        [
+          0,
+          20
+        ],
+        [
+          40,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4,
+        0.5
+      ]
+    },
+    "correctly_specified": true,
+    "misspecification": null
+  },
+  {
+    "case": "no_demand_K2",
+    "seed": 101,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        0
+      ],
+      [
+        30,
+        40,
+        1
+      ],
+      [
+        40,
+        50,
+        0
+      ],
+      [
+        50,
+        60,
+        1
+      ]
+    ],
+    "inference_input": {
+      "events": [],
+      "mapping": {
+        "M0": 0,
+        "M1": 1
+      },
+      "order": [
+        0,
+        1
+      ],
+      "windows": [
+        [
+          0,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4
+      ]
+    },
+    "correctly_specified": false,
+    "misspecification": "no_demand_K2"
+  },
+  {
+    "case": "no_demand_K2",
+    "seed": 307,
+    "truth_segments": [
+      [
+        0,
+        10,
+        0
+      ],
+      [
+        10,
+        20,
+        1
+      ],
+      [
+        20,
+        30,
+        0
+      ],
+      [
+        30,
+        40,
+        1
+      ],
+      [
+        40,
+        50,
+        0
+      ],
+      [
+        50,
+        60,
+        1
+      ]
+    ],
+    "inference_input": {
+      "events": [],
+      "mapping": {
+        "M0": 0,
+        "M1": 1
+      },
+      "order": [
+        0,
+        1
+      ],
+      "windows": [
+        [
+          0,
+          60
+        ]
+      ],
+      "horizon": 60,
+      "rates": [
+        0.6,
+        0.4
+      ]
+    },
+    "correctly_specified": false,
+    "misspecification": "no_demand_K2"
+  }
+]
