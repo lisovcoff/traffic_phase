@@ -1,5 +1,13 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: выполнен [metadata-only допуск реального пилота](docs/REAL_PILOT_READINESS_20261016.md).
+Текущие 243-track/A/B блоки — одна development-сессия, не независимый holdout.
+Есть запускаемый intake, provenance seals и 31 checks, без нового inference/replay.
+Следующий конкретный вход — отдельная пара JSON + независимый источник сигналов
+для validation того же перекрёстка и документированная calibration/sync/model
+для текущей пары. Пять последовательных шагов и критерии приведены в документе;
+synthetic defaults не переносятся в реальные параметры. 2D.1 FAIL сохраняется.
+
 ## Текущий критический путь к продукту — уточнение 2026-10-16
 
 Выполнено: [bounded-history exact DP](docs/BOUNDED_FACTOR_RESULTS_20261016.md).

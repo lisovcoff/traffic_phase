@@ -1,5 +1,18 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 real pilot metadata intake delivered, not a new inference experiment.
+Three registered development blocks share one continuous recording; no independent
+validation session registered. Required scientific model inputs have no real
+calibration supplied; no synthetic fallback. Existing independent-review template
+reused; seven small provenance sources sealed, no large input read.31 targeted
+intake/bridge/artifact tests pass. Completeness checking does not certify synchronization,
+source identities or model correctness. See REAL_PILOT_READINESS_20261016.md for
+the concrete five-step pilot/product path and missing inputs. 2C and protective
+state/query contract accepted;2D.1 FAIL/experimental opt-in, main/default and
+historical K3/2/3 vs truth3/2/2, raw19/34 unchanged. Next: independent paired
+validation session and documented calibration assumptions; no decoder/real replay
+silently restarted.
+
 2026-10-16 bounded-history exact renewal DP delivered: vehicle factors closed on
 last support cell, sufficient history/run-length states, count/phase/boundary/MAP
 messages. Default span3 cells, explicit max5; wider/resource failure unavailable,

@@ -1,0 +1,27 @@
+> C:\Python314\python.exe scripts/check_real_pilot_readiness.py evidence\real_pilot_readiness_20261016\manifest.json evidence\real_pilot_readiness_20261016\readiness.json
+{"status": "incomplete", "blocks": 3, "declared_captures": 1, "problems": 34, "reference_bytes_read": 208773, "inference_performed": false}
+
+
+exit_code=0
+> C:\Python314\python.exe -m pytest tests/test_pilot_readiness.py tests/test_phase_observation_bridge.py -q -p no:cacheprovider
+...............................                                          [100%]
+31 passed in 0.28s
+
+
+exit_code=0
+> git diff --check
+
+warning: in the working copy of 'ROADMAP.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/PROJECT_STATUS.md', LF will be replaced by CRLF the next time Git touches it
+
+exit_code=0
+> git rev-parse HEAD
+e537c525e605602a1146b8e98e916fa0feacdf8c
+
+
+exit_code=0
+> git rev-parse main
+a005a2521f62ce3b2c9f9d52f9f0d73913754e01
+
+
+exit_code=0
