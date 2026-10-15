@@ -1,5 +1,14 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 video review intake: five user intervals accepted structurally;
+source SHA256/size/time extent match the prepared243-track sample. User reports
+one visible head, yellow ignored, green/red onsets and additional-phase switch-off.
+Export retains group1/2/3 without explicit event mapping; clarification requested.
+One27.828s overlap is preserved pending confirmation. All share one unverified
+manual video binding; no same-car synchronization certification or lamp accuracy
+claim.16 existing validator tests passed. No inference/default changes. See
+VIDEO_CALIBRATION_INTAKE_20261015.md.2D.1 FAIL and historical metrics unchanged.
+
 2026-10-15 calibration preparation: existing 27.02 video is playable and a visible
 signal section can be magnified for manual review. A single bounded scan of one
 matching hourly JSON produced243 whole raw tracks for10:04–10:07; other ZIP entries
