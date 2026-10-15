@@ -1,5 +1,13 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 operator clarification: group1=additional-section off;
+group2=possible yellow onset (explicitly tentative); group3=main green plus
+additional section on. First group2 start corrected by user to10:04:28.028 in
+derived evidence only, removing the overlap. Original export/intake retained.
+These are onset claims, not continuous lamp states; no yellow duration inferred.
+Video/JSON sync, section-to-movement mapping and independent validation remain
+open. No inference, replay, default or historical metric changes.
+
 2026-10-15 video review intake: five user intervals accepted structurally;
 source SHA256/size/time extent match the prepared243-track sample. User reports
 one visible head, yellow ignored, green/red onsets and additional-phase switch-off.
