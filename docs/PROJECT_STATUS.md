@@ -1,5 +1,19 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 vehicle clock calibration: empirical H/clock registration fitted on9
+video points from van9915665 and recovery truck9915986, sealed before5 trolleybus
+9916124 points were scored. Max image residual7.80px training/23.31px heldout
+within preregistered30/50px allowances. Candidate delta1.288667s relative to
+09:59:55UTC+5; differs from manual binding by0.494s. Frozen-H conditional delta
+set[0.700099,1.643698]s is NOT calibrated joint clock uncertainty. Local scope
+273–393s only; no drift/production mapping or lamp accuracy claim.11 tests passed.
+Initial solve invalid from epoch finite-difference cancellation, preserved with
+exact code/seal; one documented numerical correction and technical repeat before
+heldout inspection. No phase fitting/replay/default changes;2D.1 remains FAIL.
+See VEHICLE_CLOCK_ALIGNMENT_20261015.md. Next: local method-specific event delay
+calibration with explicit timing assumptions and H1 approach mapping; separate
+validation session remains open.
+
 2026-10-15 direct video check:90 source-pixel H1 crops reviewed; yellow/red,
 red+yellow/green and lateral blinking distinguished. Group2 markers correspond
 to different colors; first occurs during red, second during yellow under the saved

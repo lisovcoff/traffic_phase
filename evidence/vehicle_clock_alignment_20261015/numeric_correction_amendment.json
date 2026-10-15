@@ -1,0 +1,12 @@
+{
+  "reason": "confirmed numerical bug: absolute epoch timestamp addition erases default finite-difference perturbation; fitted clock Jacobian column zero and rank8/9",
+  "first_run_status": "INVALID_NUMERICS_not_clock_evidence",
+  "first_run_preserved": "training_model.json plus training_seal.json and original_calibrator_numeric_issue.py",
+  "old_code_sha256": "49af57cf0fc36daebdc9c4526ed71965de4a4942d370b53ae8d7dfaa1c84203e",
+  "authorized_technical_repeat_count": 1,
+  "scope_change": "relative-time arithmetic only; same tracks/observations/bounds/thresholds/H/objective; heldout images and scores remain unread",
+  "not_tuning": true,
+  "required_before_repeat": "large-epoch time derivative and independent synthetic clock recovery tests",
+  "total_real_solve_budget": 2,
+  "original_plan_preserved": true
+}

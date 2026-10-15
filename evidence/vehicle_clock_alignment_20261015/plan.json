@@ -1,0 +1,61 @@
+{
+  "base_sha": "e0e558c73078868159ff6fb745765b4203ee3a0e",
+  "scope": "camera/JSON vehicle alignment calibration only; no phase inference or lamp timing used",
+  "training_tracks": [
+    9915665,
+    9915986
+  ],
+  "validation_track": 9916124,
+  "training_media_times": [
+    [
+      273,
+      275,
+      277,
+      279,
+      281
+    ],
+    [
+      333,
+      335,
+      337,
+      339,
+      341
+    ]
+  ],
+  "heldout_media_times": [
+    385,
+    387,
+    389,
+    391,
+    393
+  ],
+  "sample_times": [
+    273,
+    275,
+    277,
+    279,
+    281,
+    333,
+    335,
+    337,
+    339,
+    341,
+    385,
+    387,
+    389,
+    391,
+    393
+  ],
+  "manual_video_feature": "one consistently defined vehicle image point, with explicit visibility and pixel uncertainty; independent of trajectory coordinates",
+  "source_feature": "raw centroid in supplied coordinate space; units UNKNOWN, empirical image registration only",
+  "clock_model": "JSON timestamp = 2025-02-27T09:59:55+05:00 + media PTS + delta; delta bounded [-5,5]s; filename ignored",
+  "image_model": "one planar homography, empirical approximation; tall vehicle/centroid geometry may violate it",
+  "fit_budget": "one scipy least_squares invocation, max_nfev1000, no restarts or parameter grid; failed fit remains diagnostic",
+  "heldout_policy": "freeze training fit before scoring all five trolleybus points; no refit from validation",
+  "acceptance": "report residuals and identifiability, no calibrated subsecond sync claim from a small image-point fit; reject if outside declared 30px training /50px heldout localization allowance, limit-active or rank deficient",
+  "max_video_frames": 15,
+  "video_byte_budget": 134217728,
+  "video_sampling_budget_s": 90,
+  "no_phase_labels": true,
+  "production_changes": false
+}
