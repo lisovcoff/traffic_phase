@@ -1,5 +1,17 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 method-specific event/video join: one1.351s extraction from243 raw
+tracks sealed548 events before loading signal references. Strict conditional-clock
+window347 events:155 entry/154 crossing proxy/38 kinematic release. Existing
+selector retains only38 releases (38 groups); lossless channels retain155 known
+permission groups,117 absent from selected. Same-track dependence preserved.
+Five N->S release offsets to the one observed H1 green onset range0.35–2.41s;
+two N->E2.75/3.71s. These are associations, not causal reaction-time calibration;
+mapping/independent stop support unresolved and shared clock uncertainty retained.
+54 targeted tests passed. No phase fit/replay/default/threshold changes;2D.1 FAIL.
+See EVENT_SIGNAL_ASSOCIATIONS_20261015.md. Next: H1 mapping plus direct restart
+review for all7 N release tracks, more independent calibration cycles and validation.
+
 2026-10-15 vehicle clock calibration: empirical H/clock registration fitted on9
 video points from van9915665 and recovery truck9915986, sealed before5 trolleybus
 9916124 points were scored. Max image residual7.80px training/23.31px heldout

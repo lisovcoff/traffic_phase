@@ -1,5 +1,12 @@
 # traffic_phase — план до готового продукта
 
+2026-10-15, шаг3: [первое реальное сопоставление событий и H1](docs/EVENT_SIGNAL_ASSOCIATIONS_20261015.md)
+выполнено по sealed extraction, без нового phase fitting. Получены method-specific
+offsets и сохранены154 локальных zone proxies, теряемых текущим selector.
+Следующий пункт: H1 mapping и независимая проверка restart для7 N-потоковых ТС;
+затем delay calibration по нескольким циклам и отдельная validation. Простое
+timestamp union в старый likelihood не продвигать; 2D.1 FAIL/default-off сохранён.
+
 2026-10-15, шаг2: [привязка по3 ТС](docs/VEHICLE_CLOCK_ALIGNMENT_20261015.md)
 поддержана независимым от fit троллейбусом; max residual23.31px при допуске50px.
 Получен локальный clock/image profile, без production использования и без

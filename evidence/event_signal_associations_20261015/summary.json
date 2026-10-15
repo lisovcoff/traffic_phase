@@ -1,0 +1,237 @@
+{
+  "source_tracks": 243,
+  "tracks_with_extracted_events": 238,
+  "same_arm_tracks_without_events": 5,
+  "complete_track_event_counts": {
+    "ENTRY": 238,
+    "CROSSING_PROXY": 238,
+    "RELEASE": 72
+  },
+  "complete_track_selected_counts": {
+    "RELEASE": 72
+  },
+  "strict_clock_window_counts": {
+    "input_events": 548,
+    "clock_scope": {
+      "OUTSIDE_LOCAL_CLOCK_EXTENT": 194,
+      "PARTIAL_CLOCK_CENSORING": 7,
+      "INSIDE_FOR_ALL_CONDITIONAL_CLOCKS": 347
+    },
+    "inside_events_by_type": {
+      "ENTRY": 155,
+      "CROSSING_PROXY": 154,
+      "RELEASE": 38
+    },
+    "inside_selected_events_by_type": {
+      "RELEASE": 38
+    },
+    "inside_known_track_groups": 166,
+    "inside_permission_track_groups": 155,
+    "inside_association_rows": 1388,
+    "supported_causal_delays": 0,
+    "inside_stop_supported_release_events": 0
+  },
+  "strict_selected_track_groups": 38,
+  "strict_known_permission_track_groups": 155,
+  "strict_permission_groups_not_selected": 117,
+  "dropped_crossing_proxies_strict": 154,
+  "unknown_event_to_signal_uncertainty_percent": 100,
+  "physical_state_unknown_event_count_strict": 347,
+  "observed_green_onsets_in_local_clock_window": 1,
+  "north_approach_hypothesis_release_offsets": [
+    {
+      "event_index": 264,
+      "source_track_id": 9915800,
+      "movement": "N->S",
+      "event_type": "RELEASE",
+      "method": "kinematic_restart_proxy",
+      "selected_permission": true,
+      "reference_event": "MAIN_GREEN_AND_LATERAL_GREEN_ON_1",
+      "reference_status": "sampled_appearance_transition",
+      "candidate_signed_offset_s": 0.3543330068340538,
+      "conditional_offset_sets_s": [
+        [
+          -0.03403106347047924,
+          0.9762335950197212
+        ]
+      ],
+      "semantics": "association to specified reference only, not assigned reaction time or causal signal delay",
+      "shared_clock_uncertainty": true,
+      "vehicle_localization_uncertainty_added": false,
+      "causal_delay_eligible": false,
+      "abstention_reason": "HEAD_MAPPING_AND_EVENT_SIGNAL_RELATION_UNVERIFIED",
+      "physical_state": "UNKNOWN",
+      "calibrated_lamp_probability": null
+    },
+    {
+      "event_index": 266,
+      "source_track_id": 9915797,
+      "movement": "N->S",
+      "event_type": "RELEASE",
+      "method": "kinematic_restart_proxy",
+      "selected_permission": true,
+      "reference_event": "MAIN_GREEN_AND_LATERAL_GREEN_ON_1",
+      "reference_status": "sampled_appearance_transition",
+      "candidate_signed_offset_s": 0.8403330068340438,
+      "conditional_offset_sets_s": [
+        [
+          0.45196893652951076,
+          1.4622335950197112
+        ]
+      ],
+      "semantics": "association to specified reference only, not assigned reaction time or causal signal delay",
+      "shared_clock_uncertainty": true,
+      "vehicle_localization_uncertainty_added": false,
+      "causal_delay_eligible": false,
+      "abstention_reason": "HEAD_MAPPING_AND_EVENT_SIGNAL_RELATION_UNVERIFIED",
+      "physical_state": "UNKNOWN",
+      "calibrated_lamp_probability": null
+    },
+    {
+      "event_index": 267,
+      "source_track_id": 9915806,
+      "movement": "N->S",
+      "event_type": "RELEASE",
+      "method": "kinematic_restart_proxy",
+      "selected_permission": true,
+      "reference_event": "MAIN_GREEN_AND_LATERAL_GREEN_ON_1",
+      "reference_status": "sampled_appearance_transition",
+      "candidate_signed_offset_s": 1.0743330068340242,
+      "conditional_offset_sets_s": [
+        [
+          0.6859689365294912,
+          1.6962335950196916
+        ]
+      ],
+      "semantics": "association to specified reference only, not assigned reaction time or causal signal delay",
+      "shared_clock_uncertainty": true,
+      "vehicle_localization_uncertainty_added": false,
+      "causal_delay_eligible": false,
+      "abstention_reason": "HEAD_MAPPING_AND_EVENT_SIGNAL_RELATION_UNVERIFIED",
+      "physical_state": "UNKNOWN",
+      "calibrated_lamp_probability": null
+    },
+    {
+      "event_index": 269,
+      "source_track_id": 9915811,
+      "movement": "N->S",
+      "event_type": "RELEASE",
+      "method": "kinematic_restart_proxy",
+      "selected_permission": true,
+      "reference_event": "MAIN_GREEN_AND_LATERAL_GREEN_ON_1",
+      "reference_status": "sampled_appearance_transition",
+      "candidate_signed_offset_s": 1.9133330068340229,
+      "conditional_offset_sets_s": [
+        [
+          1.5249689365294898,
+          2.5352335950196903
+        ]
+      ],
+      "semantics": "association to specified reference only, not assigned reaction time or causal signal delay",
+      "shared_clock_uncertainty": true,
+      "vehicle_localization_uncertainty_added": false,
+      "causal_delay_eligible": false,
+      "abstention_reason": "HEAD_MAPPING_AND_EVENT_SIGNAL_RELATION_UNVERIFIED",
+      "physical_state": "UNKNOWN",
+      "calibrated_lamp_probability": null
+    },
+    {
+      "event_index": 270,
+      "source_track_id": 9915815,
+      "movement": "N->S",
+      "event_type": "RELEASE",
+      "method": "kinematic_restart_proxy",
+      "selected_permission": true,
+      "reference_event": "MAIN_GREEN_AND_LATERAL_GREEN_ON_1",
+      "reference_status": "sampled_appearance_transition",
+      "candidate_signed_offset_s": 2.410333006834037,
+      "conditional_offset_sets_s": [
+        [
+          2.021968936529504,
+          3.0322335950197044
+        ]
+      ],
+      "semantics": "association to specified reference only, not assigned reaction time or causal signal delay",
+      "shared_clock_uncertainty": true,
+      "vehicle_localization_uncertainty_added": false,
+      "causal_delay_eligible": false,
+      "abstention_reason": "HEAD_MAPPING_AND_EVENT_SIGNAL_RELATION_UNVERIFIED",
+      "physical_state": "UNKNOWN",
+      "calibrated_lamp_probability": null
+    },
+    {
+      "event_index": 271,
+      "source_track_id": 9915764,
+      "movement": "N->E",
+      "event_type": "RELEASE",
+      "method": "kinematic_restart_proxy",
+      "selected_permission": true,
+      "reference_event": "MAIN_GREEN_AND_LATERAL_GREEN_ON_1",
+      "reference_status": "sampled_appearance_transition",
+      "candidate_signed_offset_s": 2.7533330068340547,
+      "conditional_offset_sets_s": [
+        [
+          2.3649689365295217,
+          3.375233595019722
+        ]
+      ],
+      "semantics": "association to specified reference only, not assigned reaction time or causal signal delay",
+      "shared_clock_uncertainty": true,
+      "vehicle_localization_uncertainty_added": false,
+      "causal_delay_eligible": false,
+      "abstention_reason": "HEAD_MAPPING_AND_EVENT_SIGNAL_RELATION_UNVERIFIED",
+      "physical_state": "UNKNOWN",
+      "calibrated_lamp_probability": null
+    },
+    {
+      "event_index": 275,
+      "source_track_id": 9915830,
+      "movement": "N->E",
+      "event_type": "RELEASE",
+      "method": "kinematic_restart_proxy",
+      "selected_permission": true,
+      "reference_event": "MAIN_GREEN_AND_LATERAL_GREEN_ON_1",
+      "reference_status": "sampled_appearance_transition",
+      "candidate_signed_offset_s": 3.705333006834053,
+      "conditional_offset_sets_s": [
+        [
+          3.31696893652952,
+          4.32723359501972
+        ]
+      ],
+      "semantics": "association to specified reference only, not assigned reaction time or causal signal delay",
+      "shared_clock_uncertainty": true,
+      "vehicle_localization_uncertainty_added": false,
+      "causal_delay_eligible": false,
+      "abstention_reason": "HEAD_MAPPING_AND_EVENT_SIGNAL_RELATION_UNVERIFIED",
+      "physical_state": "UNKNOWN",
+      "calibrated_lamp_probability": null
+    }
+  ],
+  "head_movement_mapping": "AWAITING_OPERATOR_CONFIRMATION; no inference from motion-only",
+  "raw_speed_values": {
+    "detections": 44268,
+    "finite_speed_values": 42097,
+    "exact_zero_values": 0,
+    "numeric_range": [
+      0.00038486512684601695,
+      84.99496014984649
+    ],
+    "units": "UNKNOWN",
+    "interpretation": "absence of exact-zero support does not mean vehicles never stopped"
+  },
+  "extractor_config": {
+    "stop_speed_mps": 0.8,
+    "stop_min_duration_s": 3.0,
+    "release_speed_mps": 2.0,
+    "release_min_duration_s": 1.0,
+    "max_detection_gap_s": 2.0,
+    "min_detections": 2,
+    "smoothing_window": 3
+  },
+  "extraction_runtime_s": 1.350996799999848,
+  "reconstruction_coverage": "NOT_EVALUATED_no_phase_reconstruction",
+  "calibrated_causal_delay_model": "UNAVAILABLE",
+  "producer_core_unchanged": true,
+  "thresholds_changed": false
+}

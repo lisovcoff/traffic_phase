@@ -1,0 +1,15 @@
+BASE 039c0bd06e1e9ca8a17e021c036263d7d0086f58
+BRANCH calibration/event-signal-associations-20261015
+
+Extraction once through accepted load_event_streams(source,_records=tracks); no reference/annotation argument. vehicle_events.json and extraction_seal.json saved before loading video evidence. Runtime1.3509968s.
+Current reproducible raw-only wrapper, use fresh output only; do not rerun for this task:
+python -m scripts.seal_vehicle_events --source evidence/video_calibration_pilot_20261015/trajectory_sample/calibration_tracks.json --plan evidence/event_signal_associations_20261015/plan.json --out <new-extraction-dir>
+
+Actual join (no extraction/fitting):
+python -m scripts.event_signal_associations --events evidence/event_signal_associations_20261015/vehicle_events.json --seal evidence/event_signal_associations_20261015/extraction_seal.json --profile evidence/vehicle_clock_alignment_20261015/alignment_profile.json --references evidence/vehicle_clock_alignment_20261015/aligned_signal_evidence.json --out evidence/event_signal_associations_20261015/analysis
+
+Targeted tests:
+python -m pytest tests/test_event_signal_associations.py tests/test_local_evidence_channels.py tests/test_vehicle_temporal_evidence.py -q -p no:cacheprovider
+Initial integration52passed; final extraction-barrier tests added:54 passed in2.35s.
+
+No real phase fitting, benchmark, decoding, video sampling, clock refit or parameter search. No archive read. Existing producer code/config/defaults unchanged.
