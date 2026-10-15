@@ -1,5 +1,21 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 new-block validation completed with frozen localizer/model: first4
+chronological N RELEASE tracks in each predeclared500–560/1200–1260s window;
+all243 previously reviewed tracks excluded, one272.97MB entry scan. Event outputs
+sealed before new video review. Mixed outcomes retained: point-in-sampled-bracket
+A2/4→1/4 (regression), B0/4→2/4; nominal mean distances0.190→0.155s and0.588→0.205s.
+A clock check UNKNOWN from source gaps, B compatible with frozen-H50px assumptions;
+neither is calibrated lamp accuracy. Direct video shows movement before H1 green appearance
+for one car in each block; universal positive event→signal delay invalid as an
+assumption. Opt-in event-contract adapter integrated with existing local evidence
+index: reference/new points not double-counted, UNKNOWN no fallback, method/track
+dependence preserved, implicit legacy likelihood union still unavailable.76 tests
+passed. See RESTART_MULTICYCLE_VALIDATION_20261015.md. Default/model predictions and
+2D.1 FAIL unchanged; no phase/clock fit. Next: bounded observation-contract integration
+for phases with nuisance/permissive/unknown demand, under explicit experiment scope,
+not more calibration of these same cars. No paused decoder/likelihood run resumed.
+
 2026-10-15 product-direction checkpoint: critical path consolidated at top of
 ROADMAP.md; video calibration is a prerequisite, not the product. A bounded opt-in
 restart localizer now uses unsmoothed observed interval transitions with the same

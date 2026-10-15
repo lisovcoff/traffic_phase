@@ -1,0 +1,105 @@
+{
+  "base_sha": "f85690183080815cb3ee3278c2ff73406f95ed15",
+  "scope": "frozen event localizer validation on new temporal blocks; no production promotion from a small sample",
+  "windows": [
+    {
+      "name": "A",
+      "role": "new_cycle_check",
+      "media_range_s": [
+        500,
+        560
+      ],
+      "json_range_ms": [
+        1740632896254,
+        1740632956254
+      ],
+      "coarse_times_s": [
+        500,
+        505,
+        510,
+        515,
+        520,
+        525,
+        530,
+        535,
+        540,
+        545,
+        550,
+        555,
+        560
+      ]
+    },
+    {
+      "name": "B",
+      "role": "withheld_temporal_validation",
+      "media_range_s": [
+        1200,
+        1260
+      ],
+      "json_range_ms": [
+        1740633596254,
+        1740633656254
+      ],
+      "coarse_times_s": [
+        1200,
+        1205,
+        1210,
+        1215,
+        1220,
+        1225,
+        1230,
+        1235,
+        1240,
+        1245,
+        1250,
+        1255,
+        1260
+      ]
+    }
+  ],
+  "archive": {
+    "path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\\u0420\u203a\u0420\u00b5\u0420\u0405\u0420\u0451\u0420\u0405\u0420\u00b0-\u0420\u040e\u0420\u0406\u0420\u00b5\u0421\u0402\u0420\u0491\u0420\u00bb\u0420\u0455\u0420\u0406\u0421\u0403\u0420\u0454\u0420\u0451\u0420\u2116 27.02.25.zip",
+    "entry": "17_2025_2_27_10.json",
+    "entry_bytes": 272972956,
+    "crc32": "6f4afe03",
+    "complete_entry_sha256": "68c524df5e0ecc7d3f79267b10040c79ec0050d029e3e94fb14b12f2e6807a12"
+  },
+  "exclusion_registry_sha256": "db5fd5b7ced15ab1d021a85017ec2e2e7d3d26d34dd71ed84962635ae655954a",
+  "cohort_policy": "up to first4 existing selected N-origin RELEASEs per block, chronological timestamp then ID; all eligible others reported; no choice by video outcomes or method; never replace occluded tracks",
+  "frozen_model_sha256": "3d16051aa68b2621db0f988dea6ac589419c8eeec83bca00d1a49ba6f4b1c4d2",
+  "frozen_code_canonical_lf_sha256": {
+    "app/experimental/restart_localization.py": "d6212a57a2882fc566e1129a70692cfef72afa39534cfb5b687fbd01b69f7a80",
+    "app/core/v9/events.py": "d2a33182851a8bc336d3da981cf8a857d482c3c848fc6a13e9de817648ad2a9d",
+    "app/core/v9/vehicle_evidence.py": "28022ecb3045ae51a92c1bd0ab42916866307522995946cc3f9ea83fec6242c3",
+    "app/core/temporal_evidence.py": "fd050a0022aca14ec123fcaf155864641b7ef9076478a3506d60499afc9d3f92",
+    "evidence/local_vehicle_registration_20261015/local_model.json": "eadb23c972764b1074e69060e2e678d4780849477c1af93b453a230f12a02a60"
+  },
+  "limits": {
+    "entry_scans": 1,
+    "entry_bytes": 314572800,
+    "scan_seconds": 60,
+    "raw_output_bytes": 33554432,
+    "raw_tracks": 400,
+    "cohort_per_window": 4,
+    "coarse_frames": 26,
+    "refinement_frames_per_window": 100,
+    "sampling_seconds_per_call": 90,
+    "media_bytes_per_call": 134217728,
+    "phase_fits": 0,
+    "camera_clock_fits": 0,
+    "parameter_search": false
+  },
+  "roi_intrinsic_px": [
+    1000,
+    850,
+    1500,
+    670
+  ],
+  "refinement_policy": "union of 0.25s grid from floor(old_seed_media)-2 through ceil(old_seed_media)+3 for every cohort track; plus ceil(old_seed_media)+4 for every track and +6,+8 for first track; cap100 per block, no favorable-case substitutions",
+  "clock_check": "frozen H/delta; native video bbox center/75percent height as before;50px declared allowance; compute conditional sets with original declared delta domain[-5,5], not earlier training-track availability bound; no refit; missing/clipped anchors unavailable",
+  "review_policy": "seal ALL event/localizer outputs before loading video; direct native-pixel motion brackets with sustained support; source-track identity provisional unless separately supported; head GREEN/YELLOW/RED appearance brackets separate from vehicle onset; window edges are censoring only",
+  "metrics": "all selected counts and UNKNOWN; old/new distances to video brackets and conditional-clock compatibility, per block; point-in-bracket descriptive only; method-specific vehicle-after-H1 intervals without fitting a universal delay prior",
+  "integration_gate": "no default promotion: small same-video sample cannot certify lamp timing; retain every incompatibility/ambiguous event and identify concrete blocker before downstream integration",
+  "no_tuning_after_validation": true,
+  "holdout_scope": "new labels and tracks withheld from previous calibration, disjoint within same video/day, not an independent intersection/day"
+}

@@ -1,0 +1,20 @@
+C:\Python314\python.exe : Traceback (most recent call last):
+строка:2 знак:1
++ C:\Python314\python.exe scripts/prepare_restart_temporal_validation.p ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\scripts\prepare_restart_temporal_validation.py", line 92, i
+n <module>
+    main()
+    ~~~~^^
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\scripts\prepare_restart_temporal_validation.py", line 39, i
+n main
+    with ZipFile(plan['archive']['path']) as archive:
+         ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\zipfile\__init__.py", line 1453, in __init__
+    self.fp = io.open(file, filemode)
+              ~~~~~~~^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'D:\\Code\\PythonProjects\\traffic_phase\\data\\Ленина-Свердлов
+ский 27.02.25.zip'

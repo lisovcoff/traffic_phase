@@ -1,0 +1,1346 @@
+{
+  "queries": {
+    "A": {
+      "schema": "experimental-local-evidence-v1",
+      "status": "available",
+      "range_ms": [
+        1740632896254,
+        1740632956254
+      ],
+      "source_namespace": "17_2025_2_27_10:sealed-new-block-cohort",
+      "events": [
+        {
+          "event_id": "6752154771740a0263786052f9cfb467b20926717c6123f3e4adefe447d305ae",
+          "vehicle_group_id": "4fbf245874036dd7e4860bac22aadaad8258b0ef3bc413642d4e36ce666aacc0",
+          "source_indices": [
+            0
+          ],
+          "event": {
+            "calibrated_lamp_probability": null,
+            "confidence": 0.65,
+            "event_type": "RELEASE",
+            "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
+            "evidence_quality": "MEDIUM",
+            "movement": "N->E",
+            "provenance": {
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "confirmation_interval_ms": [
+                1740632913876,
+                1740632914837
+              ],
+              "confirmation_raw_intervals": 8,
+              "conflicting_timestamps": 0,
+              "duplicate_detections": 0,
+              "image_speed_separation": 5.102712901357303,
+              "invalid_detections": 0,
+              "legacy_timestamp_ms": 1740632913754.0,
+              "max_detection_gap_ms": 1018,
+              "observation_interval_ms": [
+                1740632913876,
+                1740632913996
+              ],
+              "observation_interval_semantics": "threshold_displacement_support_NOT_guaranteed_world_onset_interval",
+              "offline_future_confirmation_used": true,
+              "preceding_low_interval_ms": [
+                1740632913754,
+                1740632913876
+              ],
+              "proxy": true,
+              "raw_high_fraction": 1.0,
+              "relative_image_speed_threshold": 0.004127952009266359,
+              "relative_low_speed_duration_s": 51.3989999294281,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "schema_version": 1,
+              "selection_unchanged": true,
+              "signal_state_observed": false,
+              "source": "records",
+              "symmetric_smoothing_used_for_timestamp": false,
+              "threshold_origin": "unchanged_legacy_relative_image_speed_clustering",
+              "timestamp_ms": 1740632913996,
+              "timing_localizer_version": 1,
+              "track_fingerprint": "28c528c704747f6e88e111ec6876d3f0d63add91b53d98702573535ef8a1ae36",
+              "track_range_ms": [
+                1740632856717,
+                1740632931144
+              ],
+              "uncertainty_reason": "raw_threshold_proxy_and_legacy_heuristic_radius_not_calibrated",
+              "verified_stop_line": false
+            },
+            "source_track_id": 9916410,
+            "temporal_uncertainty_ms": 1300,
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "timestamp_ms": 1740632913996.0,
+            "uncertainty": {
+              "event_to_signal_switch": {
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
+                "status": "UNKNOWN",
+                "uncertainty_ms": null
+              },
+              "vehicle_event": {
+                "calibrated": false,
+                "heuristic_localization_radius_ms": 1300,
+                "sampling_interval_ms": [
+                  1740632913876,
+                  1740632913996
+                ],
+                "sampling_interval_width_ms": 120,
+                "statistical_error_bound": false
+              }
+            }
+          },
+          "role": "restart_proxy",
+          "eligible_vehicle_evidence": true,
+          "exclusion_reason": null,
+          "supplied_exposure_contains_timestamp": null,
+          "signal_relation": "UNKNOWN",
+          "calibrated_lamp_probability": null
+        },
+        {
+          "event_id": "2399d5d5d1e427233af4bee88e8a949f01c8919cdb391082862fa75a3db8b95d",
+          "vehicle_group_id": "3d2238ab0b7df730df07600998432a827d0ac43b801c5b702d59c1308577ad1c",
+          "source_indices": [
+            1
+          ],
+          "event": {
+            "calibrated_lamp_probability": null,
+            "confidence": 0.65,
+            "event_type": "RELEASE",
+            "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
+            "evidence_quality": "MEDIUM",
+            "movement": "N->E",
+            "provenance": {
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "confirmation_interval_ms": [
+                1740632916282,
+                1740632917241
+              ],
+              "confirmation_raw_intervals": 8,
+              "conflicting_timestamps": 0,
+              "duplicate_detections": 0,
+              "image_speed_separation": 5.0706132747931925,
+              "invalid_detections": 0,
+              "legacy_timestamp_ms": 1740632915672.0,
+              "max_detection_gap_ms": 1033,
+              "observation_interval_ms": [
+                1740632916282,
+                1740632916397
+              ],
+              "observation_interval_semantics": "threshold_displacement_support_NOT_guaranteed_world_onset_interval",
+              "offline_future_confirmation_used": true,
+              "preceding_low_interval_ms": [
+                1740632916159,
+                1740632916282
+              ],
+              "proxy": true,
+              "raw_high_fraction": 1.0,
+              "relative_image_speed_threshold": 0.005751877952887714,
+              "relative_low_speed_duration_s": 62.651000022888184,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "schema_version": 1,
+              "selection_unchanged": true,
+              "signal_state_observed": false,
+              "source": "records",
+              "symmetric_smoothing_used_for_timestamp": false,
+              "threshold_origin": "unchanged_legacy_relative_image_speed_clustering",
+              "timestamp_ms": 1740632916397,
+              "timing_localizer_version": 1,
+              "track_fingerprint": "303c6bb1d85f9e8b282b4207b7c2e1a2a006021c837a8d6f4075a90e87023a15",
+              "track_range_ms": [
+                1740632848217,
+                1740632928036
+              ],
+              "uncertainty_reason": "raw_threshold_proxy_and_legacy_heuristic_radius_not_calibrated",
+              "verified_stop_line": false
+            },
+            "source_track_id": 9916373,
+            "temporal_uncertainty_ms": 1300,
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "timestamp_ms": 1740632916397.0,
+            "uncertainty": {
+              "event_to_signal_switch": {
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
+                "status": "UNKNOWN",
+                "uncertainty_ms": null
+              },
+              "vehicle_event": {
+                "calibrated": false,
+                "heuristic_localization_radius_ms": 1300,
+                "sampling_interval_ms": [
+                  1740632916282,
+                  1740632916397
+                ],
+                "sampling_interval_width_ms": 115,
+                "statistical_error_bound": false
+              }
+            }
+          },
+          "role": "restart_proxy",
+          "eligible_vehicle_evidence": true,
+          "exclusion_reason": null,
+          "supplied_exposure_contains_timestamp": null,
+          "signal_relation": "UNKNOWN",
+          "calibrated_lamp_probability": null
+        },
+        {
+          "event_id": "854f61599c787b26b6bc795f9ffb2de37ff690a98b66da3cbddedd925fcbc379",
+          "vehicle_group_id": "94a0c63b97dd06ec41a4c8e5cc091f61c260443032e0bb021d18fed2eb8352ff",
+          "source_indices": [
+            2
+          ],
+          "event": {
+            "calibrated_lamp_probability": null,
+            "confidence": 0.65,
+            "event_type": "RELEASE",
+            "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
+            "evidence_quality": "MEDIUM",
+            "movement": "N->S",
+            "provenance": {
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "confirmation_interval_ms": [
+                1740632916397,
+                1740632917361
+              ],
+              "confirmation_raw_intervals": 8,
+              "conflicting_timestamps": 0,
+              "duplicate_detections": 0,
+              "image_speed_separation": 5.629920202289656,
+              "invalid_detections": 0,
+              "legacy_timestamp_ms": 1740632915792.0,
+              "max_detection_gap_ms": 1012,
+              "observation_interval_ms": [
+                1740632916397,
+                1740632916514
+              ],
+              "observation_interval_semantics": "threshold_displacement_support_NOT_guaranteed_world_onset_interval",
+              "offline_future_confirmation_used": true,
+              "preceding_low_interval_ms": [
+                1740632916282,
+                1740632916397
+              ],
+              "proxy": true,
+              "raw_high_fraction": 1.0,
+              "relative_image_speed_threshold": 0.005140821480521489,
+              "relative_low_speed_duration_s": 44.924999952316284,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "schema_version": 1,
+              "selection_unchanged": true,
+              "signal_state_observed": false,
+              "source": "records",
+              "symmetric_smoothing_used_for_timestamp": false,
+              "threshold_origin": "unchanged_legacy_relative_image_speed_clustering",
+              "timestamp_ms": 1740632916514,
+              "timing_localizer_version": 1,
+              "track_fingerprint": "eff3778d7820762fa30f808a3deee67794e5026ee006a96d1cb4a26082763ab1",
+              "track_range_ms": [
+                1740632868241,
+                1740632926862
+              ],
+              "uncertainty_reason": "raw_threshold_proxy_and_legacy_heuristic_radius_not_calibrated",
+              "verified_stop_line": false
+            },
+            "source_track_id": 9916450,
+            "temporal_uncertainty_ms": 1300,
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "timestamp_ms": 1740632916514.0,
+            "uncertainty": {
+              "event_to_signal_switch": {
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
+                "status": "UNKNOWN",
+                "uncertainty_ms": null
+              },
+              "vehicle_event": {
+                "calibrated": false,
+                "heuristic_localization_radius_ms": 1300,
+                "sampling_interval_ms": [
+                  1740632916397,
+                  1740632916514
+                ],
+                "sampling_interval_width_ms": 117,
+                "statistical_error_bound": false
+              }
+            }
+          },
+          "role": "restart_proxy",
+          "eligible_vehicle_evidence": true,
+          "exclusion_reason": null,
+          "supplied_exposure_contains_timestamp": null,
+          "signal_relation": "UNKNOWN",
+          "calibrated_lamp_probability": null
+        },
+        {
+          "event_id": "d141c26db3183b4aabf577e3a5895e28c7137ef75b5e9df30e980de741b711cf",
+          "vehicle_group_id": "ba1412a32d67b1235447732fc163b6dc7b1bae4d29ebcf1199d0fd295b511aef",
+          "source_indices": [
+            3
+          ],
+          "event": {
+            "calibrated_lamp_probability": null,
+            "confidence": 0.65,
+            "event_type": "RELEASE",
+            "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
+            "evidence_quality": "MEDIUM",
+            "movement": "N->S",
+            "provenance": {
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "confirmation_interval_ms": [
+                1740632917128,
+                1740632918086
+              ],
+              "confirmation_raw_intervals": 8,
+              "conflicting_timestamps": 0,
+              "duplicate_detections": 0,
+              "image_speed_separation": 5.576262912989607,
+              "invalid_detections": 0,
+              "legacy_timestamp_ms": 1740632916514.0,
+              "max_detection_gap_ms": 1012,
+              "observation_interval_ms": [
+                1740632917128,
+                1740632917241
+              ],
+              "observation_interval_semantics": "threshold_displacement_support_NOT_guaranteed_world_onset_interval",
+              "offline_future_confirmation_used": true,
+              "preceding_low_interval_ms": [
+                1740632917033,
+                1740632917128
+              ],
+              "proxy": true,
+              "raw_high_fraction": 1.0,
+              "relative_image_speed_threshold": 0.0044416874155805645,
+              "relative_low_speed_duration_s": 49.94099998474121,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "schema_version": 1,
+              "selection_unchanged": true,
+              "signal_state_observed": false,
+              "source": "records",
+              "symmetric_smoothing_used_for_timestamp": false,
+              "threshold_origin": "unchanged_legacy_relative_image_speed_clustering",
+              "timestamp_ms": 1740632917241,
+              "timing_localizer_version": 1,
+              "track_fingerprint": "21679ba3b6c53ae74dc91a9e3b8482b560b2d1fcb7d53eb3cc08b6bc4eed5731",
+              "track_range_ms": [
+                1740632863181,
+                1740632930668
+              ],
+              "uncertainty_reason": "raw_threshold_proxy_and_legacy_heuristic_radius_not_calibrated",
+              "verified_stop_line": false
+            },
+            "source_track_id": 9916436,
+            "temporal_uncertainty_ms": 1300,
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "timestamp_ms": 1740632917241.0,
+            "uncertainty": {
+              "event_to_signal_switch": {
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
+                "status": "UNKNOWN",
+                "uncertainty_ms": null
+              },
+              "vehicle_event": {
+                "calibrated": false,
+                "heuristic_localization_radius_ms": 1300,
+                "sampling_interval_ms": [
+                  1740632917128,
+                  1740632917241
+                ],
+                "sampling_interval_width_ms": 113,
+                "statistical_error_bound": false
+              }
+            }
+          },
+          "role": "restart_proxy",
+          "eligible_vehicle_evidence": true,
+          "exclusion_reason": null,
+          "supplied_exposure_contains_timestamp": null,
+          "signal_relation": "UNKNOWN",
+          "calibrated_lamp_probability": null
+        }
+      ],
+      "channels": [
+        {
+          "movement": "N->E",
+          "event_type": "RELEASE",
+          "method": "kinematic_restart_unsmoothed_interval_proxy",
+          "event_ids": [
+            "6752154771740a0263786052f9cfb467b20926717c6123f3e4adefe447d305ae",
+            "2399d5d5d1e427233af4bee88e8a949f01c8919cdb391082862fa75a3db8b95d"
+          ],
+          "event_count": 2
+        },
+        {
+          "movement": "N->S",
+          "event_type": "RELEASE",
+          "method": "kinematic_restart_unsmoothed_interval_proxy",
+          "event_ids": [
+            "854f61599c787b26b6bc795f9ffb2de37ff690a98b66da3cbddedd925fcbc379",
+            "d141c26db3183b4aabf577e3a5895e28c7137ef75b5e9df30e980de741b711cf"
+          ],
+          "event_count": 2
+        }
+      ],
+      "correlated_vehicle_groups": {
+        "4fbf245874036dd7e4860bac22aadaad8258b0ef3bc413642d4e36ce666aacc0": [
+          "6752154771740a0263786052f9cfb467b20926717c6123f3e4adefe447d305ae"
+        ],
+        "3d2238ab0b7df730df07600998432a827d0ac43b801c5b702d59c1308577ad1c": [
+          "2399d5d5d1e427233af4bee88e8a949f01c8919cdb391082862fa75a3db8b95d"
+        ],
+        "94a0c63b97dd06ec41a4c8e5cc091f61c260443032e0bb021d18fed2eb8352ff": [
+          "854f61599c787b26b6bc795f9ffb2de37ff690a98b66da3cbddedd925fcbc379"
+        ],
+        "ba1412a32d67b1235447732fc163b6dc7b1bae4d29ebcf1199d0fd295b511aef": [
+          "d141c26db3183b4aabf577e3a5895e28c7137ef75b5e9df30e980de741b711cf"
+        ]
+      },
+      "counts": {
+        "events": 4,
+        "eligible_vehicle_events": 4,
+        "known_vehicle_groups_with_eligible_evidence": 4,
+        "eligible_events_without_track_identity": 0,
+        "events_by_type": {
+          "RELEASE": 4
+        }
+      },
+      "observation_support": {
+        "status": "UNKNOWN",
+        "supplied_windows": [],
+        "supplied_duration_s": null,
+        "source": "explicit caller input, never inferred from event absence",
+        "event_ids_outside_supplied_windows": [],
+        "demand": "UNKNOWN"
+      },
+      "abstention_reason": null,
+      "logical_phase": {
+        "estimated_state": "UNKNOWN",
+        "reason": "NO_SEQUENCE_INFERENCE_IN_THIS_COMPONENT"
+      },
+      "physical_section": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "experimental-local-evidence-v1",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "legacy_likelihood_compatibility": {
+        "status": "unavailable",
+        "reason": "METHOD_DEPENDENCE_AND_EVENT_SIGNAL_DELAY_UNMODELLED"
+      },
+      "assumptions": [
+        "counts are vehicle evidence, not independent lamp observations",
+        "track fingerprints identify correlation groups, not calibrated independence",
+        "no-event bins cannot identify no-demand, blockage or RED",
+        "event-to-signal delay and permissive/protected semantics UNKNOWN"
+      ],
+      "restart_localization_adapter": {
+        "mode": "explicit_localized_vehicle_activity",
+        "replacement_count_total": 8,
+        "replacement_count_in_window": 4,
+        "original_events_in_window": [
+          {
+            "timestamp_ms": 1740632913754.0,
+            "event_type": "RELEASE",
+            "movement": "N->E",
+            "source_track_id": 9916410,
+            "evidence_method": "kinematic_restart_proxy",
+            "confidence": 0.65,
+            "evidence_quality": "MEDIUM",
+            "temporal_uncertainty_ms": 1300,
+            "provenance": {
+              "schema_version": 1,
+              "source": "records",
+              "track_fingerprint": "28c528c704747f6e88e111ec6876d3f0d63add91b53d98702573535ef8a1ae36",
+              "verified_stop_line": false,
+              "signal_state_observed": false,
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "track_range_ms": [
+                1740632856717,
+                1740632931144
+              ],
+              "max_detection_gap_ms": 1018,
+              "invalid_detections": 0,
+              "duplicate_detections": 0,
+              "conflicting_timestamps": 0,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "proxy": true,
+              "observation_interval_ms": [
+                1740632913635,
+                1740632913754
+              ],
+              "relative_low_speed_duration_s": 51.3989999294281,
+              "image_speed_separation": 5.102712901357303,
+              "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+            },
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "calibrated_lamp_probability": null,
+            "uncertainty": {
+              "vehicle_event": {
+                "sampling_interval_ms": [
+                  1740632913635,
+                  1740632913754
+                ],
+                "sampling_interval_width_ms": 119,
+                "heuristic_localization_radius_ms": 1300,
+                "calibrated": false,
+                "statistical_error_bound": false
+              },
+              "event_to_signal_switch": {
+                "status": "UNKNOWN",
+                "uncertainty_ms": null,
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time"
+              }
+            }
+          },
+          {
+            "timestamp_ms": 1740632915672.0,
+            "event_type": "RELEASE",
+            "movement": "N->E",
+            "source_track_id": 9916373,
+            "evidence_method": "kinematic_restart_proxy",
+            "confidence": 0.65,
+            "evidence_quality": "MEDIUM",
+            "temporal_uncertainty_ms": 1300,
+            "provenance": {
+              "schema_version": 1,
+              "source": "records",
+              "track_fingerprint": "303c6bb1d85f9e8b282b4207b7c2e1a2a006021c837a8d6f4075a90e87023a15",
+              "verified_stop_line": false,
+              "signal_state_observed": false,
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "track_range_ms": [
+                1740632848217,
+                1740632928036
+              ],
+              "max_detection_gap_ms": 1033,
+              "invalid_detections": 0,
+              "duplicate_detections": 0,
+              "conflicting_timestamps": 0,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "proxy": true,
+              "observation_interval_ms": [
+                1740632915553,
+                1740632915672
+              ],
+              "relative_low_speed_duration_s": 62.651000022888184,
+              "image_speed_separation": 5.0706132747931925,
+              "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+            },
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "calibrated_lamp_probability": null,
+            "uncertainty": {
+              "vehicle_event": {
+                "sampling_interval_ms": [
+                  1740632915553,
+                  1740632915672
+                ],
+                "sampling_interval_width_ms": 119,
+                "heuristic_localization_radius_ms": 1300,
+                "calibrated": false,
+                "statistical_error_bound": false
+              },
+              "event_to_signal_switch": {
+                "status": "UNKNOWN",
+                "uncertainty_ms": null,
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time"
+              }
+            }
+          },
+          {
+            "timestamp_ms": 1740632915792.0,
+            "event_type": "RELEASE",
+            "movement": "N->S",
+            "source_track_id": 9916450,
+            "evidence_method": "kinematic_restart_proxy",
+            "confidence": 0.65,
+            "evidence_quality": "MEDIUM",
+            "temporal_uncertainty_ms": 1300,
+            "provenance": {
+              "schema_version": 1,
+              "source": "records",
+              "track_fingerprint": "eff3778d7820762fa30f808a3deee67794e5026ee006a96d1cb4a26082763ab1",
+              "verified_stop_line": false,
+              "signal_state_observed": false,
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "track_range_ms": [
+                1740632868241,
+                1740632926862
+              ],
+              "max_detection_gap_ms": 1012,
+              "invalid_detections": 0,
+              "duplicate_detections": 0,
+              "conflicting_timestamps": 0,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "proxy": true,
+              "observation_interval_ms": [
+                1740632915672,
+                1740632915792
+              ],
+              "relative_low_speed_duration_s": 44.924999952316284,
+              "image_speed_separation": 5.629920202289656,
+              "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+            },
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "calibrated_lamp_probability": null,
+            "uncertainty": {
+              "vehicle_event": {
+                "sampling_interval_ms": [
+                  1740632915672,
+                  1740632915792
+                ],
+                "sampling_interval_width_ms": 120,
+                "heuristic_localization_radius_ms": 1300,
+                "calibrated": false,
+                "statistical_error_bound": false
+              },
+              "event_to_signal_switch": {
+                "status": "UNKNOWN",
+                "uncertainty_ms": null,
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time"
+              }
+            }
+          },
+          {
+            "timestamp_ms": 1740632916514.0,
+            "event_type": "RELEASE",
+            "movement": "N->S",
+            "source_track_id": 9916436,
+            "evidence_method": "kinematic_restart_proxy",
+            "confidence": 0.65,
+            "evidence_quality": "MEDIUM",
+            "temporal_uncertainty_ms": 1300,
+            "provenance": {
+              "schema_version": 1,
+              "source": "records",
+              "track_fingerprint": "21679ba3b6c53ae74dc91a9e3b8482b560b2d1fcb7d53eb3cc08b6bc4eed5731",
+              "verified_stop_line": false,
+              "signal_state_observed": false,
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "track_range_ms": [
+                1740632863181,
+                1740632930668
+              ],
+              "max_detection_gap_ms": 1012,
+              "invalid_detections": 0,
+              "duplicate_detections": 0,
+              "conflicting_timestamps": 0,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "proxy": true,
+              "observation_interval_ms": [
+                1740632916397,
+                1740632916514
+              ],
+              "relative_low_speed_duration_s": 49.94099998474121,
+              "image_speed_separation": 5.576262912989607,
+              "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+            },
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "calibrated_lamp_probability": null,
+            "uncertainty": {
+              "vehicle_event": {
+                "sampling_interval_ms": [
+                  1740632916397,
+                  1740632916514
+                ],
+                "sampling_interval_width_ms": 117,
+                "heuristic_localization_radius_ms": 1300,
+                "calibrated": false,
+                "statistical_error_bound": false
+              },
+              "event_to_signal_switch": {
+                "status": "UNKNOWN",
+                "uncertainty_ms": null,
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time"
+              }
+            }
+          }
+        ],
+        "abstentions": [],
+        "fallback_to_legacy_timestamp": false,
+        "production_default_changed": false,
+        "semantics": "vehicle activity proxies; no conversion to lamp switch or permission certainty"
+      }
+    },
+    "B": {
+      "schema": "experimental-local-evidence-v1",
+      "status": "available",
+      "range_ms": [
+        1740633596254,
+        1740633656254
+      ],
+      "source_namespace": "17_2025_2_27_10:sealed-new-block-cohort",
+      "events": [
+        {
+          "event_id": "4c14c153d9bae69e5c5716ac3c6737527cf70f72c6d5655b6b7a7a4d6bd9f8a0",
+          "vehicle_group_id": "d55b05992d90c4f55b484644f004115c2e7f5f14b40325a7745bc72a849d1ab6",
+          "source_indices": [
+            4
+          ],
+          "event": {
+            "calibrated_lamp_probability": null,
+            "confidence": 0.65,
+            "event_type": "RELEASE",
+            "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
+            "evidence_quality": "MEDIUM",
+            "movement": "N->S",
+            "provenance": {
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "confirmation_interval_ms": [
+                1740633614108,
+                1740633615069
+              ],
+              "confirmation_raw_intervals": 8,
+              "conflicting_timestamps": 0,
+              "duplicate_detections": 0,
+              "image_speed_separation": 4.661870001336887,
+              "invalid_detections": 0,
+              "legacy_timestamp_ms": 1740633613628.0,
+              "max_detection_gap_ms": 171,
+              "observation_interval_ms": [
+                1740633614108,
+                1740633614230
+              ],
+              "observation_interval_semantics": "threshold_displacement_support_NOT_guaranteed_world_onset_interval",
+              "offline_future_confirmation_used": true,
+              "preceding_low_interval_ms": [
+                1740633614004,
+                1740633614108
+              ],
+              "proxy": true,
+              "raw_high_fraction": 0.875,
+              "relative_image_speed_threshold": 0.003725458785424502,
+              "relative_low_speed_duration_s": 42.18499994277954,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "schema_version": 1,
+              "selection_unchanged": true,
+              "signal_state_observed": false,
+              "source": "records",
+              "symmetric_smoothing_used_for_timestamp": false,
+              "threshold_origin": "unchanged_legacy_relative_image_speed_clustering",
+              "timestamp_ms": 1740633614230,
+              "timing_localizer_version": 1,
+              "track_fingerprint": "ceeca0c183eb3b9896d4346d36505a8cec9cddb3ba9808724f82af0c325cab64",
+              "track_range_ms": [
+                1740633567720,
+                1740633631135
+              ],
+              "uncertainty_reason": "raw_threshold_proxy_and_legacy_heuristic_radius_not_calibrated",
+              "verified_stop_line": false
+            },
+            "source_track_id": 9918413,
+            "temporal_uncertainty_ms": 1300,
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "timestamp_ms": 1740633614230.0,
+            "uncertainty": {
+              "event_to_signal_switch": {
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
+                "status": "UNKNOWN",
+                "uncertainty_ms": null
+              },
+              "vehicle_event": {
+                "calibrated": false,
+                "heuristic_localization_radius_ms": 1300,
+                "sampling_interval_ms": [
+                  1740633614108,
+                  1740633614230
+                ],
+                "sampling_interval_width_ms": 122,
+                "statistical_error_bound": false
+              }
+            }
+          },
+          "role": "restart_proxy",
+          "eligible_vehicle_evidence": true,
+          "exclusion_reason": null,
+          "supplied_exposure_contains_timestamp": null,
+          "signal_relation": "UNKNOWN",
+          "calibrated_lamp_probability": null
+        },
+        {
+          "event_id": "7b7512cb816ed5304983cc69d6c35775dce5d0074e45c9029c21253e09054d0c",
+          "vehicle_group_id": "8d54ce3e339119274a5723ef12e9e22a956a1ce12345d3d4a953315b19ec9123",
+          "source_indices": [
+            5
+          ],
+          "event": {
+            "calibrated_lamp_probability": null,
+            "confidence": 0.65,
+            "event_type": "RELEASE",
+            "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
+            "evidence_quality": "MEDIUM",
+            "movement": "N->S",
+            "provenance": {
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "confirmation_interval_ms": [
+                1740633614471,
+                1740633615432
+              ],
+              "confirmation_raw_intervals": 8,
+              "conflicting_timestamps": 0,
+              "duplicate_detections": 0,
+              "image_speed_separation": 4.789298573911507,
+              "invalid_detections": 0,
+              "legacy_timestamp_ms": 1740633614004.0,
+              "max_detection_gap_ms": 170,
+              "observation_interval_ms": [
+                1740633614471,
+                1740633614596
+              ],
+              "observation_interval_semantics": "threshold_displacement_support_NOT_guaranteed_world_onset_interval",
+              "offline_future_confirmation_used": true,
+              "preceding_low_interval_ms": [
+                1740633614349,
+                1740633614471
+              ],
+              "proxy": true,
+              "raw_high_fraction": 1.0,
+              "relative_image_speed_threshold": 0.0043062088845282655,
+              "relative_low_speed_duration_s": 37.87599992752075,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "schema_version": 1,
+              "selection_unchanged": true,
+              "signal_state_observed": false,
+              "source": "records",
+              "symmetric_smoothing_used_for_timestamp": false,
+              "threshold_origin": "unchanged_legacy_relative_image_speed_clustering",
+              "timestamp_ms": 1740633614596,
+              "timing_localizer_version": 1,
+              "track_fingerprint": "e07b675a3ca38abfe4de2648f927871a092e8f4e0a3117f9142f5178c51cecbb",
+              "track_range_ms": [
+                1740633572522,
+                1740633627766
+              ],
+              "uncertainty_reason": "raw_threshold_proxy_and_legacy_heuristic_radius_not_calibrated",
+              "verified_stop_line": false
+            },
+            "source_track_id": 9918426,
+            "temporal_uncertainty_ms": 1300,
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "timestamp_ms": 1740633614596.0,
+            "uncertainty": {
+              "event_to_signal_switch": {
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
+                "status": "UNKNOWN",
+                "uncertainty_ms": null
+              },
+              "vehicle_event": {
+                "calibrated": false,
+                "heuristic_localization_radius_ms": 1300,
+                "sampling_interval_ms": [
+                  1740633614471,
+                  1740633614596
+                ],
+                "sampling_interval_width_ms": 125,
+                "statistical_error_bound": false
+              }
+            }
+          },
+          "role": "restart_proxy",
+          "eligible_vehicle_evidence": true,
+          "exclusion_reason": null,
+          "supplied_exposure_contains_timestamp": null,
+          "signal_relation": "UNKNOWN",
+          "calibrated_lamp_probability": null
+        },
+        {
+          "event_id": "6bc85896049977e7be4f7d086ad412612cf9e7bc30ffcd5564fbb7ba61a5411c",
+          "vehicle_group_id": "1b8db5191711e8ef78386e2d5be2bae831d57660e692162f98f70d808adfc870",
+          "source_indices": [
+            6
+          ],
+          "event": {
+            "calibrated_lamp_probability": null,
+            "confidence": 0.65,
+            "event_type": "RELEASE",
+            "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
+            "evidence_quality": "MEDIUM",
+            "movement": "N->E",
+            "provenance": {
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "confirmation_interval_ms": [
+                1740633615190,
+                1740633616155
+              ],
+              "confirmation_raw_intervals": 8,
+              "conflicting_timestamps": 0,
+              "duplicate_detections": 0,
+              "image_speed_separation": 4.881056989894955,
+              "invalid_detections": 0,
+              "legacy_timestamp_ms": 1740633614829.0,
+              "max_detection_gap_ms": 1201,
+              "observation_interval_ms": [
+                1740633615190,
+                1740633615310
+              ],
+              "observation_interval_semantics": "threshold_displacement_support_NOT_guaranteed_world_onset_interval",
+              "offline_future_confirmation_used": true,
+              "preceding_low_interval_ms": [
+                1740633615069,
+                1740633615190
+              ],
+              "proxy": true,
+              "raw_high_fraction": 1.0,
+              "relative_image_speed_threshold": 0.004100878166373322,
+              "relative_low_speed_duration_s": 52.96399998664856,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "schema_version": 1,
+              "selection_unchanged": true,
+              "signal_state_observed": false,
+              "source": "records",
+              "symmetric_smoothing_used_for_timestamp": false,
+              "threshold_origin": "unchanged_legacy_relative_image_speed_clustering",
+              "timestamp_ms": 1740633615310,
+              "timing_localizer_version": 1,
+              "track_fingerprint": "014323fbe203d7970baed8109a13bb81bfb7df365483efbeb266f6856793e695",
+              "track_range_ms": [
+                1740633557424,
+                1740633628483
+              ],
+              "uncertainty_reason": "raw_threshold_proxy_and_legacy_heuristic_radius_not_calibrated",
+              "verified_stop_line": false
+            },
+            "source_track_id": 9918377,
+            "temporal_uncertainty_ms": 1300,
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "timestamp_ms": 1740633615310.0,
+            "uncertainty": {
+              "event_to_signal_switch": {
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
+                "status": "UNKNOWN",
+                "uncertainty_ms": null
+              },
+              "vehicle_event": {
+                "calibrated": false,
+                "heuristic_localization_radius_ms": 1300,
+                "sampling_interval_ms": [
+                  1740633615190,
+                  1740633615310
+                ],
+                "sampling_interval_width_ms": 120,
+                "statistical_error_bound": false
+              }
+            }
+          },
+          "role": "restart_proxy",
+          "eligible_vehicle_evidence": true,
+          "exclusion_reason": null,
+          "supplied_exposure_contains_timestamp": null,
+          "signal_relation": "UNKNOWN",
+          "calibrated_lamp_probability": null
+        },
+        {
+          "event_id": "8503aad6b4f27c19c01af27b5b56af8d71ea9639e8d54b48a6881bda976f0bf8",
+          "vehicle_group_id": "736a03d2cf2da250a208fcbb077b9c84444f208479bc2eba3834f2387a23207f",
+          "source_indices": [
+            7
+          ],
+          "event": {
+            "calibrated_lamp_probability": null,
+            "confidence": 0.65,
+            "event_type": "RELEASE",
+            "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
+            "evidence_quality": "MEDIUM",
+            "movement": "N->S",
+            "provenance": {
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "confirmation_interval_ms": [
+                1740633615548,
+                1740633616509
+              ],
+              "confirmation_raw_intervals": 8,
+              "conflicting_timestamps": 0,
+              "duplicate_detections": 0,
+              "image_speed_separation": 4.591042961884166,
+              "invalid_detections": 0,
+              "legacy_timestamp_ms": 1740633615069.0,
+              "max_detection_gap_ms": 171,
+              "observation_interval_ms": [
+                1740633615548,
+                1740633615676
+              ],
+              "observation_interval_semantics": "threshold_displacement_support_NOT_guaranteed_world_onset_interval",
+              "offline_future_confirmation_used": true,
+              "preceding_low_interval_ms": [
+                1740633615432,
+                1740633615548
+              ],
+              "proxy": true,
+              "raw_high_fraction": 1.0,
+              "relative_image_speed_threshold": 0.0029960756008146363,
+              "relative_low_speed_duration_s": 34.956000089645386,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "schema_version": 1,
+              "selection_unchanged": true,
+              "signal_state_observed": false,
+              "source": "records",
+              "symmetric_smoothing_used_for_timestamp": false,
+              "threshold_origin": "unchanged_legacy_relative_image_speed_clustering",
+              "timestamp_ms": 1740633615676,
+              "timing_localizer_version": 1,
+              "track_fingerprint": "0e77ae84448863f84ba3d9d085e938058dab5998c0147bcdb15aced6a5599bcd",
+              "track_range_ms": [
+                1740633569170,
+                1740633633028
+              ],
+              "uncertainty_reason": "raw_threshold_proxy_and_legacy_heuristic_radius_not_calibrated",
+              "verified_stop_line": false
+            },
+            "source_track_id": 9918416,
+            "temporal_uncertainty_ms": 1300,
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "timestamp_ms": 1740633615676.0,
+            "uncertainty": {
+              "event_to_signal_switch": {
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
+                "status": "UNKNOWN",
+                "uncertainty_ms": null
+              },
+              "vehicle_event": {
+                "calibrated": false,
+                "heuristic_localization_radius_ms": 1300,
+                "sampling_interval_ms": [
+                  1740633615548,
+                  1740633615676
+                ],
+                "sampling_interval_width_ms": 128,
+                "statistical_error_bound": false
+              }
+            }
+          },
+          "role": "restart_proxy",
+          "eligible_vehicle_evidence": true,
+          "exclusion_reason": null,
+          "supplied_exposure_contains_timestamp": null,
+          "signal_relation": "UNKNOWN",
+          "calibrated_lamp_probability": null
+        }
+      ],
+      "channels": [
+        {
+          "movement": "N->E",
+          "event_type": "RELEASE",
+          "method": "kinematic_restart_unsmoothed_interval_proxy",
+          "event_ids": [
+            "6bc85896049977e7be4f7d086ad412612cf9e7bc30ffcd5564fbb7ba61a5411c"
+          ],
+          "event_count": 1
+        },
+        {
+          "movement": "N->S",
+          "event_type": "RELEASE",
+          "method": "kinematic_restart_unsmoothed_interval_proxy",
+          "event_ids": [
+            "4c14c153d9bae69e5c5716ac3c6737527cf70f72c6d5655b6b7a7a4d6bd9f8a0",
+            "7b7512cb816ed5304983cc69d6c35775dce5d0074e45c9029c21253e09054d0c",
+            "8503aad6b4f27c19c01af27b5b56af8d71ea9639e8d54b48a6881bda976f0bf8"
+          ],
+          "event_count": 3
+        }
+      ],
+      "correlated_vehicle_groups": {
+        "d55b05992d90c4f55b484644f004115c2e7f5f14b40325a7745bc72a849d1ab6": [
+          "4c14c153d9bae69e5c5716ac3c6737527cf70f72c6d5655b6b7a7a4d6bd9f8a0"
+        ],
+        "8d54ce3e339119274a5723ef12e9e22a956a1ce12345d3d4a953315b19ec9123": [
+          "7b7512cb816ed5304983cc69d6c35775dce5d0074e45c9029c21253e09054d0c"
+        ],
+        "1b8db5191711e8ef78386e2d5be2bae831d57660e692162f98f70d808adfc870": [
+          "6bc85896049977e7be4f7d086ad412612cf9e7bc30ffcd5564fbb7ba61a5411c"
+        ],
+        "736a03d2cf2da250a208fcbb077b9c84444f208479bc2eba3834f2387a23207f": [
+          "8503aad6b4f27c19c01af27b5b56af8d71ea9639e8d54b48a6881bda976f0bf8"
+        ]
+      },
+      "counts": {
+        "events": 4,
+        "eligible_vehicle_events": 4,
+        "known_vehicle_groups_with_eligible_evidence": 4,
+        "eligible_events_without_track_identity": 0,
+        "events_by_type": {
+          "RELEASE": 4
+        }
+      },
+      "observation_support": {
+        "status": "UNKNOWN",
+        "supplied_windows": [],
+        "supplied_duration_s": null,
+        "source": "explicit caller input, never inferred from event absence",
+        "event_ids_outside_supplied_windows": [],
+        "demand": "UNKNOWN"
+      },
+      "abstention_reason": null,
+      "logical_phase": {
+        "estimated_state": "UNKNOWN",
+        "reason": "NO_SEQUENCE_INFERENCE_IN_THIS_COMPONENT"
+      },
+      "physical_section": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "experimental-local-evidence-v1",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "legacy_likelihood_compatibility": {
+        "status": "unavailable",
+        "reason": "METHOD_DEPENDENCE_AND_EVENT_SIGNAL_DELAY_UNMODELLED"
+      },
+      "assumptions": [
+        "counts are vehicle evidence, not independent lamp observations",
+        "track fingerprints identify correlation groups, not calibrated independence",
+        "no-event bins cannot identify no-demand, blockage or RED",
+        "event-to-signal delay and permissive/protected semantics UNKNOWN"
+      ],
+      "restart_localization_adapter": {
+        "mode": "explicit_localized_vehicle_activity",
+        "replacement_count_total": 8,
+        "replacement_count_in_window": 4,
+        "original_events_in_window": [
+          {
+            "timestamp_ms": 1740633613628.0,
+            "event_type": "RELEASE",
+            "movement": "N->S",
+            "source_track_id": 9918413,
+            "evidence_method": "kinematic_restart_proxy",
+            "confidence": 0.65,
+            "evidence_quality": "MEDIUM",
+            "temporal_uncertainty_ms": 1300,
+            "provenance": {
+              "schema_version": 1,
+              "source": "records",
+              "track_fingerprint": "ceeca0c183eb3b9896d4346d36505a8cec9cddb3ba9808724f82af0c325cab64",
+              "verified_stop_line": false,
+              "signal_state_observed": false,
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "track_range_ms": [
+                1740633567720,
+                1740633631135
+              ],
+              "max_detection_gap_ms": 171,
+              "invalid_detections": 0,
+              "duplicate_detections": 0,
+              "conflicting_timestamps": 0,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "proxy": true,
+              "observation_interval_ms": [
+                1740633613509,
+                1740633613628
+              ],
+              "relative_low_speed_duration_s": 42.18499994277954,
+              "image_speed_separation": 4.661870001336887,
+              "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+            },
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "calibrated_lamp_probability": null,
+            "uncertainty": {
+              "vehicle_event": {
+                "sampling_interval_ms": [
+                  1740633613509,
+                  1740633613628
+                ],
+                "sampling_interval_width_ms": 119,
+                "heuristic_localization_radius_ms": 1300,
+                "calibrated": false,
+                "statistical_error_bound": false
+              },
+              "event_to_signal_switch": {
+                "status": "UNKNOWN",
+                "uncertainty_ms": null,
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time"
+              }
+            }
+          },
+          {
+            "timestamp_ms": 1740633614004.0,
+            "event_type": "RELEASE",
+            "movement": "N->S",
+            "source_track_id": 9918426,
+            "evidence_method": "kinematic_restart_proxy",
+            "confidence": 0.65,
+            "evidence_quality": "MEDIUM",
+            "temporal_uncertainty_ms": 1300,
+            "provenance": {
+              "schema_version": 1,
+              "source": "records",
+              "track_fingerprint": "e07b675a3ca38abfe4de2648f927871a092e8f4e0a3117f9142f5178c51cecbb",
+              "verified_stop_line": false,
+              "signal_state_observed": false,
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "track_range_ms": [
+                1740633572522,
+                1740633627766
+              ],
+              "max_detection_gap_ms": 170,
+              "invalid_detections": 0,
+              "duplicate_detections": 0,
+              "conflicting_timestamps": 0,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "proxy": true,
+              "observation_interval_ms": [
+                1740633613871,
+                1740633614004
+              ],
+              "relative_low_speed_duration_s": 37.87599992752075,
+              "image_speed_separation": 4.789298573911507,
+              "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+            },
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "calibrated_lamp_probability": null,
+            "uncertainty": {
+              "vehicle_event": {
+                "sampling_interval_ms": [
+                  1740633613871,
+                  1740633614004
+                ],
+                "sampling_interval_width_ms": 133,
+                "heuristic_localization_radius_ms": 1300,
+                "calibrated": false,
+                "statistical_error_bound": false
+              },
+              "event_to_signal_switch": {
+                "status": "UNKNOWN",
+                "uncertainty_ms": null,
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time"
+              }
+            }
+          },
+          {
+            "timestamp_ms": 1740633614829.0,
+            "event_type": "RELEASE",
+            "movement": "N->E",
+            "source_track_id": 9918377,
+            "evidence_method": "kinematic_restart_proxy",
+            "confidence": 0.65,
+            "evidence_quality": "MEDIUM",
+            "temporal_uncertainty_ms": 1300,
+            "provenance": {
+              "schema_version": 1,
+              "source": "records",
+              "track_fingerprint": "014323fbe203d7970baed8109a13bb81bfb7df365483efbeb266f6856793e695",
+              "verified_stop_line": false,
+              "signal_state_observed": false,
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "track_range_ms": [
+                1740633557424,
+                1740633628483
+              ],
+              "max_detection_gap_ms": 1201,
+              "invalid_detections": 0,
+              "duplicate_detections": 0,
+              "conflicting_timestamps": 0,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "proxy": true,
+              "observation_interval_ms": [
+                1740633614710,
+                1740633614829
+              ],
+              "relative_low_speed_duration_s": 52.96399998664856,
+              "image_speed_separation": 4.881056989894955,
+              "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+            },
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "calibrated_lamp_probability": null,
+            "uncertainty": {
+              "vehicle_event": {
+                "sampling_interval_ms": [
+                  1740633614710,
+                  1740633614829
+                ],
+                "sampling_interval_width_ms": 119,
+                "heuristic_localization_radius_ms": 1300,
+                "calibrated": false,
+                "statistical_error_bound": false
+              },
+              "event_to_signal_switch": {
+                "status": "UNKNOWN",
+                "uncertainty_ms": null,
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time"
+              }
+            }
+          },
+          {
+            "timestamp_ms": 1740633615069.0,
+            "event_type": "RELEASE",
+            "movement": "N->S",
+            "source_track_id": 9918416,
+            "evidence_method": "kinematic_restart_proxy",
+            "confidence": 0.65,
+            "evidence_quality": "MEDIUM",
+            "temporal_uncertainty_ms": 1300,
+            "provenance": {
+              "schema_version": 1,
+              "source": "records",
+              "track_fingerprint": "0e77ae84448863f84ba3d9d085e938058dab5998c0147bcdb15aced6a5599bcd",
+              "verified_stop_line": false,
+              "signal_state_observed": false,
+              "confidence_semantics": "heuristic_vehicle_evidence_quality_NOT_lamp_probability",
+              "track_range_ms": [
+                1740633569170,
+                1740633633028
+              ],
+              "max_detection_gap_ms": 171,
+              "invalid_detections": 0,
+              "duplicate_detections": 0,
+              "conflicting_timestamps": 0,
+              "role": "vehicle_restart_proxy_not_GREEN",
+              "proxy": true,
+              "observation_interval_ms": [
+                1740633614949,
+                1740633615069
+              ],
+              "relative_low_speed_duration_s": 34.956000089645386,
+              "image_speed_separation": 4.591042961884166,
+              "uncertainty_reason": "image_motion_restart_and_smoothing_unvalidated"
+            },
+            "temporal_uncertainty_ms_scope": "vehicle_event_unvalidated_heuristic_only",
+            "calibrated_lamp_probability": null,
+            "uncertainty": {
+              "vehicle_event": {
+                "sampling_interval_ms": [
+                  1740633614949,
+                  1740633615069
+                ],
+                "sampling_interval_width_ms": 120,
+                "heuristic_localization_radius_ms": 1300,
+                "calibrated": false,
+                "statistical_error_bound": false
+              },
+              "event_to_signal_switch": {
+                "status": "UNKNOWN",
+                "uncertainty_ms": null,
+                "reason": "vehicle_evidence_does_not_identify_signal_switch_time"
+              }
+            }
+          }
+        ],
+        "abstentions": [],
+        "fallback_to_legacy_timestamp": false,
+        "production_default_changed": false,
+        "semantics": "vehicle activity proxies; no conversion to lamp switch or permission certainty"
+      }
+    }
+  },
+  "legacy_likelihood_adapter": {
+    "status": "unavailable",
+    "state": "UNKNOWN",
+    "reason_code": "METHOD_DEPENDENCE_AND_EVENT_SIGNAL_DELAY_UNMODELLED",
+    "reason": "separate source channels require an explicit observation model; no implicit timestamp union",
+    "phase_count": null,
+    "schedule": null,
+    "estimated_state": "UNKNOWN",
+    "level": "logical_phase",
+    "source": "temporal_evidence",
+    "assumptions": [],
+    "observation_support": {},
+    "abstention_reason": "METHOD_DEPENDENCE_AND_EVENT_SIGNAL_DELAY_UNMODELLED",
+    "calibrated_lamp_probability": null
+  },
+  "source_output_sha256": "eda6b60d9fd893c07b62bdd75c0809ad8ad490902796fea55ccaa242456d63e9",
+  "source_scope": "only8 preregistered RELEASE events, not all trajectory channels; other methods tested for preservation separately",
+  "real_inference_rerun": false,
+  "phase_fitting": false,
+  "production_default_changed": false
+}

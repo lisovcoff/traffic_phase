@@ -15,10 +15,15 @@
    машинах6 proxy/1 UNKNOWN с альтернативами. Это не phase/lamp accuracy.
    Без нового phase fitting, clock fit, видеоразметки или настройки по семи машинам.
    Default сохраняется; переход к production ещё требует отдельной validation.
-2. **Далее:** зафиксировать vehicle-event contract для фазовой модели и проверить
-   method-specific event→signal relation на нескольких циклах/отдельном validation.
-   Это ограниченный validation-шаг, а не бесконечная геометрическая калибровка:
-   прежние семь машин не дают права выбирать общий offset или prior.
+2. **Проверены новые блоки, выполнена интеграция event-контракта:**
+   [8 новых машин/2 окна](docs/RESTART_MULTICYCLE_VALIDATION_20261015.md), без настройки.
+   A имеет ухудшение point containment2/4→1/4; B0/4→2/4. ClockA UNKNOWN,
+   B conditional-compatible. По видео движение может начаться до видимого GREEN H1.
+   Новый opt-in adapter подключён к существующим local evidence channels,
+   сохраняет reference/UNKNOWN/alternatives без timestamp union в legacy likelihood.
+   Следующий алгоритмический deliverable — ограниченная phase observation integration
+   с nonexclusive/nuisance events и unknown demand под отдельным явным scope;
+   не universal delay, не повторная калибровка этих машин. Default не принят.
 3. **Вернуться к основной алгоритмической цепочке:** принять состав/K по движениям
    для3/4 подходов и shared movements; затем локальную историю hold/shortening
    без подмены обычным циклом. K и длительности оценивать раздельно; 2D.1 пока FAIL.

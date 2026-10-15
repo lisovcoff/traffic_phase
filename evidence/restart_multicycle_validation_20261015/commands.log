@@ -1,0 +1,31 @@
+Working directory: D:\Code\PythonProjects\traffic_phase\audit_checkout
+Base HEAD: f85690183080815cb3ee3278c2ff73406f95ed15
+Branch: validation/restart-other-cycles-20261015
+Plan/exclusion registry sealed before new raw windows/video review.243 prior IDs excluded.
+C:\Python314\python.exe -m pytest tests/test_temporal_validation_sample.py tests/test_restart_localization.py -q -p no:cacheprovider
+Preflight33 passed2.52s.
+C:\Python314\python.exe scripts/prepare_restart_temporal_validation.py
+First attempt: historical mojibake path FileNotFoundError before ZIP open;0 entry reads. Failure log retained.
+archive_path_resolution.json written after unique local filename/date and entry size/CRC verification; original plan unchanged.
+C:\Python314\python.exe scripts/prepare_restart_temporal_validation.py
+One successful272972956-byte scan10.823s, entry SHA verified; all8 new event outputs sealed before video sampling.
+Video CLI exact commands in coarse_sampling.log,sampling_A.log,sampling_B.log.26+39+32 fixed native ROI frames; no favorable-case resampling.
+Identity locator only uses frozen model to aid car identity, not new localizer timestamps.
+ALL8 visual onset brackets and BOTH head appearance references sealed before outcome comparison.
+11 native clock anchors +1 clipped-ROI unavailable sealed; no fit permitted.
+C:\Python314\python.exe -m pytest tests/test_temporal_validation_clock.py tests/test_temporal_validation_sample.py -q -p no:cacheprovider
+10 validation-contract tests passed2.38s before scoring.
+C:\Python314\python.exe scripts/evaluate_restart_temporal_validation.py
+One descriptive evaluation. Original comparison.json retained unchanged; no localizer/config tuning.
+Supplementary sampling_interval_diagnostics.json computed from sealed events/video review; does not replace point metrics or acceptance gate.
+Opt-in evidence adapter implemented against synthetic contract tests, reusing existing LocalEvidenceIndex. No new observation likelihood.
+Tests before materializing queries:74 passed2.83s; final adapter-scoping target8 passed0.06s.
+evidence_adapter_queries.json built from already sealed8 event results, no extraction/inference replay; implicit legacy union blocked.
+C:\Python314\python.exe scripts/build_restart_temporal_proof.py
+21 native proof images; source SHA checked; no new media decoding.
+C:\Python314\python.exe -m pytest tests/test_localized_evidence_adapter.py tests/test_local_evidence_channels.py tests/test_restart_temporal_validation_artifacts.py tests/test_temporal_validation_clock.py tests/test_temporal_validation_sample.py tests/test_restart_localization.py -q -p no:cacheprovider
+Final75 passed2.51s (completed_tests.log).
+git diff --check
+No phase fitting, K/period search, prior/likelihood run, camera/clock fit, threshold/default changes. Main unchanged.
+
+Final adapter guard clarified: localization results apply only to old kinematic RELEASE; other event methods pass unchanged without localization. Same target suite76 passed2.58s (contract_final_tests.log). No real inference or evaluation repeated.
