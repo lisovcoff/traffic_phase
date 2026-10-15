@@ -1,0 +1,9 @@
+git switch -c experiment/context-censored-observation-20261016
+Targeted context/query tests:104 passed initially,106 after rename/numeric tests.
+C:\Python314\python.exe -m scripts.check_context_observation
+C:\Python314\python.exe -m pytest tests/test_local_factor_sequence.py -q -p no:cacheprovider
+Initial11 passed; added2s censoring edge:12 passed.
+C:\Python314\python.exe -m scripts.check_local_factor_sequence
+C:\Python314\python.exe -m pytest tests/test_context_observation.py tests/test_observation_domain.py tests/test_rounded_observation.py tests/test_phase_observation_bridge.py tests/test_joint_track_model.py tests/test_local_evidence_channels.py tests/test_unanchored_sequence.py tests/test_unanchored_sequence_artifacts.py tests/test_sparse_duration_artifacts.py tests/test_localized_evidence_adapter.py tests/test_local_factor_sequence.py -q -p no:cacheprovider
+152 passed in11.79s pytest wall time; not pipeline profiling.
+Protected production/core/prior/likelihood AST and historical artifacts checked.

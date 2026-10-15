@@ -1,6 +1,18 @@
 # traffic_phase — план до готового продукта
 
-## Текущий критический путь к продукту — уточнение 2026-10-15
+## Текущий критический путь к продукту — уточнение 2026-10-16
+
+Выполнено: [context/query censoring](docs/CONTEXT_OBSERVATION_RESULTS_20261016.md)
+под supplied bounded delays. Target отделён от latent context, unsafe edges
+UNKNOWN; явный rounded query kernel в существующем интеграторе.106+34 checks,
+без recovery/real replay. Это условное решение population-edge contract,
+не calibration реальных RELEASE. Strict/default остаётся require_complete.
+Также выполнен [exact cell-local DP](docs/LOCAL_FACTOR_DP_20261016.md):12 tests,
+эквивалентность oracle для коротких cases,64с/no-demand normalization без полного
+перебора. Это local subset, широкие kernels явно unavailable. Следующий deliverable —
+bounded expanded history для nonlocal factors, затем реальная calibration/validation.
+Не переходить к full enumeration/новой recovery suite вместо снятия scaling blocker.
+2D.1 FAIL сохраняется.
 
 Независимое ревью получено: [ответ/проверенные findings](docs/REVIEW_RESPONSE_20261015.md).
 Закрыт P1 query-completeness: short query больше не создаёт ложное negative

@@ -1,0 +1,945 @@
+{
+  "base_sha": "08f82c3b382388fc201baa82a4ec37302ef8c4e4",
+  "purpose": "technical equivalence/scaling, no recovery truth or real replay",
+  "short_context": {
+    "schema": "experimental-local-factor-renewal-v1",
+    "status": "complete_local_factor_posterior",
+    "complete": true,
+    "results": {
+      "flat": {
+        "prior": {
+          "min_s": 4,
+          "max_s": 48,
+          "step_s": 2,
+          "family": "uniform"
+        },
+        "log_normalizer": -10.910348429601578,
+        "transition_count_posterior": {
+          "0": 0.7725752508361206,
+          "1": 0.22408026755852825,
+          "2": 0.003344481605351178
+        },
+        "phase_posterior": [
+          [
+            0.7558528428093638,
+            0.2441471571906351
+          ],
+          [
+            0.8127090301003339,
+            0.18729096989966537
+          ],
+          [
+            0.8695652173913039,
+            0.13043478260869534
+          ],
+          [
+            0.8127090301003354,
+            0.18729096989966537
+          ]
+        ],
+        "boundary_existence": [
+          {
+            "time_s": 2,
+            "model_conditioned_existence_probability": 0.0769230769230771
+          },
+          {
+            "time_s": 4,
+            "model_conditioned_existence_probability": 0.0769230769230771
+          },
+          {
+            "time_s": 6,
+            "model_conditioned_existence_probability": 0.0769230769230771
+          }
+        ],
+        "diagnostic_segments": [
+          [
+            0,
+            8,
+            0
+          ]
+        ],
+        "diagnostic_map_log_joint": -11.30813623484563,
+        "posterior_semantics": "exact within supplied finite grid model; not calibrated lamp probability"
+      },
+      "soft": {
+        "prior": {
+          "min_s": 4,
+          "max_s": 48,
+          "step_s": 2,
+          "family": "discrete_laplace",
+          "center_s": 12,
+          "scale_s": 8
+        },
+        "log_normalizer": -10.910348429601578,
+        "transition_count_posterior": {
+          "0": 0.6080507655785571,
+          "1": 0.38464993140963566,
+          "2": 0.007299303011807345
+        },
+        "phase_posterior": [
+          [
+            0.6728340540183977,
+            0.32716594598160104
+          ],
+          [
+            0.7711996357048516,
+            0.22880036429514836
+          ],
+          [
+            0.8695652173913054,
+            0.1304347826086956
+          ],
+          [
+            0.7711996357048516,
+            0.22880036429514877
+          ]
+        ],
+        "boundary_existence": [
+          {
+            "time_s": 2,
+            "model_conditioned_existence_probability": 0.1330828458110834
+          },
+          {
+            "time_s": 4,
+            "model_conditioned_existence_probability": 0.1330828458110834
+          },
+          {
+            "time_s": 6,
+            "model_conditioned_existence_probability": 0.13308284581108362
+          }
+        ],
+        "diagnostic_segments": [
+          [
+            0,
+            8,
+            0
+          ]
+        ],
+        "diagnostic_map_log_joint": -11.547607276460942,
+        "posterior_semantics": "exact within supplied finite grid model; not calibrated lamp probability"
+      }
+    },
+    "logical_phase": {
+      "estimated_state": "UNKNOWN",
+      "level": "logical_phase",
+      "source": "local_factor_sequence",
+      "assumptions": [],
+      "observation_support": {},
+      "abstention_reason": "MODEL_CONDITIONED_DIAGNOSTIC_NOT_VALIDATED_HISTORY",
+      "provenance": {},
+      "mode": "reconstructed",
+      "calibrated_lamp_probability": null
+    },
+    "physical_section": {
+      "estimated_state": "UNKNOWN",
+      "level": "physical_section",
+      "source": "local_factor_sequence",
+      "assumptions": [],
+      "observation_support": {},
+      "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+      "provenance": {},
+      "mode": "reconstructed",
+      "calibrated_lamp_probability": null
+    },
+    "calibrated_lamp_probability": null,
+    "published_logical_unknown_fraction": 1.0,
+    "published_physical_unknown_fraction": 1.0,
+    "production_default_changed": false,
+    "assumptions": [
+      "all vehicle kernels exactly cell-local",
+      "supplied rates/exposure/detection/delay/rounding",
+      "stationary grid-renewal start and same prior per phase",
+      "fixed K/order;2s phase grid"
+    ],
+    "enumeration_used": false,
+    "truncation_used": false,
+    "likelihood_constant_over_phase_paths": false,
+    "path_dependence_semantics": "equality sufficient for prior-only; inequality NOT identifiability",
+    "declared_array_allowance_bytes": 89536,
+    "context_extent_s": [
+      0,
+      8
+    ],
+    "cpu_s": 0.0,
+    "wall_s": 0.004201299998385366,
+    "context_plan": {
+      "context_range_ms": [
+        0,
+        8000
+      ],
+      "target_range_ms": [
+        3000,
+        5000
+      ],
+      "queried_reported_range_ms": [
+        1,
+        8000
+      ],
+      "retained_true_mark_range_ms": [
+        0.5,
+        7999.5
+      ],
+      "safe_target_range_ms": [
+        0.5,
+        7999.5
+      ],
+      "max_enabled_vehicle_delay_ms": 0,
+      "population_boundary_assumption": "bounded nonnegative supplied delays; NOT calibrated for real RELEASE",
+      "source_namespace": "technical_context",
+      "edge_policy": "outside target UNKNOWN; no independent target restart or overlap multiplication",
+      "upstream_completeness": "ASSUMED_SUPPLIED_INDEX_ONLY",
+      "context_phase_history_required": true
+    },
+    "input_sha256": "f42dde7832692116d75a1f643a2c4f56b68fc59c42104895f5290943d71f68a6",
+    "supplied_model_sha256": "e5b34b2f09ee86a5cc6d4c63f7362d6fbc6cd8f92395b34d6599dff5287ee5ea"
+  },
+  "long64s_zero_demand": {
+    "schema": "experimental-local-factor-renewal-v1",
+    "status": "complete_local_factor_posterior",
+    "complete": true,
+    "results": {
+      "flat": {
+        "prior": {
+          "min_s": 4,
+          "max_s": 48,
+          "step_s": 2,
+          "family": "uniform"
+        },
+        "log_normalizer": 0.0,
+        "transition_count_posterior": {
+          "1": 0.1409044641558819,
+          "2": 0.46292936126091366,
+          "3": 0.28900367323972154,
+          "4": 0.08772289099331962,
+          "5": 0.016937831359778728,
+          "6": 0.002268611519446629,
+          "7": 0.00021735414475622687,
+          "8": 1.503823602834026e-05,
+          "9": 7.481283365437203e-07,
+          "10": 2.631704366136986e-08,
+          "11": 6.346983093445046e-10,
+          "12": 9.979914597486666e-12,
+          "13": 9.430362259358109e-14,
+          "14": 4.651947349579474e-16,
+          "15": 9.0183706606793e-19,
+          "16": 2.8849554256811415e-22
+        },
+        "phase_posterior": [
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.33333333333333337
+          ],
+          [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.33333333333333337
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.33333333333333337
+          ],
+          [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.33333333333333337
+          ],
+          [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.33333333333333337
+          ],
+          [
+            0.33333333333333337,
+            0.33333333333333337,
+            0.33333333333333337
+          ]
+        ],
+        "boundary_existence": [
+          {
+            "time_s": 2,
+            "model_conditioned_existence_probability": 0.07692307692307696
+          },
+          {
+            "time_s": 4,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 6,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 8,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 10,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 12,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 14,
+            "model_conditioned_existence_probability": 0.07692307692307696
+          },
+          {
+            "time_s": 16,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 18,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 20,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 22,
+            "model_conditioned_existence_probability": 0.07692307692307696
+          },
+          {
+            "time_s": 24,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 26,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 28,
+            "model_conditioned_existence_probability": 0.07692307692307696
+          },
+          {
+            "time_s": 30,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 32,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 34,
+            "model_conditioned_existence_probability": 0.07692307692307696
+          },
+          {
+            "time_s": 36,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 38,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 40,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 42,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 44,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 46,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 48,
+            "model_conditioned_existence_probability": 0.07692307692307696
+          },
+          {
+            "time_s": 50,
+            "model_conditioned_existence_probability": 0.07692307692307702
+          },
+          {
+            "time_s": 52,
+            "model_conditioned_existence_probability": 0.07692307692307696
+          },
+          {
+            "time_s": 54,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 56,
+            "model_conditioned_existence_probability": 0.07692307692307696
+          },
+          {
+            "time_s": 58,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 60,
+            "model_conditioned_existence_probability": 0.07692307692307689
+          },
+          {
+            "time_s": 62,
+            "model_conditioned_existence_probability": 0.07692307692307702
+          }
+        ],
+        "diagnostic_segments": [
+          [
+            0,
+            32,
+            1
+          ],
+          [
+            32,
+            64,
+            2
+          ]
+        ],
+        "diagnostic_map_log_joint": -5.540100923315507,
+        "posterior_semantics": "exact within supplied finite grid model; not calibrated lamp probability"
+      },
+      "soft": {
+        "prior": {
+          "min_s": 4,
+          "max_s": 48,
+          "step_s": 2,
+          "family": "discrete_laplace",
+          "center_s": 12,
+          "scale_s": 8
+        },
+        "log_normalizer": 8.881784197001252e-16,
+        "transition_count_posterior": {
+          "1": 0.004174604604310964,
+          "2": 0.06294916048031414,
+          "3": 0.2260039182028128,
+          "4": 0.3461988120065625,
+          "5": 0.25192891174618925,
+          "6": 0.09012804592790463,
+          "7": 0.016770748260730547,
+          "8": 0.0017360725756400267,
+          "9": 0.00010571478597762741,
+          "10": 3.92062231819954e-06,
+          "11": 8.953842625408633e-08,
+          "12": 1.2389286603612203e-09,
+          "13": 9.844115743601043e-12,
+          "14": 3.988405331564171e-14,
+          "15": 6.289321803837196e-17,
+          "16": 1.6274654653582927e-20
+        },
+        "phase_posterior": [
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333329,
+            0.3333333333333329,
+            0.3333333333333329
+          ],
+          [
+            0.3333333333333329,
+            0.3333333333333329,
+            0.3333333333333329
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333331,
+            0.3333333333333331,
+            0.3333333333333331
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ],
+          [
+            0.3333333333333332,
+            0.3333333333333332,
+            0.3333333333333332
+          ]
+        ],
+        "boundary_existence": [
+          {
+            "time_s": 2,
+            "model_conditioned_existence_probability": 0.13308284581108315
+          },
+          {
+            "time_s": 4,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 6,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 8,
+            "model_conditioned_existence_probability": 0.13308284581108315
+          },
+          {
+            "time_s": 10,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 12,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 14,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 16,
+            "model_conditioned_existence_probability": 0.13308284581108315
+          },
+          {
+            "time_s": 18,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 20,
+            "model_conditioned_existence_probability": 0.13308284581108332
+          },
+          {
+            "time_s": 22,
+            "model_conditioned_existence_probability": 0.13308284581108315
+          },
+          {
+            "time_s": 24,
+            "model_conditioned_existence_probability": 0.13308284581108315
+          },
+          {
+            "time_s": 26,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 28,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 30,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 32,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 34,
+            "model_conditioned_existence_probability": 0.13308284581108315
+          },
+          {
+            "time_s": 36,
+            "model_conditioned_existence_probability": 0.13308284581108315
+          },
+          {
+            "time_s": 38,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 40,
+            "model_conditioned_existence_probability": 0.1330828458110834
+          },
+          {
+            "time_s": 42,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 44,
+            "model_conditioned_existence_probability": 0.13308284581108315
+          },
+          {
+            "time_s": 46,
+            "model_conditioned_existence_probability": 0.13308284581108315
+          },
+          {
+            "time_s": 48,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 50,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 52,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 54,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 56,
+            "model_conditioned_existence_probability": 0.13308284581108326
+          },
+          {
+            "time_s": 58,
+            "model_conditioned_existence_probability": 0.13308284581108332
+          },
+          {
+            "time_s": 60,
+            "model_conditioned_existence_probability": 0.13308284581108315
+          },
+          {
+            "time_s": 62,
+            "model_conditioned_existence_probability": 0.13308284581108315
+          }
+        ],
+        "diagnostic_segments": [
+          [
+            0,
+            32,
+            1
+          ],
+          [
+            32,
+            64,
+            2
+          ]
+        ],
+        "diagnostic_map_log_joint": -9.127154014740169,
+        "posterior_semantics": "exact within supplied finite grid model; not calibrated lamp probability"
+      }
+    },
+    "logical_phase": {
+      "estimated_state": "UNKNOWN",
+      "level": "logical_phase",
+      "source": "local_factor_sequence",
+      "assumptions": [],
+      "observation_support": {},
+      "abstention_reason": "MODEL_CONDITIONED_DIAGNOSTIC_NOT_VALIDATED_HISTORY",
+      "provenance": {},
+      "mode": "reconstructed",
+      "calibrated_lamp_probability": null
+    },
+    "physical_section": {
+      "estimated_state": "UNKNOWN",
+      "level": "physical_section",
+      "source": "local_factor_sequence",
+      "assumptions": [],
+      "observation_support": {},
+      "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+      "provenance": {},
+      "mode": "reconstructed",
+      "calibrated_lamp_probability": null
+    },
+    "calibrated_lamp_probability": null,
+    "published_logical_unknown_fraction": 1.0,
+    "published_physical_unknown_fraction": 1.0,
+    "production_default_changed": false,
+    "assumptions": [
+      "all vehicle kernels exactly cell-local",
+      "supplied rates/exposure/detection/delay/rounding",
+      "stationary grid-renewal start and same prior per phase",
+      "fixed K/order;2s phase grid"
+    ],
+    "enumeration_used": false,
+    "truncation_used": false,
+    "likelihood_constant_over_phase_paths": true,
+    "path_dependence_semantics": "equality sufficient for prior-only; inequality NOT identifiability",
+    "declared_array_allowance_bytes": 1966336,
+    "context_extent_s": [
+      0,
+      64
+    ],
+    "cpu_s": 0.03125,
+    "wall_s": 0.04583540000021458,
+    "context_plan": {
+      "context_range_ms": [
+        0,
+        64000
+      ],
+      "target_range_ms": [
+        4000,
+        60000
+      ],
+      "queried_reported_range_ms": [
+        1,
+        64000
+      ],
+      "retained_true_mark_range_ms": [
+        0.5,
+        63999.5
+      ],
+      "safe_target_range_ms": [
+        0.5,
+        63999.5
+      ],
+      "max_enabled_vehicle_delay_ms": 0,
+      "population_boundary_assumption": "bounded nonnegative supplied delays; NOT calibrated for real RELEASE",
+      "source_namespace": "no_demand",
+      "edge_policy": "outside target UNKNOWN; no independent target restart or overlap multiplication",
+      "upstream_completeness": "ASSUMED_SUPPLIED_INDEX_ONLY",
+      "context_phase_history_required": true
+    },
+    "input_sha256": "76353efd07b90036698d3cd78411a0eb727f9c09921ea0425c6a9ad52f3c2b84",
+    "supplied_model_sha256": "a6f538d0e9fae098d9efd0dc61fef5c610eebce1a2c1d06be53663cce81a2770"
+  },
+  "source_sha256_lf": {
+    "app/experimental/local_factor_sequence.py": "7872af1a5d2bee05f7b648dc887a08d97a4fe9fa9a14075ebf4270761f2ac47c",
+    "app/experimental/context_observation.py": "3146a36581e664504d5b56585ea4b54348ec45ffe0638e3a65548c8299b7a889",
+    "app/experimental/rounded_observation.py": "221d4020bad4b91d1133f21335879f51358851ddf11a26afb97e956e6ed5fb02",
+    "app/experimental/observation_domain.py": "71a01c1a68062207704120b698d72db5065fd7b748e9696286982830cabde4b1",
+    "app/experimental/phase_observation_bridge.py": "0a67d31677959e947849f236544fbf276adb9593e2c5594d680e63fc14c53af0",
+    "app/experimental/joint_track_model.py": "e729e41ea913c9ac5a1ea2381bbae09345925092e8736e43fca926dca0fa3946",
+    "scripts/check_local_factor_sequence.py": "6dff34d692b63f50ed2b6c8edd983490c025e17ea7578afa0c7833b659d661ce"
+  }
+}

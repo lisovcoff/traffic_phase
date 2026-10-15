@@ -60,3 +60,32 @@ def require_complete_query(view, *, horizon_s, windows, channels,
         ts=row['event']['timestamp_ms']
         if not query[0]<=ts<query[1]:fail('EVENT_OUTSIDE_QUERY_DOMAIN',report)
     return report
+
+
+def censored_query_windows(view,windows,*,resolution_ms,rounding_origin_ms,error_type=ValueError):
+    """Exact true-time preimage of retained rounded centres, then camera censoring.
+
+    Rounding ties have zero mass under the continuous latent model. Supplied
+    windows remain physical camera windows; the intersection is a delivery
+    selection model, not an assertion that the camera stopped observing.
+    """
+    checked=require_complete_query(view,horizon_s=0,windows=[],channels=[],error_type=error_type)
+    lo,hi=checked['query_range_ms'];r=resolution_ms;o=rounding_origin_ms
+    try:
+        first=o+math.ceil((lo-o)/r)*r
+        last=o+(math.ceil((hi-o)/r)-1)*r
+    except (OverflowError,ValueError):
+        raise error_type('ROUNDING_QUERY_DOMAIN_NUMERIC_LIMIT') from None
+    if not math.isfinite(first) or not math.isfinite(last):
+        raise error_type('ROUNDING_QUERY_DOMAIN_NUMERIC_LIMIT')
+    effective=[];retained=None
+    if first<=last:
+        a=(first-r/2)/1000;b=(last+r/2)/1000
+        retained=[a,b]
+        effective=[[max(x,a),min(y,b)] for x,y in windows if max(x,a)<min(y,b)]
+    return effective,dict(delivery_mode='censored_reported_timestamps',
+        query_range_ms=[lo,hi],retained_clock_centres_ms=[first,last] if first<=last else [],
+        retained_true_mark_interval_s=retained,effective_observation_windows_s=effective,
+        supplied_camera_windows_s=[list(w) for w in windows],
+        upstream_event_delivery=checked['upstream_event_delivery'],
+        semantics='exact query selection under supplied rounding model; not physical camera exposure')

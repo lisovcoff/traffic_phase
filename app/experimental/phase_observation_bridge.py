@@ -91,6 +91,8 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
             from app.experimental.rounded_observation import rounded_components
             components=rounded_components(relative,copy.deepcopy(supplied),max_tracks=max_events)
         elif backend=='legacy_finite_clock':
+            if supplied.get('query_delivery_mode','require_complete')!='require_complete':
+                raise ModelUnavailable('UNSUPPORTED_QUERY_DELIVERY_MODE_FOR_CLOCK')
             components = observation_components(relative, copy.deepcopy(supplied), max_tracks=max_events)
         else:
             raise ModelUnavailable('UNSUPPORTED_CLOCK_MODEL')

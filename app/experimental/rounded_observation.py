@@ -72,11 +72,18 @@ def rounded_components(view, spec, *, max_tracks=512, max_q_cells=50000,
     pr=spec.get('release_detection_probability'); pc=spec.get('crossing_detection_probability')
     if not _finite(pr) or not _finite(pc) or not 0<=pr<=1 or not 0<=pc<=1:
         raise ModelUnavailable('SUPPLIED_DETECTION_PROBABILITIES_REQUIRED')
-    from app.experimental.observation_domain import require_complete_query
-    domain=require_complete_query(view,horizon_s=h,windows=windows,error_type=ModelUnavailable,
-        resolution_ms=resolution,rounding_origin_ms=rounding_origin,
-        channels=[('RELEASE',[d for d,_ in delays],pr),
-            ('CROSSING_PROXY',[d+lag for d,_ in delays for lag,_ in transits],pc)])
+    from app.experimental.observation_domain import require_complete_query,censored_query_windows
+    delivery=spec.get('query_delivery_mode','require_complete')
+    if delivery=='require_complete':
+        domain=require_complete_query(view,horizon_s=h,windows=windows,error_type=ModelUnavailable,
+            resolution_ms=resolution,rounding_origin_ms=rounding_origin,
+            channels=[('RELEASE',[d for d,_ in delays],pr),
+                ('CROSSING_PROXY',[d+lag for d,_ in delays for lag,_ in transits],pc)])
+    elif delivery=='censored_reported_timestamps':
+        windows,domain=censored_query_windows(view,windows,resolution_ms=resolution,
+            rounding_origin_ms=rounding_origin,error_type=ModelUnavailable)
+    else:
+        raise ModelUnavailable('UNSUPPORTED_QUERY_DELIVERY_MODE')
     rows=view.get('events',[])
     if len(rows)>max_tracks*2:
         raise ModelUnavailable('EVENT_BUDGET_EXHAUSTED')

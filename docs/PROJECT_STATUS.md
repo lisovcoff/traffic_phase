@@ -1,4 +1,19 @@
-# Project status — 2D.1, 2026-10-14
+# Project status — 2D.1, 2026-10-16
+
+2026-10-16 opt-in context/query-censoring contract completed under supplied bounded
+nonnegative vehicle delays. Reported clock-centre selection enters both pattern
+and compensator via existing integrator; safe interior target separated from full
+latent context. Earlier-than-context vehicle witness censored explicitly; global
+vehicle IDs/provenance retained across overlaps.106 target+34 regression/artifact
+checks pass; no scientific sequence suite/real replay/K search. Strict default
+still rejects incomplete queries; new mode explicit only. Real delay bound,
+source completeness/demand/detection calibration remain open. Logical/physical
+outputs UNKNOWN;2D.1 FAIL, historical metrics/main/core/default unchanged.
+Additionally exact cell-local semi-Markov DP delivered:12 checks match exhaustive
+normalizer/count/phase/boundary marginals/MAP on short cases;64s zero-demand
+normalization without enumeration. Not real/hold recovery. Nonlocal kernels
+explicitly unavailable; no beam/uncertified posterior. See LOCAL_FACTOR_DP.
+Next: bounded expanded history for nonlocal factors and real calibration/validation.
 
 2026-10-15 external review locally checked; P1 query-observation mismatch fixed.
 Before: empty2s query admitted8s compensator−1.84. After: QUERY_DOMAIN_INCOMPLETE;

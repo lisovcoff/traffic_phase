@@ -1,0 +1,1001 @@
+diff --git a/.gitattributes b/.gitattributes
+index 7189de8..69729cb 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -29,3 +29,5 @@ evidence/sparse_duration_20261015/** -text -whitespace
+ docs/SPARSE_DURATION_PROTOCOL_20261015.md -text
+ evidence/query_observation_completeness_20261015/** -text -whitespace
+ docs/EXTERNAL_REVIEW_RECEIVED_20261015.md -text -whitespace
++evidence/context_observation_20261016/** -text -whitespace
++docs/CONTEXT_OBSERVATION_PROTOCOL_20261016.md -text
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 522fb91..b4b5bc2 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -1,6 +1,18 @@
+ # traffic_phase — план до готового продукта
+ 
+-## Текущий критический путь к продукту — уточнение 2026-10-15
++## Текущий критический путь к продукту — уточнение 2026-10-16
++
++Выполнено: [context/query censoring](docs/CONTEXT_OBSERVATION_RESULTS_20261016.md)
++под supplied bounded delays. Target отделён от latent context, unsafe edges
++UNKNOWN; явный rounded query kernel в существующем интеграторе.106+34 checks,
++без recovery/real replay. Это условное решение population-edge contract,
++не calibration реальных RELEASE. Strict/default остаётся require_complete.
++Также выполнен [exact cell-local DP](docs/LOCAL_FACTOR_DP_20261016.md):12 tests,
++эквивалентность oracle для коротких cases,64с/no-demand normalization без полного
++перебора. Это local subset, широкие kernels явно unavailable. Следующий deliverable —
++bounded expanded history для nonlocal factors, затем реальная calibration/validation.
++Не переходить к full enumeration/новой recovery suite вместо снятия scaling blocker.
++2D.1 FAIL сохраняется.
+ 
+ Независимое ревью получено: [ответ/проверенные findings](docs/REVIEW_RESPONSE_20261015.md).
+ Закрыт P1 query-completeness: short query больше не создаёт ложное negative
+diff --git a/app/experimental/context_observation.py b/app/experimental/context_observation.py
+new file mode 100644
+index 0000000..5da847f
+--- /dev/null
++++ b/app/experimental/context_observation.py
+@@ -0,0 +1,75 @@
++"""Safe interior target under explicitly supplied bounded vehicle delays.
++
++Does not run a decoder. Context phase history must be inferred jointly; target
++is never re-anchored as a new independent sequence at its left edge.
++"""
++import copy
++import math
++
++from app.core.temporal_evidence import EvidenceUnavailable
++from app.core.state_contract import StateEstimate,physical_estimate
++from app.experimental.rounded_observation import _mass,_finite
++from app.experimental.joint_track_model import ModelUnavailable
++from app.experimental.phase_observation_bridge import prepare_joint_observation
++
++
++def prepare_context_observation(index,spec,*,context_origin_ms,target_range_ms,max_events=512):
++    """Query supplied immutable index once; keep namespace and vehicle identity."""
++    base=dict(schema='experimental-context-observation-v1',status='unavailable',components=None,
++        logical_phase=StateEstimate('UNKNOWN','logical_phase','context_observation',
++            abstention_reason='NO_VALIDATED_SEQUENCE_RECONSTRUCTION').to_dict(),
++        physical_section=physical_estimate('UNKNOWN',source='context_observation').to_dict(),
++        calibrated_lamp_probability=None,production_default_changed=False)
++    try:
++        if not isinstance(spec,dict) or spec.get('clock_model')!='continuous_latent_rounded_marks':
++            raise ModelUnavailable('EXPLICIT_ROUNDED_CLOCK_MODEL_REQUIRED')
++        if not _finite(context_origin_ms) or context_origin_ms<0:
++            raise ModelUnavailable('FINITE_NONNEGATIVE_CONTEXT_ORIGIN_REQUIRED')
++        h=spec.get('horizon_s');r=spec.get('timestamp_resolution_ms');o=spec.get('timestamp_rounding_origin_ms')
++        if isinstance(h,bool) or not isinstance(h,int) or not 0<h<=80 or h%2:
++            raise ModelUnavailable('BOUNDED_CONTEXT_HORIZON_REQUIRED')
++        if not _finite(r) or r<=0 or not _finite(o):
++            raise ModelUnavailable('SUPPLIED_ROUNDING_CLOCK_REQUIRED')
++        delays=_mass(spec.get('release_delay_s'));transits=_mass(spec.get('transit_delay_s'))
++        if len(delays)*len(transits)>64:raise ModelUnavailable('DELAY_PAIR_BUDGET_EXHAUSTED')
++        pr=spec.get('release_detection_probability');pc=spec.get('crossing_detection_probability')
++        if not _finite(pr) or not _finite(pc) or not 0<=pr<=1 or not 0<=pc<=1:
++            raise ModelUnavailable('SUPPLIED_DETECTION_PROBABILITIES_REQUIRED')
++        shifts=([d for d,_ in delays] if pr else [])+([d+lag for d,_ in delays for lag,_ in transits] if pc else [])
++        dmax=max(shifts,default=0)*1000
++        # Entire retained rounding cells must lie in [Dmax,h); no latent u<0 or u>=h.
++        first=o+math.ceil((dmax+r/2-o)/r)*r
++        last=o+math.floor((h*1000-r/2-o)/r)*r
++        if first>last:raise ModelUnavailable('NO_SAFE_CONTEXT_OBSERVATION_DOMAIN')
++        lower=first-r/2;upper=last+r/2
++        safe=[context_origin_ms+lower,context_origin_ms+upper-dmax]
++        if (not isinstance(target_range_ms,(list,tuple)) or len(target_range_ms)!=2
++                or any(not _finite(t) for t in target_range_ms) or target_range_ms[0]>=target_range_ms[1]):
++            raise ModelUnavailable('VALID_TARGET_INTERVAL_REQUIRED')
++        if not safe[0]<=target_range_ms[0]<target_range_ms[1]<=safe[1]:
++            return {**base,'reason':'TARGET_OUTSIDE_SAFE_CONTEXT_INTERIOR',
++                'safe_target_range_ms':safe,'requested_target_range_ms':list(target_range_ms)}
++        if isinstance(max_events,bool) or not isinstance(max_events,int) or max_events<0:
++            raise ModelUnavailable('INVALID_EVENT_LIMIT')
++        query=[context_origin_ms+first,context_origin_ms+last+r]
++        view=index.query(*query,max_events=max_events)
++        supplied=copy.deepcopy(spec);supplied['query_delivery_mode']='censored_reported_timestamps'
++        prepared=prepare_joint_observation(view,supplied,origin_ms=context_origin_ms,max_events=max_events)
++        if prepared['status']!='ready_for_declared_model_only':
++            return {**base,'reason':prepared['reason'],'observation_readiness':prepared}
++        plan=dict(context_range_ms=[context_origin_ms,context_origin_ms+h*1000],
++            target_range_ms=list(target_range_ms),queried_reported_range_ms=query,
++            retained_true_mark_range_ms=[context_origin_ms+lower,context_origin_ms+upper],
++            safe_target_range_ms=safe,max_enabled_vehicle_delay_ms=dmax,
++            population_boundary_assumption='bounded nonnegative supplied delays; NOT calibrated for real RELEASE',
++            source_namespace=view['source_namespace'],
++            edge_policy='outside target UNKNOWN; no independent target restart or overlap multiplication',
++            upstream_completeness='ASSUMED_SUPPLIED_INDEX_ONLY',
++            context_phase_history_required=True)
++        return {**base,'status':'ready_for_supplied_context_model_only','reason':None,
++            'components':prepared['components'],'context_plan':plan,'evidence_view':view,
++            'input_sha256':prepared['input_sha256'],'supplied_model_sha256':prepared['supplied_model_sha256']}
++    except OverflowError:
++        return {**base,'reason':'CONTEXT_DOMAIN_NUMERIC_LIMIT'}
++    except (ModelUnavailable,EvidenceUnavailable,ValueError,TypeError,KeyError,AttributeError) as exc:
++        return {**base,'reason':getattr(exc,'reason_code',None) or str(exc)}
+diff --git a/app/experimental/joint_track_model.py b/app/experimental/joint_track_model.py
+index 6d88879..6d92003 100644
+--- a/app/experimental/joint_track_model.py
++++ b/app/experimental/joint_track_model.py
+@@ -71,6 +71,8 @@ def tracks_from_view(view, spec):
+ 
+ def observation_components(view, spec, *, max_tracks=512, max_q_cells=50000):
+     """Exact finite q_i(u) and thinning exposure, with missing detections."""
++    if spec.get('query_delivery_mode','require_complete')!='require_complete':
++        raise ModelUnavailable('UNSUPPORTED_QUERY_DELIVERY_MODE_FOR_CLOCK')
+     h=spec.get('horizon_s')
+     if not isinstance(h,int) or isinstance(h,bool) or not 0<h or h%GRID_S:
+         raise ModelUnavailable('GRID_ALIGNED_HORIZON_REQUIRED')
+diff --git a/app/experimental/local_factor_sequence.py b/app/experimental/local_factor_sequence.py
+new file mode 100644
+index 0000000..abe2e1a
+--- /dev/null
++++ b/app/experimental/local_factor_sequence.py
+@@ -0,0 +1,154 @@
++"""Exact bounded semi-Markov messages for strictly cell-local vehicle factors.
++
++Nonlocal joint-track factors are rejected. No q threshold, beam or approximation.
++Unknown initial phase/residual/count; unchanged priors and right censoring.
++"""
++import math
++import time
++import copy
++
++import numpy as np
++
++from app.core.state_contract import StateEstimate,physical_estimate
++from app.experimental.joint_track_model import GRID_S,PRIORS,ModelUnavailable
++from app.experimental.unanchored_sequence import duration_masses
++from app.experimental.context_observation import prepare_context_observation
++
++
++def _lse(x):
++    x=np.asarray(x);m=float(np.max(x))
++    return m+math.log(float(np.exp(x-m).sum())) if math.isfinite(m) else -math.inf
++
++
++def local_emissions(comp):
++    """Exact factorization; compensator plus one term per complete vehicle factor."""
++    n=comp['n'];k=len(comp['rates'])
++    e=np.zeros((n,k))
++    for z in range(k):
++        e[:,z]=-np.sum(comp['rates'][z,:,None]*comp['exposure']*GRID_S,axis=0)*comp['detected_probability']
++    for i,t in enumerate(comp['tracks']):
++        support=np.flatnonzero(comp['q'][i]>0)
++        if len(support)!=1:
++            raise ModelUnavailable('NONLOCAL_TRACK_KERNEL_REQUIRES_EXPANDED_STATE')
++        j=int(support[0]);m=comp['movements'].index(t['movement'])
++        mu=comp['rates'][:,m]*comp['exposure'][m,j]*GRID_S*comp['q'][i,j]
++        with np.errstate(divide='ignore'):e[j]+=np.log(mu)
++    return e
++
++
++def _map_segments(e,order,mass,residual,check):
++    """MAP over observed segment paths, summing over censored duration tails."""
++    n,k=e.shape;R=len(mass)-1
++    prefix=np.vstack([np.zeros(k),np.cumsum(np.where(np.isfinite(e),e,0.),axis=0)])
++    blocked=np.vstack([np.zeros(k),np.cumsum(~np.isfinite(e),axis=0)])
++    def emission(a,b,z):return -math.inf if blocked[b,z]>blocked[a,z] else prefix[b,z]-prefix[a,z]
++    best=np.full((n,k),-math.inf);paths={}
++    for b in range(1,n):
++        check()
++        for z in order:
++            score=math.log(residual[b]/k)+emission(0,b,z) if b<=R and residual[b]>0 else -math.inf
++            candidate=[(0,b,z)]
++            prev=order[(order.index(z)-1)%k]
++            for d in range(1,min(R,b-1)+1):
++                if mass[d]<=0:continue
++                a=b-d;v=best[a,prev]+math.log(mass[d])+emission(a,b,z)
++                if v>score:score=v;candidate=paths.get((a,prev),[])+[(a,b,z)]
++            best[b,z]=score;paths[b,z]=candidate
++    value=-math.inf;segments=[]
++    for z in order:
++        p=float(residual[n:].sum()) if n<=R else 0.
++        v=math.log(p/k)+emission(0,n,z) if p>0 else -math.inf
++        if v>value:value=v;segments=[(0,n,z)]
++        prev=order[(order.index(z)-1)%k]
++        for a in range(1,n):
++            remaining=n-a;p=float(mass[remaining:].sum()) if remaining<=R else 0.
++            if p<=0:continue
++            v=best[a,prev]+math.log(p)+emission(a,n,z)
++            if v>value:value=v;segments=paths.get((a,prev),[])+[(a,n,z)]
++    return [[a*GRID_S,b*GRID_S,z] for a,b,z in segments],float(value)
++
++
++def infer_local_factors(comp,order,*,max_seconds=5.,max_memory_bytes=32*1024*1024):
++    started=time.process_time();wall=time.perf_counter()
++    base=dict(schema='experimental-local-factor-renewal-v1',status='unavailable',complete=False,results={},
++        logical_phase=StateEstimate('UNKNOWN','logical_phase','local_factor_sequence',
++            abstention_reason='MODEL_CONDITIONED_DIAGNOSTIC_NOT_VALIDATED_HISTORY').to_dict(),
++        physical_section=physical_estimate('UNKNOWN',source='local_factor_sequence').to_dict(),
++        calibrated_lamp_probability=None,published_logical_unknown_fraction=1.,
++        published_physical_unknown_fraction=1.,production_default_changed=False,
++        assumptions=['all vehicle kernels exactly cell-local','supplied rates/exposure/detection/delay/rounding',
++            'stationary grid-renewal start and same prior per phase','fixed K/order;2s phase grid'],
++        enumeration_used=False,truncation_used=False)
++    def failed(reason):return {**base,'reason':reason,'cpu_s':time.process_time()-started,'wall_s':time.perf_counter()-wall}
++    def check():
++        if time.perf_counter()-wall>max_seconds or time.process_time()-started>max_seconds:
++            raise ModelUnavailable('TIME_BUDGET_EXHAUSTED_NO_POSTERIOR')
++    try:
++        if (isinstance(max_seconds,bool) or not isinstance(max_seconds,(int,float)) or not math.isfinite(max_seconds) or max_seconds<=0
++                or isinstance(max_memory_bytes,bool) or not isinstance(max_memory_bytes,int) or max_memory_bytes<0):
++            raise ModelUnavailable('INVALID_OR_EXHAUSTED_RESOURCE_LIMIT')
++        n=comp['n'];k=len(comp['rates']);R=24
++        if not isinstance(n,int) or not 1<=n<=40 or k not in (2,3):raise ModelUnavailable('BOUNDED_K2_K3_CONTEXT_REQUIRED')
++        if not isinstance(order,list) or any(isinstance(z,bool) or not isinstance(z,int) for z in order) or sorted(order)!=list(range(k)):
++            raise ModelUnavailable('SUPPLIED_CYCLIC_ORDER_REQUIRED')
++        # Forward-count cube plus backward/marginal work arrays and retained messages.
++        allowance=(n*k*(R+1)*(n+1)*8)*3+65536
++        if allowance>max_memory_bytes:raise ModelUnavailable('MEMORY_BUDGET_EXHAUSTED_NO_POSTERIOR')
++        check();e=local_emissions(comp);results={}
++        for name,prior in PRIORS.items():
++            ds,pm=duration_masses(prior);mass=np.zeros(R+1);mass[(ds//GRID_S).astype(int)]=pm
++            residual=np.array([0.]+[float(mass[r:].sum()) for r in range(1,R+1)])
++            residual/=float(np.arange(R+1)@mass)
++            alpha=np.full((n,k,R+1,n+1),-math.inf)
++            for z in order:alpha[0,z,1:,0]=np.log(residual[1:]/k)
++            for j in range(n-1):
++                check()
++                for z in order:
++                    # Remaining>1 keeps count; remaining1 completes an interior phase.
++                    alpha[j+1,z,1:R,:]=np.logaddexp(alpha[j+1,z,1:R,:],alpha[j,z,2:R+1,:]+e[j,z])
++                    nxt=order[(order.index(z)+1)%k]
++                    for d in np.flatnonzero(mass):
++                        alpha[j+1,nxt,d,1:]=np.logaddexp(alpha[j+1,nxt,d,1:],
++                            alpha[j,z,1,:-1]+e[j,z]+math.log(mass[d]))
++            last=alpha[-1]+e[-1,:,None,None];logZ=_lse(last)
++            if not math.isfinite(logZ):raise ModelUnavailable('ALL_PATHS_HAVE_ZERO_OBSERVATION_PROBABILITY')
++            count=np.array([math.exp(_lse(last[:,:,c])-logZ) for c in range(n+1)])
++            beta=np.full((n,k,R+1),-math.inf);beta[-1,:,1:]=e[-1,:,None]
++            for j in range(n-2,-1,-1):
++                check()
++                for z in order:
++                    beta[j,z,2:]=e[j,z]+beta[j+1,z,1:R]
++                    nxt=order[(order.index(z)+1)%k]
++                    beta[j,z,1]=e[j,z]+_lse([math.log(mass[d])+beta[j+1,nxt,d] for d in np.flatnonzero(mass)])
++            summed=np.logaddexp.reduce(alpha,axis=3)
++            phase=[[math.exp(_lse(summed[j,z,1:]+beta[j,z,1:])-logZ) for z in range(k)] for j in range(n)]
++            boundaries=[]
++            for j in range(n-1):
++                terms=[]
++                for z in order:
++                    nxt=order[(order.index(z)+1)%k]
++                    for d in np.flatnonzero(mass):
++                        terms.append(summed[j,z,1]+e[j,z]+math.log(mass[d])+beta[j+1,nxt,d])
++                boundaries.append(dict(time_s=(j+1)*GRID_S,model_conditioned_existence_probability=math.exp(_lse(terms)-logZ)))
++            seg,score=_map_segments(e,order,mass,residual,check)
++            results[name]=dict(prior=copy.deepcopy(prior),log_normalizer=logZ,
++                transition_count_posterior={str(c):float(p) for c,p in enumerate(count) if p>0},
++                phase_posterior=phase,boundary_existence=boundaries,diagnostic_segments=seg,
++                diagnostic_map_log_joint=score,
++                posterior_semantics='exact within supplied finite grid model; not calibrated lamp probability')
++        check()
++        return {**base,'status':'complete_local_factor_posterior','complete':True,'results':results,
++            'likelihood_constant_over_phase_paths':bool(np.all(e==e[:,[0]])),
++            'path_dependence_semantics':'equality sufficient for prior-only; inequality NOT identifiability',
++            'declared_array_allowance_bytes':allowance,'context_extent_s':[0,n*GRID_S],
++            'cpu_s':time.process_time()-started,'wall_s':time.perf_counter()-wall}
++    except (ModelUnavailable,ValueError,TypeError,KeyError,IndexError) as exc:return failed(str(exc))
++
++
++def infer_local_context(index,spec,*,context_origin_ms,target_range_ms,**limits):
++    """Explicit opt-in context entry point; retains UNKNOWN publication semantics."""
++    prepared=prepare_context_observation(index,spec,context_origin_ms=context_origin_ms,target_range_ms=target_range_ms)
++    if prepared['status']!='ready_for_supplied_context_model_only':return prepared
++    result=infer_local_factors(prepared['components'],spec.get('cyclic_order'),**limits)
++    return {**result,'context_plan':prepared['context_plan'],'input_sha256':prepared['input_sha256'],
++        'supplied_model_sha256':prepared['supplied_model_sha256']}
+diff --git a/app/experimental/observation_domain.py b/app/experimental/observation_domain.py
+index bb4dcfe..d045ce2 100644
+--- a/app/experimental/observation_domain.py
++++ b/app/experimental/observation_domain.py
+@@ -60,3 +60,32 @@ def require_complete_query(view, *, horizon_s, windows, channels,
+         ts=row['event']['timestamp_ms']
+         if not query[0]<=ts<query[1]:fail('EVENT_OUTSIDE_QUERY_DOMAIN',report)
+     return report
++
++
++def censored_query_windows(view,windows,*,resolution_ms,rounding_origin_ms,error_type=ValueError):
++    """Exact true-time preimage of retained rounded centres, then camera censoring.
++
++    Rounding ties have zero mass under the continuous latent model. Supplied
++    windows remain physical camera windows; the intersection is a delivery
++    selection model, not an assertion that the camera stopped observing.
++    """
++    checked=require_complete_query(view,horizon_s=0,windows=[],channels=[],error_type=error_type)
++    lo,hi=checked['query_range_ms'];r=resolution_ms;o=rounding_origin_ms
++    try:
++        first=o+math.ceil((lo-o)/r)*r
++        last=o+(math.ceil((hi-o)/r)-1)*r
++    except (OverflowError,ValueError):
++        raise error_type('ROUNDING_QUERY_DOMAIN_NUMERIC_LIMIT') from None
++    if not math.isfinite(first) or not math.isfinite(last):
++        raise error_type('ROUNDING_QUERY_DOMAIN_NUMERIC_LIMIT')
++    effective=[];retained=None
++    if first<=last:
++        a=(first-r/2)/1000;b=(last+r/2)/1000
++        retained=[a,b]
++        effective=[[max(x,a),min(y,b)] for x,y in windows if max(x,a)<min(y,b)]
++    return effective,dict(delivery_mode='censored_reported_timestamps',
++        query_range_ms=[lo,hi],retained_clock_centres_ms=[first,last] if first<=last else [],
++        retained_true_mark_interval_s=retained,effective_observation_windows_s=effective,
++        supplied_camera_windows_s=[list(w) for w in windows],
++        upstream_event_delivery=checked['upstream_event_delivery'],
++        semantics='exact query selection under supplied rounding model; not physical camera exposure')
+diff --git a/app/experimental/phase_observation_bridge.py b/app/experimental/phase_observation_bridge.py
+index ac1f4e4..039807b 100644
+--- a/app/experimental/phase_observation_bridge.py
++++ b/app/experimental/phase_observation_bridge.py
+@@ -91,6 +91,8 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
+             from app.experimental.rounded_observation import rounded_components
+             components=rounded_components(relative,copy.deepcopy(supplied),max_tracks=max_events)
+         elif backend=='legacy_finite_clock':
++            if supplied.get('query_delivery_mode','require_complete')!='require_complete':
++                raise ModelUnavailable('UNSUPPORTED_QUERY_DELIVERY_MODE_FOR_CLOCK')
+             components = observation_components(relative, copy.deepcopy(supplied), max_tracks=max_events)
+         else:
+             raise ModelUnavailable('UNSUPPORTED_CLOCK_MODEL')
+diff --git a/app/experimental/rounded_observation.py b/app/experimental/rounded_observation.py
+index 3dad7a0..88884ad 100644
+--- a/app/experimental/rounded_observation.py
++++ b/app/experimental/rounded_observation.py
+@@ -72,11 +72,18 @@ def rounded_components(view, spec, *, max_tracks=512, max_q_cells=50000,
+     pr=spec.get('release_detection_probability'); pc=spec.get('crossing_detection_probability')
+     if not _finite(pr) or not _finite(pc) or not 0<=pr<=1 or not 0<=pc<=1:
+         raise ModelUnavailable('SUPPLIED_DETECTION_PROBABILITIES_REQUIRED')
+-    from app.experimental.observation_domain import require_complete_query
+-    domain=require_complete_query(view,horizon_s=h,windows=windows,error_type=ModelUnavailable,
+-        resolution_ms=resolution,rounding_origin_ms=rounding_origin,
+-        channels=[('RELEASE',[d for d,_ in delays],pr),
+-            ('CROSSING_PROXY',[d+lag for d,_ in delays for lag,_ in transits],pc)])
++    from app.experimental.observation_domain import require_complete_query,censored_query_windows
++    delivery=spec.get('query_delivery_mode','require_complete')
++    if delivery=='require_complete':
++        domain=require_complete_query(view,horizon_s=h,windows=windows,error_type=ModelUnavailable,
++            resolution_ms=resolution,rounding_origin_ms=rounding_origin,
++            channels=[('RELEASE',[d for d,_ in delays],pr),
++                ('CROSSING_PROXY',[d+lag for d,_ in delays for lag,_ in transits],pc)])
++    elif delivery=='censored_reported_timestamps':
++        windows,domain=censored_query_windows(view,windows,resolution_ms=resolution,
++            rounding_origin_ms=rounding_origin,error_type=ModelUnavailable)
++    else:
++        raise ModelUnavailable('UNSUPPORTED_QUERY_DELIVERY_MODE')
+     rows=view.get('events',[])
+     if len(rows)>max_tracks*2:
+         raise ModelUnavailable('EVENT_BUDGET_EXHAUSTED')
+diff --git a/docs/CONTEXT_OBSERVATION_PROTOCOL_20261016.md b/docs/CONTEXT_OBSERVATION_PROTOCOL_20261016.md
+new file mode 100644
+index 0000000..3008ce5
+--- /dev/null
++++ b/docs/CONTEXT_OBSERVATION_PROTOCOL_20261016.md
+@@ -0,0 +1,54 @@
++# Context and censored query — scope before checks
++
++Base `08f82c3b382388fc201baa82a4ec37302ef8c4e4`. Opt-in only; default remains
++strict complete-query validation. No new decoder/prior/recovery suite or real replay.
++
++Implement explicit query-selection kernel for rounded marks: query acts on clock
++centres, not true detection times. Consecutive retained centres define the union
++of rounding cells. Intersect that union with supplied camera windows; use it for
++BOTH joint pattern probabilities and detected-vehicle compensator. This is exact
++under supplied rounding/delay/detection assumptions, not inferred camera exposure.
++Reuse existing piecewise integration, not a second likelihood implementation.
++
++For finite nonnegative vehicle delay atoms, let Dmax be the largest enabled
++release/crossing shift. A context query is safe from vehicles outside latent
++[0,h) if every retained true mark lies in [Dmax,h). Choose reported clock centres
++whose entire rounding cells lie inside that interval. This may censor additional
++sub-ms edges; report them explicitly. With t>=Dmax and shift<=Dmax, u=t-shift>=0;
++with t<h and shift>=0, u<h. No claim for unknown/unbounded real event delays.
++
++Build one query from an existing immutable evidence index, keep global vehicle
++identities/provenance. Supply desired target strictly inside a declared context;
++no phase state or camera coverage is inferred from silence. Output identifies
++context, queried marks, desired target and excluded edges. Context phase history
++is still needed; standalone target-only phase inference is NOT equivalent.
++No independent multiplication of overlapping window likelihoods.
++
++Predeclared checks: closed-form2s query exposure including rounding edge;
++paired RELEASE inside/CROSSING outside query is censoring, not missing detection;
++normalization of all retained joint patterns to detected exposure; legacy strict
++mode remains rejection; shifted absolute clock; pre-context vehicle witness;
++zero camera/no demand; rename/immutability; invalid/unbounded delays, empty safe
++range, unsupported backend, budgets. Existing finite-population tests preserved.
++No tuning; tests<=30CPU seconds; up to512 events, horizon<=80s,64 delay pairs,
++32 windows, existing2M integration-piece budget. Scientific inference calls0.
++Physical/logical outputs remain UNKNOWN.2D.1 FAIL unchanged.
++
++## Subsequent bounded scaling check, frozen before its implementation/tests
++
++Add exact semi-Markov inference ONLY if every vehicle q factor has positive
++support in exactly one latent cell. Then log-likelihood factors by cell; no
++approximation/thresholding q. Nonlocal factor => unavailable, no scalar-HSMM
++fallback. Same flat/soft priors, same stationary grid residual, fixed K2/K3/order.
++Count forward messages and phase/boundary marginals, diagnostic MAP computed
++with censored segment probabilities (not Viterbi on a single remaining-duration
++state, which would maximize rather than marginalize censored final durations).
++Output all boundary existence hypotheses without truth/count selection; no new
++publication/observability threshold. Logical/physical remain UNKNOWN.
++
++Check both priors against exhaustive path posterior on short8/12s finite cases:
++normalizer, count, phase marginals, boundary existence and MAP score. No recovery
++truth used. Long64s/no-demand is a normalization/scaling check, not accuracy;
++never enumerate its millions of paths. Explicit memory/time refusal; numerical
++budget<=32MiB,5CPU/5wall seconds; horizon<=80s remains. No beam/truncation here.
++No scientific suite, no real replay. Extra targeted tests<=30CPU seconds.
+diff --git a/docs/CONTEXT_OBSERVATION_RESULTS_20261016.md b/docs/CONTEXT_OBSERVATION_RESULTS_20261016.md
+new file mode 100644
+index 0000000..9897efa
+--- /dev/null
++++ b/docs/CONTEXT_OBSERVATION_RESULTS_20261016.md
+@@ -0,0 +1,78 @@
++# Context/target и цензурирование query
++
++Base: `08f82c3b382388fc201baa82a4ec37302ef8c4e4`.
++Ветка: `experiment/context-censored-observation-20261016`.
++[Scope до проверок](CONTEXT_OBSERVATION_PROTOCOL_20261016.md).
++
++Добавлен opt-in `prepare_context_observation`. Он запрашивает существующий
++immutable evidence index, разделяет полный latent context и желаемый target,
++сохраняет source namespace, ID/provenance машин и явно исключённые края.
++Никакого decoder/sequence run или K search этот компонент не запускает.
++
++Новый явно выбранный `query_delivery_mode=censored_reported_timestamps` учитывает
++отбор округлённых меток **и в joint pattern, и в compensator**. Для query[0,2000)мс
++при rounding resolution1мс/origin0 удерживаются centres0..1999мс, то есть union
++rounding cells[-.5,1999.5)мс. Это пересекается с supplied camera windows и finite
++latent support в прежнем точном piecewise integral. Поэтому в примере без событий
++log-likelihood−.459885, а не−1.84 и не механическое−.46. Это свойство заданной
++модели измерений, не повышение реальной signal accuracy.
++
++Если RELEASE внутри query, а CROSSING вне query, отсутствие CROSSING становится
++query censoring, даже при detection probability1. Истинное отключение камеры и
++отбор query раздельно записаны в metadata. Нормировка retained joint patterns
++в detected exposure проверена. Сам likelihood и heuristic confidence weighting
++не переписаны: используется существующий интегратор, веса не добавлялись.
++
++## Защита от внешней популяции при известных bounded delays
++
++Для enabled каналов максимальный supplied vehicle shift=Dmax. Сохраняются только
++те clock centres, чьи **целые** rounding cells лежат в[Dmax,h). Тогда при любом
++допустимом shift d: u=t−d>=0 и u<h. Ни автомобиль до latent context, ни после него
++не может дать оставшуюся метку в рамках этой модели. Это решает конкретный
++finite-population edge witness через явное цензурирование, без выдуманной
++предыстории автомобилей или объявления начала записи началом фазы.
++
++Safe target требует полного потенциального event support внутри retained true
++mark interval: [retained_start,retained_end−Dmax). Поля target/context/query/retained
++support различны. Target вне safe interior получает unavailable/UNKNOWN без
++fallback. Context phase history всё равно должна оцениваться совместно; нельзя
++отрезать её и перезапустить phase prior на target. Неиспользуемые края не являются
++RED. Здесь target не публикует фазу: logical/physical UNKNOWN100%.
++
++Пример Dmax2с,h8с: query reported[2001,8000)мс, retained true[2000.5,7999.5)мс,
++safe target[2000.5,5999.5)мс. RELEASE250мс, требующий latent−1750мс, исключён;
++RELEASE2250мс с latent250мс сохранён. Другие движения и предыстория не выдуманы.
++Повторное получение overlapping contexts сохраняет те же vehicle IDs: их
++likelihood нельзя автоматически перемножать как независимые.
++
++## Проверки и пределы
++
++106 targeted tests +34 затронутых регрессии/artifact/adapter tests passed.
++Итоговая общая проверка вместе с12 DP tests:152 passed,11.79с pytest wall time.
++Проверены normalization, closed forms, fractional clocks, camera gaps, zero demand,
++invalid/unsafe delays, numeric limits, event budget, absolute origin, rename и
++immutability. Contract examples/hashes сохранены до итогового отчёта. Новых
++scientific sequence runs/recovery suite/real replay0; короткие прежние inference
++unit tests исполнялись как регрессии. Производительность pipeline не измерялась.
++
++Default **по-прежнему require_complete**: старый короткий query без явного режима
++цензурирования отклоняется QUERY_DOMAIN_INCOMPLETE. Finite-clock backend не
++принимает этот режим ни через bridge, ни напрямую. Core/default/HSMM/K/period/
++mapping/extraction, priors, thresholds и historical artifacts не изменены.
++2D.1 остаётся FAIL; реальные K3/2/3 vs truth3/2/2 и raw19/34 сохранены.
++
++Ограничение: Dmax/rates/demand/detection/rounding/camera windows здесь **supplied**.
++Граница задержки для реальных RELEASE ещё не калибрована; unbounded/unknown
++delay этим доказательством не покрыт. Vehicle-to-event shift не является
++задержкой от GREEN. Полнота исходного index — допущение, не проверенный факт.
++Safe temporal domain не доказывает vehicle demand, наблюдаемость сигнала или
++лампы. Не заявляем готовность к произвольному реальному JSON.
++
++Дополнительно выполнен заранее зафиксированный scaling subset:
++[exact DP для строго cell-local kernels](LOCAL_FACTOR_DP_20261016.md),12 tests
++с oracle equivalence. Технический64с/no-demand пример обработан без enumeration;
++это не hold recovery. Широкий kernel получает явный unavailable. Следующий
++bounded шаг — expanded-state inference с ограниченной шириной factor history,
++затем real calibration/validation. Обычный scalar HSMM для general joint log-sum
++без factorization не подходит. Enumeration остаётся oracle малых задач. Новый
++большой synthetic search и real replay не запускались.
+diff --git a/docs/LOCAL_FACTOR_DP_20261016.md b/docs/LOCAL_FACTOR_DP_20261016.md
+new file mode 100644
+index 0000000..d100c99
+--- /dev/null
++++ b/docs/LOCAL_FACTOR_DP_20261016.md
+@@ -0,0 +1,68 @@
++# Exact scalable subset: cell-local vehicle factors
++
++Base `08f82c3b382388fc201baa82a4ec37302ef8c4e4`.
++Scope amendment frozen in CONTEXT_OBSERVATION_PROTOCOL before implementation/tests.
++Module: `app.experimental.local_factor_sequence`; entry `infer_local_context`.
++
++## Factorization and exactness
++
++For every vehicle i, require q[i,j]>0 at exactly one cell j_i. No small-value
++threshold. Then log integral_i = log(lambda[m_i,j_i]*exposure*dt*q[i,j_i]), so
++the entire joint-track likelihood is sum_j emission[j,z_j]. Compensator already
++factors by cell. Pairing marks stays inside q; there is still one term per
++vehicle. Nonlocal kernels, even a second support value1e−100, return
++NONLOCAL_TRACK_KERNEL_REQUIRES_EXPANDED_STATE; no independent-mark fallback.
++
++Sum-product state=(phase,remaining duration,transition count). Initial remaining
++duration has the same stationary grid residual prior as the exhaustive oracle.
++Remaining>1 decrements; remaining1 switches cyclic phase and samples an unchanged
++full duration prior. No transition is counted after the last observed cell.
++Sum over all remaining durations at the right edge gives correct censoring.
++Backward messages yield phase marginals and interior-boundary existence.
++
++Diagnostic MAP uses a separate segment-level max recurrence with initial-residual
++and final-duration **survival** terms. Viterbi over an individual remaining-duration
++state would wrongly maximize an unobserved final duration rather than sum it.
++This distinction is explicitly tested against oracle MAP scores. Structural-zero
++emissions are supported without invalid infinity subtraction in segment sums.
++
++Count messages require O(n²*K*R) array storage, with R=24 existing duration cells;
++no full paths retained. Horizon remains<=80s under current observation contract.
++Both flat/soft priors retained; no production prior chosen. Existing4..48s
++duration support remains a separate limitation for longer holds.
++
++## Output and checks
++
++Outputs: diagnostic context MAP, count posterior, phase posterior and existence
++probability for **every** interior grid boundary. No truth count/threshold chooses
++which hypothesis to report. These are supplied-model probabilities, not calibrated
++lamp probabilities or a validated publication rule. Logical/physical outputs stay
++UNKNOWN; target metadata keeps context and target separate.
++
++12 targeted tests pass; final combined context/regression/DP check152 passed.
++On short2/8/12s cases, both priors agree with exhaustive
++path calculations for normalizer, count, phase/boundary marginals and MAP score
++(numerical tolerance1e−11, not changed ±2s evaluation tolerance). Also checked
++factorization, nonlocal rejection, structural zeros, right censoring, resources,
++context entry and immutable inputs. This is algorithm equivalence, not recovery
++accuracy or a new synthetic benchmark.
++
++Technical64s K3 zero-demand input completes without enumeration: log normalizer0,
++count posterior normalized, sum of boundary existence equals expected count,
++phase marginals1/3. Recorded DP self wall time~.046s and array allowance1966336
++bytes. Neither is end-to-end throughput/peak RSS. No-demand leaves prior-driven
++alternatives, not a reconstructed lamp. A short context example is also saved.
++
++Budgets:5CPU+5wall seconds between bounded blocks;32MiB array allowance;
++unavailable without partial posterior on failure. No beam/truncation claims.
++General nonlocal factors need expanded history state or explicitly approximate
++search; this code does not silently merge their prefixes into scalar scores.
++
++## Remaining product work
++
++Scalability blocker is removed for local factors only. No claim of arbitrary
++real RELEASE support, hold+30 recovery or acceptance2D.1. Need bounded nonlocal
++kernel inference and real observation-model calibration/validation; existing
++K/discovery/physical mapping are unchanged. No real replay, tuning or new recovery
++suite was run. Old FAIL and predictions remain. See context results for the
++population-edge proof and its unverified real-delay assumptions.
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index e97bad8..d2d2959 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,4 +1,19 @@
+-# Project status — 2D.1, 2026-10-14
++# Project status — 2D.1, 2026-10-16
++
++2026-10-16 opt-in context/query-censoring contract completed under supplied bounded
++nonnegative vehicle delays. Reported clock-centre selection enters both pattern
++and compensator via existing integrator; safe interior target separated from full
++latent context. Earlier-than-context vehicle witness censored explicitly; global
++vehicle IDs/provenance retained across overlaps.106 target+34 regression/artifact
++checks pass; no scientific sequence suite/real replay/K search. Strict default
++still rejects incomplete queries; new mode explicit only. Real delay bound,
++source completeness/demand/detection calibration remain open. Logical/physical
++outputs UNKNOWN;2D.1 FAIL, historical metrics/main/core/default unchanged.
++Additionally exact cell-local semi-Markov DP delivered:12 checks match exhaustive
++normalizer/count/phase/boundary marginals/MAP on short cases;64s zero-demand
++normalization without enumeration. Not real/hold recovery. Nonlocal kernels
++explicitly unavailable; no beam/uncertified posterior. See LOCAL_FACTOR_DP.
++Next: bounded expanded history for nonlocal factors and real calibration/validation.
+ 
+ 2026-10-15 external review locally checked; P1 query-observation mismatch fixed.
+ Before: empty2s query admitted8s compensator−1.84. After: QUERY_DOMAIN_INCOMPLETE;
+diff --git a/scripts/check_context_observation.py b/scripts/check_context_observation.py
+new file mode 100644
+index 0000000..dd7442b
+--- /dev/null
++++ b/scripts/check_context_observation.py
+@@ -0,0 +1,53 @@
++"""Small observation-contract witnesses only: no sequence inference/truth files."""
++import hashlib
++import json
++from pathlib import Path
++
++from app.core.temporal_evidence import TemporalEvent
++from app.experimental.local_evidence import build_local_evidence
++from app.experimental.context_observation import prepare_context_observation
++from app.experimental.rounded_observation import rounded_components
++from app.experimental.joint_track_model import path_loglik
++
++ROOT=Path(__file__).resolve().parents[1]
++OUT=ROOT/'evidence/context_observation_20261016'
++
++
++def main():
++    model=dict(horizon_s=8,movements=['straight','turn'],rates_per_s=[[.2,.03],[.03,.2]],
++        rate_source='declared contract example',latent_demand_exposure=[[1]*4]*2,
++        demand_source='declared example exposure',observation_windows_s=[[0,20]],
++        observation_window_source='declared example camera window',release_delay_s=[[0,1.]],
++        transit_delay_s=[[2,1.]],delay_source='declared vehicle-delay example',
++        release_detection_probability=1.,crossing_detection_probability=0.,
++        release_method='example_release',crossing_method='example_crossing',
++        clock_model='continuous_latent_rounded_marks',timestamp_resolution_ms=1,
++        timestamp_rounding_origin_ms=0,timestamp_resolution_source='declared rounding clock')
++    empty=build_local_evidence([],source_namespace='fixed-context-example')
++    short={**model,'query_delivery_mode':'censored_reported_timestamps'}
++    comp=rounded_components(empty.query(0,2000),short)
++    events=[TemporalEvent(t,'RELEASE','straight',i,'example_release',.5,'MEDIUM',None,
++        {'source':'example','track_fingerprint':str(i)}) for i,t in enumerate((250,2250))]
++    evidence=build_local_evidence(events,source_namespace='fixed-context-example')
++    context=prepare_context_observation(evidence,{**model,'release_delay_s':[[2,1.]]},
++        context_origin_ms=0,target_range_ms=[3000,5000])
++    output=dict(base_sha='08f82c3b382388fc201baa82a4ec37302ef8c4e4',
++        scientific_sequence_inference_calls=0,real_replay_calls=0,
++        short_query=dict(model_conditioned_loglik=path_loglik([0]*4,comp),
++            expected_loglik=-(.2+.03)*1.9995,observation_domain=comp['observation_domain']),
++        finite_context=dict(status=context['status'],reason=context['reason'],
++            context_plan=context.get('context_plan'),
++            selected_vehicle_ids=[t['group_id'] for t in context['components']['tracks']],
++            selected_relative_release_ms=[t['release_ms'] for t in context['components']['tracks']],
++            logical_phase=context['logical_phase'],physical_section=context['physical_section']),
++        source_sha256_lf={name:hashlib.sha256((ROOT/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest()
++            for name in ('app/experimental/context_observation.py','app/experimental/observation_domain.py',
++                'app/experimental/rounded_observation.py','app/experimental/phase_observation_bridge.py',
++                'app/experimental/joint_track_model.py','scripts/check_context_observation.py')})
++    assert abs(output['short_query']['model_conditioned_loglik']-output['short_query']['expected_loglik'])<1e-12
++    assert output['finite_context']['selected_relative_release_ms']==[2250]
++    with (OUT/'contract_examples.json').open('x',encoding='utf-8') as f:json.dump(output,f,indent=2,allow_nan=False)
++    print(json.dumps(output,indent=2))
++
++
++if __name__=='__main__':main()
+diff --git a/scripts/check_local_factor_sequence.py b/scripts/check_local_factor_sequence.py
+new file mode 100644
+index 0000000..689e254
+--- /dev/null
++++ b/scripts/check_local_factor_sequence.py
+@@ -0,0 +1,46 @@
++"""Technical local-kernel DP/context witnesses, not a recovery benchmark."""
++import hashlib
++import json
++from pathlib import Path
++
++from app.core.temporal_evidence import TemporalEvent
++from app.experimental.local_evidence import build_local_evidence
++from app.experimental.local_factor_sequence import infer_local_context
++
++ROOT=Path(__file__).resolve().parents[1]
++OUT=ROOT/'evidence/context_observation_20261016'
++
++
++def main():
++    model=dict(horizon_s=8,movements=['m0','m1'],cyclic_order=[0,1],
++        rates_per_s=[[.2,.03],[.03,.2]],rate_source='technical witness',
++        latent_demand_exposure=[[1]*4]*2,demand_source='supplied technical exposure',
++        observation_windows_s=[[0,8]],observation_window_source='supplied camera window',
++        release_delay_s=[[0,1.]],transit_delay_s=[[0,1.]],delay_source='supplied vehicle delay',
++        release_detection_probability=1.,crossing_detection_probability=0.,
++        release_method='witness',crossing_method='unused',clock_model='continuous_latent_rounded_marks',
++        timestamp_resolution_ms=1,timestamp_rounding_origin_ms=0,timestamp_resolution_source='supplied 1ms clock')
++    event=TemporalEvent(4250,'RELEASE','m0',1,'witness',.5,'MEDIUM',None,
++        {'source':'technical_witness','track_fingerprint':'one'})
++    evidence=build_local_evidence([event],source_namespace='technical_context')
++    short=infer_local_context(evidence,model,context_origin_ms=0,target_range_ms=[3000,5000])
++    long_model={**model,'horizon_s':64,'movements':['m0','m1','m2'],'cyclic_order':[2,0,1],
++        'rates_per_s':[[.2,.03,.03],[.03,.2,.03],[.03,.03,.2]],
++        'latent_demand_exposure':[[0]*32]*3,'observation_windows_s':[[0,64]]}
++    long=infer_local_context(build_local_evidence([],source_namespace='no_demand'),long_model,
++        context_origin_ms=0,target_range_ms=[4000,60000])
++    assert short['complete'] and long['complete'] and long['likelihood_constant_over_phase_paths']
++    output=dict(base_sha='08f82c3b382388fc201baa82a4ec37302ef8c4e4',
++        purpose='technical equivalence/scaling, no recovery truth or real replay',
++        short_context=short,long64s_zero_demand=long,
++        source_sha256_lf={name:hashlib.sha256((ROOT/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest()
++            for name in ('app/experimental/local_factor_sequence.py','app/experimental/context_observation.py',
++                'app/experimental/rounded_observation.py','app/experimental/observation_domain.py',
++                'app/experimental/phase_observation_bridge.py','app/experimental/joint_track_model.py',
++                'scripts/check_local_factor_sequence.py')})
++    with (OUT/'dp_examples.json').open('x',encoding='utf-8') as f:json.dump(output,f,indent=2,allow_nan=False)
++    for name,r in [('short',short),('long64s_zero_demand',long)]:
++        print(name,r['status'],'wall_s=',r['wall_s'],'allowance_bytes=',r['declared_array_allowance_bytes'])
++
++
++if __name__=='__main__':main()
+diff --git a/tests/test_context_observation.py b/tests/test_context_observation.py
+new file mode 100644
+index 0000000..7370531
+--- /dev/null
++++ b/tests/test_context_observation.py
+@@ -0,0 +1,156 @@
++import copy
++import math
++
++import numpy as np
++import pytest
++
++from app.core.temporal_evidence import TemporalEvent
++from app.experimental.local_evidence import build_local_evidence
++from app.experimental.joint_track_model import ModelUnavailable,path_loglik,observation_components
++from app.experimental.rounded_observation import rounded_components
++from app.experimental.phase_observation_bridge import prepare_joint_observation
++from app.experimental.context_observation import prepare_context_observation
++from test_rounded_observation import supplied
++
++
++def index(patterns=(),origin=0):
++    events=[]
++    for i,(r,c) in enumerate(patterns):
++        for t,kind,method in ((r,'RELEASE','test_restart'),(c,'CROSSING_PROXY','test_zone')):
++            if t is not None:events.append(TemporalEvent(origin+t,kind,'straight',i,method,.5,'MEDIUM',None,
++                {'source':'test','track_fingerprint':str(i),'eligible_proxy':True}))
++    return build_local_evidence(events,source_namespace='fixed-global-index')
++
++
++def censored():
++    m=supplied();m['query_delivery_mode']='censored_reported_timestamps'
++    return m
++
++
++def test_empty_short_query_uses_rounded_retention_not_undelivered_six_seconds():
++    m=censored();m['crossing_detection_probability']=0
++    c=rounded_components(index().query(0,2000),m)
++    # Centres0..1999ms retain true[0,1999.5ms) after latent/camera intersection.
++    assert path_loglik([0]*4,c)==pytest.approx(-(.2+.03)*1.9995)
++    assert c['observation_domain']['retained_true_mark_interval_s']==[-.0005,1.9995]
++    strict=supplied();strict['crossing_detection_probability']=0
++    assert prepare_joint_observation(index().query(0,2000),strict,origin_ms=0)['reason']=='QUERY_DOMAIN_INCOMPLETE'
++
++
++def test_release_inside_crossing_outside_is_query_censoring_not_nondetection():
++    m=censored();m['crossing_detection_probability']=1
++    i=index([(6250,8250)])
++    c=rounded_components(i.query(0,8000),m)
++    assert len(c['tracks'])==1 and c['tracks'][0]['crossing_ms'] is None
++    assert c['q'][0,3]==pytest.approx(.001/2)
++    assert math.isfinite(path_loglik([0]*4,c))
++    assert prepare_joint_observation(i.query(0,8000),supplied(),origin_ms=0)['reason']=='QUERY_DOMAIN_INCOMPLETE'
++
++
++def test_all_retained_joint_patterns_normalize_with_query_selection():
++    m=censored();m.update(horizon_s=4,latent_demand_exposure=[[1]*2]*2,
++        timestamp_resolution_ms=1000,timestamp_rounding_origin_ms=500,
++        transit_delay_s=[[1,1.]],release_detection_probability=.5,crossing_detection_probability=.25)
++    # Retain centres.5/1.5/2.5s only, independent of true camera[0,20).
++    patterns=[(r,None) for r in (500,1500,2500)]
++    patterns += [(None,c) for c in (1500,2500)]
++    patterns += [(r,r+1000) for r in (500,1500)]
++    c=rounded_components(index(patterns).query(0,3000),m)
++    np.testing.assert_allclose(c['q'].sum(axis=0),c['detected_probability'])
++    assert c['detected_probability'].tolist()==pytest.approx([.625,.25])
++
++
++def test_fractional_query_rounding_clock_and_empty_centre_set():
++    m=censored();m['timestamp_rounding_origin_ms']=.25
++    c=rounded_components(index().query(0,2),m)
++    assert c['observation_domain']['retained_clock_centres_ms']==[.25,1.25]
++    assert c['observation_domain']['retained_true_mark_interval_s']==[-.00025,.00175]
++    c=rounded_components(index().query(.3,.4),m)
++    assert c['observation_domain']['retained_clock_centres_ms']==[]
++    assert np.all(c['detected_probability']==0)
++
++
++def test_context_removes_precontext_vehicle_and_keeps_valid_later_event():
++    #250ms release+2s delay needs u=-1.75;2250ms release needs u=.25.
++    m=supplied();m.update(release_delay_s=[[2,1.]],crossing_detection_probability=0)
++    r=prepare_context_observation(index([(250,None),(2250,None)]),m,
++        context_origin_ms=0,target_range_ms=[3000,5000])
++    assert r['status']=='ready_for_supplied_context_model_only'
++    assert [t['release_ms'] for t in r['components']['tracks']]==[2250]
++    p=r['context_plan'];assert p['retained_true_mark_range_ms'][0]>=2000
++    assert p['retained_true_mark_range_ms'][1]<=8000
++    assert p['context_phase_history_required']
++    assert r['logical_phase']['estimated_state']==r['physical_section']['estimated_state']=='UNKNOWN'
++
++
++def test_absolute_context_and_target_keep_global_track_identity_and_provenance():
++    m=supplied();m.update(horizon_s=16,latent_demand_exposure=[[1]*8]*2)
++    i=index([(6250,8250)],origin=100000);before=copy.deepcopy(m)
++    a=prepare_context_observation(i,m,context_origin_ms=100000,target_range_ms=[104000,112000])
++    b=prepare_context_observation(i,m,context_origin_ms=100000,target_range_ms=[106000,110000])
++    assert a['status']==b['status']=='ready_for_supplied_context_model_only'
++    assert a['evidence_view']['events']==b['evidence_view']['events']
++    original=i.query(100000,120000)['events']
++    assert a['evidence_view']['events']==original
++    assert m==before
++    assert a['context_plan']['target_range_ms']!=b['context_plan']['target_range_ms']
++    shifted=prepare_context_observation(i,m,context_origin_ms=102000,target_range_ms=[106000,110000])
++    assert shifted['status']=='ready_for_supplied_context_model_only'
++    assert a['evidence_view']['events']==shifted['evidence_view']['events']
++
++
++def test_no_camera_or_no_demand_not_a_phase_observation():
++    for missing in ('camera','demand'):
++        m=supplied()
++        if missing=='camera':m['observation_windows_s']=[]
++        else:m['latent_demand_exposure']=[[0]*4]*2
++        r=prepare_context_observation(index(),m,context_origin_ms=0,target_range_ms=[3000,5000])
++        assert r['status']=='ready_for_supplied_context_model_only'
++        assert path_loglik([0]*4,r['components'])==path_loglik([1]*4,r['components'])==0
++        assert r['logical_phase']['estimated_state']=='UNKNOWN'
++
++
++@pytest.mark.parametrize('change,reason',[
++    ({'release_delay_s':None},'DELAY_MASS'),({'release_delay_s':[[-1,1.]]},'INVALID_DELAY'),
++    ({'release_delay_s':[[20,1.]]},'NO_SAFE'),({'timestamp_resolution_ms':None},'ROUNDING_CLOCK'),
++    ({'clock_model':'legacy_finite_clock'},'ROUNDED_CLOCK')])
++def test_unknown_or_unsafe_context_parameters_abstain(change,reason):
++    m=supplied();m.update(change)
++    r=prepare_context_observation(index(),m,context_origin_ms=0,target_range_ms=[3000,5000])
++    assert r['status']=='unavailable' and reason in r['reason']
++
++
++def test_target_edges_and_event_budget_never_fallback():
++    m=supplied();i=index([(6250,None)])
++    r=prepare_context_observation(i,m,context_origin_ms=0,target_range_ms=[0,8000])
++    assert r['reason']=='TARGET_OUTSIDE_SAFE_CONTEXT_INTERIOR' and r['components'] is None
++    r=prepare_context_observation(i,m,context_origin_ms=0,target_range_ms=[3000,5000],max_events=0)
++    assert r['status']=='unavailable' and r['components'] is None and 'limit' in r['reason'].lower()
++
++
++def test_explicit_unsupported_mode_not_silently_ignored():
++    m=censored();m['clock_model']='legacy_finite_clock'
++    assert prepare_joint_observation(index().query(0,20000),m,origin_ms=0)['reason']=='UNSUPPORTED_QUERY_DELIVERY_MODE_FOR_CLOCK'
++    with pytest.raises(ModelUnavailable,match='UNSUPPORTED_QUERY_DELIVERY_MODE_FOR_CLOCK'):
++        observation_components(index().query(0,20000),m)
++    m=censored();m['query_delivery_mode']='unknown'
++    with pytest.raises(ModelUnavailable,match='UNSUPPORTED_QUERY_DELIVERY_MODE'):
++        rounded_components(index().query(0,20000),m)
++
++
++def test_movement_rename_preserves_context_likelihood():
++    m=supplied();a=prepare_context_observation(index([(4250,None)]),m,
++        context_origin_ms=0,target_range_ms=[3000,5000])
++    m['movements']=['alpha','beta']
++    e=TemporalEvent(4250,'RELEASE','alpha',0,'test_restart',.5,'MEDIUM',None,
++        {'source':'test','track_fingerprint':'0'})
++    renamed=build_local_evidence([e],source_namespace='fixed-global-index')
++    b=prepare_context_observation(renamed,m,context_origin_ms=0,target_range_ms=[3000,5000])
++    assert b['status']=='ready_for_supplied_context_model_only'
++    assert path_loglik([0]*4,a['components'])==path_loglik([0]*4,b['components'])
++
++
++def test_extreme_finite_clock_is_structured_unavailable_not_crash():
++    m=supplied();m.update(timestamp_resolution_ms=1e-308,timestamp_rounding_origin_ms=1e308)
++    r=prepare_context_observation(index(),m,context_origin_ms=0,target_range_ms=[3000,5000])
++    assert r['reason']=='CONTEXT_DOMAIN_NUMERIC_LIMIT'
+diff --git a/tests/test_local_factor_sequence.py b/tests/test_local_factor_sequence.py
+new file mode 100644
+index 0000000..c257633
+--- /dev/null
++++ b/tests/test_local_factor_sequence.py
+@@ -0,0 +1,113 @@
++import copy
++import math
++
++import numpy as np
++import pytest
++
++from app.experimental.joint_track_model import PRIORS,path_loglik
++from app.experimental.rounded_observation import rounded_components
++from app.experimental.unanchored_sequence import enumerate_sequences,renewal_log_prior
++from app.experimental.local_factor_sequence import infer_local_factors,infer_local_context,local_emissions
++from test_context_observation import index,censored
++
++
++def components(h=8,k=2,patterns=((1250,None),(6250,None))):
++    m=censored();m.update(horizon_s=h,latent_demand_exposure=[[1]*(h//2)]*k,
++        movements=[f'm{i}' for i in range(k)],rates_per_s=[[.2 if i==j else .03 for j in range(k)] for i in range(k)])
++    v=index(patterns).query(0,h*1000)
++    for row in v['events']:row['event']['movement']='m0'
++    return rounded_components(v,m)
++
++
++def oracle(c,order,prior):
++    n=c['n'];h=n*2;paths=enumerate_sequences(h,order)
++    scores=[];labels=[]
++    for first,b in paths:
++        z=np.asarray(order)[(order.index(first)+np.searchsorted(b,np.arange(n)*2,side='right'))%len(order)]
++        labels.append(z);scores.append(path_loglik(z,c)+renewal_log_prior(b,h,prior)-math.log(len(order)))
++    logZ=float(np.logaddexp.reduce(scores));p=np.exp(np.array(scores)-logZ)
++    return paths,np.array(labels),p,logZ,max(scores)
++
++
++@pytest.mark.parametrize('h,k,order',[(2,2,[0,1]),(8,2,[0,1]),(12,3,[2,0,1])])
++def test_messages_and_censored_map_equal_complete_oracle(h,k,order):
++    c=components(h,k);r=infer_local_factors(c,order)
++    assert r['complete'] and not r['enumeration_used'] and not r['truncation_used']
++    for name,prior in PRIORS.items():
++        paths,labels,p,logZ,best=oracle(c,order,prior);actual=r['results'][name]
++        assert actual['log_normalizer']==pytest.approx(logZ,abs=1e-11)
++        assert actual['diagnostic_map_log_joint']==pytest.approx(best,abs=1e-11)
++        for count,mass in actual['transition_count_posterior'].items():
++            assert mass==pytest.approx(sum(v for (_,b),v in zip(paths,p) if len(b)==int(count)),abs=1e-11)
++        expected=[[sum(p[labels[:,j]==z]) for z in range(k)] for j in range(c['n'])]
++        np.testing.assert_allclose(actual['phase_posterior'],expected,atol=1e-11)
++        for b in actual['boundary_existence']:
++            expected=sum(v for (_,bounds),v in zip(paths,p) if b['time_s'] in bounds)
++            assert b['model_conditioned_existence_probability']==pytest.approx(expected,abs=1e-11)
++        segments=actual['diagnostic_segments'];bounds=[s[0] for s in segments[1:]]
++        zs=np.concatenate([np.full((b-a)//2,z) for a,b,z in segments])
++        score=path_loglik(zs,c)+renewal_log_prior(bounds,h,prior)-math.log(k)
++        assert score==pytest.approx(best,abs=1e-11)
++
++
++def test_factorization_exact_for_each_small_path():
++    c=components();e=local_emissions(c)
++    for first,bounds in enumerate_sequences(8,[0,1]):
++        z=(first+np.searchsorted(bounds,np.arange(4)*2,side='right'))%2
++        assert sum(e[j,label] for j,label in enumerate(z))==pytest.approx(path_loglik(z,c),abs=1e-12)
++
++
++def test_nonlocal_and_even_tiny_second_support_reject_without_fallback():
++    c=components();c['q'][0,1]=1e-100
++    r=infer_local_factors(c,[0,1])
++    assert r['status']=='unavailable' and r['results']=={}
++    assert r['reason']=='NONLOCAL_TRACK_KERNEL_REQUIRES_EXPANDED_STATE'
++    assert r['physical_section']['estimated_state']=='UNKNOWN'
++
++
++def test_long64s_normalization_without_millions_of_paths():
++    c=components(h=64,k=3,patterns=());c['exposure']*=0
++    r=infer_local_factors(c,[2,0,1])
++    assert r['complete'] and not r['enumeration_used']
++    assert r['likelihood_constant_over_phase_paths']
++    assert r['declared_array_allowance_bytes']<32*1024*1024
++    for result in r['results'].values():
++        assert result['log_normalizer']==pytest.approx(0,abs=1e-12)
++        assert sum(result['transition_count_posterior'].values())==pytest.approx(1)
++        assert max(int(c) for c in result['transition_count_posterior'])>4
++        expected=sum(int(n)*p for n,p in result['transition_count_posterior'].items())
++        existence=sum(b['model_conditioned_existence_probability'] for b in result['boundary_existence'])
++        assert existence==pytest.approx(expected)
++        np.testing.assert_allclose(result['phase_posterior'],np.full((32,3),1/3),atol=1e-12)
++    assert r['logical_phase']['estimated_state']=='UNKNOWN'
++
++
++def test_structural_zero_emissions_do_not_break_map_censoring():
++    c=components();c['rates'][1,0]=0
++    r=infer_local_factors(c,[0,1]);assert r['complete']
++    for name,prior in PRIORS.items():
++        _,_,_,logZ,best=oracle(c,[0,1],prior)
++        assert r['results'][name]['log_normalizer']==pytest.approx(logZ)
++        assert r['results'][name]['diagnostic_map_log_joint']==pytest.approx(best)
++
++
++@pytest.mark.parametrize('limits', [{'max_seconds':0},{'max_seconds':1e-12},{'max_memory_bytes':0}])
++def test_budget_failure_is_unavailable_no_partial_marginals(limits):
++    r=infer_local_factors(components(),[0,1],**limits)
++    assert not r['complete'] and r['results']=={}
++    assert 'BUDGET' in r['reason'] or r['reason']=='INVALID_OR_EXHAUSTED_RESOURCE_LIMIT'
++
++
++def test_context_entry_and_input_immutability():
++    m=censored();m['cyclic_order']=[0,1];before=copy.deepcopy(m)
++    r=infer_local_context(index([(4250,None)]),m,context_origin_ms=0,target_range_ms=[3000,5000])
++    assert r['complete'] and r['context_plan']['target_range_ms']==[3000,5000]
++    assert m==before and r['logical_phase']['estimated_state']=='UNKNOWN'
++
++
++def test_no_demand_map_marginalizes_final_duration_not_single_remaining_state():
++    c=components(patterns=());c['exposure']*=0
++    r=infer_local_factors(c,[0,1])
++    for name,prior in PRIORS.items():
++        _,_,_,_,best=oracle(c,[0,1],prior)
++        assert r['results'][name]['diagnostic_map_log_joint']==pytest.approx(best)

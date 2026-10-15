@@ -71,6 +71,8 @@ def tracks_from_view(view, spec):
 
 def observation_components(view, spec, *, max_tracks=512, max_q_cells=50000):
     """Exact finite q_i(u) and thinning exposure, with missing detections."""
+    if spec.get('query_delivery_mode','require_complete')!='require_complete':
+        raise ModelUnavailable('UNSUPPORTED_QUERY_DELIVERY_MODE_FOR_CLOCK')
     h=spec.get('horizon_s')
     if not isinstance(h,int) or isinstance(h,bool) or not 0<h or h%GRID_S:
         raise ModelUnavailable('GRID_ALIGNED_HORIZON_REQUIRED')
