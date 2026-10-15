@@ -43,6 +43,9 @@ runner не читает. Окно фиксировано: первые 180с о
 до 30с/файл, максимум 20000 событий/файл, 32MiB prediction JSON/файл, три файла,
 без retries; query до 1800с и 100000 returned events. Исходные predictions
 сохраняются; повторного inference и новых boundary metrics не будет.
+Дополнительно не более 1000 supplied exposure windows; неограниченные generators
+также прерываются ресурсными guard. Prepare читает только hash metadata прежнего
+manifest/seal для namespace; review paths не открываются и group labels не читаются.
 
 Отчёт: old selected vs eligible per channel counts, unique known tracks,
 восстановленные движения, duplicates/exclusions, local fingerprint/provenance,
