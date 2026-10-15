@@ -1,5 +1,15 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 operator confirmed H1 mapping after seeing the blue vehicle photo:
+bottom-of-frame approach; main green straight toward upper-right, additional
+section left toward upper-left. Source question/answer and frame identity saved
+in `evidence/video_calibration_intake_20261015/h1_operator_mapping.json`.
+This supersedes the pending operator-direction question in earlier entries.
+Independent geometry, raw movement label correspondence, protected/permissive
+semantics and joint timing calibration remain unverified. No inference/default
+changes or new experiment;2D.1 FAIL retained. Next: local same-car/feature/clock
+checks, then multi-cycle event-delay calibration and separate validation.
+
 2026-10-15 seven-vehicle video review: all7 preregistered N-origin RELEASE tracks
 represented,32 fixed-grid native ROI frames sampled (8.907s/14.99MB). Seven visible
 stationary-to-motion sequences bracketed; track identities remain provisional.

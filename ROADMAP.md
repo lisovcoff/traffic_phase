@@ -1,5 +1,12 @@
 # traffic_phase — план до готового продукта
 
+2026-10-15: пользователь подтвердил H1 по фото синей машины: подъезд снизу,
+основной зелёный прямо вверх-вправо, допсекция налево вверх-влево.
+Источник сохранён в `evidence/video_calibration_intake_20261015/h1_operator_mapping.json`.
+Повторно спрашивать эти направления не нужно. Это operator mapping, без
+сертификации геометрии/часов и protected/permissive semantics. Следующий пункт —
+проверка локальных same-car anchors, затем delay calibration нескольких циклов.
+
 2026-10-15: [проверены все7 N-origin машин по видео](docs/SEVEN_RESTART_VIDEO_REVIEW_20261015.md).
 Видимое начало движения сохранено отдельно от RELEASE. По frozen clock6/7 точек
 раньше brackets, но conditional clock sets пересекаются7/7; ошибка extractor
