@@ -1,5 +1,9 @@
 # traffic_phase
 
+Development roadmap: [ROADMAP.md](ROADMAP.md). Manual review tool:
+double-click `START_ANNOTATION.cmd` or run `py -3 -m scripts.run_annotation`;
+open http://127.0.0.1:8011/annotation. [Instructions](docs/ANNOTATION_WORKBENCH.md).
+
 Research/prototype module for estimating traffic-signal phase structure when
 the physical signal is not directly visible and only vehicle trajectories are
 available.

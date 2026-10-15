@@ -5,6 +5,7 @@ from app.api.v9 import router as v9_router
 from app.api.visualization import router as visualization_router
 from app.api.realtime import router as realtime_router
 from app.api.realtime_simulation import router as realtime_simulation_router
+from app.api.annotation import router as annotation_router
 
 app = FastAPI(
     title="Traffic Phase Estimator",
@@ -18,6 +19,7 @@ app.include_router(v9_router)
 app.include_router(visualization_router)
 app.include_router(realtime_router)
 app.include_router(realtime_simulation_router)
+app.include_router(annotation_router)
 
 
 @app.get("/health")
@@ -31,5 +33,6 @@ def root() -> dict[str, str]:
         "service": "traffic-phase",
         "version": "0.12.0",
         "visualization": "/visualization",
+        "annotation": "/annotation",
         "v9": "/api/v1/v9/info",
     }
