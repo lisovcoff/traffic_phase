@@ -41,7 +41,7 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
         assumptions=['one likelihood contribution per identified vehicle',
             'silence is informative only under supplied demand/exposure/detection',
             'vehicle activity may precede GREEN; latent vehicle time is not a switch',
-            'finite synthetic clock remains a limitation; no timestamp rounding'],
+            'latent phase/intensity grid remains a limitation; no timestamp rounding'],
         missing_inputs=[], components=None)
     if isinstance(max_events, bool) or not isinstance(max_events, int) or max_events < 0:
         return {**base, 'reason': 'INVALID_EVENT_LIMIT'}
@@ -80,7 +80,14 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
     # Keep original provenance/timestamp brackets unchanged: no false clock conversion.
     # observation_components consumes only translated timestamp fields, not provenance.
     try:
-        components = observation_components(relative, copy.deepcopy(supplied), max_tracks=max_events)
+        backend=supplied.get('clock_model','legacy_finite_clock')
+        if backend=='continuous_latent_rounded_marks':
+            from app.experimental.rounded_observation import rounded_components
+            components=rounded_components(relative,copy.deepcopy(supplied),max_tracks=max_events)
+        elif backend=='legacy_finite_clock':
+            components = observation_components(relative, copy.deepcopy(supplied), max_tracks=max_events)
+        else:
+            raise ModelUnavailable('UNSUPPORTED_CLOCK_MODEL')
     except ModelUnavailable as exc:
         return {**base, 'reason': str(exc)}
     return {**base, 'status': 'ready_for_declared_model_only', 'reason': None,

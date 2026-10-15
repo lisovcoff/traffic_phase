@@ -2,6 +2,13 @@
 
 ## Текущий критический путь к продукту — уточнение 2026-10-15
 
+Новее: [rounded observation backend](docs/ROUNDED_OBSERVATION_20261015.md)
+снимает требование observed timestamps=250ms+2s*n, через точный интеграл
+continuous latent vehicle time и supplied rounding kernel.87 targeted tests,
+без inference/real replay; opt-in, production unchanged. Следующий барьер —
+unknown initial phase/start/count при fixed K/order и bounded alternatives;
+phase/intensity grid2с и реальная calibration остаются открыты.
+
 Последний шаг: [phase observation bridge](docs/PHASE_OBSERVATION_BRIDGE_20261015.md)
 подключает lossless event views к подготовке существующего joint likelihood.
 74 targeted tests; оба сохранённых реальных окна честно unavailable из-за

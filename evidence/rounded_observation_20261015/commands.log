@@ -1,0 +1,3 @@
+git switch -c experiment/rounded-event-observation-20261015
+C:\Python314\python.exe -m pytest tests/test_rounded_observation.py tests/test_phase_observation_bridge.py tests/test_joint_track_model.py tests/test_localized_evidence_adapter.py tests/test_local_evidence_channels.py -q -p no:cacheprovider
+Initial86 passed; added explicit rounding partition counterexample87 passed; final after contract wording87 passed. No decoder runs.

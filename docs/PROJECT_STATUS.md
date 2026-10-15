@@ -1,5 +1,15 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 opt-in rounded event observation backend added. Continuous latent
+vehicle time integrated exactly over piecewise-constant exposure, supplied delay
+atoms, camera windows and explicit rounded timestamp partition. Existing joint
+track likelihood reused; one vehicle term for paired marks.87 targeted tests pass,
+including normalization and closed forms. No decoder/fitting/real replay or new
+accuracy claims. Actual event timestamps no longer require250ms+2s*n; latent
+phase/intensity grid remains2s. Unknown anchor/count and real calibration remain
+open. Main/default/core, historic K3/2/3 and raw19/34 unchanged;2D.1 remains FAIL.
+See ROUNDED_OBSERVATION_20261015.md. Next: bounded unknown start/count support.
+
 2026-10-15 observation-contract bridge completed: localized/lossless views now
 feed preparation of the existing joint observation components under explicitly
 supplied scientific inputs. No inference call or new likelihood.74 targeted tests

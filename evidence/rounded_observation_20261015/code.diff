@@ -1,0 +1,419 @@
+diff --git a/.gitattributes b/.gitattributes
+index 5de2563..1efc0d3 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -22,3 +22,4 @@ evidence/local_vehicle_registration_20261015/** -text -whitespace
+ evidence/restart_localization_20261015/** -text -whitespace
+ evidence/restart_multicycle_validation_20261015/** -text -whitespace
+ evidence/phase_observation_bridge_20261015/** -text -whitespace
++evidence/rounded_observation_20261015/** -text -whitespace
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 9f03e15..5ab2084 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -2,6 +2,13 @@
+ 
+ ## Текущий критический путь к продукту — уточнение 2026-10-15
+ 
++Новее: [rounded observation backend](docs/ROUNDED_OBSERVATION_20261015.md)
++снимает требование observed timestamps=250ms+2s*n, через точный интеграл
++continuous latent vehicle time и supplied rounding kernel.87 targeted tests,
++без inference/real replay; opt-in, production unchanged. Следующий барьер —
++unknown initial phase/start/count при fixed K/order и bounded alternatives;
++phase/intensity grid2с и реальная calibration остаются открыты.
++
+ Последний шаг: [phase observation bridge](docs/PHASE_OBSERVATION_BRIDGE_20261015.md)
+ подключает lossless event views к подготовке существующего joint likelihood.
+ 74 targeted tests; оба сохранённых реальных окна честно unavailable из-за
+diff --git a/app/experimental/phase_observation_bridge.py b/app/experimental/phase_observation_bridge.py
+index 47f1ec9..196898d 100644
+--- a/app/experimental/phase_observation_bridge.py
++++ b/app/experimental/phase_observation_bridge.py
+@@ -41,7 +41,7 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
+         assumptions=['one likelihood contribution per identified vehicle',
+             'silence is informative only under supplied demand/exposure/detection',
+             'vehicle activity may precede GREEN; latent vehicle time is not a switch',
+-            'finite synthetic clock remains a limitation; no timestamp rounding'],
++            'latent phase/intensity grid remains a limitation; no timestamp rounding'],
+         missing_inputs=[], components=None)
+     if isinstance(max_events, bool) or not isinstance(max_events, int) or max_events < 0:
+         return {**base, 'reason': 'INVALID_EVENT_LIMIT'}
+@@ -80,7 +80,14 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
+     # Keep original provenance/timestamp brackets unchanged: no false clock conversion.
+     # observation_components consumes only translated timestamp fields, not provenance.
+     try:
+-        components = observation_components(relative, copy.deepcopy(supplied), max_tracks=max_events)
++        backend=supplied.get('clock_model','legacy_finite_clock')
++        if backend=='continuous_latent_rounded_marks':
++            from app.experimental.rounded_observation import rounded_components
++            components=rounded_components(relative,copy.deepcopy(supplied),max_tracks=max_events)
++        elif backend=='legacy_finite_clock':
++            components = observation_components(relative, copy.deepcopy(supplied), max_tracks=max_events)
++        else:
++            raise ModelUnavailable('UNSUPPORTED_CLOCK_MODEL')
+     except ModelUnavailable as exc:
+         return {**base, 'reason': str(exc)}
+     return {**base, 'status': 'ready_for_declared_model_only', 'reason': None,
+diff --git a/app/experimental/rounded_observation.py b/app/experimental/rounded_observation.py
+new file mode 100644
+index 0000000..dedf27d
+--- /dev/null
++++ b/app/experimental/rounded_observation.py
+@@ -0,0 +1,136 @@
++"""Exact piecewise integration for continuous vehicle time and rounded marks.
++
++Shares the existing joint track likelihood interface; no sequence inference.
++Resolution is a supplied measurement model, never an extractor confidence radius.
++"""
++import math
++
++import numpy as np
++
++from app.experimental.joint_track_model import GRID_S, ModelUnavailable, tracks_from_view
++
++
++def _finite(x):
++    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
++
++
++def _mass(rows):
++    if not isinstance(rows, list) or not rows or len(rows)>64:
++        raise ModelUnavailable('BOUNDED_SUPPLIED_DELAY_MASS_REQUIRED')
++    if any(not isinstance(r, list) or len(r)!=2 or not _finite(r[0]) or r[0]<0
++           or not _finite(r[1]) or r[1]<=0 for r in rows):
++        raise ModelUnavailable('INVALID_DELAY_MASS')
++    if len({r[0] for r in rows})!=len(rows) or abs(sum(r[1] for r in rows)-1)>1e-10:
++        raise ModelUnavailable('UNNORMALIZED_DELAY_MASS')
++    return rows
++
++
++def rounded_components(view, spec, *, max_tracks=512, max_q_cells=50000,
++                       max_pieces=2000000):
++    """Return q fractions and detection exposure for joint_track_model.path_loglik.
++
++    Intensity is constant within each 2s latent cell. Integration is analytic
++    piecewise-constant integration, not sampling/quadrature approximation.
++    No latent vehicles outside [0,horizon): explicit finite-input assumption.
++    """
++    h=spec.get('horizon_s'); names=spec.get('movements')
++    if not isinstance(h, int) or isinstance(h, bool) or not 0<h<=80 or h%GRID_S:
++        raise ModelUnavailable('BOUNDED_GRID_ALIGNED_LATENT_HORIZON_REQUIRED')
++    if not isinstance(names, list) or not names or len(names)>16 or any(not isinstance(x,str) for x in names) or len(set(names))!=len(names):
++        raise ModelUnavailable('INVALID_MOVEMENT_NAMES')
++    required=('rate_source','delay_source','demand_source','observation_window_source',
++              'timestamp_resolution_source')
++    if any(not spec.get(k) for k in required):
++        raise ModelUnavailable('SUPPLIED_SCIENTIFIC_SOURCES_REQUIRED')
++    n=h//GRID_S
++    try:
++        rates=np.asarray(spec.get('rates_per_s'), dtype=float)
++        exposure=np.asarray(spec.get('latent_demand_exposure'), dtype=float)
++    except (TypeError,ValueError):
++        raise ModelUnavailable('INVALID_RATE_OR_EXPOSURE') from None
++    if rates.ndim!=2 or rates.shape[0] not in (2,3) or rates.shape[1]!=len(names) or not np.isfinite(rates).all() or (rates<0).any():
++        raise ModelUnavailable('INVALID_INTENSITY_MATRIX')
++    if exposure.shape!=(len(names),n) or not np.isfinite(exposure).all() or (exposure<0).any():
++        raise ModelUnavailable('SUPPLIED_DEMAND_EXPOSURE_REQUIRED')
++    resolution=spec.get('timestamp_resolution_ms')
++    if not _finite(resolution) or resolution<=0:
++        raise ModelUnavailable('SUPPLIED_TIMESTAMP_RESOLUTION_REQUIRED')
++    rounding_origin=spec.get('timestamp_rounding_origin_ms')
++    if not _finite(rounding_origin):
++        raise ModelUnavailable('SUPPLIED_ROUNDING_CLOCK_ORIGIN_REQUIRED')
++    windows=spec.get('observation_windows_s')
++    if not isinstance(windows,list) or len(windows)>32:
++        raise ModelUnavailable('BOUNDED_OBSERVATION_WINDOWS_REQUIRED')
++    prev=0
++    for row in windows:
++        if not isinstance(row,list) or len(row)!=2 or any(not _finite(x) for x in row) or not 0<=row[0]<row[1] or row[0]<prev:
++            raise ModelUnavailable('INVALID_OBSERVATION_WINDOWS')
++        prev=row[1]
++    delays=_mass(spec.get('release_delay_s')); transits=_mass(spec.get('transit_delay_s'))
++    if len(delays)*len(transits)>64:
++        raise ModelUnavailable('DELAY_PAIR_BUDGET_EXHAUSTED')
++    pr=spec.get('release_detection_probability'); pc=spec.get('crossing_detection_probability')
++    if not _finite(pr) or not _finite(pc) or not 0<=pr<=1 or not 0<=pc<=1:
++        raise ModelUnavailable('SUPPLIED_DETECTION_PROBABILITIES_REQUIRED')
++    rows=view.get('events',[])
++    if len(rows)>max_tracks*2:
++        raise ModelUnavailable('EVENT_BUDGET_EXHAUSTED')
++    if any(r.get('eligible_vehicle_evidence') and r['event']['event_type'] not in ('RELEASE','CROSSING_PROXY') for r in rows):
++        raise ModelUnavailable('ELIGIBLE_CHANNEL_NOT_IN_JOINT_MODEL')
++    tracks=tracks_from_view(view,spec)
++    if len(tracks)>max_tracks or n*len(tracks)>max_q_cells:
++        raise ModelUnavailable('TRACK_OR_Q_CELL_BUDGET_EXHAUSTED')
++    bound=n*len(delays)*len(transits)*(1+len(tracks))*(4*len(windows)+7)
++    if bound>max_pieces:
++        raise ModelUnavailable('INTEGRATION_PIECE_BUDGET_EXHAUSTED')
++    def visible(t): return any(a<=t<b for a,b in windows)
++    half=resolution/2000
++    for t in tracks:
++        if t['movement'] not in names: raise ModelUnavailable('MOVEMENT_NOT_IN_RATE_MODEL')
++        for field in ('release_ms','crossing_ms'):
++            v=t[field]
++            if v is not None and _finite(v):
++                projected=round((v-rounding_origin)/resolution)*resolution+rounding_origin
++                if abs(v-projected)>max(1e-7,abs(v)*1e-15):
++                    raise ModelUnavailable('TIMESTAMP_NOT_ON_SUPPLIED_ROUNDING_CLOCK')
++            if v is not None and (not _finite(v) or not any(
++                    a<v/1000+half and v/1000-half<b for a,b in windows)):
++                raise ModelUnavailable('OBSERVATION_OUTSIDE_SUPPLIED_WINDOWS')
++    q=np.zeros((len(tracks),n)); detected=np.zeros(n)
++    pieces=0
++    for j in range(n):
++        lo=j*GRID_S; hi=lo+GRID_S
++        for d,pd in delays:
++            for lag,pt in transits:
++                cuts=[x-shift for w in windows for x in w for shift in (d,d+lag)]
++                def integrate(fun, extra=()):
++                    nonlocal pieces
++                    points=sorted({lo,hi,*[x for x in (*cuts,*extra) if lo<x<hi]})
++                    pieces+=len(points)-1
++                    return sum((b-a)*fun((a+b)/2) for a,b in zip(points,points[1:]))/GRID_S
++                def detection(u):
++                    a=pr if visible(u+d) else 0.
++                    b=pc if visible(u+d+lag) else 0.
++                    return 1-(1-a)*(1-b)
++                detected[j]+=pd*pt*integrate(detection)
++                for i,t in enumerate(tracks):
++                    r=t['release_ms']; c=t['crossing_ms']
++                    extra=[]
++                    for v,shift in ((r,d),(c,d+lag)):
++                        if v is not None: extra.extend((v/1000-half-shift,v/1000+half-shift))
++                    def pattern(u):
++                        a=pr if visible(u+d) else 0.
++                        b=pc if visible(u+d+lag) else 0.
++                        ar=(1-a) if r is None else (a if r/1000-half<=u+d<r/1000+half else 0.)
++                        bc=(1-b) if c is None else (b if c/1000-half<=u+d+lag<c/1000+half else 0.)
++                        return ar*bc
++                    q[i,j]+=pd*pt*integrate(pattern,extra)
++    if len(tracks) and np.any(q.sum(axis=1)<=0):
++        raise ModelUnavailable('TRACK_PATTERN_UNSUPPORTED_BY_DELAY_DETECTION_MODEL')
++    return dict(tracks=tracks,q=q,detected_probability=detected,rates=rates,
++        exposure=exposure,movements=names,n=n,integration_pieces=pieces,
++        observation_model='continuous_latent_rounded_marks',
++        timestamp_resolution_ms=resolution,
++        limitations=['supplied rounding kernel, not calibrated extractor uncertainty',
++            'no latent vehicles outside supplied finite horizon',
++            'phase/intensity boundaries remain on 2s latent grid'])
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index b4407b5..f3374a3 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,15 @@
+ # Project status — 2D.1, 2026-10-14
+ 
++2026-10-15 opt-in rounded event observation backend added. Continuous latent
++vehicle time integrated exactly over piecewise-constant exposure, supplied delay
++atoms, camera windows and explicit rounded timestamp partition. Existing joint
++track likelihood reused; one vehicle term for paired marks.87 targeted tests pass,
++including normalization and closed forms. No decoder/fitting/real replay or new
++accuracy claims. Actual event timestamps no longer require250ms+2s*n; latent
++phase/intensity grid remains2s. Unknown anchor/count and real calibration remain
++open. Main/default/core, historic K3/2/3 and raw19/34 unchanged;2D.1 remains FAIL.
++See ROUNDED_OBSERVATION_20261015.md. Next: bounded unknown start/count support.
++
+ 2026-10-15 observation-contract bridge completed: localized/lossless views now
+ feed preparation of the existing joint observation components under explicitly
+ supplied scientific inputs. No inference call or new likelihood.74 targeted tests
+diff --git a/docs/ROUNDED_OBSERVATION_20261015.md b/docs/ROUNDED_OBSERVATION_20261015.md
+new file mode 100644
+index 0000000..d2916ad
+--- /dev/null
++++ b/docs/ROUNDED_OBSERVATION_20261015.md
+@@ -0,0 +1,53 @@
++# Rounded event-time observation — bounded scope
++
++Base: `bd960ed5e17e23a689154822eb74b4f82816570c`.
++До запуска зафиксирован scope: continuous latent vehicle time, supplied discrete
++vehicle-to-release/transit delay atoms, supplied timestamp rounding resolution,
++piecewise-constant rates/exposure на прежних2с latent cells. Рounding origin также
++подаётся явно: ячейки обязаны образовывать одну partition timestamps, а не
++произвольные перекрывающиеся интервалы. Это снимает ограничение
++observed timestamps=250ms+2s*n, но не разрешение фазовых границ и не known-count
++ограничение sequence prototype. Никаких новых sequence runs или реального replay.
++
++Модель: marked Poisson vehicle process. Для каждого latent time u вероятность
++joint observed pattern учитывает оба detection и supplied observation windows.
++Один track — один term. Интеграл intensity*pattern probability берётся точно
++по пересечениям half-open интервалов; compensator использует вероятность хотя
++бы одного detection. Timestamp y означает supplied rounding cell
++[y-resolution/2,y+resolution/2), не interval ошибки extractor/сигнала.
++Это допущение требует calibration перед реальным применением. Delay atoms относятся
++к latent vehicle activity, а не к GREEN: nonexclusive rates допускают движение
++до GREEN. Heuristic confidence нигде не участвует в likelihood.
++
++Ограничения до тестов: horizon<=80с, events<=512, delay-pairs<=64,
++windows<=32, q cells<=50000, elementary integration pieces<=2000000.
++Budget exhaustion — unavailable без частичного likelihood. Synthetic technical
++tests, без seeds/search: closed-form integrals; normalization all rounded patterns;
++same-track pair; arbitrary millisecond event; censoring/gap; no demand; rename;
++immutable inputs и resource refusal. Point recovery/accuracy здесь не измеряется.
++Старые priors, gate FAIL и production/default неизменны.
++
++## Результат
++
++87 targeted tests passed,2.53с в финальной проверке. Проверена нормировка суммы всех rounded joint
++patterns в detection exposure, closed-form Poisson count likelihood, fractional
++delays/windows, линейность смеси delay kernels и within-track зависимость.
++При self-review явно добавлены rounding origin и проверка общей partition;
++неизвестный origin не подменяется нулём. Поддержаны timestamps с1мс resolution,
++но разрешение переключений фаз остаётся2с. Это technical model checks,
++не новая synthetic recovery оценка и не реальная phase/lamp accuracy.
++
++Opt-in bridge выбирает новый backend только при
++`clock_model="continuous_latent_rounded_marks"`. Старый режим по умолчанию
++сохранён. На вход нужны источники rates/demand/exposure/delay и точная семантика
++округления времени. Heuristic event uncertainty не используется вместо неё.
++Physical/logical output самого bridge остаётся UNKNOWN: sequence inference
++здесь не запускается. Исходные события/provenance не изменяются.
++
++Один снятый барьер: arbitrary supplied rounded event timestamps вместо
++250ms+2s*n. Не сняты: неизвестные initial phase/start/count, калибровка параметров
++на реальных RELEASE и непрерывное положение фазовых границ. Следующий bounded
++шаг — marginalization неизвестного start/count при fixed K/order с явным
++budget/truncation status, без подмены production алгоритма. После него нужна
++проверка локальных hold/shortening на независимой truth, затем сквозная приёмка
++K/состава/секций и существующего HTML. Текущий2D.1 всё ещё FAIL.
+diff --git a/tests/test_rounded_observation.py b/tests/test_rounded_observation.py
+new file mode 100644
+index 0000000..7ae1e82
+--- /dev/null
++++ b/tests/test_rounded_observation.py
+@@ -0,0 +1,136 @@
++import copy
++import math
++
++import numpy as np
++import pytest
++
++from app.core.temporal_evidence import TemporalEvent
++from app.experimental.local_evidence import build_local_evidence
++from app.experimental.joint_track_model import ModelUnavailable, path_loglik
++from app.experimental.phase_observation_bridge import prepare_joint_observation
++from app.experimental.rounded_observation import rounded_components
++from test_phase_observation_bridge import model, query
++
++
++def supplied():
++    m=model()
++    m.update(clock_model='continuous_latent_rounded_marks',
++        timestamp_resolution_ms=1, timestamp_rounding_origin_ms=0,
++        timestamp_resolution_source='test rounding specification')
++    return m
++
++
++def test_arbitrary_millisecond_and_closed_form_count_likelihood():
++    v=query();v['events'][0]['event']['timestamp_ms']=100137
++    m=supplied();m['crossing_detection_probability']=0
++    result=prepare_joint_observation(v,m,origin_ms=100000)
++    assert result['status']=='ready_for_declared_model_only'
++    c=result['components']
++    assert c['q'][0,0]==pytest.approx(.001/2)
++    assert path_loglik([0]*4,c)==pytest.approx(-8*(.2+.03)+math.log(.2*.001))
++    assert result['physical_section']['estimated_state']=='UNKNOWN'
++
++
++def test_all_rounded_joint_patterns_normalize_to_detected_exposure():
++    m=supplied();m.update(horizon_s=4, latent_demand_exposure=[[1]*2]*2,
++        timestamp_resolution_ms=1000, timestamp_rounding_origin_ms=500, release_detection_probability=.5,
++        crossing_detection_probability=.25, transit_delay_s=[[1,1.]])
++    events=[]
++    patterns=[]
++    for r in (500,1500,2500,3500): patterns.extend(((r,None),(None,r+1000),(r,r+1000)))
++    for i,(r,c) in enumerate(patterns):
++        for ts,kind,method in ((r,'RELEASE','test_restart'),(c,'CROSSING_PROXY','test_zone')):
++            if ts is not None:
++                events.append(TemporalEvent(ts,kind,'straight',i,method,.5,'MEDIUM',None,
++                    {'source':'test','track_fingerprint':str(i),'eligible_proxy':True}))
++    v=build_local_evidence(events,source_namespace='test').query(0,8000)
++    comp=rounded_components(v,m)
++    np.testing.assert_allclose(comp['q'].sum(axis=0),comp['detected_probability'])
++    np.testing.assert_allclose(comp['detected_probability'],.625)
++
++
++def test_pair_uses_one_latent_vehicle_and_same_redundant_information():
++    m=supplied();m['transit_delay_s']=[[2,1.]]
++    a=prepare_joint_observation(query(),m,origin_ms=100000)['components']
++    b=prepare_joint_observation(query(pair=True),m,origin_ms=100000)['components']
++    assert len(b['tracks'])==1
++    assert path_loglik([0,1,0,1],a)==pytest.approx(path_loglik([0,1,0,1],b))
++
++
++def test_fractional_delay_and_partial_window_exposure_exact():
++    m=supplied();m.update(release_delay_s=[[.125,1.]],
++        observation_windows_s=[[.375,1.375]],crossing_detection_probability=0)
++    v=query(empty=True,offset=0)
++    c=rounded_components(v,m)
++    assert c['detected_probability'][0]==pytest.approx(.5)
++    assert sum(c['detected_probability'][1:])==0
++    assert path_loglik([0]*4,c)==pytest.approx(-(.2+.03)*1)
++
++
++def test_rounding_cell_crossing_window_edge_is_integrated_not_discarded():
++    m=supplied();m.update(observation_windows_s=[[.25025,1]],crossing_detection_probability=0)
++    r=prepare_joint_observation(query(),m,origin_ms=100000)
++    assert r['status']=='ready_for_declared_model_only'
++    assert r['components']['q'][0,0]==pytest.approx(.00025/2)
++
++
++def test_camera_gap_is_censoring_not_inferred_from_silence():
++    m=supplied();m['observation_windows_s']=[[2,4]]
++    assert prepare_joint_observation(query(),m,origin_ms=100000)['reason']=='OBSERVATION_OUTSIDE_SUPPLIED_WINDOWS'
++    empty=query(empty=True,offset=0)
++    m['observation_windows_s']=[]
++    c=rounded_components(empty,m)
++    assert path_loglik([0]*4,c)==path_loglik([1]*4,c)==0
++
++
++def test_unknown_resolution_not_taken_from_heuristic_radius():
++    m=supplied();del m['timestamp_resolution_ms']
++    assert prepare_joint_observation(query(),m,origin_ms=100000)['reason']=='SUPPLIED_TIMESTAMP_RESOLUTION_REQUIRED'
++
++
++def test_rounding_partition_requires_explicit_origin_and_consistent_marks():
++    m=supplied();del m['timestamp_rounding_origin_ms']
++    assert prepare_joint_observation(query(),m,origin_ms=100000)['reason']=='SUPPLIED_ROUNDING_CLOCK_ORIGIN_REQUIRED'
++    m=supplied();m['timestamp_resolution_ms']=1000
++    assert prepare_joint_observation(query(),m,origin_ms=100000)['reason']=='TIMESTAMP_NOT_ON_SUPPLIED_ROUNDING_CLOCK'
++
++
++def test_structural_zero_and_offphase_positive_rate():
++    m=supplied();v=query(offset=0)
++    c=rounded_components(v,m)
++    assert math.isfinite(path_loglik([1]*4,c))
++    m['rates_per_s'][1][0]=0
++    assert path_loglik([1]*4,rounded_components(v,m))==-math.inf
++
++
++def test_no_demand_unknown_cause():
++    m=supplied();m['latent_demand_exposure']=[[0]*4]*2
++    c=rounded_components(query(empty=True,offset=0),m)
++    assert path_loglik([0]*4,c)==path_loglik([1]*4,c)==0
++
++
++def test_inputs_unchanged_rename_and_source_required():
++    m=supplied();v=query(offset=0);before=copy.deepcopy((v,m))
++    a=rounded_components(v,m)
++    assert (v,m)==before
++    m['movements']=['one','two'];v['events'][0]['event']['movement']='one'
++    b=rounded_components(v,m)
++    assert path_loglik([0]*4,a)==path_loglik([0]*4,b)
++    del m['timestamp_resolution_source']
++    with pytest.raises(ModelUnavailable,match='SCIENTIFIC_SOURCES'):rounded_components(v,m)
++
++
++def test_resource_exhaustion_no_partial_likelihood():
++    with pytest.raises(ModelUnavailable,match='PIECE_BUDGET'):
++        rounded_components(query(offset=0),supplied(),max_pieces=0)
++    with pytest.raises(ModelUnavailable,match='Q_CELL'):
++        rounded_components(query(offset=0),supplied(),max_q_cells=0)
++
++
++def test_delay_mixture_equals_weighted_kernel_and_compensator():
++    v=query(offset=0);m=supplied();m['release_detection_probability']=.5
++    a=rounded_components(v,m)
++    m['release_delay_s']=[[.1,1.]];b=rounded_components(v,m)
++    m['release_delay_s']=[[0,.3],[.1,.7]];mix=rounded_components(v,m)
++    np.testing.assert_allclose(mix['q'],.3*a['q']+.7*b['q'])
++    np.testing.assert_allclose(mix['detected_probability'],.3*a['detected_probability']+.7*b['detected_probability'])

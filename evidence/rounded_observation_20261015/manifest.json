@@ -1,0 +1,31 @@
+{
+  "base_sha": "bd960ed5e17e23a689154822eb74b4f82816570c",
+  "branch": "experiment/rounded-event-observation-20261015",
+  "main_sha": "a005a2521f62ce3b2c9f9d52f9f0d73913754e01",
+  "scope": "observation components only, no sequence inference",
+  "sequence_inference_calls": 0,
+  "real_replay_calls": 0,
+  "priors_changed": false,
+  "phase_labels_read": false,
+  "unchanged_against_base": {
+    "app/core": true,
+    "app/experimental/joint_track_model.py": true,
+    "app/experimental/restart_localization.py": true,
+    "app/experimental/localized_evidence_adapter.py": true,
+    "evidence/phase_observation_bridge_20261015": true,
+    "evidence/restart_multicycle_validation_20261015": true
+  },
+  "limits": {
+    "horizon_s": 80,
+    "max_tracks": 512,
+    "max_q_cells": 50000,
+    "max_delay_pairs": 64,
+    "max_windows": 32,
+    "max_integration_pieces": 2000000
+  },
+  "result": {
+    "tests_passed": 87,
+    "pytest_runtime_s": 2.53
+  },
+  "timing_note": "pytest runtime, not production profiling"
+}
