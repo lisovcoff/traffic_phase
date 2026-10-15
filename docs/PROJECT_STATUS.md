@@ -1,5 +1,16 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 seven-vehicle video review: all7 preregistered N-origin RELEASE tracks
+represented,32 fixed-grid native ROI frames sampled (8.907s/14.99MB). Seven visible
+stationary-to-motion sequences bracketed; track identities remain provisional.
+Six frozen-clock point RELEASEs precede the video brackets, one is inside; all7
+conditional clock sets overlap. Near-bottom descriptive image discrepancies81–156px
+limit transfer of earlier H/clock validation. No certified timing error or causal
+delay estimate; timing validation UNAVAILABLE, physical UNKNOWN.31 targeted tests
+passed. No new extraction/fit/replay/default changes;2D.1 FAIL and historical metrics
+unchanged. See SEVEN_RESTART_VIDEO_REVIEW_20261015.md. Next: independent local
+same-car/feature/clock checks, confirmed H1 mapping, multiple cycles and validation.
+
 2026-10-15 method-specific event/video join: one1.351s extraction from243 raw
 tracks sealed548 events before loading signal references. Strict conditional-clock
 window347 events:155 entry/154 crossing proxy/38 kinematic release. Existing

@@ -1,0 +1,15 @@
+Working directory: D:\Code\PythonProjects\traffic_phase\audit_checkout
+Base HEAD: 79fdccc2df2b31853f530d47a335422684ceb292
+git switch -c calibration/seven-restart-video-review-20261015
+Plan sealed before sampling: see plan.json and plan.sha256.
+Sampling: scripts/sample_calibration_frames.mjs; exact CLI/decoded PTS in sampling.log/frames.json.
+Visual inspection: fixed-background front/rear and per-object native contact sheets.
+Review sealed before comparison: visual_review.json and visual_review.sha256.
+C:\Python314\python.exe scripts/build_restart_video_review.py
+First target run (before actual sealed-cohort test added): 30 passed in 2.18s.
+C:\Python314\python.exe scripts/build_restart_video_proofs.py
+C:\Python314\python.exe scripts/build_restart_video_review.py
+C:\Python314\python.exe -m pytest tests/test_restart_video_review.py tests/test_vehicle_clock_alignment.py tests/test_event_signal_associations.py -q -p no:cacheprovider
+Final target run: 31 passed in 2.21s; full output in tests.log.
+git diff --check
+Input and producer SHA checks: checks.log. No extraction/fitting/benchmark/offset tuning.

@@ -1,0 +1,449 @@
+diff --git a/.gitattributes b/.gitattributes
+index 510c1ad..151cd80 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -17,3 +17,4 @@ evidence/video_calibration_intake_20261015/** -text -whitespace
+ evidence/video_boundary_verification_20261015/** -text -whitespace
+ evidence/vehicle_clock_alignment_20261015/** -text -whitespace
+ evidence/event_signal_associations_20261015/** -text -whitespace
++evidence/seven_restart_review_20261015/** -text -whitespace
+diff --git a/ROADMAP.md b/ROADMAP.md
+index ebb2e1e..f852cb7 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -1,5 +1,13 @@
+ # traffic_phase — план до готового продукта
+ 
++2026-10-15: [проверены все7 N-origin машин по видео](docs/SEVEN_RESTART_VIDEO_REVIEW_20261015.md).
++Видимое начало движения сохранено отдельно от RELEASE. По frozen clock6/7 точек
++раньше brackets, но conditional clock sets пересекаются7/7; ошибка extractor
++не отделена от локальной регистрации. Identity provisional, timing validation
++UNAVAILABLE. Следующий конкретный пункт — независимые same-car/feature anchors
++в нижней области кадра, затем подтверждённый mapping и delay по нескольким циклам.
++Новых model runs/offset/threshold изменений нет; 2D.1 FAIL/default-off сохранён.
++
+ 2026-10-15, шаг3: [первое реальное сопоставление событий и H1](docs/EVENT_SIGNAL_ASSOCIATIONS_20261015.md)
+ выполнено по sealed extraction, без нового phase fitting. Получены method-specific
+ offsets и сохранены154 локальных zone proxies, теряемых текущим selector.
+diff --git a/app/experimental/restart_video_review.py b/app/experimental/restart_video_review.py
+new file mode 100644
+index 0000000..8d018f1
+--- /dev/null
++++ b/app/experimental/restart_video_review.py
+@@ -0,0 +1,78 @@
++"""Descriptive join of sealed vehicle-image observations and saved events.
++
++Not an extractor, signal model, clock calibration, or causal delay estimator.
++The image bracket and conditional clock set have different uncertainty semantics.
++"""
++from __future__ import annotations
++
++import math
++
++
++def _interval(value):
++    if (len(value) != 2 or not all(math.isfinite(x) for x in value)
++            or value[1] < value[0]):
++        raise ValueError('INVALID_INTERVAL')
++    return list(value)
++
++
++def compare_review(review, events, cohort, *, clock_certified=False):
++    """Keep every preregistered track, including unavailable video observations.
++
++    Signed differences are event media time minus video onset. Their ranges are
++    descriptive interval arithmetic, NOT calibrated timing-error intervals.
++    Occluded/censored onsets cannot silently become point observations.
++    """
++    if len(set(cohort)) != len(cohort):
++        raise ValueError('DUPLICATE_COHORT_ID')
++    rows = review['rows']
++    ids = [r['track_id_hypothesis'] for r in rows]
++    if len(set(ids)) != len(ids) or set(ids) != set(cohort):
++        raise ValueError('REVIEW_COHORT_MISMATCH')
++    result = []
++    for tid in cohort:
++        row = next(r for r in rows if r['track_id_hypothesis'] == tid)
++        selected = [e for e in events if e['source_track_id'] == tid
++                    and e['event_type'] == 'RELEASE' and e['selected_permission']]
++        if len(selected) != 1:
++            raise ValueError('EXPECTED_ONE_SELECTED_RELEASE')
++        event = selected[0]
++        out = dict(track_id=tid, video_object=row['video_object'],
++                   event_index=event['event_index'], method=event['method'],
++                   movement=event['movement'], timestamp_ms=event['timestamp_ms'],
++                   track_fingerprint=event['track_fingerprint'],
++                   identity_status=row['identity_status'],
++                   timing_validation_status='UNAVAILABLE',
++                   timing_validation_reasons=[], physical_state='UNKNOWN',
++                   calibrated_lamp_probability=None)
++        bracket = row.get('observed_onset_bracket_s')
++        if bracket is None:
++            out['timing_validation_reasons'].append('VIDEO_ONSET_CENSORED_OR_OCCLUDED')
++        else:
++            left, right = _interval(bracket)
++            sustained = row.get('sustained_motion_media_s')
++            if sustained is None or not math.isfinite(sustained) or sustained <= right:
++                raise ValueError('MISSING_SUSTAINED_MOTION_SUPPORT')
++            point = event['candidate_media_s']
++            if not math.isfinite(point):
++                raise ValueError('INVALID_EVENT_TIME')
++            sets = [_interval(x) for x in event['conditional_media_sets_s']]
++            out.update(video_onset_bracket_s=bracket,
++                       candidate_event_media_s=point,
++                       point_event_minus_onset_range_s=[point-right, point-left],
++                       conditional_event_media_sets_s=sets,
++                       conditional_event_minus_onset_sets_s=[
++                           [a-right, b-left] for a, b in sets],
++                       conditional_sets_overlap_video_bracket=any(
++                           a <= right and b >= left for a, b in sets),
++                       vehicle_localization_heuristic_radius_ms=event.get(
++                           'vehicle_localization_heuristic_radius_ms'),
++                       uncertainty_semantics='frozen-H conditional clock sets; excludes '
++                           'joint geometry/clock error; video bracket is sampled visibility')
++        if row['identity_status'] != 'INDEPENDENTLY_CONFIRMED':
++            out['timing_validation_reasons'].append('TRACK_VIDEO_IDENTITY_PROVISIONAL')
++        if not clock_certified:
++            out['timing_validation_reasons'].append('JOINT_LOCAL_CLOCK_GEOMETRY_NOT_CALIBRATED')
++        if not out['timing_validation_reasons']:
++            out['timing_validation_status'] = 'COMPARABLE_VEHICLE_EVENT_ONLY'
++        result.append(out)
++    return result
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index 35fc16a..6dfc451 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,16 @@
+ # Project status — 2D.1, 2026-10-14
+ 
++2026-10-15 seven-vehicle video review: all7 preregistered N-origin RELEASE tracks
++represented,32 fixed-grid native ROI frames sampled (8.907s/14.99MB). Seven visible
++stationary-to-motion sequences bracketed; track identities remain provisional.
++Six frozen-clock point RELEASEs precede the video brackets, one is inside; all7
++conditional clock sets overlap. Near-bottom descriptive image discrepancies81–156px
++limit transfer of earlier H/clock validation. No certified timing error or causal
++delay estimate; timing validation UNAVAILABLE, physical UNKNOWN.31 targeted tests
++passed. No new extraction/fit/replay/default changes;2D.1 FAIL and historical metrics
++unchanged. See SEVEN_RESTART_VIDEO_REVIEW_20261015.md. Next: independent local
++same-car/feature/clock checks, confirmed H1 mapping, multiple cycles and validation.
++
+ 2026-10-15 method-specific event/video join: one1.351s extraction from243 raw
+ tracks sealed548 events before loading signal references. Strict conditional-clock
+ window347 events:155 entry/154 crossing proxy/38 kinematic release. Existing
+diff --git a/docs/SEVEN_RESTART_VIDEO_REVIEW_20261015.md b/docs/SEVEN_RESTART_VIDEO_REVIEW_20261015.md
+new file mode 100644
+index 0000000..91ea07f
+--- /dev/null
++++ b/docs/SEVEN_RESTART_VIDEO_REVIEW_20261015.md
+@@ -0,0 +1,68 @@
++# Проверка семи restart по видео, 2026-10-15
++
++Base: `79fdccc2df2b31853f530d47a335422684ceb292`.
++Ветка: `calibration/seven-restart-video-review-20261015`. Main/default не изменены.
++
++Проверены **все семь** ранее выбранных N-origin RELEASE одного цикла, без отбора
++по ошибкам фаз. План и SHA входов сохранены до нового просмотра. Из видео извлечены
++32 кадра заранее заданной сетки 316–324.5 media seconds, ROI 1050,900,1450,620.
++Фактические PTS сохранены: запрошенное время не подменяет время кадра.
++Sampling: 8.907 s, 14,990,173 bytes при лимите 90 s/128 MiB.
++Новых extraction, fitting, replay или изменения параметров не было.
++
++На неподвижных относительно сцены crops видны семь остановившихся объектов,
++затем последовательное начало движения. Интервалы ниже — консервативные brackets
++от кадра без различимого движения до кадра с ясным движением, подтверждённым
++следующим кадром. Это не calibrated intervals физического старта.
++
++| Track ID (гипотеза) | Объект | Видимый старт, media s | RELEASE, media s |
++|---|---|---:|---:|
++| 9915800 | передняя белая машина | 319.767–320.267 | 319.254 |
++| 9915797 | синий грузовик с фургоном | 320.267–320.767 | 319.740 |
++| 9915806 | передняя коричневая машина | 320.267–321.033 | 319.974 |
++| 9915811 | белая за грузовиком | 321.033–321.767 | 320.813 |
++| 9915815 | тёмный SUV среднего ряда | 321.767–322.533 | 321.310 |
++| 9915764 | белый SUV у остановки | 321.533–322.267 | 321.653 |
++| 9915830 | тёмный SUV у остановки | 323.033–323.767 | 322.605 |
++
++Соответствия ID основаны на пространственном порядке, классе и пути; **независимо
++не сертифицированы**. Видимые автомобильные старты размечены до запуска join,
++но reviewer не был полностью blind: приблизительные прежние offsets были известны.
++Review выполнен ассистентом; второй независимый reviewer отсутствует.
++
++При frozen clock delta=1.288667 s шесть точечных RELEASE раньше bracket,
++один внутри. Однако условные frozen-H clock sets пересекают bracket **7/7**.
++Поэтому это не доказательство систематического опережения extractor и не основание
++для нового offset. Радиус локализации события 1300 ms сохранён отдельно и не
++добавляется как ошибка лампы. Все timing validation statuses — **UNAVAILABLE**,
++с причинами provisional identity и отсутствия совместной local clock/geometry calibration.
++
++Дополнительная проверка изображения обнаружила ограничение прежней регистрации:
++при PTS 318.033333 расстояния проекций до вручную указанных feature points составляют
++81–156 px. Это descriptive diagnostics, не новый accuracy gate: определение точки,
++частично обрезанные задние части, identity, parallax, геометрия и часы смешаны.
++Успех прежнего heldout trolleybus нельзя переносить на всю нижнюю область кадра.
++Новый fit ради уменьшения этих residuals не запускался.
++
++Подтверждено по видео: разные машины очереди имеют разные интервалы старта;
++один общий RELEASE=lamp-switch timestamp использовать нельзя. Связь с H1 остаётся
++описательным сопоставлением одного цикла: видимый GREEN bracket
++318.866667–318.933333 из предыдущего sealed review. Mapping H1→movements,
++protected/permissive semantics и причинность независимо не подтверждены.
++Physical state остаётся UNKNOWN. Общую delay distribution по этому циклу не оценивали.
++
++Следующая конкретная задача — проверить same-car anchors непосредственно в нижней
++области и на движущемся участке этих траекторий, независимо от RELEASE/сигнальных
++ошибок; проверить соответствие feature points, затем локальную clock/geometry
++неопределённость. Для delay calibration нужны подтверждённый H1 mapping,
++несколько независимых циклов и отдельная validation session. События по этому
++сравнению не сдвигать; старый 2D.1 FAIL и исторические показатели сохранены.
++
++Артефакты: `evidence/seven_restart_review_20261015/`: plan/seal, visual review/seal,
++frame hashes/PTS, все семь raw tracks, CSV/JSON сравнения, 8 небольших proof images,
++manifest их происхождения, команды/логи, diff и compact ZIP. Большие 32 ROI PNG
++оставлены локально в `.annotation_runtime/seven_restart_frames/`.
++
++Проверки: 31 targeted test passed (2.21 s): interval arithmetic, occlusion/abstention,
++некорректные интервалы, полнота cohort, sustained support, переименование movements,
++неизменность входов и затронутые прежние clock/association tests.
+diff --git a/scripts/build_restart_video_proofs.py b/scripts/build_restart_video_proofs.py
+new file mode 100644
+index 0000000..b71a7ac
+--- /dev/null
++++ b/scripts/build_restart_video_proofs.py
+@@ -0,0 +1,48 @@
++"""Crop already sampled pixels; never rereads media or infers vehicle motion."""
++import hashlib
++import json
++from pathlib import Path
++
++from PIL import Image, ImageDraw
++
++ROOT = Path(__file__).resolve().parents[1]
++OUT = ROOT/'evidence/seven_restart_review_20261015'
++FRAMES = ROOT/'.annotation_runtime/seven_restart_frames'
++review = json.loads((OUT/'visual_review.json').read_text())
++manifest = json.loads((OUT/'frames.json').read_text())
++proof = OUT/'proof'
++proof.mkdir(exist_ok=True)
++records = []
++for row in review['rows']:
++    a,b,c,d = row['stationary_roi_bbox_at_318_requested_px']
++    box = [max(0,a-50),max(0,b-60),min(1450,c+110),min(620,d+35)]
++    w,h = box[2]-box[0],box[3]-box[1]
++    sheet = Image.new('RGB',(3*w,h+44),'#101010')
++    draw = ImageDraw.Draw(sheet)
++    for i,frame in enumerate(row['frames']):
++        src = FRAMES/frame['file']
++        assert hashlib.sha256(src.read_bytes()).hexdigest() == frame['sha256']
++        sheet.paste(Image.open(src).crop(box),(i*w,44))
++        draw.text((i*w+4,5),row['video_object'],fill='white')
++        draw.text((i*w+4,24),f"media {frame['actual_media_time_s']:.6f}",fill='white')
++    target = proof/f"track_hypothesis_{row['track_id_hypothesis']}.png"
++    sheet.save(target)
++    records.append(dict(file=str(target.relative_to(OUT)).replace('\\','/'),
++        sha256=hashlib.sha256(target.read_bytes()).hexdigest(),
++        roi_crop_px=box,source_frames=row['frames'],pixel_processing='native crop, no resize; text above pixels'))
++# Context image shows all seven objects and the visible head, without track-following crops.
++frame = next(f for f in manifest['frames'] if f['requested_elapsed_s']==318)
++src = FRAMES/frame['file']
++assert hashlib.sha256(src.read_bytes()).hexdigest() == frame['sha256']
++context = Image.open(src).convert('RGB')
++draw = ImageDraw.Draw(context)
++for row in review['rows']:
++    box = row['stationary_roi_bbox_at_318_requested_px']
++    draw.rectangle(box,outline='yellow',width=2)
++    draw.text((box[0],max(0,box[1]-15)),str(row['track_id_hypothesis'])+'?',fill='yellow')
++target = proof/'context_318.png'
++context.save(target)
++records.append(dict(file='proof/context_318.png',sha256=hashlib.sha256(target.read_bytes()).hexdigest(),
++    source_frames=[frame],pixel_processing='native pixels; yellow provisional identity boxes/text'))
++(OUT/'proof_manifest.json').write_text(json.dumps(records,indent=2),encoding='utf8')
++print('8 proof images; frame hashes verified; no video decoding or fitting')
+diff --git a/scripts/build_restart_video_review.py b/scripts/build_restart_video_review.py
+new file mode 100644
+index 0000000..040329b
+--- /dev/null
++++ b/scripts/build_restart_video_review.py
+@@ -0,0 +1,89 @@
++"""Reproduce the descriptive comparison from sealed video annotations only.
++
++Uses previously saved extraction and clock profile. No archives, phase labels,
++event extraction, optimization or production model calls.
++"""
++from __future__ import annotations
++
++import csv
++import hashlib
++import json
++from pathlib import Path
++import sys
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
++from app.experimental.restart_video_review import compare_review
++from app.experimental.vehicle_clock_alignment import prepare_tracks, predict
++
++
++ROOT = Path(__file__).resolve().parents[1]
++OUT = ROOT / 'evidence/seven_restart_review_20261015'
++
++
++def load(path):
++    return json.loads(path.read_text(encoding='utf8'))
++
++
++def sha(path):
++    return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++def main():
++    plan = load(OUT/'plan.json')
++    assert sha(OUT/'plan.json') == (OUT/'plan.sha256').read_text().strip()
++    assert sha(OUT/'visual_review.json') == (OUT/'visual_review.sha256').read_text().strip()
++    for name, digest in plan['input_sha256'].items():
++        assert sha(ROOT/name) == digest, name
++    events = load(ROOT/'evidence/event_signal_associations_20261015/analysis/associations.json')['events']
++    review = load(OUT/'visual_review.json')
++    result = compare_review(review, events, plan['cohort'])
++    profile = load(ROOT/'evidence/vehicle_clock_alignment_20261015/alignment_profile.json')
++    records = load(ROOT/'evidence/video_calibration_pilot_20261015/trajectory_sample/calibration_tracks.json')
++    tracks = [r for r in records if r['id'] in plan['cohort']]
++    assert len(tracks) == 7
++    (OUT/'selected_raw_tracks.json').write_text(json.dumps(tracks), encoding='utf8')
++    pts = next(f['actual_media_time_s'] for f in load(OUT/'frames.json')['frames']
++               if f['requested_elapsed_s'] == 318)
++    coordinates = predict(prepare_tracks(tracks), [dict(track_id=r['track_id_hypothesis'],
++        actual_media_pts_s=pts) for r in review['rows']], profile['homography'],
++        profile['delta_s'], profile['origin_ms'])
++    geometry = []
++    for row, xy in zip(review['rows'], coordinates):
++        a,b,c,d = row['stationary_roi_bbox_at_318_requested_px']
++        point = [(a+c)/2+1050, b+.75*(d-b)+900]
++        geometry.append(dict(track_id_hypothesis=row['track_id_hypothesis'],
++            actual_media_pts_s=pts, projected_source_point_px=xy.tolist(),
++            manual_video_feature_px=point,
++            descriptive_residual_px=sum((x-y)**2 for x,y in zip(xy,point))**.5,
++            interpretation='identity/feature definition/parallax/geometry/clock confounded; '
++                'clipped rear features not independently defined; not a certified residual gate'))
++    # Both times here are VIDEO presentation times; no JSON clock conversion.
++    green = [318.866667, 318.933333]
++    for row, out in zip(review['rows'], result):
++        left, right = row['observed_onset_bracket_s']
++        out['video_onset_minus_H1_green_range_s'] = [left-green[1], right-green[0]]
++        out['H1_relation'] = 'same video cycle association; approach mapping UNCONFIRMED'
++    report = dict(schema='seven-restart-video-comparison-v1', rows=result,
++        geometry_diagnostic=geometry, events=len(result),
++        comparable_certified_timing_count=sum(r['timing_validation_status'] != 'UNAVAILABLE' for r in result),
++        candidate_points_before_video_bracket=sum(r['point_event_minus_onset_range_s'][1]<0 for r in result),
++        conditional_sets_overlap_video_bracket=sum(r['conditional_sets_overlap_video_bracket'] for r in result),
++        independent_signal_cycles=1, phase_fits=0, new_extractions=0,
++        calibrated_event_delay_model='UNAVAILABLE', production_changed=False,
++        input_sha256=plan['input_sha256'], visual_review_sha256=sha(OUT/'visual_review.json'))
++    (OUT/'comparison.json').write_text(json.dumps(report, indent=2), encoding='utf8')
++    with (OUT/'events.csv').open('w', newline='', encoding='utf8') as f:
++        writer = csv.writer(f)
++        writer.writerow(['track_id','movement','video_object','video_onset_left_s','video_onset_right_s',
++                         'candidate_release_media_s','candidate_minus_onset_min_s','candidate_minus_onset_max_s',
++                         'conditional_clock_overlap','certified_timing_status'])
++        for r in result:
++            writer.writerow([r['track_id'],r['movement'],r['video_object'],*r['video_onset_bracket_s'],
++                r['candidate_event_media_s'],*r['point_event_minus_onset_range_s'],
++                r['conditional_sets_overlap_video_bracket'],r['timing_validation_status']])
++    print(json.dumps({k:v for k,v in report.items() if k not in ['rows','input_sha256','geometry_diagnostic']}))
++    print('Geometry descriptive residuals:', [round(g['descriptive_residual_px'],1) for g in geometry])
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/tests/test_restart_video_review.py b/tests/test_restart_video_review.py
+new file mode 100644
+index 0000000..32b2321
+--- /dev/null
++++ b/tests/test_restart_video_review.py
+@@ -0,0 +1,88 @@
++import copy
++
++import pytest
++
++from app.experimental.restart_video_review import compare_review
++
++
++def inputs():
++    review = {'rows': [dict(track_id_hypothesis=1, video_object='car',
++        identity_status='PROVISIONAL', observed_onset_bracket_s=[10., 11.],
++        sustained_motion_media_s=12.)]}
++    events = [dict(source_track_id=1, event_type='RELEASE', selected_permission=True,
++        event_index=3, method='proxy', movement='arbitrary-name', timestamp_ms=1000,
++        track_fingerprint='abc', candidate_media_s=9.,
++        conditional_media_sets_s=[[8., 9.5]],
++        vehicle_localization_heuristic_radius_ms=1300)]
++    return review, events
++
++
++def test_interval_arithmetic_does_not_claim_certified_timing_or_lamp():
++    r, e = inputs()
++    before = copy.deepcopy((r, e))
++    out = compare_review(r, e, [1])[0]
++    assert out['point_event_minus_onset_range_s'] == [-2., -1.]
++    assert out['conditional_event_minus_onset_sets_s'] == [[-3., -.5]]
++    assert not out['conditional_sets_overlap_video_bracket']
++    assert out['timing_validation_status'] == 'UNAVAILABLE'
++    assert out['physical_state'] == 'UNKNOWN'
++    assert out['calibrated_lamp_probability'] is None
++    assert (r, e) == before
++
++
++def test_occluded_onset_keeps_cohort_and_abstains():
++    r, e = inputs()
++    r['rows'][0]['observed_onset_bracket_s'] = None
++    out = compare_review(r, e, [1])[0]
++    assert 'VIDEO_ONSET_CENSORED_OR_OCCLUDED' in out['timing_validation_reasons']
++    assert 'point_event_minus_onset_range_s' not in out
++
++
++@pytest.mark.parametrize('bracket', [[11, 10], [float('nan'), 11], [10, float('inf')]])
++def test_invalid_brackets_rejected(bracket):
++    r, e = inputs()
++    r['rows'][0]['observed_onset_bracket_s'] = bracket
++    with pytest.raises(ValueError, match='INVALID_INTERVAL'):
++        compare_review(r, e, [1])
++
++
++def test_missing_or_duplicate_track_cannot_disappear():
++    r, e = inputs()
++    with pytest.raises(ValueError, match='COHORT'):
++        compare_review(r, e, [1, 2])
++    with pytest.raises(ValueError, match='ONE_SELECTED_RELEASE'):
++        compare_review(r, e+e, [1])
++
++
++def test_single_frame_motion_is_not_sustained_support():
++    r, e = inputs()
++    r['rows'][0]['sustained_motion_media_s'] = 11
++    with pytest.raises(ValueError, match='SUSTAINED'):
++        compare_review(r, e, [1])
++
++
++def test_bijective_movement_rename_preserves_result():
++    r, e = inputs()
++    a = compare_review(r, e, [1])[0]
++    e[0]['movement'] = 'renamed'
++    b = compare_review(r, e, [1])[0]
++    assert {k:v for k,v in a.items() if k != 'movement'} == {
++        k:v for k,v in b.items() if k != 'movement'}
++
++
++def test_actual_sealed_review_has_entire_preregistered_cohort():
++    import hashlib
++    import json
++    from pathlib import Path
++
++    root = Path(__file__).resolve().parents[1]
++    folder = root/'evidence/seven_restart_review_20261015'
++    plan = json.loads((folder/'plan.json').read_text())
++    review = json.loads((folder/'visual_review.json').read_text())
++    assert hashlib.sha256((folder/'visual_review.json').read_bytes()).hexdigest() == (
++        folder/'visual_review.sha256').read_text().strip()
++    events = json.loads((root/'evidence/event_signal_associations_20261015/analysis/associations.json').read_text())['events']
++    rows = compare_review(review, events, plan['cohort'])
++    assert len(rows) == 7
++    assert all(r['physical_state']=='UNKNOWN' for r in rows)
++    assert all(r['timing_validation_status']=='UNAVAILABLE' for r in rows)

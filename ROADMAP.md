@@ -1,5 +1,13 @@
 # traffic_phase — план до готового продукта
 
+2026-10-15: [проверены все7 N-origin машин по видео](docs/SEVEN_RESTART_VIDEO_REVIEW_20261015.md).
+Видимое начало движения сохранено отдельно от RELEASE. По frozen clock6/7 точек
+раньше brackets, но conditional clock sets пересекаются7/7; ошибка extractor
+не отделена от локальной регистрации. Identity provisional, timing validation
+UNAVAILABLE. Следующий конкретный пункт — независимые same-car/feature anchors
+в нижней области кадра, затем подтверждённый mapping и delay по нескольким циклам.
+Новых model runs/offset/threshold изменений нет; 2D.1 FAIL/default-off сохранён.
+
 2026-10-15, шаг3: [первое реальное сопоставление событий и H1](docs/EVENT_SIGNAL_ASSOCIATIONS_20261015.md)
 выполнено по sealed extraction, без нового phase fitting. Получены method-specific
 offsets и сохранены154 локальных zone proxies, теряемых текущим selector.

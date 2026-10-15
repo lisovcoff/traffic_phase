@@ -1,0 +1,71 @@
+{
+  "base_sha": "79fdccc2df2b31853f530d47a335422684ceb292",
+  "cohort": [
+    9915800,
+    9915797,
+    9915806,
+    9915811,
+    9915815,
+    9915764,
+    9915830
+  ],
+  "selection": "all seven N-origin selected RELEASE in previously sealed strict local clock scope; no phase error selection",
+  "requested_media_s": [
+    316,
+    316.5,
+    317,
+    317.5,
+    317.75,
+    318.0,
+    318.25,
+    318.5,
+    318.75,
+    319.0,
+    319.25,
+    319.5,
+    319.75,
+    320.0,
+    320.25,
+    320.5,
+    320.75,
+    321.0,
+    321.25,
+    321.5,
+    321.75,
+    322.0,
+    322.25,
+    322.5,
+    322.75,
+    323.0,
+    323.25,
+    323.5,
+    323.75,
+    324.0,
+    324.25,
+    324.5
+  ],
+  "roi": [
+    1050,
+    900,
+    1450,
+    620
+  ],
+  "frame_limit": 32,
+  "media_read_limit_bytes": 134217728,
+  "sampling_budget_s": 90,
+  "review": "fixed-background native pixels; movement onset bracket requires last visibly stationary and first sustained motion; occlusion/censoring unavailable; empirical projection is identity locator only",
+  "comparison": "seal direct image review before generated event comparison; conditional clock sets not calibrated timing intervals",
+  "prohibited": [
+    "phase fitting",
+    "new event extraction",
+    "clock/homography refit",
+    "threshold tuning",
+    "production changes"
+  ],
+  "input_sha256": {
+    "evidence/event_signal_associations_20261015/vehicle_events.json": "afcdd0aa84c61dcba6eb2e1c51d601b41ff482cf2426703870f6e7f64322ae2b",
+    "evidence/event_signal_associations_20261015/analysis/associations.json": "f15b641fd57db808de495f3641d8581ce79ef62d126ce30bd761dc2fe31a55c6",
+    "evidence/vehicle_clock_alignment_20261015/alignment_profile.json": "653b26dd2f815cb613a4e99acd0cb02f11e0602e7eb61fe5118edb4a5cf431c4",
+    "evidence/video_calibration_pilot_20261015/trajectory_sample/calibration_tracks.json": "aeb5b4669c0f16d559b8a7a8f9ee007ef64bab4319cbbeb06d9621ca616ed247"
+  }
+}
