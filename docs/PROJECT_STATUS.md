@@ -1,5 +1,19 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 local image/clock check completed: one predeclared calibration using3
+vehicles/15 image points, sealed before4 withheld vehicles/18 visible points scored;
+2 clipped-image points explicitly unavailable. All four pass declared50px check:
+new max42.26px versus previous158.14px; training max23.88px within30px. Clock delta
+1.253838s, close to old1.288667s; local geometry is a material source of earlier
+discrepancies. Frozen-H conditional clock set[1.057448,1.534785]s is NOT calibrated
+joint uncertainty. One cycle only; production unchanged. A fixed post-validation
+technical witness proves symmetric smoothing can return RELEASE18.9s before
+generated motion20.0s; not a real lamp accuracy result or acceptance of extractor.
+31 targeted tests passed;2D.1 FAIL/default-off and historical metrics retained.
+See LOCAL_VEHICLE_REGISTRATION_20261015.md. Next: independent-counterexample-driven
+restart timing localization without backward smoothing leakage, then multiple
+calibration cycles and separate validation; no generic offset correction.
+
 2026-10-15 operator confirmed H1 mapping after seeing the blue vehicle photo:
 bottom-of-frame approach; main green straight toward upper-right, additional
 section left toward upper-left. Source question/answer and frame identity saved

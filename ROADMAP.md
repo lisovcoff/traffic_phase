@@ -1,5 +1,13 @@
 # traffic_phase — план до готового продукта
 
+2026-10-15: [локальная image/clock привязка проверена на4 withheld машинах](docs/LOCAL_VEHICLE_REGISTRATION_20261015.md).
+Один расчёт по3 другим машинам, без signal/RELEASE labels; max withheld residual
+снизился158→42px при почти неизменных часах. Найден отдельный technical counterexample:
+симметричное сглаживание выдаёт restart18.9s при начале world-motion20.0s.
+Следующий инженерный пункт — исправлять локализацию vehicle restart по независимым
+synthetic counterexamples, затем multi-cycle calibration/validation; не общий offset
+по7 известным машинам. Production/default и прежний2D.1 FAIL не изменены.
+
 2026-10-15: пользователь подтвердил H1 по фото синей машины: подъезд снизу,
 основной зелёный прямо вверх-вправо, допсекция налево вверх-влево.
 Источник сохранён в `evidence/video_calibration_intake_20261015/h1_operator_mapping.json`.

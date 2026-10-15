@@ -1,0 +1,60 @@
+node scripts/sample_calibration_frames.mjs --video "C:\Users\sheld\Downloads\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4" --out .annotation_runtime/local_registration_frames --port 9229 --times 326,328,330 --max-frames 3 --roi 0,0,2688,1520
+Media metadata: {
+  duration_s: 7216.333333,
+  width: 2688,
+  height: 1520,
+  can_play_h264: 'probably'
+}
+{
+  "metadata": {
+    "duration_s": 7216.333333,
+    "width": 2688,
+    "height": 1520,
+    "can_play_h264": "probably"
+  },
+  "frames": [
+    {
+      "requested_elapsed_s": 326,
+      "actual_media_time_s": 326.033333,
+      "file": "frame_00326.png",
+      "sha256": "5219d9098d72a5ffd4e71ccad83cf7cdd9eb6e21975bf1bb8ddc002ec289327d",
+      "width": 2688,
+      "height": 1520,
+      "roi_intrinsic_px": [
+        0,
+        0,
+        2688,
+        1520
+      ]
+    },
+    {
+      "requested_elapsed_s": 328,
+      "actual_media_time_s": 328.033333,
+      "file": "frame_00328.png",
+      "sha256": "7c5ec21aa03bcb40cce519ae594e7c3139cfaac8b62e2faa20c1937df7a752ad",
+      "width": 2688,
+      "height": 1520,
+      "roi_intrinsic_px": [
+        0,
+        0,
+        2688,
+        1520
+      ]
+    },
+    {
+      "requested_elapsed_s": 330,
+      "actual_media_time_s": 330.033333,
+      "file": "frame_00330.png",
+      "sha256": "24695bcdf9a93d101e0d6cdceb8cc756563f2ad139a606edfec1658dcd85451a",
+      "width": 2688,
+      "height": 1520,
+      "roi_intrinsic_px": [
+        0,
+        0,
+        2688,
+        1520
+      ]
+    }
+  ],
+  "runtime_s": 2.395
+}

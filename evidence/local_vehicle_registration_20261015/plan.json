@@ -1,0 +1,74 @@
+{
+  "base_sha": "3b4da7f37a08d8e52d935c088545a245d2da4a52",
+  "scope": "one local vehicle-image/clock calibration and withheld checks; NOT phase inference",
+  "cohort": [
+    9915800,
+    9915797,
+    9915806,
+    9915811,
+    9915815,
+    9915764,
+    9915830
+  ],
+  "training_tracks": [
+    9915800,
+    9915815,
+    9915764
+  ],
+  "validation_track": 9915797,
+  "additional_validation_tracks": [
+    9915806,
+    9915811,
+    9915830
+  ],
+  "media_times": [
+    318,
+    324,
+    326,
+    328,
+    330
+  ],
+  "new_sample_times": [
+    326,
+    328,
+    330
+  ],
+  "existing_frames": "318/324 from sealed seven-restart review, reused byte-identically",
+  "sample_roi": [
+    0,
+    0,
+    2688,
+    1520
+  ],
+  "feature_definition": "horizontal bbox center and 75 percent from top to bottom, same as earlier manual vehicle calibration; feature and supplier centroid relationship unverified",
+  "training_localization_allowance_px": 30,
+  "validation_localization_allowance_px": 50,
+  "clock_origin_ms": 1740632395000,
+  "clock_delta_bounds_s": [
+    -5,
+    5
+  ],
+  "model": "same empirical homography plus constant offset; old model retained; no clock drift",
+  "fit_budget": {
+    "invocations": 1,
+    "max_nfev": 1000,
+    "max_seconds": 15,
+    "starts": 1
+  },
+  "new_frame_budget": {
+    "frames": 3,
+    "seconds": 90,
+    "bytes": 134217728
+  },
+  "validation_policy": "withheld vehicle points sealed only after fit output seal; no refit from validation; scene already inspected in development, NOT untouched holdout",
+  "acceptance": "optimizer success, full numerical rank9, no bound active, all training residuals <=30px, all withheld residuals <=50px; failed model remains diagnostic; no claim of calibrated sync even on pass",
+  "missing_or_occluded_points": "explicitly unavailable; no interpolation of manual truth; no replacement vehicles or retries for successful gate",
+  "no_signal_event_labels_for_fit": true,
+  "no_release_times_for_fit": true,
+  "production_usable": false,
+  "input_sha256": {
+    "evidence/seven_restart_review_20261015/selected_raw_tracks.json": "05210a00341f8a910c3d019fda9919262240a574c3d962f1110bc4e1c359b4c9",
+    "evidence/vehicle_clock_alignment_20261015/corrected_training_model.json": "ed8729e1d6ad63a1e98d6bd622be8dfc5b4a76498334368a4775428d150dfc08",
+    "evidence/video_calibration_intake_20261015/h1_operator_mapping.json": "cf82e8679c7a90da9aded3ca4a5ee9683191057dde1f89e52c4734e7c3cd7b9f"
+  }
+}
