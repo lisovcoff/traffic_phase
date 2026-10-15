@@ -1,0 +1,25 @@
+{
+  "base_sha": "41563f5852ec2708a0db6a590d04888b256baae9",
+  "code_commit": "f55cf0d63b36694abc612b8a93310c511e88b250",
+  "inputs_sha256": "d8fcc4b108bbdf25924592b97a707f47b1a5ba567a5f9adf11610b9a51593f3b",
+  "truth_sha256": "ef21013c68e949f689290df15f42a0505721d9fe34dbc0ee8a720f427bb80f4d",
+  "source_sha256_lf": {
+    "app/experimental/unanchored_sequence.py": "4fd6b0174ffd6a89483cf24739a3a23bf7ad455ea2a1068e7212b0cf11d872f3",
+    "app/experimental/rounded_observation.py": "2d57e4f90c514ae1b042f5721fdc2858341596edf06f998d62fa9136dc4d268e",
+    "app/experimental/phase_observation_bridge.py": "49c9397202fdeaf776b47b42101e7e170ce095bf0ef78ab7de01c14f454a3773",
+    "app/experimental/joint_track_model.py": "f9698c72c1acdcae10cad86061560e63fee3fc1aeb3d66506c3b6e90ca451fa1",
+    "scripts/sparse_duration_cases.py": "8738a12a0c02eca52207d08f377bab52c822e033a1e2c472085b84f1039b57cd",
+    "scripts/check_sparse_duration.py": "f2e497ffe3a608c371a87d197867ddd51e61cbfb4c4364a297a8b7c3d5abd692"
+  },
+  "protocol_sha256": "e196cd7379667a25e07948defd67dd412b0cee4984cbc3c2e822336ea5b61c31",
+  "max_calls": 16,
+  "cpu_budget_s": 60,
+  "wall_budget_s": 90,
+  "limits": {
+    "max_paths": 10000,
+    "max_seconds": 5,
+    "max_memory_bytes": 33554432
+  },
+  "point_tolerance_s": 2,
+  "core_recall_gate": 0.8
+}

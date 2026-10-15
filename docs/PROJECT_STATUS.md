@@ -1,5 +1,15 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 sparse stochastic duration validation completed with frozen inference:
+16 calls/27.984CPU s,15 complete finite posteriors;hold+30 horizon64s unavailable
+on path budget. Core12 cases:flat8/12 PASS,soft7/12;29/34 synthetic boundaries
+matched for each, predicted30/32. This is NOT the historical real34-boundary set.
+Conditional-on-truth-count intervals33/34 do not substitute for count/MAP errors.
+76 pre-run tests+4 artifact checks pass; no post-result tuning/replay.2D.1 FAIL,
+main/default/core/historical real metrics unchanged. See SPARSE_DURATION_RESULTS.
+Next: independent review (root EXTERNAL_REVIEW_PROMPT.md), scalable inference
+decision and practical trajectory-only path; full enumeration stays reference.
+
 2026-10-15 bounded unknown-start/count prototype: explicit stationary grid-renewal
 initial age marginalized, initial phase/count unknown, fixed K2/K3/order only.
 All alternatives retained or unavailable on resource exhaustion; both old priors

@@ -2,6 +2,15 @@
 
 ## Текущий критический путь к продукту — уточнение 2026-10-15
 
+Новейшая проверка: [sparse stochastic durations](docs/SPARSE_DURATION_RESULTS_20261015.md)
+по frozen seeds7/23: core flat8/12 PASS,soft7/12, synthetic29/34 matched±2с;
+hold+30 упирается в path budget.2D.1 FAIL, никаких post-result настроек.
+Полный перебор — small-input reference, не production решение длинных историй.
+Следующий приоритет: независимое review по `EXTERNAL_REVIEW_PROMPT.md`, выбор
+scalable inference с обоснованной factorization/approximation и короткого пути
+к usable trajectory-only output. Не повторять ту же calibration или новые
+удобные synthetic suites вместо снятия computational/observation blockers.
+
 Последний выполненный шаг: [unknown initial phase/count](docs/UNANCHORED_SEQUENCE_RESULTS_20261015.md).
 Opt-in full finite alternatives при fixed K/order, явный stationary-start prior,
 rounded event likelihood;105 pre-run tests+3 artifact checks. Один short witness

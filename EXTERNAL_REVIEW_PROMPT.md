@@ -33,8 +33,13 @@ operator mapping и проверенные motion-before-visible-GREEN конт�
 app/experimental/joint_track_model.py, rounded_observation.py,
 phase_observation_bridge.py, unanchored_sequence.py и соответствующие tests.
 См. docs/UNANCHORED_SEQUENCE_PROTOCOL_20261015.md и RESULTS.
-Новее — ветка experiment/sparse-duration-validation-20261015 и приложенный
-отчёт sparse-duration проверки; при отсутствии этой ветки не выдумывай её итоги.
+Новее — ветка experiment/sparse-duration-validation-20261015 и
+docs/SPARSE_DURATION_RESULTS_20261015.md. Один frozen run16 cases/seeds7/23:
+core12 cases flat8/12 PASS, soft7/12 PASS по recall>=.8; оба29/34 matched
+synthetic boundaries±2с, predicted30/32. Это ДРУГИЕ34 границы, не улучшение real
+raw19/34. Conditional-on-truth-count intervals33/34 содержат truth, но не
+заменяют неверный count/MAP. Hold+30/horizon64с unavailable по10000-path budget.
+Algorithm не исправляли по этим итогам. При недоступности файлов явно ограничь ревью.
 
 Модель прототипа: fixed supplied K2/K3/mapping/order, piecewise rates на2с grid,
 continuous latent vehicle time, supplied Poisson rates/exposure, discrete
