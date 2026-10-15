@@ -6,7 +6,11 @@ import http from 'node:http';
 const args=Object.fromEntries(process.argv.slice(2).reduce((rows,x,i,a)=>i%2===0?[...rows,[x,a[i+1]]]:rows,[]));
 const video=path.resolve(args['--video']),out=path.resolve(args['--out']),port=Number(args['--port']||9229);
 const sampleTimes=args['--times']?args['--times'].split(',').map(Number):[0,30,60,180,1800,3600,5400,7190];
-if(!sampleTimes.length||sampleTimes.length>16||sampleTimes.some(t=>!Number.isFinite(t)||t<0))throw Error('1..16 finite nonnegative frame times required');
+const frameLimit=Number(args['--max-frames']||16);
+if(!Number.isInteger(frameLimit)||frameLimit<1||frameLimit>128)throw Error('Explicit frame limit must be 1..128');
+if(!sampleTimes.length||sampleTimes.length>frameLimit||sampleTimes.some(t=>!Number.isFinite(t)||t<0))throw Error('Finite nonnegative frame times within declared limit required');
+const roi=args['--roi']?args['--roi'].split(',').map(Number):null;
+if(roi&&(roi.length!==4||roi.some(x=>!Number.isInteger(x))||roi[0]<0||roi[1]<0||roi[2]<=0||roi[3]<=0))throw Error('ROI requires integer x,y,width,height');
 if(fs.existsSync(out))throw Error('Fresh output directory required');
 if(!fs.statSync(video).isFile())throw Error('Video file required');
 fs.mkdirSync(out,{recursive:true});
@@ -42,15 +46,17 @@ try{
  await call('Emulation.setDeviceMetricsOverride',{width:1400,height:1000,deviceScaleFactor:1,mobile:false});
  const metadata=await evaluate(`new Promise((resolve,reject)=>{const v=document.getElementById('v');v.onerror=()=>reject(Error('Video error '+v.error?.code));v.onloadedmetadata=()=>resolve({duration_s:v.duration,width:v.videoWidth,height:v.videoHeight,can_play_h264:v.canPlayType('video/mp4; codecs="avc1.640033"')});v.src='/video';})`);
  fs.writeFileSync(path.join(out,'probe.json'),JSON.stringify(metadata,null,2));console.log('Media metadata:',metadata);
+ if(roi&&(roi[0]+roi[2]>metadata.width||roi[1]+roi[3]>metadata.height))throw Error('ROI outside video');
  for(const requested of sampleTimes){
   if(requested>=metadata.duration_s)throw Error('Frame time exceeds media duration');
   if(Date.now()-start>90000)throw Error('90s sampling budget exceeded');
-  const sample=await evaluate(`new Promise((resolve,reject)=>{const v=document.getElementById('v'),c=document.getElementById('c');const timer=setTimeout(()=>reject(Error('Frame timeout')),10000);v.pause();v.onseeked=()=>{v.onseeked=null;v.requestVideoFrameCallback((now,m)=>{try{v.pause();c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);window.__calibrationFrame=c.toDataURL('image/jpeg',.95);clearTimeout(timer);resolve({actual_media_time_s:m.mediaTime,width:m.width,height:m.height,data_length:window.__calibrationFrame.length});}catch(e){clearTimeout(timer);reject(e);}});v.play().catch(reject);};v.currentTime=${requested===0?0.000001:requested};})`);
+  const draw=roi?`c.width=${roi[2]};c.height=${roi[3]};c.getContext('2d').drawImage(v,${roi.join(',')},0,0,c.width,c.height)`:`c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0)`;
+  const sample=await evaluate(`new Promise((resolve,reject)=>{const v=document.getElementById('v'),c=document.getElementById('c');const timer=setTimeout(()=>reject(Error('Frame timeout')),10000);v.pause();v.onseeked=()=>{v.onseeked=null;v.requestVideoFrameCallback((now,m)=>{try{v.pause();${draw};window.__calibrationFrame=c.toDataURL(${roi?"'image/png'":"'image/jpeg',.95"});clearTimeout(timer);resolve({actual_media_time_s:m.mediaTime,width:m.width,height:m.height,data_length:window.__calibrationFrame.length});}catch(e){clearTimeout(timer);reject(e);}});v.play().catch(reject);};v.currentTime=${requested===0?0.000001:requested};})`);
   let data='';for(let offset=0;offset<sample.data_length;offset+=262144)data+=await evaluate(`window.__calibrationFrame.slice(${offset},${offset+262144})`);
-  const name=`frame_${String(requested).padStart(5,'0')}.jpg`,bytes=Buffer.from(data.split(',')[1],'base64');
+  const name=`frame_${String(requested).padStart(5,'0')}.${roi?'png':'jpg'}`,bytes=Buffer.from(data.split(',')[1],'base64');
   fs.writeFileSync(path.join(out,name),bytes);
   frames.push({requested_elapsed_s:requested,actual_media_time_s:sample.actual_media_time_s,file:name,
-    sha256:crypto.createHash('sha256').update(bytes).digest('hex'),width:sample.width,height:sample.height});
+    sha256:crypto.createHash('sha256').update(bytes).digest('hex'),width:sample.width,height:sample.height,roi_intrinsic_px:roi});
  }
  const stat=fs.statSync(video),size=1024*1024,parts=[];const fd=fs.openSync(video,'r');
  try{for(const offset of [0,Math.floor(stat.size/2),stat.size-size]){const b=Buffer.alloc(size);const n=fs.readSync(fd,b,0,size,offset);parts.push({offset,bytes:n,sha256:crypto.createHash('sha256').update(b.subarray(0,n)).digest('hex')});}}finally{fs.closeSync(fd);}
@@ -58,7 +64,8 @@ try{
    sampled_chunks:parts,sampled_identity_sha256:crypto.createHash('sha256').update(JSON.stringify({bytes:stat.size,parts})).digest('hex'),
    fingerprint_scope:'three 1MiB chunks only; not a whole-file SHA256'},metadata,frames,
    runtime_s:(Date.now()-start)/1000,media_bytes_served:mediaBytes,clock_synchronization:'UNVERIFIED',inference_runs:0,
-   codec_surface:'installed Chrome, separate headless profile; requestVideoFrameCallback mediaTime; JPEG quality .95 preview, not original encoded frame bytes'};
+   frame_limit:frameLimit,roi_intrinsic_px:roi,
+   codec_surface:roi?'installed Chrome; source-pixel ROI in PNG; decoded video, not original encoded bytes':'installed Chrome, separate headless profile; requestVideoFrameCallback mediaTime; JPEG quality .95 preview, not original encoded frame bytes'};
  fs.writeFileSync(path.join(out,'frames.json'),JSON.stringify(report,null,2)+'\n');
  console.log(JSON.stringify({metadata,frames,runtime_s:report.runtime_s},null,2));
 }finally{await call('Page.close').catch(()=>{});ws.close();server.closeAllConnections();server.close();}

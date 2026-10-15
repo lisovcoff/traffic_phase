@@ -1,0 +1,543 @@
+{
+  "schema": "direct-video-review-v1",
+  "source_sampled_identity_sha256": "7431d8a479e7a8c7c3d4dfa6ef1f667680b635d7151bb85d84d8ad96590d532e",
+  "source_full_sha256": null,
+  "sampling": {
+    "frames": 90,
+    "runtime_s": 12.64,
+    "media_bytes_served": 206320151
+  },
+  "transitions": [
+    {
+      "event": "MAIN_YELLOW_ON_1",
+      "before": [
+        "followup",
+        266.8
+      ],
+      "after": [
+        "refined",
+        267
+      ],
+      "operator_marker_media_s": 272.233,
+      "reviewer": "assistant_direct_visual_review",
+      "independently_cross_reviewed": false,
+      "before_appearance": "main green",
+      "after_appearance": "main yellow",
+      "before_frame": {
+        "requested_elapsed_s": 266.8,
+        "actual_media_time_s": 266.833333,
+        "file": "frame_266.8.png",
+        "sha256": "241597e19a02ea7eb1b0b4e5ecdd6a9a44f7d9ff1ce3ba0b375846f06d9a112a",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/followup/frame_266.8.png"
+      },
+      "after_frame": {
+        "requested_elapsed_s": 267,
+        "actual_media_time_s": 267.033333,
+        "file": "frame_00267.png",
+        "sha256": "b927a8001f14be828d66083f8f1014eccf1f65a3165d46f49f4d97ba1edb2771",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/refined/frame_00267.png"
+      },
+      "supporting_frames": [],
+      "video_presentation_bracket_s": [
+        266.833333,
+        267.033333
+      ],
+      "width_s": 0.2,
+      "operator_marker_minus_bracket_s": [
+        5.199667,
+        5.399667
+      ],
+      "json_boundary_timestamp_ms": null,
+      "physical_switch_timing_error_ms": null,
+      "bracket_semantics": "sampled decoded appearance only; not calibrated physical-switch uncertainty",
+      "continuous_monitoring": false
+    },
+    {
+      "event": "MAIN_RED_ON_1",
+      "before": [
+        "followup",
+        269.8
+      ],
+      "after": [
+        "refined",
+        270
+      ],
+      "operator_marker_media_s": 272.233,
+      "reviewer": "assistant_direct_visual_review",
+      "independently_cross_reviewed": false,
+      "before_appearance": "main yellow",
+      "after_appearance": "main red",
+      "before_frame": {
+        "requested_elapsed_s": 269.8,
+        "actual_media_time_s": 269.833333,
+        "file": "frame_269.8.png",
+        "sha256": "0a2d01baaa4c2ca6f0c3720a6ab86d9fdbecc4b73470ca0ccce39b8bee41d448",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/followup/frame_269.8.png"
+      },
+      "after_frame": {
+        "requested_elapsed_s": 270,
+        "actual_media_time_s": 270.033333,
+        "file": "frame_00270.png",
+        "sha256": "41ea21ec8417ba457ea4f2fc7f16bdd5b162f53cee4e65804be5b04ea8aee494",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/refined/frame_00270.png"
+      },
+      "supporting_frames": [],
+      "video_presentation_bracket_s": [
+        269.833333,
+        270.033333
+      ],
+      "width_s": 0.2,
+      "operator_marker_minus_bracket_s": [
+        2.199667,
+        2.399667
+      ],
+      "json_boundary_timestamp_ms": null,
+      "physical_switch_timing_error_ms": null,
+      "bracket_semantics": "sampled decoded appearance only; not calibrated physical-switch uncertainty",
+      "continuous_monitoring": false
+    },
+    {
+      "event": "MAIN_GREEN_AND_LATERAL_GREEN_ON_1",
+      "before": [
+        "refined",
+        318.85
+      ],
+      "after": [
+        "refined",
+        318.9
+      ],
+      "operator_marker_media_s": 318.953,
+      "reviewer": "assistant_direct_visual_review",
+      "independently_cross_reviewed": false,
+      "before_appearance": "main red plus yellow, lateral dark",
+      "after_appearance": "main green plus lateral green symbol",
+      "before_frame": {
+        "requested_elapsed_s": 318.85,
+        "actual_media_time_s": 318.866667,
+        "file": "frame_318.85.png",
+        "sha256": "1ebfcd86177aa7bff0d798ed715a786d2b3b2e9d39b29ba03fe6363822a5e269",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/refined/frame_318.85.png"
+      },
+      "after_frame": {
+        "requested_elapsed_s": 318.9,
+        "actual_media_time_s": 318.933333,
+        "file": "frame_318.9.png",
+        "sha256": "77d362abf551322c39d703082f06da333dc5a5a6dd94e3b34f4fe705e6474b0e",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/refined/frame_318.9.png"
+      },
+      "supporting_frames": [],
+      "video_presentation_bracket_s": [
+        318.866667,
+        318.933333
+      ],
+      "width_s": 0.066666,
+      "operator_marker_minus_bracket_s": [
+        0.019667,
+        0.086333
+      ],
+      "json_boundary_timestamp_ms": null,
+      "physical_switch_timing_error_ms": null,
+      "bracket_semantics": "sampled decoded appearance only; not calibrated physical-switch uncertainty",
+      "continuous_monitoring": false
+    },
+    {
+      "event": "LATERAL_LAST_OBSERVED_ON_TO_DARK",
+      "before": [
+        "refined",
+        335.85
+      ],
+      "after": [
+        "refined",
+        335.9
+      ],
+      "operator_marker_media_s": 335.949,
+      "reviewer": "assistant_direct_visual_review",
+      "independently_cross_reviewed": false,
+      "before_appearance": "lateral green symbol visible",
+      "after_appearance": "lateral dark, main green remains",
+      "status": "candidate_blink_cessation_not_certified_final_off",
+      "supporting_later_dark_samples": [
+        [
+          "coarse",
+          336.199
+        ],
+        [
+          "followup",
+          336.5
+        ],
+        [
+          "followup",
+          337
+        ],
+        [
+          "followup",
+          337.5
+        ],
+        [
+          "followup",
+          338
+        ]
+      ],
+      "before_frame": {
+        "requested_elapsed_s": 335.85,
+        "actual_media_time_s": 335.866667,
+        "file": "frame_335.85.png",
+        "sha256": "ab26fa2b65b971c13dcb0d09b85500ed220091b303f13897766ed183c3fa5660",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/refined/frame_335.85.png"
+      },
+      "after_frame": {
+        "requested_elapsed_s": 335.9,
+        "actual_media_time_s": 335.933333,
+        "file": "frame_335.9.png",
+        "sha256": "2ca2e0bd395dfea0ec0ffe9eb7a2ee64701c0ddbc2a2d4ab4060cf3f264cebcc",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/refined/frame_335.9.png"
+      },
+      "supporting_frames": [
+        {
+          "requested_elapsed_s": 336.199,
+          "actual_media_time_s": 336.233333,
+          "file": "frame_336.199.png",
+          "sha256": "4ccfe52928def39d5a696a7779f1209f9c8bf99021f6895071ec3bd40d31e3b9",
+          "width": 2688,
+          "height": 1520,
+          "roi_intrinsic_px": [
+            1940,
+            864,
+            180,
+            120
+          ],
+          "path": "evidence/video_boundary_verification_20261015/coarse/frame_336.199.png"
+        },
+        {
+          "requested_elapsed_s": 336.5,
+          "actual_media_time_s": 336.533333,
+          "file": "frame_336.5.png",
+          "sha256": "2b7e3f14d5f18bea040ce8af03523f650ada813e6df6935b489c146ef003d4d1",
+          "width": 2688,
+          "height": 1520,
+          "roi_intrinsic_px": [
+            1940,
+            864,
+            180,
+            120
+          ],
+          "path": "evidence/video_boundary_verification_20261015/followup/frame_336.5.png"
+        },
+        {
+          "requested_elapsed_s": 337,
+          "actual_media_time_s": 337.033333,
+          "file": "frame_00337.png",
+          "sha256": "ad489064e31c0259c2082b2507c452ca9aa44847180a60e0b0d13dce2369439e",
+          "width": 2688,
+          "height": 1520,
+          "roi_intrinsic_px": [
+            1940,
+            864,
+            180,
+            120
+          ],
+          "path": "evidence/video_boundary_verification_20261015/followup/frame_00337.png"
+        },
+        {
+          "requested_elapsed_s": 337.5,
+          "actual_media_time_s": 337.533333,
+          "file": "frame_337.5.png",
+          "sha256": "e11569ca3d652c4991dd471239048410f30c7339b7879b5dd8bd1939764ce663",
+          "width": 2688,
+          "height": 1520,
+          "roi_intrinsic_px": [
+            1940,
+            864,
+            180,
+            120
+          ],
+          "path": "evidence/video_boundary_verification_20261015/followup/frame_337.5.png"
+        },
+        {
+          "requested_elapsed_s": 338,
+          "actual_media_time_s": 338.033333,
+          "file": "frame_00338.png",
+          "sha256": "ab582d6dacc5ac901c5683006b89060910a877cc98bef25058bf92813095e33f",
+          "width": 2688,
+          "height": 1520,
+          "roi_intrinsic_px": [
+            1940,
+            864,
+            180,
+            120
+          ],
+          "path": "evidence/video_boundary_verification_20261015/followup/frame_00338.png"
+        }
+      ],
+      "video_presentation_bracket_s": [
+        335.866667,
+        335.933333
+      ],
+      "width_s": 0.066666,
+      "operator_marker_minus_bracket_s": [
+        0.015667,
+        0.082333
+      ],
+      "json_boundary_timestamp_ms": null,
+      "physical_switch_timing_error_ms": null,
+      "bracket_semantics": "sampled decoded appearance only; not calibrated physical-switch uncertainty",
+      "continuous_monitoring": false
+    },
+    {
+      "event": "MAIN_YELLOW_ON_2",
+      "before": [
+        "followup",
+        366.8
+      ],
+      "after": [
+        "refined",
+        367
+      ],
+      "operator_marker_media_s": 369.634,
+      "reviewer": "assistant_direct_visual_review",
+      "independently_cross_reviewed": false,
+      "before_appearance": "main green",
+      "after_appearance": "main yellow",
+      "before_frame": {
+        "requested_elapsed_s": 366.8,
+        "actual_media_time_s": 366.833333,
+        "file": "frame_366.8.png",
+        "sha256": "04f3ec67167fad59af07e0090ea1d766359f6b40c51575685140d55def7cc2bf",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/followup/frame_366.8.png"
+      },
+      "after_frame": {
+        "requested_elapsed_s": 367,
+        "actual_media_time_s": 367.033333,
+        "file": "frame_00367.png",
+        "sha256": "3dfc830956108a31c22587328d0317ceb4e707ef4440a9ff03c4c5228209fec1",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/refined/frame_00367.png"
+      },
+      "supporting_frames": [],
+      "video_presentation_bracket_s": [
+        366.833333,
+        367.033333
+      ],
+      "width_s": 0.2,
+      "operator_marker_minus_bracket_s": [
+        2.600667,
+        2.800667
+      ],
+      "json_boundary_timestamp_ms": null,
+      "physical_switch_timing_error_ms": null,
+      "bracket_semantics": "sampled decoded appearance only; not calibrated physical-switch uncertainty",
+      "continuous_monitoring": false
+    },
+    {
+      "event": "MAIN_RED_ON_2",
+      "before": [
+        "coarse",
+        369.884
+      ],
+      "after": [
+        "refined",
+        371.5
+      ],
+      "operator_marker_media_s": null,
+      "reviewer": "assistant_direct_visual_review",
+      "independently_cross_reviewed": false,
+      "before_appearance": "main yellow",
+      "after_appearance": "main red",
+      "status": "conservative_wide_bracket_intermediate_frames_not_decisive",
+      "before_frame": {
+        "requested_elapsed_s": 369.884,
+        "actual_media_time_s": 369.9,
+        "file": "frame_369.884.png",
+        "sha256": "817734f15a090d8581cc301681b6ed4b5076e14f550ece304d6bb203485d0fdb",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/coarse/frame_369.884.png"
+      },
+      "after_frame": {
+        "requested_elapsed_s": 371.5,
+        "actual_media_time_s": 371.533333,
+        "file": "frame_371.5.png",
+        "sha256": "a5994bfee95109d4b67dcf08b7becd74aae40a2ca14f89ee72cec56d0156434a",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/refined/frame_371.5.png"
+      },
+      "supporting_frames": [],
+      "video_presentation_bracket_s": [
+        369.9,
+        371.533333
+      ],
+      "width_s": 1.633333,
+      "operator_marker_minus_bracket_s": null,
+      "json_boundary_timestamp_ms": null,
+      "physical_switch_timing_error_ms": null,
+      "bracket_semantics": "sampled decoded appearance only; not calibrated physical-switch uncertainty",
+      "continuous_monitoring": false
+    },
+    {
+      "event": "MAIN_GREEN_AND_LATERAL_GREEN_ON_2",
+      "before": [
+        "refined",
+        418.9
+      ],
+      "after": [
+        "refined",
+        419
+      ],
+      "operator_marker_media_s": 419.054,
+      "reviewer": "assistant_direct_visual_review",
+      "independently_cross_reviewed": false,
+      "before_appearance": "main red plus yellow",
+      "after_appearance": "main green plus lateral green symbol",
+      "operator_marker_role": "last interval endpoint, not a separately labelled start",
+      "before_frame": {
+        "requested_elapsed_s": 418.9,
+        "actual_media_time_s": 418.933333,
+        "file": "frame_418.9.png",
+        "sha256": "0c2b252dc8915b86aa089c31b9054511c3e0c4f2102c9a2086497ab9941877be",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/refined/frame_418.9.png"
+      },
+      "after_frame": {
+        "requested_elapsed_s": 419,
+        "actual_media_time_s": 419.033333,
+        "file": "frame_00419.png",
+        "sha256": "c721766246686d3b525c6cfaa57020b792f025ab391e09800471688c72884b9e",
+        "width": 2688,
+        "height": 1520,
+        "roi_intrinsic_px": [
+          1940,
+          864,
+          180,
+          120
+        ],
+        "path": "evidence/video_boundary_verification_20261015/refined/frame_00419.png"
+      },
+      "supporting_frames": [],
+      "video_presentation_bracket_s": [
+        418.933333,
+        419.033333
+      ],
+      "width_s": 0.1,
+      "operator_marker_minus_bracket_s": [
+        0.020667,
+        0.120667
+      ],
+      "json_boundary_timestamp_ms": null,
+      "physical_switch_timing_error_ms": null,
+      "bracket_semantics": "sampled decoded appearance only; not calibrated physical-switch uncertainty",
+      "continuous_monitoring": false
+    }
+  ],
+  "observations": {
+    "initial_operator_marker_244_405": "main green and lateral dark already at239.033333 through245.433333; no OFF transition bracketed; do not invent window-edge switch",
+    "lateral_blinking": "dark at333.033333, on333.533333, dark334.033333, on334.533333; isolated dark frame does not prove final off",
+    "group_2_semantics": "first marker occurs during red; second during yellow. Do not assign one color to all group2 starts.",
+    "timing": "PTS describes decoded presentation. Camera exposure, shutter/LED sampling, encoding persistence, device clock error and JSON sync are uncalibrated.",
+    "coverage": "only listed sampled frames reviewed; no continuous or all-head lamp history asserted",
+    "main_and_lateral_hardware": "separate lateral illuminated symbol visually visible; protected/permissive semantics and movement mapping unverified",
+    "input_policy": "original user review and corrected sidecar unchanged; visual review does not fit an offset or model"
+  },
+  "json_video_sync": "UNVERIFIED",
+  "section_to_movement_mapping": "UNKNOWN",
+  "lamp_accuracy_evaluated": false,
+  "phase_inference_runs": 0
+}

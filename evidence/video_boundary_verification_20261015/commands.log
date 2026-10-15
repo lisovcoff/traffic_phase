@@ -1,0 +1,15 @@
+node scripts/sample_calibration_frames.mjs --video "C:\Users\sheld\Downloads\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4" --out evidence\video_boundary_verification_20261015\coarse --port 9229 --roi 1940,864,180,120 --max-frames 32 --times 243.405,244.155,244.405,244.655,245.405,271.233,271.983,272.233,272.483,273.233,317.953,318.703,318.953,319.203,319.953,334.949,335.699,335.949,336.199,336.949,368.634,369.384,369.634,369.884,370.634,418.054,418.804,419.054,419.304,420.054
+node scripts/sample_calibration_frames.mjs --video "C:\Users\sheld\Downloads\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4" --out evidence\video_boundary_verification_20261015\refined --port 9229 --roi 1940,864,180,120 --max-frames 64 --times 239,240,241,242,246,267,268,269,270,271,271.5,272.7,273.5,317,318.75,318.8,318.85,318.9,318.95,335.75,335.8,335.85,335.9,335.95,365,366,367,368,370.9,371.2,371.5,418.85,418.9,418.95,419,419.05
+node scripts/sample_calibration_frames.mjs --video "C:\Users\sheld\Downloads\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4" --out evidence\video_boundary_verification_20261015\followup --port 9229 --roi 1940,864,180,120 --max-frames 32 --times 264,265,266,266.2,266.4,266.6,266.8,267.2,269.2,269.4,269.6,269.8,366.2,366.4,366.6,366.8,333,333.5,334,334.5,336.5,337,337.5,338
+
+Own hidden Chrome profile: .annotation_runtime/calibration_chrome; port9229. No user sessions controlled.
+Browser runtime failed initializing assets (OS error3); own CDP sampler used. Initial PowerShell decimal-comma CLI failed before decoding, no frames read; Python serialized dot decimals. Successful frame batches3, no extra sampling/retries for color outcomes.
+Reused full context frames at275,335,395 from prior pilot, no new full-frame decoding.
+Base d9c50df7c5e705ba2904a062ea06c7d0680fa24b; no fitting/replay/inference.
+python -m pytest tests/test_video_boundary_evidence.py -q -p no:cacheprovider: 5 passed in0.23s
+python -m scripts.build_video_boundary_evidence --root evidence\video_boundary_verification_20261015:90 frames,12.64s sampling,206320151 media bytes served; hashes and ROI dimensions verified.
+node --check scripts/sample_calibration_frames.mjs: PASS
+CLI guard ['--times', 'nan']: PASS before video open
+CLI guard ['--roi', '-1,0,180,120']: PASS before video open
+CLI guard ['--max-frames', '129']: PASS before video open
+Original user export SHA256 unchanged: PASS

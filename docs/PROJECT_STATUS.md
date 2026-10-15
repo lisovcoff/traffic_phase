@@ -1,5 +1,16 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 direct video check:90 source-pixel H1 crops reviewed; yellow/red,
+red+yellow/green and lateral blinking distinguished. Group2 markers correspond
+to different colors; first occurs during red, second during yellow under the saved
+binding. Sampled presentation brackets saved with frame hashes; not calibrated
+physical-switch intervals. Initial lateral-off onset is censored; final blink
+cessation remains a candidate rather than a certified continuous OFF transition.
+5 provenance/precision tests passed. Three full-context frames and nearby JSON
+detections checked; no independently confirmed same-car synchronization anchors.
+Video review progresses calibration but does not calibrate event delay or certify
+lamp accuracy. No inference/default/main changes. See VIDEO_BOUNDARY_VERIFICATION_20261015.md.
+
 2026-10-15 operator clarification: group1=additional-section off;
 group2=possible yellow onset (explicitly tentative); group3=main green plus
 additional section on. First group2 start corrected by user to10:04:28.028 in

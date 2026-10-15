@@ -1,0 +1,8 @@
+Base d9c50df7c5e705ba2904a062ea06c7d0680fa24b; no fitting/replay/inference.
+python -m pytest tests/test_video_boundary_evidence.py -q -p no:cacheprovider: 5 passed in0.23s
+python -m scripts.build_video_boundary_evidence --root evidence\video_boundary_verification_20261015:90 frames,12.64s sampling,206320151 media bytes served; hashes and ROI dimensions verified.
+node --check scripts/sample_calibration_frames.mjs: PASS
+CLI guard ['--times', 'nan']: PASS before video open
+CLI guard ['--roi', '-1,0,180,120']: PASS before video open
+CLI guard ['--max-frames', '129']: PASS before video open
+Original user export SHA256 unchanged: PASS
