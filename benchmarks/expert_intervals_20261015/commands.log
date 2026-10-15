@@ -1,0 +1,12 @@
+Frozen code/config: a2fad10048622874447e0e36bf675e6cbedbd59c
+python -m scripts.expert_review_benchmark prepare --data ../data --out benchmarks/expert_intervals_20261015 : exit 0
+python -m scripts.expert_review_benchmark run --out benchmarks/expert_intervals_20261015 : exit 0; exactly 3 workers; no retry
+Worker runtimes: 40.423, 17.224, 15.479
+python -m scripts.summarize_expert_baseline --out benchmarks/expert_intervals_20261015 : exit 0; 540 physical UNKNOWN queries; 6 logical out-of-history UNKNOWN; saved predictions only
+python -m pytest -p no:cacheprovider tests/test_permission_selection_locality_diagnostic.py -q : 1 passed in 2.00s
+50 pre-run tests: see targeted_tests.log
+Protected production paths and original evaluator unchanged against base.
+Manifest seal unchanged.
+17_2025_2_12_7.json: prediction/adapter/original-review SHA256 unchanged
+19_2025_2_25_8.json: prediction/adapter/original-review SHA256 unchanged
+6_2025_2_14_6.json: prediction/adapter/original-review SHA256 unchanged

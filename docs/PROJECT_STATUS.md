@@ -1,5 +1,17 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15: one authorized bounded baseline on the three NEW expert-reviewed
+dates completed after protocol/code freeze and 50 tests. K=3/2/2 matches operator
+groups; raw and baseline each match 0/11 internal boundaries at +/-2s (10 predicted).
+This is separate from the unchanged historical raw19/34 cohort. Censored 0/180s
+edges excluded. Temporal coverage=100% of labelled blocks; physical UNKNOWN540/540.
+No default, period solver, selector, K search or decoder changes. No retries/tuning.
+A further one-test diagnostic confirms the existing selector's remote-RELEASE
+removal of local crossing proxies; it is a mechanism witness, not an accepted fix.
+Next priority: a preregistered evidence-preserving local observation experiment,
+with separate event types/unknown delay and independent calibration still open.
+See EXPERT_INTERVAL_BASELINE_20261015.md. 2D.1 remains FAIL.
+
 2026-10-15 manual intake: three new development review exports accepted as
 operator phase-duration hypotheses (14 intervals). All source SHA256/size and
 schema checks passed. Operator reports <=2s signal timing error and sparse
@@ -14,7 +26,7 @@ knowledge, optional local video anchor, source-bound export/import and drafts.
 Trajectory-based phase labels remain hypotheses; external labels remain review
 claims pending verification. 18 targeted tests and browser round-trip checks
 passed; no phase fitting/replay or production algorithm/default changes.
-Next: formalize the received interval-label adapter and continue the independent calibration pilot. See
+The interval-label adapter and first baseline are complete; continue the independent calibration pilot. See
 docs/ANNOTATION_WORKBENCH.md. Original 2D.1 FAIL and known regressions remain.
 
 Product goal reaffirmed 2026-10-15: see PRODUCT_GOAL.md (JSON/archive -> phase
