@@ -1,0 +1,520 @@
+{
+  "rows": [
+    {
+      "case": "informative_K2",
+      "prior": "flat",
+      "matched": 4,
+      "truth": 4,
+      "predicted": 4,
+      "precision": 1.0,
+      "recall": 1.0,
+      "matched_mae_s": 0.0,
+      "matched_p95_s": 0.0,
+      "diagnostic_segments": [
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          2,
+          6,
+          0
+        ],
+        [
+          6,
+          10,
+          1
+        ],
+        [
+          10,
+          14,
+          0
+        ],
+        [
+          14,
+          16,
+          1
+        ]
+      ],
+      "exact_witness_pass": true,
+      "prior_only": false,
+      "posterior_vs_prior_kl_nats": 12.664578575494005,
+      "transition_count_posterior": {
+        "0": 2.4700011527782415e-32,
+        "1": 9.590820057982311e-24,
+        "2": 7.550781049765296e-16,
+        "3": 2.749999926171743e-08,
+        "4": 0.9999999725000001
+      },
+      "initial_phase_posterior": {
+        "0": 1.3749999819921215e-08,
+        "1": 0.9999999862500003
+      },
+      "diagnostic_temporal_coverage": 1.0,
+      "published_logical_unknown_fraction": 1.0,
+      "physical_unknown_fraction": 1.0,
+      "range_s": [
+        0,
+        16
+      ]
+    },
+    {
+      "case": "informative_K2",
+      "prior": "soft",
+      "matched": 4,
+      "truth": 4,
+      "predicted": 4,
+      "precision": 1.0,
+      "recall": 1.0,
+      "matched_mae_s": 0.0,
+      "matched_p95_s": 0.0,
+      "diagnostic_segments": [
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          2,
+          6,
+          0
+        ],
+        [
+          6,
+          10,
+          1
+        ],
+        [
+          10,
+          14,
+          0
+        ],
+        [
+          14,
+          16,
+          1
+        ]
+      ],
+      "exact_witness_pass": true,
+      "prior_only": false,
+      "posterior_vs_prior_kl_nats": 11.419509054476844,
+      "transition_count_posterior": {
+        "0": 3.1861959702680904e-33,
+        "1": 3.729849244799368e-24,
+        "2": 6.726467307956313e-16,
+        "3": 2.1540334055385913e-08,
+        "4": 0.9999999784596652
+      },
+      "initial_phase_posterior": {
+        "0": 1.0770167143689458e-08,
+        "1": 0.9999999892298327
+      },
+      "diagnostic_temporal_coverage": 1.0,
+      "published_logical_unknown_fraction": 1.0,
+      "physical_unknown_fraction": 1.0,
+      "range_s": [
+        0,
+        16
+      ]
+    },
+    {
+      "case": "zero_demand",
+      "prior": "flat",
+      "matched": 0,
+      "truth": 4,
+      "predicted": 0,
+      "precision": null,
+      "recall": 0.0,
+      "matched_mae_s": null,
+      "matched_p95_s": null,
+      "diagnostic_segments": [
+        [
+          0,
+          16,
+          0
+        ]
+      ],
+      "exact_witness_pass": null,
+      "prior_only": true,
+      "posterior_vs_prior_kl_nats": 0.0,
+      "transition_count_posterior": {
+        "0": 0.5117056856187292,
+        "1": 0.4395812127381124,
+        "2": 0.047265301477514864,
+        "3": 0.0014414778941778208,
+        "4": 6.322271465692197e-06
+      },
+      "initial_phase_posterior": {
+        "0": 0.49999999999999994,
+        "1": 0.49999999999999994
+      },
+      "diagnostic_temporal_coverage": 1.0,
+      "published_logical_unknown_fraction": 1.0,
+      "physical_unknown_fraction": 1.0,
+      "range_s": [
+        0,
+        16
+      ]
+    },
+    {
+      "case": "zero_demand",
+      "prior": "soft",
+      "matched": 0,
+      "truth": 4,
+      "predicted": 0,
+      "precision": null,
+      "recall": 0.0,
+      "matched_mae_s": null,
+      "matched_p95_s": null,
+      "diagnostic_segments": [
+        [
+          0,
+          16,
+          0
+        ]
+      ],
+      "exact_witness_pass": null,
+      "prior_only": true,
+      "posterior_vs_prior_kl_nats": 0.0,
+      "transition_count_posterior": {
+        "0": 0.2292569170890003,
+        "1": 0.6151437406606894,
+        "2": 0.15038380510003918,
+        "3": 0.005193578784267681,
+        "4": 2.1958366003042593e-05
+      },
+      "initial_phase_posterior": {
+        "0": 0.4999999999999999,
+        "1": 0.4999999999999999
+      },
+      "diagnostic_temporal_coverage": 1.0,
+      "published_logical_unknown_fraction": 1.0,
+      "physical_unknown_fraction": 1.0,
+      "range_s": [
+        0,
+        16
+      ]
+    },
+    {
+      "case": "camera_missing",
+      "prior": "flat",
+      "matched": 0,
+      "truth": 4,
+      "predicted": 0,
+      "precision": null,
+      "recall": 0.0,
+      "matched_mae_s": null,
+      "matched_p95_s": null,
+      "diagnostic_segments": [
+        [
+          0,
+          16,
+          0
+        ]
+      ],
+      "exact_witness_pass": null,
+      "prior_only": true,
+      "posterior_vs_prior_kl_nats": 0.0,
+      "transition_count_posterior": {
+        "0": 0.5117056856187292,
+        "1": 0.4395812127381124,
+        "2": 0.047265301477514864,
+        "3": 0.0014414778941778208,
+        "4": 6.322271465692197e-06
+      },
+      "initial_phase_posterior": {
+        "0": 0.49999999999999994,
+        "1": 0.49999999999999994
+      },
+      "diagnostic_temporal_coverage": 1.0,
+      "published_logical_unknown_fraction": 1.0,
+      "physical_unknown_fraction": 1.0,
+      "range_s": [
+        0,
+        16
+      ]
+    },
+    {
+      "case": "camera_missing",
+      "prior": "soft",
+      "matched": 0,
+      "truth": 4,
+      "predicted": 0,
+      "precision": null,
+      "recall": 0.0,
+      "matched_mae_s": null,
+      "matched_p95_s": null,
+      "diagnostic_segments": [
+        [
+          0,
+          16,
+          0
+        ]
+      ],
+      "exact_witness_pass": null,
+      "prior_only": true,
+      "posterior_vs_prior_kl_nats": 0.0,
+      "transition_count_posterior": {
+        "0": 0.2292569170890003,
+        "1": 0.6151437406606894,
+        "2": 0.15038380510003918,
+        "3": 0.005193578784267681,
+        "4": 2.1958366003042593e-05
+      },
+      "initial_phase_posterior": {
+        "0": 0.4999999999999999,
+        "1": 0.4999999999999999
+      },
+      "diagnostic_temporal_coverage": 1.0,
+      "published_logical_unknown_fraction": 1.0,
+      "physical_unknown_fraction": 1.0,
+      "range_s": [
+        0,
+        16
+      ]
+    },
+    {
+      "case": "partial_gap",
+      "prior": "flat",
+      "matched": 4,
+      "truth": 4,
+      "predicted": 4,
+      "precision": 1.0,
+      "recall": 1.0,
+      "matched_mae_s": 0.0,
+      "matched_p95_s": 0.0,
+      "diagnostic_segments": [
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          2,
+          6,
+          0
+        ],
+        [
+          6,
+          10,
+          1
+        ],
+        [
+          10,
+          14,
+          0
+        ],
+        [
+          14,
+          16,
+          1
+        ]
+      ],
+      "exact_witness_pass": null,
+      "prior_only": false,
+      "posterior_vs_prior_kl_nats": 12.66456453825997,
+      "transition_count_posterior": {
+        "0": 3.9519993448052356e-23,
+        "1": 1.1392180000869902e-14,
+        "2": 6.181245935924409e-07,
+        "3": 4.1874972398453676e-08,
+        "4": 0.9999993400004226
+      },
+      "initial_phase_posterior": {
+        "0": 2.8124985561726327e-08,
+        "1": 0.9999999718750145
+      },
+      "diagnostic_temporal_coverage": 1.0,
+      "published_logical_unknown_fraction": 1.0,
+      "physical_unknown_fraction": 1.0,
+      "range_s": [
+        0,
+        16
+      ]
+    },
+    {
+      "case": "partial_gap",
+      "prior": "soft",
+      "matched": 4,
+      "truth": 4,
+      "predicted": 4,
+      "precision": 1.0,
+      "recall": 1.0,
+      "matched_mae_s": 0.0,
+      "matched_p95_s": 0.0,
+      "diagnostic_segments": [
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          2,
+          6,
+          0
+        ],
+        [
+          6,
+          10,
+          1
+        ],
+        [
+          10,
+          14,
+          0
+        ],
+        [
+          14,
+          16,
+          1
+        ]
+      ],
+      "exact_witness_pass": null,
+      "prior_only": false,
+      "posterior_vs_prior_kl_nats": 11.419492579834143,
+      "transition_count_posterior": {
+        "0": 5.097909768114281e-24,
+        "1": 4.2128061446106985e-15,
+        "2": 7.276944002772275e-07,
+        "3": 3.617199128677226e-08,
+        "4": 0.9999992361336043
+      },
+      "initial_phase_posterior": {
+        "0": 2.5401833747420673e-08,
+        "1": 0.9999999745981661
+      },
+      "diagnostic_temporal_coverage": 1.0,
+      "published_logical_unknown_fraction": 1.0,
+      "physical_unknown_fraction": 1.0,
+      "range_s": [
+        0,
+        16
+      ]
+    },
+    {
+      "case": "informative_K3",
+      "prior": "flat",
+      "matched": 4,
+      "truth": 4,
+      "predicted": 4,
+      "precision": 1.0,
+      "recall": 1.0,
+      "matched_mae_s": 0.0,
+      "matched_p95_s": 0.0,
+      "diagnostic_segments": [
+        [
+          0,
+          2,
+          2
+        ],
+        [
+          2,
+          6,
+          0
+        ],
+        [
+          6,
+          10,
+          1
+        ],
+        [
+          10,
+          14,
+          2
+        ],
+        [
+          14,
+          16,
+          0
+        ]
+      ],
+      "exact_witness_pass": true,
+      "prior_only": false,
+      "posterior_vs_prior_kl_nats": 13.07004368360219,
+      "transition_count_posterior": {
+        "0": 1.5437507209687547e-41,
+        "1": 5.9942625362388506e-33,
+        "2": 1.890624952724482e-16,
+        "3": 2.749999926171744e-08,
+        "4": 0.9999999725000005
+      },
+      "initial_phase_posterior": {
+        "2": 0.9999999862500001,
+        "0": 1.3749999819921215e-08,
+        "1": 1.1230468602949855e-25
+      },
+      "diagnostic_temporal_coverage": 1.0,
+      "published_logical_unknown_fraction": 1.0,
+      "physical_unknown_fraction": 1.0,
+      "range_s": [
+        0,
+        16
+      ]
+    },
+    {
+      "case": "informative_K3",
+      "prior": "soft",
+      "matched": 4,
+      "truth": 4,
+      "predicted": 4,
+      "precision": 1.0,
+      "recall": 1.0,
+      "matched_mae_s": 0.0,
+      "matched_p95_s": 0.0,
+      "diagnostic_segments": [
+        [
+          0,
+          2,
+          2
+        ],
+        [
+          2,
+          6,
+          0
+        ],
+        [
+          6,
+          10,
+          1
+        ],
+        [
+          10,
+          14,
+          2
+        ],
+        [
+          14,
+          16,
+          0
+        ]
+      ],
+      "exact_witness_pass": true,
+      "prior_only": false,
+      "posterior_vs_prior_kl_nats": 11.824974162585033,
+      "transition_count_posterior": {
+        "0": 1.991372482039829e-42,
+        "1": 2.3311557779995567e-33,
+        "2": 1.1599650043031246e-16,
+        "3": 2.1540334055385926e-08,
+        "4": 0.9999999784596658
+      },
+      "initial_phase_posterior": {
+        "2": 0.9999999892298328,
+        "0": 1.0770167143689157e-08,
+        "1": 6.365055890725876e-26
+      },
+      "diagnostic_temporal_coverage": 1.0,
+      "published_logical_unknown_fraction": 1.0,
+      "physical_unknown_fraction": 1.0,
+      "range_s": [
+        0,
+        16
+      ]
+    }
+  ],
+  "point_evaluator": "unchanged app.core.offline_benchmark.match_boundaries",
+  "tolerance_s": 2,
+  "not_population_or_lamp_accuracy": true,
+  "original_2d1_gate": "FAIL_UNCHANGED"
+}

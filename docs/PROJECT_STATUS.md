@@ -1,5 +1,18 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 bounded unknown-start/count prototype: explicit stationary grid-renewal
+initial age marginalized, initial phase/count unknown, fixed K2/K3/order only.
+All alternatives retained or unavailable on resource exhaustion; both old priors
+reported.105 tests before one sealed5-case engineering run;3 artifact checks.
+Informative K2/K3 exact with each prior; partial-gap4/4 matched. No-demand and
+all-missing are prior-only KL0, published logical/physical UNKNOWN100%. Short
+horizon/min-duration constraints strongly aid exact witness boundaries; no
+population accuracy/hold recovery or lamp validation claimed. No real replay,
+fitting, default/core changes.2C/state accepted;2D.1 FAIL and raw19/34 retained.
+See UNANCHORED_SEQUENCE_RESULTS_20261015.md. Next: preregistered sparse stochastic
+duration-deviation tests on less constrained horizons/initial ages, then real
+observation-model validation; full enumeration still budget-limited on long inputs.
+
 2026-10-15 opt-in rounded event observation backend added. Continuous latent
 vehicle time integrated exactly over piecewise-constant exposure, supplied delay
 atoms, camera windows and explicit rounded timestamp partition. Existing joint

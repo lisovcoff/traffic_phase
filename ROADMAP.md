@@ -2,6 +2,13 @@
 
 ## Текущий критический путь к продукту — уточнение 2026-10-15
 
+Последний выполненный шаг: [unknown initial phase/count](docs/UNANCHORED_SEQUENCE_RESULTS_20261015.md).
+Opt-in full finite alternatives при fixed K/order, явный stationary-start prior,
+rounded event likelihood;105 pre-run tests+3 artifact checks. Один short witness
+run5 cases, без real replay. Unknown-start/count барьер снят только в bounded
+grid model;2D.1 ещё FAIL. Следующая приёмка — sparse stochastic hold/shortening
+с разными initial ages и без жёстко фиксирующего границы короткого horizon.
+
 Новее: [rounded observation backend](docs/ROUNDED_OBSERVATION_20261015.md)
 снимает требование observed timestamps=250ms+2s*n, через точный интеграл
 continuous latent vehicle time и supplied rounding kernel.87 targeted tests,
