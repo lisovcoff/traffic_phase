@@ -1,0 +1,23 @@
+TEMP/TMP for this test process: D:\Code\PythonProjects\traffic_phase\audit_checkout\evidence\web_archive_qa_20261016\runtime_temp
+> C:\Python314\python.exe -m pytest tests/test_web_archive_contract.py tests/test_visualization.py tests/v9/test_v9_spatial_visualizer.py tests/test_offline_product_html.py tests/test_product_result.py tests/test_state_contract_2b2.py tests/v9/test_v9_signal_renderer.py -q -p no:cacheprovider
+..................................................................       [100%]
+66 passed in 4.33s
+
+
+exit_code=0
+> cmd /c START_WEB.cmd --check
+Application import OK; temporary storage: D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\tmp
+
+
+exit_code=0
+> git diff --check
+
+warning: in the working copy of 'ROADMAP.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/PROJECT_STATUS.md', LF will be replaced by CRLF the next time Git touches it
+
+exit_code=0
+> git rev-parse main
+a005a2521f62ce3b2c9f9d52f9f0d73913754e01
+
+
+exit_code=0

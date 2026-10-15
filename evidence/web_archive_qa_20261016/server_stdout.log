@@ -1,0 +1,6 @@
+INFO:     127.0.0.1:51624 - "GET /visualization HTTP/1.1" 200 OK
+[V10 visualization] {'phase_count': 2, 'event_count': 40, 'movement_stream_count': 4, 'physical_enabled': False, 'physical_reason': "phases have no supported physical green movements: 'PHASE_A', 'PHASE_B'", 'analysis_base_timestamp_ms': 1009000.0, 'recording_start_timestamp_ms': 1009000.0, 'rendered_trajectories': 40}
+[V10 visualization] {'run_id': '20261015_202957_173852_synthetic', 'phase_count': 2, 'event_count': 40, 'movement_stream_count': 4, 'physical_enabled': False, 'physical_reason': "phases have no supported physical green movements: 'PHASE_A', 'PHASE_B'"}
+INFO:     127.0.0.1:51624 - "POST /visualization/analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51624 - "GET /visualization HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51624 - "POST /visualization/analyze HTTP/1.1" 422 Unprocessable Content

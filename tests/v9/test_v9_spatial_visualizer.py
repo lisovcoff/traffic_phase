@@ -264,6 +264,7 @@ def test_spatial_visualizer_uses_v10_physical_plan_for_signal_states():
         {},
         [],
         physical_plan=physical_plan,
+        mode="configured",  # Explicit assumed plan, not reconstructed lamp truth.
     )
 
     assert 'const PHYSICAL = {"enabled":true' in html

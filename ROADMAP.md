@@ -1,5 +1,14 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: [настоящий browser ZIP→spatial HTML smoke выполнен](docs/WEB_ARCHIVE_QA_20261016.md).
+Synthetic40 и real243 tracks обработаны, corrupt ZIP422. Исправлены bypass
+общего контракта в spatial JS/JSONL, implicit colors/modulo fallback и explicit
+plan overwrite (перенос cb104669).111 browser queries совпали с Python, desktop/
+mobile screenshots просмотрены;66 tests. Real subsetK2 не объявлен верным без
+независимого complete plan. C: free0B обойдён task-local temp на D; чужие файлы
+не удалялись. 2D.1 FAIL и прежние метрики сохранены; это приёмка технического
+web flow, не всей точности/продукта. Main и inference defaults не менялись.
+
 2026-10-16: [offline JSON/ZIP route и HTML подключены к product/query contract](docs/OFFLINE_PRODUCT_HTML_20261016.md).
 Убран отдельный JS activity→lamp threshold и fallback на последний сегмент.
 Есть `--prediction` без fitting и три готовых HTML,52 tests; K/period/schedule/

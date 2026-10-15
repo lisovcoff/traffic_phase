@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import zipfile
+import errno
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -17,6 +19,7 @@ from app.core.v9.signal_renderer import (
     DEFAULT_YELLOW_DURATION_SECONDS,
 )
 from scripts.v9_spatial_visualizer import build_spatial_visualization
+from app.core.state_contract import prepare_logical_query
 
 router = APIRouter(prefix="/visualization", tags=["visualization"])
 
@@ -110,6 +113,10 @@ def _write_visualization_logs(
             }
         )
 
+    query = prepare_logical_query(result)
+    anchor = result.get("schedule_base_timestamp_ms")
+    display_base = result.get("recording_start_timestamp_ms")
+    history_offset = (float(anchor)-float(display_base))/1000 if anchor is not None and display_base is not None else None
     with (run_dir / "signal_timeline_0.1s.jsonl").open(
         "w",
         encoding="utf-8",
@@ -152,6 +159,13 @@ def _write_visualization_logs(
                     }
                 ),
             }
+            logical = query.at(t-history_offset if history_offset is not None else -1)
+            row.update(phase=logical.estimated_state, logical_phase=logical.to_dict(),
+                       active_movements=[], heads={a:{"main":"UNKNOWN","arrows":{}} for a in ("N","S","E","W")},
+                       source="common_state_contract", mode="reconstructed",
+                       calibrated_lamp_probability=None, cycle_position_s=None,
+                       source_phase=logical.observation_support.get("phase_id"),
+                       history_time_s=t-history_offset if history_offset is not None else None)
             stream.write(
                 json.dumps(
                     row,
@@ -165,6 +179,9 @@ def _write_visualization_logs(
     manifest = {
         "run_id": run_id,
         "input_name": input_name,
+        "render_mode": "reconstructed",
+        "physical_reconstruction": "UNKNOWN",
+        "physical_plan_semantics": "unverified hypothesis; not reconstructed lamp states",
         "trajectory_count": result.get("trajectory_count"),
         "event_count": result.get("event_count"),
         "movement_stream_count": result.get("movement_stream_count"),
@@ -239,9 +256,9 @@ button:disabled{opacity:.45;cursor:default}
 </form>
 <div id="status" class="status muted">Выберите JSON или ZIP-архив.</div>
 <div class="note muted">
-Результат строится сервером и открывается внутри страницы. Состояния зелёный/красный
-восстанавливаются по транспортным потокам и физическому плану; жёлтый и
-красный+жёлтый — модельные переходы. Прямых данных контроллера нет.
+Результат строится сервером: логические фазы и движения автомобилей.
+Физические лампы, тип светофора и дополнительные секции остаются UNKNOWN,
+если они не подтверждены независимыми данными. Продления ещё не прошли приёмку.
 </div>
 </section>
 <iframe id="viewer" title="V10 visualization"></iframe>
@@ -398,7 +415,9 @@ async def visualization_analyze(
                 },
             )
 
-    except ValueError as exc:
+    except (ValueError, zipfile.BadZipFile) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except OSError as exc:
+        if exc.errno == errno.ENOSPC:
+            raise HTTPException(status_code=507, detail="Insufficient temporary storage; configure TEMP/TMP on a disk with free space") from exc
         raise HTTPException(status_code=422, detail=str(exc)) from exc

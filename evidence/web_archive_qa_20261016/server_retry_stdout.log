@@ -1,0 +1,18 @@
+INFO:     127.0.0.1:55736 - "GET /visualization HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55736 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+[V10 visualization] {'phase_count': 2, 'event_count': 238, 'movement_stream_count': 8, 'physical_enabled': True, 'physical_reason': None, 'analysis_base_timestamp_ms': 1740632562148.0, 'recording_start_timestamp_ms': 1740632562148.0, 'rendered_trajectories': 238}
+[V10 visualization] {'run_id': '20261015_203147_162148_real_sample', 'phase_count': 2, 'event_count': 238, 'movement_stream_count': 8, 'physical_enabled': True, 'physical_reason': None}
+INFO:     127.0.0.1:51190 - "POST /visualization/analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51190 - "GET /visualization HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51190 - "POST /visualization/analyze HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:53408 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54007 - "GET /qa/web_archive_qa_20261016/server_runs/20261015_202957_173852_synthetic/viewer.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54007 - "GET /qa/web_archive_qa_20261016/server_runs/20261015_203147_162148_real_sample/viewer.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54007 - "GET /qa/web_archive_qa_20261016/gap_counterexample.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54007 - "GET /qa/offline_product_html_20261016/6_2025_2_14_20_v9.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59486 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59486 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59486 - "GET /qa/web_archive_qa_20261016/server_runs/20261015_202957_173852_synthetic/viewer.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59486 - "GET /qa/web_archive_qa_20261016/server_runs/20261015_203147_162148_real_sample/viewer.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59486 - "GET /qa/web_archive_qa_20261016/gap_counterexample.html HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:59486 - "GET /qa/offline_product_html_20261016/6_2025_2_14_20_v9.html HTTP/1.1" 304 Not Modified

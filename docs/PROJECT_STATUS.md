@@ -1,5 +1,16 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 real browser archive flow verified with isolated Edge after bundled
+runtime bootstrap failure. Synthetic40/real243 tracks uploaded through actual
+file input/FormData/endpoint/iframe; corrupt ZIP clean422. Spatial renderer and
+JSONL bypasses of protective contract fixed; configured semantics explicit only,
+cb104669 explicit-plan preservation ported.111 browser queries match common Python
+query; desktop/mobile screenshots inspected,66 tests pass. Real sampleK2 is not
+independently validated correctness; no tuning or production-default change.
+C disk full prevented first real upload; only failed upload retried with localD
+temp. Completed fits2, then saved-output-only browser checks. See WEB_ARCHIVE_QA.
+2D.1 FAIL, independent hardware/phase validation open, historic metrics unchanged.
+
 2026-10-16 offline CLI/HTML product contract integration delivered. Old JS bypassed
 Python guards with activity-based lamp colors and last-segment fallback; removed.
 Common validated interval snapshots now drive logical UI; hardware UNKNOWN and

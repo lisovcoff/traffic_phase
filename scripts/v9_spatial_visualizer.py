@@ -12,6 +12,7 @@ from app.core.v10.semantic_mapping import (
     map_v9_to_physical,
     normalized_segments,
 )
+from app.core.offline_product_report import build_report_payload
 from app.core.v9.events import load_tracks
 from app.core.v9.signal_renderer import (
     DEFAULT_ACTIVITY_THRESHOLD,
@@ -73,7 +74,7 @@ input[type=range]{width:100%}
 <body>
 <main>
 <h1>V9 — пространственная реконструкция перекрёстка</h1>
-<p class="muted">N — сверху · S — снизу · E — справа · W — слева. Транспорт отображается только по detections исходного JSON.</p>
+<p class="muted">N — сверху · S — снизу · E — справа · W — слева. Транспорт отображается по detections исходного JSON на условной схеме. Геометрия и места установки светофоров не подтверждены.</p>
 
 <section class="panel toolbar">
 <button class="primary" id="play">▶ Воспроизвести</button>
@@ -95,7 +96,7 @@ input[type=range]{width:100%}
 
 <section class="stats">
 <div class="stat"><span>Фаза</span><strong id="phase">—</strong></div>
-<div class="stat"><span>Позиция цикла</span><strong id="cycle">—</strong></div>
+<div class="stat"><span>Время истории / configured цикла</span><strong id="cycle">—</strong></div>
 <div class="stat"><span>Машины в кадре</span><strong id="vehicles">—</strong></div>
 <div class="stat"><span>Период</span><strong id="period">—</strong></div>
 <div class="stat"><span>Траектории</span><strong id="trajectoryCount">—</strong></div>
@@ -114,11 +115,10 @@ input[type=range]{width:100%}
 <div id="signalList"></div>
 
 <div class="panel notice">
-<strong>Семантика:</strong> <span id="semanticText">зелёный/красный — реконструкция V9 по активности потоков.
-Жёлтый и красный+жёлтый — модельные переходы, а не прямое чтение контроллера.</span>
+<strong>Семантика:</strong> <span id="semanticText">Логическая оценка не является наблюдением лампы. Физические секции UNKNOWN.</span>
 </div>
 
-<h3 style="margin-top:14px">Фазы цикла</h3>
+<h3 style="margin-top:14px">Фазы модели</h3>
 <div id="phaseList"></div>
 
 <h3 style="margin-top:14px">Легенда</h3>
@@ -141,6 +141,9 @@ input[type=range]{width:100%}
 
 <script>
 const RESULT = __RESULT__;
+const RECONSTRUCTED = __RECONSTRUCTED__;
+const PRODUCT = __PRODUCT__;
+const HISTORY_OFFSET_S = __HISTORY_OFFSET__;
 const SIGNAL_MODEL = __SIGNAL_MODEL__;
 const PROJECTION = __PROJECTION__;
 const PACKED_DATA = "__PACKED_DATA__";
@@ -170,7 +173,7 @@ const APPROACH_LABELS = {N:"Север",S:"Юг",E:"Восток",W:"Запад"
 // Physical signal topology is inferred from recurring movement-phase evidence.
 // A head always controls its incoming approach; only supported dedicated turn
 // movements are rendered as additional physical sections.
-const HEAD_SECTIONS = PHYSICAL.enabled ? PHYSICAL.topology : PHYSICAL_TOPOLOGY;
+const HEAD_SECTIONS = RECONSTRUCTED ? {} : (PHYSICAL.enabled ? PHYSICAL.topology : PHYSICAL_TOPOLOGY);
 const ACTIVE_APPROACHES = PHYSICAL.enabled
   ? APPROACHES
   : (
@@ -199,9 +202,18 @@ async function unpackData(){
 }
 
 function phaseAt(t){
+  if(RECONSTRUCTED){
+    if(HISTORY_OFFSET_S===null)return null;
+    const u=Number(t)-HISTORY_OFFSET_S, rows=PRODUCT.intervals;
+    let lo=0,hi=rows.length;
+    while(lo<hi){const mid=(lo+hi)>>1;if(rows[mid].start<=u)lo=mid+1;else hi=mid;}
+    const row=rows[lo-1];
+    return row && u>=row.start && u<row.end ? {index:lo-1,start:row.start,end:row.end,
+      phase:row.logical_phase.observation_support.phase_id??null,logical:row.logical_phase,heads:null} : null;
+  }
   const rows=PHYSICAL.enabled
     ? (PHYSICAL.stages || [])
-    : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
+    : (RECONSTRUCTED ? SIGNAL_MODEL.segments : (RESULT.schedule && RESULT.schedule.baseline_segments || []));
   if(!rows.length)return null;
 
   const period=Number(SIGNAL_MODEL.period_s || PHYSICAL.cycle_seconds || 0);
@@ -256,7 +268,7 @@ function phaseAt(t){
 function adjacentPhase(index,direction){
   const rows=PHYSICAL.enabled
     ? (PHYSICAL.stages || [])
-    : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
+    : (RECONSTRUCTED ? SIGNAL_MODEL.segments : (RESULT.schedule && RESULT.schedule.baseline_segments || []));
   if(!rows.length)return null;
   const j=((index+direction)%rows.length+rows.length)%rows.length;
   return PHYSICAL.enabled ? rows[j] : Number(rows[j][2]);
@@ -398,6 +410,14 @@ function headInfo(approach,seg){
 }
 
 function signalSnapshot(t){
+  if(RECONSTRUCTED){
+    const seg=phaseAt(t), logical=seg?seg.logical:PRODUCT.fallback_logical_phase, heads={};
+    for(const approach of ACTIVE_APPROACHES){heads[approach]={main:{state:PRODUCT.physical_section.estimated_state,
+      probability:null,source:"COMMON_STATE_CONTRACT"},arrows:[]};}
+    return {phase:seg?seg.phase:null,phaseName:logical.estimated_state,
+      cyclePosition:HISTORY_OFFSET_S===null?0:Number(t)-HISTORY_OFFSET_S,heads:heads,
+      abstention_reason:HISTORY_OFFSET_S===null?"UNKNOWN_SCHEDULE_TIMEBASE":logical.abstention_reason};
+  }
   const period=Number(SIGNAL_MODEL.period_s || PHYSICAL.cycle_seconds || 0);
   const cycleTime=PHYSICAL.enabled
     ? Number(t) - TIME_OFFSET_S
@@ -543,6 +563,10 @@ function drawLight(ctx,x,y,head,approach,w,h){
   ctx.fillStyle="#edf2f7";ctx.font="700 "+(11*canvasScale)+"px Inter,system-ui";
   ctx.textAlign="center";ctx.textBaseline="bottom";ctx.fillText(approach,px,top-5*canvasScale);
 
+  if(head.main.state==="UNKNOWN"){
+    ctx.fillStyle="#edf2f7";ctx.font="700 "+(20*canvasScale)+"px system-ui";
+    ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("?",px,py);
+  }
   head.arrows.forEach(function(section,index){
     // Keep additional sections adjacent to the main head in normalized canvas coordinates.
     const offsetX=(index+1)*30/w;
@@ -579,8 +603,8 @@ function renderSignalList(snapshot){
     const arrowText=head.arrows.map(function(item){
       return "доп. "+item.movement+" "+item.state;
     }).join(" · ");
-    right.textContent="основной "+head.main.state+(PHYSICAL.enabled?"":" · P="+Number(head.main.probability||0).toFixed(3))+(arrowText?" · "+arrowText:"");
-    right.style.color=head.main.state==="GREEN"?"var(--green)":head.main.state==="YELLOW"?"var(--yellow)":head.main.state==="RED_YELLOW"?"var(--orange)":"var(--red)";
+    right.textContent=(RECONSTRUCTED?"Секции не установлены; состояние ":"основной ")+head.main.state+(RECONSTRUCTED||PHYSICAL.enabled?"":" · activity score="+Number(head.main.probability||0).toFixed(3))+(arrowText?" · "+arrowText:"");
+    right.style.color=head.main.state==="UNKNOWN"?"var(--muted)":head.main.state==="GREEN"?"var(--green)":head.main.state==="YELLOW"?"var(--yellow)":head.main.state==="RED_YELLOW"?"var(--orange)":"var(--red)";
     row.append(left,right);holder.appendChild(row);
   }
 }
@@ -589,7 +613,7 @@ function renderPhases(){
   const holder=$("phaseList");holder.innerHTML="";
   const rows=PHYSICAL.enabled
     ? (PHYSICAL.stages || [])
-    : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
+    : (RECONSTRUCTED ? SIGNAL_MODEL.segments : (RESULT.schedule && RESULT.schedule.baseline_segments || []));
   const seen={};
   for(const row of rows){
     const phase=PHYSICAL.enabled ? String(row.name) : Number(row[2]);
@@ -604,7 +628,7 @@ function renderPhases(){
     const duration=document.createElement("span");
     const startTime=PHYSICAL.enabled ? Number(row.phase_start) : Number(row[0]);
     const endTime=PHYSICAL.enabled ? Number(row.phase_end) : Number(row[1]);
-    duration.textContent=(endTime-startTime).toFixed(1)+" s";
+    duration.textContent=RECONSTRUCTED ? rows.filter(function(r){return Number(r[2])===phase}).length+" интервалов истории" : (endTime-startTime).toFixed(1)+" s";
     card.append(name,duration);holder.appendChild(card);
   }
 }
@@ -613,13 +637,13 @@ function renderPhaseTimeline(){
   const holder=$("phaseTimeline");holder.innerHTML="";
   const rows=PHYSICAL.enabled
     ? (PHYSICAL.stages || [])
-    : (RESULT.schedule && RESULT.schedule.baseline_segments || []);
+    : (RECONSTRUCTED ? SIGNAL_MODEL.segments : (RESULT.schedule && RESULT.schedule.baseline_segments || []));
   for(const row of rows){
     const phase=PHYSICAL.enabled ? String(row.name) : Number(row[2]);
     const element=document.createElement("button");element.type="button";
     element.className="timeline-segment "+(PHYSICAL.enabled ? "phase-other" : (phase<5?"phase-"+phase:"phase-other"));
-    const start=PHYSICAL.enabled ? Number(row.phase_start) : Number(row[0]);
-    const end=PHYSICAL.enabled ? Number(row.phase_end) : Number(row[1]);
+    const start=PHYSICAL.enabled ? Number(row.phase_start) : Number(row[0])+(RECONSTRUCTED?(HISTORY_OFFSET_S||0):0);
+    const end=PHYSICAL.enabled ? Number(row.phase_end) : Number(row[1])+(RECONSTRUCTED?(HISTORY_OFFSET_S||0):0);
     const timelineDuration=PHYSICAL.enabled
       ? Number(PHYSICAL.cycle_seconds || SIGNAL_MODEL.period_s || RECORDING_DURATION)
       : RECORDING_DURATION;
@@ -701,12 +725,12 @@ function render(){
   $("vehicles").textContent=String(vehicles.length);
   $("timeLabel").textContent=new Date(DISPLAY_BASE_MS+currentTime*1000).toLocaleString()+" · T+"+currentTime.toFixed(1)+" s";
   $("anomaly").textContent=anomaly?"⚠ "+anomaly.type+" · "+Number(anomaly.delta_s).toFixed(1)+" s":"Нет";
-  $("sceneBadge").textContent=(PHYSICAL.enabled
+  $("sceneBadge").textContent=(RECONSTRUCTED ? "Логическая история; лампы UNKNOWN · " : PHYSICAL.enabled
     ? "V10 · физический план · "
     : "V10 OFF · "+String(PHYSICAL.reason || "physical plan unavailable")+" · ")
     +"N ↑ · S ↓ · W ← · E → · "+vehicles.length+" машин";
   $("sceneBadge").className="scene-badge"+(anomaly?" warning":"");
-  $("semanticText").textContent=PHYSICAL.enabled
+  $("semanticText").textContent=RECONSTRUCTED ? "Логическая фаза по общей истории; физические лампы и секции UNKNOWN. Отсутствие движения не доказывает RED. Причина UNKNOWN: "+String(snapshot.abstention_reason||"аппаратные состояния не наблюдались") : PHYSICAL.enabled
     ? "зелёный/красный — по V10 physical phase mapping и заданному плану сигналов. Жёлтый и красный+жёлтый — модельные переходы."
     : "V10 physical plan ОТКЛЮЧЁН: "+String(PHYSICAL.reason || "причина не передана")+". Сейчас отображается fallback V9, а не физические головы.";
   renderSignalList(snapshot);
@@ -1031,8 +1055,11 @@ def _physical_visual_model(
 def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
                 red_yellow_duration_seconds=2.0,activity_threshold=0.05,
                 physical_plan=None,time_offset_s=None,display_duration_s=None,
-                display_base_timestamp_ms=None):
-    signal_model=build_signal_model(result,activity_threshold=activity_threshold)
+                display_base_timestamp_ms=None,mode="reconstructed"):
+    if mode not in {"reconstructed","configured","simulated"}:raise ValueError("invalid report mode")
+    signal_model=build_signal_model(result,activity_threshold=activity_threshold,mode=mode)
+    product=build_report_payload(result)
+
     physical=_physical_visual_model(result,physical_plan)
     if time_offset_s is not None:
         physical["time_offset_s"] = float(time_offset_s)
@@ -1040,7 +1067,15 @@ def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
         physical["display_duration_s"] = float(display_duration_s)
     if display_base_timestamp_ms is not None:
         physical["display_base_timestamp_ms"] = float(display_base_timestamp_ms)
+    if mode=="reconstructed":
+        physical={**physical,"enabled":False,"reason":"PHYSICAL_STATES_UNKNOWN_NOT_OBSERVED"}
+    anchor=result.get("schedule_base_timestamp_ms")
+    display_base=physical.get("display_base_timestamp_ms",result.get("recording_start_timestamp_ms"))
+    history_offset=(float(anchor)-float(display_base))/1000 if anchor is not None and display_base is not None else None
     page=PAGE.replace("__RESULT__",_safe_json(result))
+    page=page.replace("__PRODUCT__",_safe_json(product))
+    page=page.replace("__RECONSTRUCTED__",_safe_json(mode=="reconstructed"))
+    page=page.replace("__HISTORY_OFFSET__",_safe_json(history_offset))
     page=page.replace("__SIGNAL_MODEL__",_safe_json(signal_model))
     page=page.replace("__PROJECTION__",_safe_json(projection))
     page=page.replace("__PACKED_DATA__",_pack_data(trajectories))
@@ -1137,10 +1172,9 @@ def build_spatial_visualization(
         display_base_timestamp_ms=display_base_ms,
         projection=projection,
     )
-    physical_plan = result.get("physical_signal_plan") or {
-        "enabled": False,
-        "reason": "physical_signal_plan missing from V9 result",
-    }
+    # Port the existing cb104669 explicit-plan fix; preserve disabled plans too.
+    if physical_plan is None:
+        physical_plan = {"enabled": False, "reason": "physical_signal_plan missing from V9 result"}
     html = render_html(
         result,
         projection,
