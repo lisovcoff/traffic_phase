@@ -1,0 +1,9 @@
+git switch -c experiment/bounded-factor-history-20261016
+C:\Python314\python.exe -m pytest tests/test_bounded_factor_sequence.py -q -p no:cacheprovider
+20 initial tests passed; added late resource-failure cases22 passed.
+git commit -m "Freeze bounded-history exact phase inference and technical check"
+C:\Python314\python.exe -m scripts.check_bounded_factor_history
+C:\Python314\python.exe -m pytest tests/test_bounded_factor_artifacts.py -q -p no:cacheprovider
+3 artifact checks passed. Added explicit distinct-history closure guard.
+C:\Python314\python.exe -m pytest tests/test_bounded_factor_sequence.py tests/test_bounded_factor_artifacts.py tests/test_context_observation.py tests/test_observation_domain.py tests/test_rounded_observation.py tests/test_phase_observation_bridge.py tests/test_joint_track_model.py tests/test_local_evidence_channels.py tests/test_unanchored_sequence.py tests/test_unanchored_sequence_artifacts.py tests/test_sparse_duration_artifacts.py tests/test_localized_evidence_adapter.py tests/test_local_factor_sequence.py -q -p no:cacheprovider
+178 passed in4.55s pytest runtime, not pipeline profiling.

@@ -1,5 +1,16 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 bounded-history exact renewal DP delivered: vehicle factors closed on
+last support cell, sufficient history/run-length states, count/phase/boundary/MAP
+messages. Default span3 cells, explicit max5; wider/resource failure unavailable,
+no beam or partial posterior.178 combined targeted/regression/artifact checks pass.
+One64s K3 delayed-pair technical example completed, max72 states/layer,1476 retained
+states; not recovery/lamp accuracy. Both priors unchanged; published states UNKNOWN.
+No recovery suite/real replay/K search. Main/default/core/historical metrics
+unchanged;2D.1 FAIL. See BOUNDED_FACTOR_RESULTS_20261016.md. Next: real observation
+assumptions/calibration/validation and long-session context dependencies; no
+automatic use of supplied synthetic nuisance parameters in production.
+
 2026-10-16 opt-in context/query-censoring contract completed under supplied bounded
 nonnegative vehicle delays. Reported clock-centre selection enters both pattern
 and compensator via existing integrator; safe interior target separated from full

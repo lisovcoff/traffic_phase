@@ -2,6 +2,16 @@
 
 ## Текущий критический путь к продукту — уточнение 2026-10-16
 
+Выполнено: [bounded-history exact DP](docs/BOUNDED_FACTOR_RESULTS_20261016.md).
+Nonlocal q support до3 cells(default), до5 явно; closure potentials + history/
+run-length/count messages без enumeration/beam. Oracle equivalence,178 checks;
+один64с delayed-pair technical example завершён, не recovery/real accuracy.
+2D.1 FAIL; default/core/priors и historical evidence сохранены.
+Следующий барьер — применимость observation assumptions на реальных inputs,
+independent calibration/validation и контекстная обработка длинных sessions с
+общими vehicle IDs. Не переносить synthetic rates/delays и не заменять этот
+пункт ещё одной удобной recovery suite.80с context и duration4..48с остаются.
+
 Выполнено: [context/query censoring](docs/CONTEXT_OBSERVATION_RESULTS_20261016.md)
 под supplied bounded delays. Target отделён от latent context, unsafe edges
 UNKNOWN; явный rounded query kernel в существующем интеграторе.106+34 checks,

@@ -49,6 +49,14 @@ def test_closure_factorization_matches_joint_likelihood_for_all_short_paths():
         assert sum(f.value(j,tuple(z[max(0,j-2):j+1])) for j in range(4))==pytest.approx(path_loglik(z,c),abs=1e-12)
 
 
+def test_same_current_phase_and_run_age_cannot_merge_distinct_factor_history():
+    c=components();mass=c['q'][0].sum();c['q'][0]*=0
+    c['q'][0,0]=mass*.4;c['q'][0,3]=mass*.6
+    factors=VehicleFactors(c,4)
+    # Both valid prefixes end phase0/run_age1; earlier phase0 differs.
+    assert factors.value(3,(1,1,1,0))!=factors.value(3,(0,1,1,0))
+
+
 @pytest.mark.parametrize('lag,span',[(2,2),(4,3),(6,4)])
 def test_real_joint_pattern_components_with_delay_mixture(lag,span):
     m=supplied();m.update(horizon_s=12,latent_demand_exposure=[[1]*6]*2,

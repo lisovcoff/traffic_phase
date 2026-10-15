@@ -1,0 +1,617 @@
+diff --git a/.gitattributes b/.gitattributes
+index 69729cb..b1e97bd 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -31,3 +31,5 @@ evidence/query_observation_completeness_20261015/** -text -whitespace
+ docs/EXTERNAL_REVIEW_RECEIVED_20261015.md -text -whitespace
+ evidence/context_observation_20261016/** -text -whitespace
+ docs/CONTEXT_OBSERVATION_PROTOCOL_20261016.md -text
++evidence/bounded_factor_history_20261016/** -text -whitespace
++docs/BOUNDED_FACTOR_PROTOCOL_20261016.md -text
+diff --git a/ROADMAP.md b/ROADMAP.md
+index b4b5bc2..354b0bc 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -2,6 +2,16 @@
+ 
+ ## Текущий критический путь к продукту — уточнение 2026-10-16
+ 
++Выполнено: [bounded-history exact DP](docs/BOUNDED_FACTOR_RESULTS_20261016.md).
++Nonlocal q support до3 cells(default), до5 явно; closure potentials + history/
++run-length/count messages без enumeration/beam. Oracle equivalence,178 checks;
++один64с delayed-pair technical example завершён, не recovery/real accuracy.
++2D.1 FAIL; default/core/priors и historical evidence сохранены.
++Следующий барьер — применимость observation assumptions на реальных inputs,
++independent calibration/validation и контекстная обработка длинных sessions с
++общими vehicle IDs. Не переносить synthetic rates/delays и не заменять этот
++пункт ещё одной удобной recovery suite.80с context и duration4..48с остаются.
++
+ Выполнено: [context/query censoring](docs/CONTEXT_OBSERVATION_RESULTS_20261016.md)
+ под supplied bounded delays. Target отделён от latent context, unsafe edges
+ UNKNOWN; явный rounded query kernel в существующем интеграторе.106+34 checks,
+diff --git a/app/experimental/bounded_factor_sequence.py b/app/experimental/bounded_factor_sequence.py
+new file mode 100644
+index 0000000..830b5f4
+--- /dev/null
++++ b/app/experimental/bounded_factor_sequence.py
+@@ -0,0 +1,177 @@
++"""Exact fixed-order renewal messages with bounded vehicle-factor history.
++
++No full-path enumeration or approximate pruning. A factor is evaluated once on
++its last support cell; state retains all phase labels needed by unfinished factors.
++"""
++import copy
++import math
++import time
++
++import numpy as np
++
++from app.core.state_contract import StateEstimate,physical_estimate
++from app.experimental.joint_track_model import GRID_S,PRIORS,ModelUnavailable
++from app.experimental.unanchored_sequence import duration_masses
++from app.experimental.local_factor_sequence import _lse
++from app.experimental.context_observation import prepare_context_observation
++
++
++class VehicleFactors:
++    """Closure potentials exactly equal existing joint-track path_loglik."""
++    def __init__(self,comp,max_span):
++        self.n=comp['n'];self.k=len(comp['rates']);self.rates=comp['rates']
++        q=np.asarray(comp['q'])
++        if q.shape!=(len(comp['tracks']),self.n) or not np.isfinite(q).all() or (q<0).any():
++            raise ModelUnavailable('INVALID_VEHICLE_KERNEL')
++        self.closed=[[] for _ in range(self.n)];self.max_span=0
++        self.compensator=np.stack([-np.sum(comp['rates'][z,:,None]*comp['exposure']*GRID_S,axis=0)*
++            comp['detected_probability'] for z in range(self.k)],axis=1)
++        for i,track in enumerate(comp['tracks']):
++            support=np.flatnonzero(q[i]>0)
++            if not len(support):raise ModelUnavailable('EMPTY_VEHICLE_KERNEL')
++            span=int(support[-1]-support[0]+1);self.max_span=max(self.max_span,span)
++            if span>max_span:raise ModelUnavailable('KERNEL_HISTORY_LIMIT_EXCEEDED')
++            m=comp['movements'].index(track['movement'])
++            weights=comp['exposure'][m,support]*GRID_S*q[i,support]
++            self.closed[int(support[-1])].append((m,list(zip(support.tolist(),weights.tolist()))))
++        self.cache=[{} for _ in range(self.n)]
++
++    def value(self,j,history):
++        if history in self.cache[j]:return self.cache[j][history]
++        value=float(self.compensator[j,history[-1]])
++        for movement,weights in self.closed[j]:
++            mu=sum(w*self.rates[history[len(history)-1-j+s],movement] for s,w in weights)
++            if mu<=0:value=-math.inf;break
++            value+=math.log(mu)
++        self.cache[j][history]=value
++        return value
++
++
++def infer_bounded_factors(comp,order,*,max_kernel_span_cells=3,max_states_per_layer=4096,
++                          max_total_states=100000,max_memory_bytes=32*1024*1024,max_seconds=5.):
++    started=time.process_time();wall=time.perf_counter()
++    base=dict(schema='experimental-bounded-factor-renewal-v1',status='unavailable',complete=False,results={},
++        logical_phase=StateEstimate('UNKNOWN','logical_phase','bounded_factor_sequence',
++            abstention_reason='MODEL_CONDITIONED_DIAGNOSTIC_NOT_VALIDATED_HISTORY').to_dict(),
++        physical_section=physical_estimate('UNKNOWN',source='bounded_factor_sequence').to_dict(),
++        calibrated_lamp_probability=None,published_logical_unknown_fraction=1.,
++        published_physical_unknown_fraction=1.,production_default_changed=False,
++        enumeration_used=False,truncation_used=False,
++        assumptions=['bounded complete q support span; no positive mass discarded',
++            'fixed supplied K/order and observation model','stationary residual start; unchanged duration priors',
++            'finite2s phase grid; model probabilities are not lamp calibration'])
++    def failed(reason):return {**base,'reason':reason,'cpu_s':time.process_time()-started,'wall_s':time.perf_counter()-wall}
++    def check():
++        if time.process_time()-started>max_seconds or time.perf_counter()-wall>max_seconds:
++            raise ModelUnavailable('TIME_BUDGET_EXHAUSTED_NO_POSTERIOR')
++    try:
++        limits=(max_kernel_span_cells,max_states_per_layer,max_total_states,max_memory_bytes)
++        if (any(isinstance(x,bool) or not isinstance(x,int) or x<0 for x in limits)
++                or not 1<=max_kernel_span_cells<=5 or isinstance(max_seconds,bool)
++                or not isinstance(max_seconds,(int,float)) or not math.isfinite(max_seconds) or max_seconds<=0):
++            raise ModelUnavailable('INVALID_OR_EXHAUSTED_RESOURCE_LIMIT')
++        n=comp['n'];k=len(comp['rates'])
++        if not isinstance(n,int) or isinstance(n,bool) or not 1<=n<=40 or k not in (2,3):
++            raise ModelUnavailable('BOUNDED_K2_K3_CONTEXT_REQUIRED')
++        if not isinstance(order,list) or any(isinstance(z,bool) or not isinstance(z,int) for z in order) or sorted(order)!=list(range(k)):
++            raise ModelUnavailable('SUPPLIED_CYCLIC_ORDER_REQUIRED')
++        check();factors=VehicleFactors(comp,max_kernel_span_cells);W=max(1,factors.max_span)
++        next_phase={z:order[(i+1)%k] for i,z in enumerate(order)}
++        results={};peak_layer=0;peak_total=0;peak_allowance=0
++        for name,prior in PRIORS.items():
++            ds,pm=duration_masses(prior);R=int(ds[-1]//GRID_S)
++            mass=np.zeros(R+1);mass[(ds//GRID_S).astype(int)]=pm
++            residual=np.array([0.]+[mass[r:].sum() for r in range(1,R+1)])
++            residual/=float(np.arange(R+1)@mass)
++            survival=np.cumsum(mass[::-1])[::-1];res_survival=np.cumsum(residual[::-1])[::-1]
++            total=0
++            def reserve(layer_size):
++                nonlocal total,peak_layer,peak_total,peak_allowance
++                check()
++                if layer_size>max_states_per_layer:raise ModelUnavailable('LAYER_STATE_BUDGET_EXHAUSTED_NO_POSTERIOR')
++                if total+1>max_total_states:raise ModelUnavailable('TOTAL_STATE_BUDGET_EXHAUSTED_NO_POSTERIOR')
++                allowance=(total+1)*((n+1)*8+4096+W*32)+65536
++                if allowance>max_memory_bytes:raise ModelUnavailable('MEMORY_BUDGET_EXHAUSTED_NO_POSTERIOR')
++                total+=1;peak_layer=max(peak_layer,layer_size);peak_total=max(peak_total,total)
++                peak_allowance=max(peak_allowance,allowance)
++            initial={};best0={}
++            for z in order:
++                reserve(len(initial)+1);node=((z,),1)
++                vector=np.full(n+1,-math.inf);vector[0]=-math.log(k)
++                initial[node]=vector;best0[node]=-math.log(k)
++            layers=[initial];best=best0;pointers=[{}];edges=[]
++            for j in range(n-1):
++                check();following={};next_best={};back={};outgoing={}
++                for node,alpha in layers[-1].items():
++                    history,age=node;g=factors.value(j,history)
++                    if not np.isfinite(alpha+g).any():continue # exact zero, never a beam
++                    distribution=residual if age==j+1 else mass
++                    tail=res_survival if age==j+1 else survival
++                    p_switch=float(distribution[age]/tail[age])
++                    p_stay=float(tail[age+1]/tail[age]) if age<R else 0.
++                    for switched,p in ((False,p_stay),(True,p_switch)):
++                        if p<=0:continue
++                        z=next_phase[history[-1]] if switched else history[-1]
++                        target=((history+(z,))[-W:],1 if switched else age+1)
++                        if target not in following:
++                            reserve(len(following)+1);following[target]=np.full(n+1,-math.inf)
++                            next_best[target]=-math.inf
++                        lp=math.log(p);contribution=alpha+g+lp
++                        if switched:contribution=np.r_[-math.inf,contribution[:-1]]
++                        following[target]=np.logaddexp(following[target],contribution)
++                        v=best[node]+g+lp
++                        if v>next_best[target]:next_best[target]=v;back[target]=node
++                        outgoing.setdefault(node,[]).append((target,lp,switched))
++                if not following:raise ModelUnavailable('ALL_PATHS_HAVE_ZERO_OBSERVATION_PROBABILITY')
++                layers.append(following);best=next_best;pointers.append(back);edges.append(outgoing)
++            finals={node:alpha+factors.value(n-1,node[0]) for node,alpha in layers[-1].items()}
++            logZ=_lse([_lse(v) for v in finals.values()])
++            if not math.isfinite(logZ):raise ModelUnavailable('ALL_PATHS_HAVE_ZERO_OBSERVATION_PROBABILITY')
++            count=[math.exp(_lse([v[c] for v in finals.values()])-logZ) for c in range(n+1)]
++            beta=[{} for _ in range(n)]
++            beta[-1]={node:factors.value(n-1,node[0]) for node in layers[-1]}
++            for j in range(n-2,-1,-1):
++                check()
++                for node in layers[j]:
++                    terms=[lp+beta[j+1][target] for target,lp,_ in edges[j].get(node,[])]
++                    beta[j][node]=factors.value(j,node[0])+(_lse(terms) if terms else -math.inf)
++            phase=[];boundaries=[]
++            for j in range(n):
++                check();row=[0.]*k
++                for node,alpha in layers[j].items():row[node[0][-1]]+=math.exp(_lse(alpha)+beta[j][node]-logZ)
++                phase.append(row)
++                if j<n-1:
++                    terms=[_lse(layers[j][node])+factors.value(j,node[0])+lp+beta[j+1][target]
++                        for node,transitions in edges[j].items() for target,lp,switched in transitions if switched]
++                    boundaries.append(dict(time_s=(j+1)*GRID_S,
++                        model_conditioned_existence_probability=math.exp(_lse(terms)-logZ) if terms else 0.))
++            last=max(best,key=lambda node:best[node]+factors.value(n-1,node[0]))
++            map_score=best[last]+factors.value(n-1,last[0]);labels=[last[0][-1]]
++            for j in range(n-1,0,-1):last=pointers[j][last];labels.append(last[0][-1])
++            labels.reverse();segments=[]
++            for j,z in enumerate(labels):
++                if segments and segments[-1][2]==z:segments[-1][1]=(j+1)*GRID_S
++                else:segments.append([j*GRID_S,(j+1)*GRID_S,z])
++            results[name]=dict(prior=copy.deepcopy(prior),log_normalizer=float(logZ),
++                transition_count_posterior={str(c):float(p) for c,p in enumerate(count) if p>0},
++                phase_posterior=phase,initial_phase_posterior={str(z):phase[0][z] for z in order},
++                boundary_existence=boundaries,diagnostic_segments=segments,diagnostic_map_log_joint=float(map_score),
++                posterior_semantics='exact supplied bounded-history grid model; not calibrated lamp probability')
++        check()
++        return {**base,'status':'complete_bounded_factor_posterior','complete':True,'results':results,
++            'observed_max_kernel_span_cells':factors.max_span,'retained_history_cells':W,
++            'max_states_in_layer':peak_layer,'max_retained_states':peak_total,
++            'declared_state_allowance_bytes':peak_allowance,'context_extent_s':[0,n*GRID_S],
++            'likelihood_constant_over_phase_paths':all(len(set(cache.values()))==1 for cache in factors.cache),
++            'path_dependence_semantics':'equality sufficient for prior-only; inequality NOT identifiability',
++            'cpu_s':time.process_time()-started,'wall_s':time.perf_counter()-wall}
++    except (ModelUnavailable,ValueError,TypeError,KeyError,IndexError,OverflowError) as exc:return failed(str(exc))
++
++
++def infer_bounded_context(index,spec,*,context_origin_ms,target_range_ms,**limits):
++    prepared=prepare_context_observation(index,spec,context_origin_ms=context_origin_ms,target_range_ms=target_range_ms)
++    if prepared['status']!='ready_for_supplied_context_model_only':
++        return {**prepared,'schema':'experimental-bounded-factor-renewal-v1','complete':False,'results':{}}
++    result=infer_bounded_factors(prepared['components'],spec.get('cyclic_order'),**limits)
++    return {**result,'context_plan':prepared['context_plan'],'input_sha256':prepared['input_sha256'],
++        'supplied_model_sha256':prepared['supplied_model_sha256']}
+diff --git a/docs/BOUNDED_FACTOR_PROTOCOL_20261016.md b/docs/BOUNDED_FACTOR_PROTOCOL_20261016.md
+new file mode 100644
+index 0000000..c5454cc
+--- /dev/null
++++ b/docs/BOUNDED_FACTOR_PROTOCOL_20261016.md
+@@ -0,0 +1,36 @@
++# Bounded-history exact inference: protocol before implementation/checks
++
++Base `9cfec60b8b7f1d9cef9d442f2c838be953a11d8c`. Fixed supplied K2/K3/order,
++same observation components and flat/soft duration priors,2s grid. No real replay,
++new recovery suite, parameter search or production changes.
++
++Close each vehicle factor on its last positive q cell. Retain the last W phase
++labels and current observed run length. Prefixes may merge only when these agree;
++all unfinished factors then see identical relevant past labels. W is complete
++support span (last-first+1), including holes, not number of nonzero entries.
++No positive q is dropped, including tiny mass. Default W<=3 cells, explicit
++hard maximum5; wider input gives unavailable, not approximation.
++
++Use survival hazards to marginalize unobserved duration tails. Until first
++transition, hazard uses stationary residual distribution at observed run age;
++afterward it uses full duration prior. Initial phase uniform. Initial flag is
++equivalently run_age==j+1 at cell j; no transitioned path has that age.
++Final cell has no outgoing transition. This parameterization gives one state
++path per observed phase path; Viterbi does not maximize a hidden total duration.
++
++Forward-count and backward messages give exact count/phase/boundary-existence
++marginals. MAP retains one best prefix per sufficient state. No beam/pruning
++except mathematically zero-weight paths. UNKNOWN published logical/physical.
++No boundary publication threshold or oracle-conditioned interval rule.
++
++Frozen limits: horizon<=80s, max span3(default)/5(hard),4096 states/layer,
++100000 retained states,32MiB conservative retained-state allowance,5CPU+5wall
++seconds checked between bounded steps. Resource failure has no partial posterior.
++
++Checks before any output: exact factorization vs existing path_loglik for
++small paths; oracle normalizer/count/phase/boundary/MAP on K2/K3 with2/3-cell
++support, holes, crossing pairs, structural zeros, first/right censoring; equivalence
++with cell-local DP; tiny off-cell mass not removed; limits/immutability/rename.
++Technical64s example with bounded nonlocal kernels (no recovery truth); unknown
++demand/observation remains UNKNOWN. Both priors reported, no best prior chosen.
++Targeted tests<=30CPU seconds; no long-data fitting or phase labels.
+diff --git a/docs/BOUNDED_FACTOR_RESULTS_20261016.md b/docs/BOUNDED_FACTOR_RESULTS_20261016.md
+new file mode 100644
+index 0000000..f4a3cee
+--- /dev/null
++++ b/docs/BOUNDED_FACTOR_RESULTS_20261016.md
+@@ -0,0 +1,74 @@
++# Exact DP с ограниченной историей vehicle factors
++
++Base: `9cfec60b8b7f1d9cef9d442f2c838be953a11d8c`.
++Code/config freeze: `9a4584332e053f93bff7be4e9860e2e29ebcfc00`.
++Ветка: `experiment/bounded-factor-history-20261016`.
++[Протокол](BOUNDED_FACTOR_PROTOCOL_20261016.md).
++
++## Что изменилось
++
++Новый opt-in `infer_bounded_context` использует существующие context/query kernel
++и совместные q автомобиля. Factor log(sum(lambda*q)) вычисляется один раз на
++последней положительной q-cell. Prefix-state сохраняет последние W phase labels
++и observed run length. При одинаковом state все незавершённые factors получают
++одинаковую релевантную предысторию; их можно объединять суммированием масс.
++Число переходов сохраняется отдельной forward-count осью. Это не scalar HSMM
++для произвольного nonlocal likelihood и не approximate beam.
++
++Initial residual и full durations берутся из прежних flat/soft priors. Survival
++hazards до первого перехода используют residual distribution, затем full duration.
++Run length=j+1 однозначно означает ещё не завершённую первую observed phase.
++Так duration tails маргинализированы, а не максимизированы как скрытые totals.
++MAP, count/phase posterior и existence каждой внутренней границы не требуют truth
++count. Начало/конец context не объявляются переключениями.
++
++Default span<=3 cells (6с), явный максимум5. Span=last-first+1, включая holes.
++Значение1e−100 не отбрасывается. Более широкий kernel, превышение числа states,
++memory allowance или deadline возвращают unavailable без partial posterior.
++Только нулевая масса исключается точно. Production/local-only DP/default не менялись.
++
++## Проверка
++
++22 targeted tests до единственного technical run. С полным перебором на коротких
++K2/K3 cases совпали normalizer, count/phase/boundary marginals, MAP-score; отдельно
++проверена точная closure factorization с существующим path_loglik для всех small
++paths. Проверены реальные observation-components с delay mixtures и парой
++RELEASE/CROSSING_PROXY на support2/3/4 cells; sparse holes, structural zeros,
++initial/right censoring, rename/immutability, эквивалентность local DP и resource
++failure до/после накопления состояний. Часть q-fixtures искусственные для
++алгебраической проверки: они не объявляются сгенерированными реальными trajectories.
++После run добавлен отдельный guard-counterexample: одинаковые current phase/age
++с разной релевантной history имеют разные closure values и не должны сливаться.
++Итог:23 новых unit tests+3 artifact checks+152 регрессии, всего178 passed в4.55с.
++
++Technical64с K3 example:5 vehicles/10 paired marks, delay atoms0/4с и transit2с,
++support span3. Fixed rates/exposure/rounding supplied; recovery truth отсутствует.
++Результат complete, max72 states/layer,1476 retained states; без enumeration
++и truncation. DP self CPU.140625с/wall.154883с, conservative state allowance
++6642592 bytes. Это не peak RSS и не end-to-end throughput большого JSON.
++Не запускали старый hold+30 replay: его historical FAIL не заменяется этим примером.
++
++Все обе-prior predictions, вход и hashes сохранены. Logical/physical UNKNOWN100%;
++диагностическая temporal extent context64с, target10..56с — другая величина.
++Posterior existence — вероятность внутри supplied grid model, не calibrated
++lamp probability и не готовый publication threshold.
++
++## Оставшиеся ограничения и следующий шаг
++
++Теперь широкие до заданного span kernels не требуют перечисления всех paths.
++Это снимает конкретный scaling blocker при ограниченной factor history, но не
++делает произвольные kernels/часовые записи поддержанными. Context horizon80с,
++K2/K3 fixed и duration support4..48с сохраняются. Нет skip/reorder/смены K/online.
++Delay bounds, rates/demand/detection и полнота index по-прежнему supplied assumptions.
++Реальная привязка RELEASE к сигналу не калибрована.
++
++Core/HSMM/K solver/period/mapping/evaluator, extraction/selection, thresholds,
++main и исторические artifacts сохранены.2D.1 остаётся FAIL; real K3/2/3 против
++truth3/2/2 и raw19/34 не изменились. Никаких новых recovery suites/real replay.
++
++Следующий шаг к продукту: зафиксировать применимость observation assumptions
++и input/mapping на доступных данных, затем согласовать реальный calibration/
++validation pilot с независимыми сигналами/sync. Не переносить synthetic nuisance
++parameters в production и не запускать ещё один convenient synthetic recovery
++вместо этого. Поддержку часов/скользящих context нужно спроектировать с сохранением
++глобальных vehicle IDs и зависимостей, без независимого умножения overlap likelihoods.
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index d2d2959..a193740 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,16 @@
+ # Project status — 2D.1, 2026-10-16
+ 
++2026-10-16 bounded-history exact renewal DP delivered: vehicle factors closed on
++last support cell, sufficient history/run-length states, count/phase/boundary/MAP
++messages. Default span3 cells, explicit max5; wider/resource failure unavailable,
++no beam or partial posterior.178 combined targeted/regression/artifact checks pass.
++One64s K3 delayed-pair technical example completed, max72 states/layer,1476 retained
++states; not recovery/lamp accuracy. Both priors unchanged; published states UNKNOWN.
++No recovery suite/real replay/K search. Main/default/core/historical metrics
++unchanged;2D.1 FAIL. See BOUNDED_FACTOR_RESULTS_20261016.md. Next: real observation
++assumptions/calibration/validation and long-session context dependencies; no
++automatic use of supplied synthetic nuisance parameters in production.
++
+ 2026-10-16 opt-in context/query-censoring contract completed under supplied bounded
+ nonnegative vehicle delays. Reported clock-centre selection enters both pattern
+ and compensator via existing integrator; safe interior target separated from full
+diff --git a/scripts/check_bounded_factor_history.py b/scripts/check_bounded_factor_history.py
+new file mode 100644
+index 0000000..2398ff9
+--- /dev/null
++++ b/scripts/check_bounded_factor_history.py
+@@ -0,0 +1,58 @@
++"""One technical64s delayed-pair example; no recovery truth or real replay."""
++import hashlib
++import json
++from pathlib import Path
++import subprocess
++
++from app.core.temporal_evidence import TemporalEvent
++from app.experimental.local_evidence import build_local_evidence
++from app.experimental.bounded_factor_sequence import infer_bounded_context
++
++ROOT=Path(__file__).resolve().parents[1]
++OUT=ROOT/'evidence/bounded_factor_history_20261016'
++
++
++def write(name,value):
++    with (OUT/name).open('x',encoding='utf-8') as f:json.dump(value,f,indent=2,allow_nan=False)
++
++
++def main():
++    spec=dict(horizon_s=64,movements=['m0','m1','m2'],cyclic_order=[2,0,1],
++        rates_per_s=[[.2,.03,.03],[.03,.2,.03],[.03,.03,.2]],rate_source='declared technical rates',
++        latent_demand_exposure=[[1]*32]*3,demand_source='supplied technical exposure',
++        observation_windows_s=[[0,64]],observation_window_source='supplied technical camera window',
++        release_delay_s=[[0,.5],[4,.5]],transit_delay_s=[[2,1.]],delay_source='supplied technical delay atoms',
++        release_detection_probability=1.,crossing_detection_probability=.5,
++        release_method='technical_release',crossing_method='technical_crossing',
++        clock_model='continuous_latent_rounded_marks',timestamp_resolution_ms=1,
++        timestamp_rounding_origin_ms=0,timestamp_resolution_source='supplied 1ms clock')
++    events=[]
++    for i,r in enumerate((8250,16250,28250,44250,58250)):
++        for t,kind,method in ((r,'RELEASE','technical_release'),(r+2000,'CROSSING_PROXY','technical_crossing')):
++            events.append(TemporalEvent(t,kind,f'm{i%3}',i,method,.5,'MEDIUM',None,
++                {'source':'technical_example','track_fingerprint':str(i),'eligible_proxy':True}))
++    inputs=dict(spec=spec,events=[e.to_dict() for e in events],context_origin_ms=0,target_range_ms=[10000,56000])
++    write('inputs.json',inputs)
++    sources=['app/experimental/bounded_factor_sequence.py','app/experimental/context_observation.py',
++        'app/experimental/rounded_observation.py','app/experimental/observation_domain.py',
++        'app/experimental/phase_observation_bridge.py','app/experimental/joint_track_model.py',
++        'app/experimental/unanchored_sequence.py','app/experimental/local_factor_sequence.py',
++        'scripts/check_bounded_factor_history.py']
++    limits=dict(max_kernel_span_cells=3,max_states_per_layer=4096,
++        max_total_states=100000,max_memory_bytes=32*1024*1024,max_seconds=5.)
++    write('manifest.json',dict(base_sha='9cfec60b8b7f1d9cef9d442f2c838be953a11d8c',
++        code_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT).decode().strip(),
++        purpose='technical exact-message scaling; no recovery truth',
++        input_sha256=hashlib.sha256((OUT/'inputs.json').read_bytes()).hexdigest(),
++        source_sha256_lf={p:hashlib.sha256((ROOT/p).read_bytes().replace(b'\r\n',b'\n')).hexdigest() for p in sources},
++        max_calls=1,limits=limits))
++    output=infer_bounded_context(build_local_evidence(events,source_namespace='technical_delayed_pairs'),spec,
++        context_origin_ms=0,target_range_ms=[10000,56000],**limits)
++    write('prediction.json',output)
++    write('output_sealed.json',dict(prediction_sha256=hashlib.sha256((OUT/'prediction.json').read_bytes()).hexdigest(),
++        technical_inference_calls=1,recovery_truth_files=0,real_replays=0))
++    print(json.dumps({k:output.get(k) for k in ('status','reason','observed_max_kernel_span_cells',
++        'max_states_in_layer','max_retained_states','declared_state_allowance_bytes','cpu_s','wall_s')},indent=2))
++
++
++if __name__=='__main__':main()
+diff --git a/tests/test_bounded_factor_artifacts.py b/tests/test_bounded_factor_artifacts.py
+new file mode 100644
+index 0000000..23055ff
+--- /dev/null
++++ b/tests/test_bounded_factor_artifacts.py
+@@ -0,0 +1,45 @@
++import hashlib
++import json
++from pathlib import Path
++import subprocess
++
++import pytest
++
++ROOT=Path(__file__).resolve().parents[1]
++OUT=ROOT/'evidence/bounded_factor_history_20261016'
++
++
++def read(name):return json.loads((OUT/name).read_text(encoding='utf-8'))
++
++
++def test_manifest_frozen_sources_and_sealed_prediction():
++    m=read('manifest.json');seal=read('output_sealed.json')
++    assert hashlib.sha256((OUT/'inputs.json').read_bytes()).hexdigest()==m['input_sha256']
++    assert hashlib.sha256((OUT/'prediction.json').read_bytes()).hexdigest()==seal['prediction_sha256']
++    assert m['max_calls']==seal['technical_inference_calls']==1
++    assert seal['real_replays']==seal['recovery_truth_files']==0
++    for name,expected in m['source_sha256_lf'].items():
++        source=subprocess.check_output(['git','show',f"{m['code_commit']}:{name}"],cwd=ROOT)
++        assert hashlib.sha256(source.replace(b'\r\n',b'\n')).hexdigest()==expected
++
++
++def test_nonlocal_64s_example_complete_without_enumeration_or_truncation():
++    r=read('prediction.json');m=read('manifest.json')
++    assert r['complete'] and r['observed_max_kernel_span_cells']==3
++    assert not r['enumeration_used'] and not r['truncation_used']
++    assert r['max_states_in_layer']<=m['limits']['max_states_per_layer']
++    assert r['declared_state_allowance_bytes']<=m['limits']['max_memory_bytes']
++    assert r['context_plan']['target_range_ms']==[10000,56000]
++    assert r['logical_phase']['estimated_state']==r['physical_section']['estimated_state']=='UNKNOWN'
++    assert r['calibrated_lamp_probability'] is None
++
++
++def test_posterior_count_and_boundary_marginals_are_consistent():
++    r=read('prediction.json');assert set(r['results'])=={'flat','soft'}
++    for result in r['results'].values():
++        assert sum(result['transition_count_posterior'].values())==pytest.approx(1)
++        assert all(sum(row)==pytest.approx(1) for row in result['phase_posterior'])
++        expected=sum(int(n)*p for n,p in result['transition_count_posterior'].items())
++        assert sum(b['model_conditioned_existence_probability'] for b in result['boundary_existence'])==pytest.approx(expected)
++        assert len(result['boundary_existence'])==31
++        assert result['diagnostic_segments'][-1][1]==64
+diff --git a/tests/test_bounded_factor_sequence.py b/tests/test_bounded_factor_sequence.py
+new file mode 100644
+index 0000000..4706673
+--- /dev/null
++++ b/tests/test_bounded_factor_sequence.py
+@@ -0,0 +1,139 @@
++import copy
++import math
++
++import numpy as np
++import pytest
++
++from app.experimental.joint_track_model import PRIORS,path_loglik
++from app.experimental.unanchored_sequence import enumerate_sequences,renewal_log_prior
++from app.experimental.rounded_observation import rounded_components
++from app.experimental.local_factor_sequence import infer_local_factors
++from app.experimental.bounded_factor_sequence import VehicleFactors,infer_bounded_factors,infer_bounded_context
++from test_local_factor_sequence import components,oracle
++from test_context_observation import index
++from test_rounded_observation import supplied
++
++
++@pytest.mark.parametrize('h,k,order,span',[(2,2,[0,1],1),(8,2,[0,1],2),(12,3,[2,0,1],3),(12,2,[1,0],4)])
++def test_full_posterior_and_map_match_exhaustive_oracle(h,k,order,span):
++    c=components(h,k)
++    if span>1:
++        original=c['q'][0].sum();c['q'][0]*=0
++        c['q'][0,0]=original*.4;c['q'][0,span-1]=original*.6
++    r=infer_bounded_factors(c,order,max_kernel_span_cells=max(3,span))
++    assert r['complete'],r.get('reason')
++    assert not r['enumeration_used'] and not r['truncation_used']
++    assert r['observed_max_kernel_span_cells']==span
++    for name,prior in PRIORS.items():
++        paths,labels,p,logZ,best=oracle(c,order,prior);a=r['results'][name]
++        assert a['log_normalizer']==pytest.approx(logZ,abs=1e-11)
++        assert a['diagnostic_map_log_joint']==pytest.approx(best,abs=1e-11)
++        assert sum(a['transition_count_posterior'].values())==pytest.approx(1)
++        for count,mass in a['transition_count_posterior'].items():
++            assert mass==pytest.approx(sum(v for (_,b),v in zip(paths,p) if len(b)==int(count)),abs=1e-11)
++        expected=[[sum(p[labels[:,j]==z]) for z in range(k)] for j in range(c['n'])]
++        np.testing.assert_allclose(a['phase_posterior'],expected,atol=1e-11)
++        for b in a['boundary_existence']:
++            assert b['model_conditioned_existence_probability']==pytest.approx(
++                sum(v for (_,bounds),v in zip(paths,p) if b['time_s'] in bounds),abs=1e-11)
++        segments=a['diagnostic_segments'];bounds=[s[0] for s in segments[1:]]
++        z=np.concatenate([np.full((b-a)//2,label) for a,b,label in segments])
++        assert path_loglik(z,c)+renewal_log_prior(bounds,h,prior)-math.log(k)==pytest.approx(best,abs=1e-11)
++
++
++def test_closure_factorization_matches_joint_likelihood_for_all_short_paths():
++    c=components();c['q'][0,2]=c['q'][0,0]/3
++    f=VehicleFactors(c,3)
++    for first,b in enumerate_sequences(8,[0,1]):
++        z=(first+np.searchsorted(b,np.arange(4)*2,side='right'))%2
++        assert sum(f.value(j,tuple(z[max(0,j-2):j+1])) for j in range(4))==pytest.approx(path_loglik(z,c),abs=1e-12)
++
++
++def test_same_current_phase_and_run_age_cannot_merge_distinct_factor_history():
++    c=components();mass=c['q'][0].sum();c['q'][0]*=0
++    c['q'][0,0]=mass*.4;c['q'][0,3]=mass*.6
++    factors=VehicleFactors(c,4)
++    # Both valid prefixes end phase0/run_age1; earlier phase0 differs.
++    assert factors.value(3,(1,1,1,0))!=factors.value(3,(0,1,1,0))
++
++
++@pytest.mark.parametrize('lag,span',[(2,2),(4,3),(6,4)])
++def test_real_joint_pattern_components_with_delay_mixture(lag,span):
++    m=supplied();m.update(horizon_s=12,latent_demand_exposure=[[1]*6]*2,
++        release_delay_s=[[0,.5],[lag,.5]])
++    release=lag*1000+2250
++    c=rounded_components(index([(release,release+2000)]).query(0,24000),m)
++    r=infer_bounded_factors(c,[0,1],max_kernel_span_cells=max(3,span))
++    assert r['complete'] and r['observed_max_kernel_span_cells']==span
++    for name,prior in PRIORS.items():
++        _,_,_,logZ,best=oracle(c,[0,1],prior)
++        assert r['results'][name]['log_normalizer']==pytest.approx(logZ)
++        assert r['results'][name]['diagnostic_map_log_joint']==pytest.approx(best)
++
++
++def test_local_case_equals_existing_local_dp_both_priors():
++    c=components(h=12);a=infer_local_factors(c,[0,1]);b=infer_bounded_factors(c,[0,1])
++    assert a['complete'] and b['complete']
++    for name in PRIORS:
++        for field in ('log_normalizer','diagnostic_map_log_joint'):
++            assert a['results'][name][field]==pytest.approx(b['results'][name][field])
++        np.testing.assert_allclose(a['results'][name]['phase_posterior'],b['results'][name]['phase_posterior'],atol=1e-12)
++
++
++def test_no_threshold_on_tiny_mass_and_span_counts_holes():
++    c=components(h=12);c['q'][0,4]=1e-100
++    r=infer_bounded_factors(c,[0,1])
++    assert r['reason']=='KERNEL_HISTORY_LIMIT_EXCEEDED' and r['results']=={}
++    c['q'][0,4]=0;c['q'][0,2]=1e-100
++    r=infer_bounded_factors(c,[0,1]);assert r['complete'] and r['observed_max_kernel_span_cells']==3
++
++
++def test_structural_zeros_and_censored_initial_final_durations():
++    c=components(h=12);c['q'][0,1]=c['q'][0,0];c['rates'][1,0]=0
++    r=infer_bounded_factors(c,[0,1]);assert r['complete']
++    for name,prior in PRIORS.items():
++        _,_,_,logZ,best=oracle(c,[0,1],prior)
++        assert r['results'][name]['log_normalizer']==pytest.approx(logZ)
++        assert r['results'][name]['diagnostic_map_log_joint']==pytest.approx(best)
++
++
++@pytest.mark.parametrize('limits,reason',[
++    ({'max_states_per_layer':1},'LAYER_STATE_BUDGET'),({'max_total_states':1},'TOTAL_STATE_BUDGET'),
++    ({'max_states_per_layer':3},'LAYER_STATE_BUDGET'),({'max_total_states':4},'TOTAL_STATE_BUDGET'),
++    ({'max_memory_bytes':0},'MEMORY_BUDGET'),({'max_seconds':1e-12},'TIME_BUDGET'),
++    ({'max_seconds':0},'RESOURCE_LIMIT'),({'max_kernel_span_cells':6},'RESOURCE_LIMIT')])
++def test_budget_failure_returns_no_partial_posterior(limits,reason):
++    r=infer_bounded_factors(components(),[0,1],**limits)
++    assert not r['complete'] and r['status']=='unavailable' and r['results']=={}
++    assert reason in r['reason'] and r['physical_section']['estimated_state']=='UNKNOWN'
++
++
++def test_long_no_demand_prior_only_normalization_without_enumeration():
++    c=components(h=64,k=3,patterns=());c['exposure']*=0
++    r=infer_bounded_factors(c,[2,0,1]);assert r['complete'] and not r['enumeration_used']
++    assert r['likelihood_constant_over_phase_paths']
++    for result in r['results'].values():
++        assert result['log_normalizer']==pytest.approx(0,abs=1e-11)
++        np.testing.assert_allclose(result['phase_posterior'],np.full((32,3),1/3),atol=1e-11)
++        expected=sum(int(n)*p for n,p in result['transition_count_posterior'].items())
++        assert sum(b['model_conditioned_existence_probability'] for b in result['boundary_existence'])==pytest.approx(expected)
++
++
++def test_input_immutability_movement_rename_and_context_failure_contract():
++    c=components();c['q'][0,1]=c['q'][0,0]/2;before=copy.deepcopy(c)
++    a=infer_bounded_factors(c,[0,1]);np.testing.assert_array_equal(c['q'],before['q'])
++    c['movements']=['alpha','beta']
++    for t in c['tracks']:t['movement']='alpha'
++    b=infer_bounded_factors(c,[0,1]);assert a['results']==b['results']
++    m=supplied();m['cyclic_order']=[0,1]
++    r=infer_bounded_context(index(),m,context_origin_ms=0,target_range_ms=[0,8000])
++    assert r['status']=='unavailable' and not r['complete'] and r['results']=={}
++
++
++def test_context_entry_supports_nonlocal_kernel_without_changing_global_track():
++    m=supplied();m.update(horizon_s=16,latent_demand_exposure=[[1]*8]*2,
++        cyclic_order=[0,1],release_delay_s=[[0,.5],[2,.5]])
++    r=infer_bounded_context(index([(6250,8250)]),m,context_origin_ms=0,target_range_ms=[6000,10000])
++    assert r['complete'] and r['observed_max_kernel_span_cells']==2
++    assert r['context_plan']['source_namespace']=='fixed-global-index'
++    assert r['logical_phase']['estimated_state']==r['physical_section']['estimated_state']=='UNKNOWN'
