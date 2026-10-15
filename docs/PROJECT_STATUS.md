@@ -1,5 +1,17 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 read-only product result contract delivered for saved V9 predictions.
+Observed source zones/movements and full shared activity signatures retained;
+hardware type/count and physical states UNKNOWN, not inferred from turns. Common
+prepared logical query handles gaps/endpoints/invalid history and explicit
+experimental unavailability without fallback.42 tests pass; all three saved2C
+schedule/selection/period payloads exactly preserved, source/output hashes saved.
+No fitting/real replay or UI/default changes. See PRODUCT_RESULT_20261016.md:
+2/8 declared engineering checkpoints closed (25%, not accuracy or effort).
+Product not complete; next available step is offline input/HTML consumer integration
+using this contract. Independent calibration/validation still required;2D.1 FAIL,
+historic K3/2/3 and raw19/34, main unchanged.
+
 2026-10-16 real pilot metadata intake delivered, not a new inference experiment.
 Three registered development blocks share one continuous recording; no independent
 validation session registered. Required scientific model inputs have no real

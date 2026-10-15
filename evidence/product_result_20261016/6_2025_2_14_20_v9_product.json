@@ -1,0 +1,2729 @@
+{
+  "schema": "traffic-phase-product-result-v1",
+  "inference_performed": false,
+  "scientific_validation": "NOT_PERFORMED",
+  "invariant_payload": {
+    "schedule": {
+      "model": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+      "phase_count": 3,
+      "phase_names": [
+        "PHASE_A",
+        "PHASE_B",
+        "PHASE_C"
+      ],
+      "period_s": 99.99524773335186,
+      "decoder": {
+        "min_duration_s": [
+          9.0,
+          5.0,
+          11.0
+        ],
+        "max_duration_s": [
+          63.0,
+          36.0,
+          75.0
+        ],
+        "duration_targets_s": [
+          35.99828918400667,
+          20.499025785337125,
+          43.497932764008056
+        ],
+        "transition_penalty": 0.25,
+        "initial_phase_constraint": 2
+      },
+      "raw_hsmm_segments": [
+        [
+          0.0,
+          21.0,
+          2
+        ],
+        [
+          21.0,
+          56.0,
+          0
+        ],
+        [
+          56.0,
+          79.0,
+          1
+        ],
+        [
+          79.0,
+          129.0,
+          2
+        ],
+        [
+          129.0,
+          168.0,
+          0
+        ],
+        [
+          168.0,
+          188.0,
+          1
+        ],
+        [
+          188.0,
+          233.0,
+          2
+        ],
+        [
+          233.0,
+          270.0,
+          0
+        ],
+        [
+          270.0,
+          290.0,
+          1
+        ],
+        [
+          290.0,
+          332.0,
+          2
+        ],
+        [
+          332.0,
+          367.0,
+          0
+        ],
+        [
+          367.0,
+          382.0,
+          1
+        ],
+        [
+          382.0,
+          429.0,
+          2
+        ],
+        [
+          429.0,
+          467.0,
+          0
+        ],
+        [
+          467.0,
+          492.0,
+          1
+        ],
+        [
+          492.0,
+          532.0,
+          2
+        ],
+        [
+          532.0,
+          568.0,
+          0
+        ],
+        [
+          568.0,
+          591.0,
+          1
+        ],
+        [
+          591.0,
+          632.0,
+          2
+        ],
+        [
+          632.0,
+          668.0,
+          0
+        ],
+        [
+          668.0,
+          687.0,
+          1
+        ],
+        [
+          687.0,
+          732.0,
+          2
+        ],
+        [
+          732.0,
+          768.0,
+          0
+        ],
+        [
+          768.0,
+          787.0,
+          1
+        ],
+        [
+          787.0,
+          831.0,
+          2
+        ],
+        [
+          831.0,
+          867.0,
+          0
+        ],
+        [
+          867.0,
+          886.0,
+          1
+        ],
+        [
+          886.0,
+          932.0,
+          2
+        ],
+        [
+          932.0,
+          969.0,
+          0
+        ],
+        [
+          969.0,
+          991.0,
+          1
+        ],
+        [
+          991.0,
+          1033.0,
+          2
+        ],
+        [
+          1033.0,
+          1068.0,
+          0
+        ],
+        [
+          1068.0,
+          1095.0,
+          1
+        ],
+        [
+          1095.0,
+          1132.0,
+          2
+        ],
+        [
+          1132.0,
+          1167.0,
+          0
+        ],
+        [
+          1167.0,
+          1188.0,
+          1
+        ],
+        [
+          1188.0,
+          1230.0,
+          2
+        ],
+        [
+          1230.0,
+          1267.0,
+          0
+        ],
+        [
+          1267.0,
+          1286.0,
+          1
+        ],
+        [
+          1286.0,
+          1332.0,
+          2
+        ],
+        [
+          1332.0,
+          1368.0,
+          0
+        ],
+        [
+          1368.0,
+          1387.0,
+          1
+        ],
+        [
+          1387.0,
+          1432.0,
+          2
+        ],
+        [
+          1432.0,
+          1468.0,
+          0
+        ],
+        [
+          1468.0,
+          1487.0,
+          1
+        ],
+        [
+          1487.0,
+          1532.0,
+          2
+        ],
+        [
+          1532.0,
+          1569.0,
+          0
+        ],
+        [
+          1569.0,
+          1591.0,
+          1
+        ],
+        [
+          1591.0,
+          1631.0,
+          2
+        ],
+        [
+          1631.0,
+          1667.0,
+          0
+        ],
+        [
+          1667.0,
+          1688.0,
+          1
+        ],
+        [
+          1688.0,
+          1733.0,
+          2
+        ],
+        [
+          1733.0,
+          1766.0,
+          0
+        ],
+        [
+          1766.0,
+          1789.0,
+          1
+        ],
+        [
+          1789.0,
+          1832.0,
+          2
+        ],
+        [
+          1832.0,
+          1868.0,
+          0
+        ],
+        [
+          1868.0,
+          1890.0,
+          1
+        ],
+        [
+          1890.0,
+          1933.0,
+          2
+        ],
+        [
+          1933.0,
+          1969.0,
+          0
+        ],
+        [
+          1969.0,
+          1987.0,
+          1
+        ],
+        [
+          1987.0,
+          2031.0,
+          2
+        ],
+        [
+          2031.0,
+          2067.0,
+          0
+        ],
+        [
+          2067.0,
+          2090.0,
+          1
+        ],
+        [
+          2090.0,
+          2133.0,
+          2
+        ],
+        [
+          2133.0,
+          2169.0,
+          0
+        ],
+        [
+          2169.0,
+          2188.0,
+          1
+        ],
+        [
+          2188.0,
+          2232.0,
+          2
+        ],
+        [
+          2232.0,
+          2268.0,
+          0
+        ],
+        [
+          2268.0,
+          2287.0,
+          1
+        ],
+        [
+          2287.0,
+          2332.0,
+          2
+        ],
+        [
+          2332.0,
+          2370.0,
+          0
+        ],
+        [
+          2370.0,
+          2390.0,
+          1
+        ],
+        [
+          2390.0,
+          2433.0,
+          2
+        ],
+        [
+          2433.0,
+          2467.0,
+          0
+        ],
+        [
+          2467.0,
+          2488.0,
+          1
+        ],
+        [
+          2488.0,
+          2531.0,
+          2
+        ],
+        [
+          2531.0,
+          2568.0,
+          0
+        ],
+        [
+          2568.0,
+          2587.0,
+          1
+        ],
+        [
+          2587.0,
+          2632.0,
+          2
+        ],
+        [
+          2632.0,
+          2664.0,
+          0
+        ],
+        [
+          2664.0,
+          2681.0,
+          1
+        ],
+        [
+          2681.0,
+          2731.0,
+          2
+        ],
+        [
+          2731.0,
+          2769.0,
+          0
+        ],
+        [
+          2769.0,
+          2791.0,
+          1
+        ],
+        [
+          2791.0,
+          2832.0,
+          2
+        ],
+        [
+          2832.0,
+          2865.0,
+          0
+        ],
+        [
+          2865.0,
+          2883.0,
+          1
+        ],
+        [
+          2883.0,
+          2929.0,
+          2
+        ],
+        [
+          2929.0,
+          2966.0,
+          0
+        ],
+        [
+          2966.0,
+          2985.0,
+          1
+        ],
+        [
+          2985.0,
+          3032.0,
+          2
+        ],
+        [
+          3032.0,
+          3071.0,
+          0
+        ],
+        [
+          3071.0,
+          3091.0,
+          1
+        ],
+        [
+          3091.0,
+          3132.0,
+          2
+        ],
+        [
+          3132.0,
+          3167.0,
+          0
+        ],
+        [
+          3167.0,
+          3186.0,
+          1
+        ],
+        [
+          3186.0,
+          3232.0,
+          2
+        ],
+        [
+          3232.0,
+          3269.0,
+          0
+        ],
+        [
+          3269.0,
+          3289.0,
+          1
+        ],
+        [
+          3289.0,
+          3331.0,
+          2
+        ],
+        [
+          3331.0,
+          3368.0,
+          0
+        ],
+        [
+          3368.0,
+          3390.0,
+          1
+        ],
+        [
+          3390.0,
+          3432.0,
+          2
+        ],
+        [
+          3432.0,
+          3468.0,
+          0
+        ],
+        [
+          3468.0,
+          3486.0,
+          1
+        ],
+        [
+          3486.0,
+          3531.0,
+          2
+        ],
+        [
+          3531.0,
+          3567.0,
+          0
+        ],
+        [
+          3567.0,
+          3589.0,
+          1
+        ],
+        [
+          3589.0,
+          3632.0,
+          2
+        ],
+        [
+          3632.0,
+          3657.0,
+          0
+        ]
+      ],
+      "baseline_phase_centers_s": {
+        "PHASE_A": 31.484293931868514,
+        "PHASE_B": 67.55434524623911,
+        "PHASE_C": 88.23369988843814
+      },
+      "baseline_duration_targets_s": {
+        "PHASE_A": 36.07005131437063,
+        "PHASE_B": 20.679354642199087,
+        "PHASE_C": 43.2458417767823
+      },
+      "baseline_segments": [
+        [
+          0.0,
+          31.484293931868514,
+          2
+        ],
+        [
+          31.484293931868514,
+          67.55434524623911,
+          0
+        ],
+        [
+          67.55434524623911,
+          88.23369988843814,
+          1
+        ],
+        [
+          88.23369988843814,
+          131.47954166522038,
+          2
+        ],
+        [
+          131.47954166522038,
+          167.54959297959095,
+          0
+        ],
+        [
+          167.54959297959095,
+          188.22894762178998,
+          1
+        ],
+        [
+          188.22894762178998,
+          231.47478939857223,
+          2
+        ],
+        [
+          231.47478939857223,
+          267.5448407129428,
+          0
+        ],
+        [
+          267.5448407129428,
+          288.2241953551419,
+          1
+        ],
+        [
+          288.2241953551419,
+          331.47003713192413,
+          2
+        ],
+        [
+          331.47003713192413,
+          367.5400884462947,
+          0
+        ],
+        [
+          367.5400884462947,
+          388.21944308849373,
+          1
+        ],
+        [
+          388.21944308849373,
+          431.465284865276,
+          2
+        ],
+        [
+          431.465284865276,
+          467.53533617964655,
+          0
+        ],
+        [
+          467.53533617964655,
+          488.2146908218456,
+          1
+        ],
+        [
+          488.2146908218456,
+          531.4605325986278,
+          2
+        ],
+        [
+          531.4605325986278,
+          567.5305839129984,
+          0
+        ],
+        [
+          567.5305839129984,
+          588.2099385551974,
+          1
+        ],
+        [
+          588.2099385551974,
+          631.4557803319797,
+          2
+        ],
+        [
+          631.4557803319797,
+          667.5258316463503,
+          0
+        ],
+        [
+          667.5258316463503,
+          688.2051862885494,
+          1
+        ],
+        [
+          688.2051862885494,
+          731.4510280653315,
+          2
+        ],
+        [
+          731.4510280653315,
+          767.5210793797021,
+          0
+        ],
+        [
+          767.5210793797021,
+          788.2004340219012,
+          1
+        ],
+        [
+          788.2004340219012,
+          831.4462757986834,
+          2
+        ],
+        [
+          831.4462757986834,
+          867.516327113054,
+          0
+        ],
+        [
+          867.516327113054,
+          888.195681755253,
+          1
+        ],
+        [
+          888.195681755253,
+          931.4415235320353,
+          2
+        ],
+        [
+          931.4415235320353,
+          967.5115748464059,
+          0
+        ],
+        [
+          967.5115748464059,
+          988.190929488605,
+          1
+        ],
+        [
+          988.190929488605,
+          1031.436771265387,
+          2
+        ],
+        [
+          1031.436771265387,
+          1067.5068225797577,
+          0
+        ],
+        [
+          1067.5068225797577,
+          1088.1861772219568,
+          1
+        ],
+        [
+          1088.1861772219568,
+          1131.4320189987388,
+          2
+        ],
+        [
+          1131.4320189987388,
+          1167.5020703131095,
+          0
+        ],
+        [
+          1167.5020703131095,
+          1188.1814249553086,
+          1
+        ],
+        [
+          1188.1814249553086,
+          1231.4272667320909,
+          2
+        ],
+        [
+          1231.4272667320909,
+          1267.4973180464615,
+          0
+        ],
+        [
+          1267.4973180464615,
+          1288.1766726886606,
+          1
+        ],
+        [
+          1288.1766726886606,
+          1331.4225144654426,
+          2
+        ],
+        [
+          1331.4225144654426,
+          1367.4925657798133,
+          0
+        ],
+        [
+          1367.4925657798133,
+          1388.1719204220124,
+          1
+        ],
+        [
+          1388.1719204220124,
+          1431.4177621987944,
+          2
+        ],
+        [
+          1431.4177621987944,
+          1467.487813513165,
+          0
+        ],
+        [
+          1467.487813513165,
+          1488.1671681553642,
+          1
+        ],
+        [
+          1488.1671681553642,
+          1531.4130099321465,
+          2
+        ],
+        [
+          1531.4130099321465,
+          1567.483061246517,
+          0
+        ],
+        [
+          1567.483061246517,
+          1588.1624158887162,
+          1
+        ],
+        [
+          1588.1624158887162,
+          1631.4082576654982,
+          2
+        ],
+        [
+          1631.4082576654982,
+          1667.4783089798689,
+          0
+        ],
+        [
+          1667.4783089798689,
+          1688.157663622068,
+          1
+        ],
+        [
+          1688.157663622068,
+          1731.40350539885,
+          2
+        ],
+        [
+          1731.40350539885,
+          1767.4735567132207,
+          0
+        ],
+        [
+          1767.4735567132207,
+          1788.1529113554197,
+          1
+        ],
+        [
+          1788.1529113554197,
+          1831.398753132202,
+          2
+        ],
+        [
+          1831.398753132202,
+          1867.4688044465727,
+          0
+        ],
+        [
+          1867.4688044465727,
+          1888.1481590887718,
+          1
+        ],
+        [
+          1888.1481590887718,
+          1931.3940008655538,
+          2
+        ],
+        [
+          1931.3940008655538,
+          1967.4640521799245,
+          0
+        ],
+        [
+          1967.4640521799245,
+          1988.1434068221236,
+          1
+        ],
+        [
+          1988.1434068221236,
+          2031.3892485989056,
+          2
+        ],
+        [
+          2031.3892485989056,
+          2067.4592999132765,
+          0
+        ],
+        [
+          2067.4592999132765,
+          2088.138654555475,
+          1
+        ],
+        [
+          2088.138654555475,
+          2131.3844963322576,
+          2
+        ],
+        [
+          2131.3844963322576,
+          2167.4545476466283,
+          0
+        ],
+        [
+          2167.4545476466283,
+          2188.133902288827,
+          1
+        ],
+        [
+          2188.133902288827,
+          2231.3797440656094,
+          2
+        ],
+        [
+          2231.3797440656094,
+          2267.44979537998,
+          0
+        ],
+        [
+          2267.44979537998,
+          2288.1291500221787,
+          1
+        ],
+        [
+          2288.1291500221787,
+          2331.3749917989617,
+          2
+        ],
+        [
+          2331.3749917989617,
+          2367.445043113332,
+          0
+        ],
+        [
+          2367.445043113332,
+          2388.124397755531,
+          1
+        ],
+        [
+          2388.124397755531,
+          2431.3702395323135,
+          2
+        ],
+        [
+          2431.3702395323135,
+          2467.4402908466836,
+          0
+        ],
+        [
+          2467.4402908466836,
+          2488.1196454888827,
+          1
+        ],
+        [
+          2488.1196454888827,
+          2531.3654872656653,
+          2
+        ],
+        [
+          2531.3654872656653,
+          2567.4355385800354,
+          0
+        ],
+        [
+          2567.4355385800354,
+          2588.1148932222345,
+          1
+        ],
+        [
+          2588.1148932222345,
+          2631.360734999017,
+          2
+        ],
+        [
+          2631.360734999017,
+          2667.430786313387,
+          0
+        ],
+        [
+          2667.430786313387,
+          2688.1101409555863,
+          1
+        ],
+        [
+          2688.1101409555863,
+          2731.355982732369,
+          2
+        ],
+        [
+          2731.355982732369,
+          2767.426034046739,
+          0
+        ],
+        [
+          2767.426034046739,
+          2788.105388688938,
+          1
+        ],
+        [
+          2788.105388688938,
+          2831.3512304657206,
+          2
+        ],
+        [
+          2831.3512304657206,
+          2867.421281780091,
+          0
+        ],
+        [
+          2867.421281780091,
+          2888.10063642229,
+          1
+        ],
+        [
+          2888.10063642229,
+          2931.346478199073,
+          2
+        ],
+        [
+          2931.346478199073,
+          2967.4165295134435,
+          0
+        ],
+        [
+          2967.4165295134435,
+          2988.095884155642,
+          1
+        ],
+        [
+          2988.095884155642,
+          3031.3417259324247,
+          2
+        ],
+        [
+          3031.3417259324247,
+          3067.4117772467953,
+          0
+        ],
+        [
+          3067.4117772467953,
+          3088.091131888994,
+          1
+        ],
+        [
+          3088.091131888994,
+          3131.3369736657764,
+          2
+        ],
+        [
+          3131.3369736657764,
+          3167.407024980147,
+          0
+        ],
+        [
+          3167.407024980147,
+          3188.0863796223457,
+          1
+        ],
+        [
+          3188.0863796223457,
+          3231.3322213991282,
+          2
+        ],
+        [
+          3231.3322213991282,
+          3267.402272713499,
+          0
+        ],
+        [
+          3267.402272713499,
+          3288.0816273556975,
+          1
+        ],
+        [
+          3288.0816273556975,
+          3331.32746913248,
+          2
+        ],
+        [
+          3331.32746913248,
+          3367.3975204468506,
+          0
+        ],
+        [
+          3367.3975204468506,
+          3388.0768750890493,
+          1
+        ],
+        [
+          3388.0768750890493,
+          3431.322716865832,
+          2
+        ],
+        [
+          3431.322716865832,
+          3467.3927681802024,
+          0
+        ],
+        [
+          3467.3927681802024,
+          3488.072122822401,
+          1
+        ],
+        [
+          3488.072122822401,
+          3531.3179645991836,
+          2
+        ],
+        [
+          3531.3179645991836,
+          3567.388015913554,
+          0
+        ],
+        [
+          3567.388015913554,
+          3588.067370555753,
+          1
+        ],
+        [
+          3588.067370555753,
+          3631.313212332536,
+          2
+        ],
+        [
+          3631.313212332536,
+          3656.214,
+          0
+        ]
+      ],
+      "phase_duration_summary": {
+        "PHASE_A": {
+          "median_s": 36.0,
+          "mean_s": 35.78378378378378,
+          "observations": 37
+        },
+        "PHASE_B": {
+          "median_s": 20.0,
+          "mean_s": 20.38888888888889,
+          "observations": 36
+        },
+        "PHASE_C": {
+          "median_s": 44.0,
+          "mean_s": 43.21621621621622,
+          "observations": 37
+        }
+      },
+      "stream_activity_by_phase": [
+        {
+          "stream": "W->E",
+          "event_probability_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.32176870107650757,
+            "PHASE_C": 0.05718750134110451
+          }
+        },
+        {
+          "stream": "N->S",
+          "event_probability_by_phase": {
+            "PHASE_A": 0.13622641563415527,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          }
+        },
+        {
+          "stream": "W->N",
+          "event_probability_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.10680272430181503,
+            "PHASE_C": 0.03718750178813934
+          }
+        },
+        {
+          "stream": "E->S",
+          "event_probability_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.07781250029802322
+          }
+        },
+        {
+          "stream": "N->W",
+          "event_probability_by_phase": {
+            "PHASE_A": 0.0584905669093132,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          }
+        },
+        {
+          "stream": "W->S",
+          "event_probability_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.03877551108598709,
+            "PHASE_C": 0.010312500409781933
+          }
+        },
+        {
+          "stream": "N->E",
+          "event_probability_by_phase": {
+            "PHASE_A": 0.02075471729040146,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          }
+        },
+        {
+          "stream": "E->W",
+          "event_probability_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          }
+        },
+        {
+          "stream": "S->W",
+          "event_probability_by_phase": {
+            "PHASE_A": 0.011698112823069096,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          }
+        },
+        {
+          "stream": "E->N",
+          "event_probability_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          }
+        },
+        {
+          "stream": "S->N",
+          "event_probability_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          }
+        }
+      ]
+    },
+    "phase_model_selection": {
+      "raw_selected_phase_count": 3,
+      "selected_phase_count": 3,
+      "redundancy_detector": "topological_temporal_redundancy_v4",
+      "topology_prior": {
+        "canonical_four_leg_cap_applied": false,
+        "source": "none; no verified topology supplied"
+      },
+      "search": {
+        "requested_range": [
+          2,
+          6
+        ],
+        "budget": {
+          "max_candidates": 5,
+          "max_seconds": 60.0,
+          "enforcement": "candidate-call bound; cooperative wall time; no in-flight preemption"
+        },
+        "candidate_ledger": [
+          {
+            "k": 2,
+            "status": "evaluated",
+            "reason": null,
+            "runtime_s": 1.9504804000025615
+          },
+          {
+            "k": 3,
+            "status": "evaluated",
+            "reason": null,
+            "runtime_s": 2.8520232000155374
+          },
+          {
+            "k": 4,
+            "status": "evaluated",
+            "reason": "MULTIPLE_UNSUPPORTED_PHASES",
+            "runtime_s": 1.8625929999980144
+          },
+          {
+            "k": 5,
+            "status": "evaluated",
+            "reason": "MULTIPLE_UNSUPPORTED_PHASES",
+            "runtime_s": 1.1889961999841034
+          },
+          {
+            "k": 6,
+            "status": "evaluated",
+            "reason": "MULTIPLE_UNSUPPORTED_PHASES",
+            "runtime_s": 1.4274885999620892
+          }
+        ],
+        "search_status": "complete",
+        "attempted_candidate_count": 5,
+        "evaluated_candidate_count": 5,
+        "elapsed_s": 9.281608599994797,
+        "selected_k": 3,
+        "alternatives_ranked": [
+          3,
+          2
+        ],
+        "budget_overrun_s": 0.0,
+        "score_margin": 39.28309764432288,
+        "score_margin_semantics": "uncalibrated_criterion_difference_NOT_confidence",
+        "optimality": "best_eligible_evaluated_candidate_NOT_proven_global_optimum",
+        "event_count": 1107,
+        "evidence_status": "UNSUPPORTED_PHASES_OR_NO_EVENTS",
+        "ambiguity": "UNSUPPORTED_PHASES",
+        "topology_prior": "none; stream names are not verified geometry"
+      },
+      "effective_selection": {
+        "selected_k": 3,
+        "raw_search_selected_k": 3,
+        "redundancy_override": false,
+        "certainty": "uncalibrated_model_selection_NOT_lamp_confidence"
+      },
+      "selected_candidate_after_redundancy": {
+        "k": 3,
+        "objective": -3572.10166604726,
+        "approx_bic": 7494.079023895796,
+        "parameter_count": 33,
+        "segment_count": 110,
+        "median_segment_duration_s": 36.0,
+        "mean_segment_duration_s": 33.24545454545454,
+        "supported_phase_count": 2,
+        "unsupported_phase_count": 1,
+        "phase_support_by_phase": {
+          "0": 1,
+          "1": 2,
+          "2": 0
+        },
+        "phase_contrast_by_phase": {
+          "0": 0.12622641563415526,
+          "1": 0.2881749504059553,
+          "2": 0.06781250029802323
+        },
+        "recurrent_complexity_penalty": 182.8193880648053,
+        "criterion_score": 7676.898411960601,
+        "degenerate_phase_model": false,
+        "phase_support_penalty": 0.0,
+        "selection_score": 7676.898411960601,
+        "topology_cap_applied": false,
+        "eligibility_reason": null,
+        "event_support_by_phase": {
+          "0": 356,
+          "1": 429,
+          "2": 322
+        },
+        "runtime_s": 2.8520232000155374
+      },
+      "criterion": "approximate_BIC_plus_recurrent_phase_complexity_penalty",
+      "candidates": [
+        {
+          "k": 2,
+          "objective": -3741.4655242020367,
+          "approx_bic": 7716.181509604924,
+          "parameter_count": 22,
+          "segment_count": 74,
+          "median_segment_duration_s": 38.0,
+          "mean_segment_duration_s": 49.41891891891892,
+          "supported_phase_count": 2,
+          "unsupported_phase_count": 0,
+          "phase_support_by_phase": {
+            "0": 1,
+            "1": 1
+          },
+          "phase_contrast_by_phase": {
+            "0": 0.12747143745422362,
+            "1": 0.12959932327270507
+          },
+          "recurrent_complexity_penalty": 0.0,
+          "criterion_score": 7716.181509604924,
+          "degenerate_phase_model": false,
+          "phase_support_penalty": 0.0,
+          "selection_score": 7716.181509604924,
+          "topology_cap_applied": false,
+          "eligibility_reason": null,
+          "event_support_by_phase": {
+            "0": 352,
+            "1": 755
+          },
+          "runtime_s": 1.9504804000025615
+        },
+        {
+          "k": 3,
+          "objective": -3572.10166604726,
+          "approx_bic": 7494.079023895796,
+          "parameter_count": 33,
+          "segment_count": 110,
+          "median_segment_duration_s": 36.0,
+          "mean_segment_duration_s": 33.24545454545454,
+          "supported_phase_count": 2,
+          "unsupported_phase_count": 1,
+          "phase_support_by_phase": {
+            "0": 1,
+            "1": 2,
+            "2": 0
+          },
+          "phase_contrast_by_phase": {
+            "0": 0.12622641563415526,
+            "1": 0.2881749504059553,
+            "2": 0.06781250029802323
+          },
+          "recurrent_complexity_penalty": 182.8193880648053,
+          "criterion_score": 7676.898411960601,
+          "degenerate_phase_model": false,
+          "phase_support_penalty": 0.0,
+          "selection_score": 7676.898411960601,
+          "topology_cap_applied": false,
+          "eligibility_reason": null,
+          "event_support_by_phase": {
+            "0": 356,
+            "1": 429,
+            "2": 322
+          },
+          "runtime_s": 2.8520232000155374
+        },
+        {
+          "k": 4,
+          "objective": -3510.4688351982295,
+          "approx_bic": 7487.43859279816,
+          "parameter_count": 44,
+          "segment_count": 147,
+          "median_segment_duration_s": 19.0,
+          "mean_segment_duration_s": 24.877551020408163,
+          "supported_phase_count": 2,
+          "unsupported_phase_count": 2,
+          "phase_support_by_phase": {
+            "0": 2,
+            "1": 0,
+            "2": 2,
+            "3": 0
+          },
+          "phase_contrast_by_phase": {
+            "0": 0.20750935236612955,
+            "1": 0.012070014849305153,
+            "2": 0.2980839285751184,
+            "3": 0.06766687124967576
+          },
+          "recurrent_complexity_penalty": 365.6387761296106,
+          "criterion_score": 7853.077368927771,
+          "degenerate_phase_model": true,
+          "phase_support_penalty": null,
+          "selection_score": null,
+          "topology_cap_applied": false,
+          "eligibility_reason": "MULTIPLE_UNSUPPORTED_PHASES",
+          "event_support_by_phase": {
+            "0": 284,
+            "1": 73,
+            "2": 430,
+            "3": 320
+          },
+          "runtime_s": 1.8625929999980144
+        },
+        {
+          "k": 5,
+          "objective": -3553.6009734176046,
+          "approx_bic": 7690.328099837336,
+          "parameter_count": 55,
+          "segment_count": 184,
+          "median_segment_duration_s": 20.0,
+          "mean_segment_duration_s": 19.875,
+          "supported_phase_count": 3,
+          "unsupported_phase_count": 2,
+          "phase_support_by_phase": {
+            "0": 0,
+            "1": 1,
+            "2": 2,
+            "3": 0,
+            "4": 2
+          },
+          "phase_contrast_by_phase": {
+            "0": 0.04033207532949746,
+            "1": 0.062239781143143776,
+            "2": 0.19939526945352554,
+            "3": 0.01152777835726738,
+            "4": 0.29205127608031034
+          },
+          "recurrent_complexity_penalty": 548.458164194416,
+          "criterion_score": 8238.78626403175,
+          "degenerate_phase_model": true,
+          "phase_support_penalty": null,
+          "selection_score": null,
+          "topology_cap_applied": false,
+          "eligibility_reason": "MULTIPLE_UNSUPPORTED_PHASES",
+          "event_support_by_phase": {
+            "0": 166,
+            "1": 156,
+            "2": 301,
+            "3": 84,
+            "4": 400
+          },
+          "runtime_s": 1.1889961999841034
+        },
+        {
+          "k": 6,
+          "objective": -3504.3127426231804,
+          "approx_bic": 7708.376868848913,
+          "parameter_count": 66,
+          "segment_count": 220,
+          "median_segment_duration_s": 17.0,
+          "mean_segment_duration_s": 16.62272727272727,
+          "supported_phase_count": 4,
+          "unsupported_phase_count": 2,
+          "phase_support_by_phase": {
+            "0": 1,
+            "1": 0,
+            "2": 1,
+            "3": 2,
+            "4": 0,
+            "5": 1
+          },
+          "phase_contrast_by_phase": {
+            "0": 0.07417402067780494,
+            "1": 7.440378516912309e-05,
+            "2": 0.08264118498563766,
+            "3": 0.2241594551205635,
+            "4": 0.013919753730297088,
+            "5": 0.28408730766177176
+          },
+          "recurrent_complexity_penalty": 731.2775522592212,
+          "criterion_score": 8439.654421108135,
+          "degenerate_phase_model": true,
+          "phase_support_penalty": null,
+          "selection_score": null,
+          "topology_cap_applied": false,
+          "eligibility_reason": "MULTIPLE_UNSUPPORTED_PHASES",
+          "event_support_by_phase": {
+            "0": 215,
+            "1": 37,
+            "2": 160,
+            "3": 279,
+            "4": 75,
+            "5": 341
+          },
+          "runtime_s": 1.4274885999620892
+        }
+      ]
+    },
+    "period_inference": {
+      "period_s": 99.99524773335186,
+      "method": "hybrid_circular_plus_multistream_lag_recurrence",
+      "search_range_s": [
+        45.0,
+        180.0
+      ],
+      "grid_step_s": 0.5,
+      "top_candidates": [
+        {
+          "period_s": 100.0,
+          "combined_score": 1.0,
+          "circular_score": 4.837314499968001,
+          "lag_score": 0.2661092969040457
+        },
+        {
+          "period_s": 99.5,
+          "combined_score": 0.9583224789800202,
+          "circular_score": 4.618220803515997,
+          "lag_score": 0.2661092969040457
+        },
+        {
+          "period_s": 100.5,
+          "combined_score": 0.9567072738940152,
+          "circular_score": 4.609729865375716,
+          "lag_score": 0.2661092969040457
+        },
+        {
+          "period_s": 50.0,
+          "combined_score": 0.839299000714417,
+          "circular_score": 4.674470851637114,
+          "lag_score": 0.011694713266217233
+        },
+        {
+          "period_s": 99.0,
+          "combined_score": 0.8385027564072258,
+          "circular_score": 3.9883429872768215,
+          "lag_score": 0.2661092969040457
+        },
+        {
+          "period_s": 101.0,
+          "combined_score": 0.8379737985065916,
+          "circular_score": 3.9855623194520264,
+          "lag_score": 0.2661092969040457
+        },
+        {
+          "period_s": 101.5,
+          "combined_score": 0.6623138974570177,
+          "circular_score": 3.0894385419643524,
+          "lag_score": 0.25592471803583977
+        },
+        {
+          "period_s": 98.5,
+          "combined_score": 0.6615556743625414,
+          "circular_score": 3.064547549176044,
+          "lag_score": 0.26372386063711034
+        }
+      ]
+    },
+    "schedule_base_timestamp_ms": 1739545137142.0,
+    "analysis_base_timestamp_ms": 1739545137142.0,
+    "event_base_timestamp_ms": 1739545137142.0,
+    "recording_start_timestamp_ms": 1739545136544.0
+  },
+  "invariant_sha256": "5df11f4c93609682e23e98bbdbb20c452210fe074c73aadadb0981874908abbc",
+  "phase_count": 3,
+  "period_s": 99.99524773335186,
+  "observed_origin_count": 4,
+  "complete_approach_count": null,
+  "origin_semantics": "observed source-zone labels_NOT_verified_intersection_geometry",
+  "approaches": [
+    {
+      "origin_zone": "E",
+      "movements": [
+        {
+          "movement": "E->N",
+          "input_event_count": 23,
+          "activity_scores_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          },
+          "activity_estimate": {
+            "estimated_state": "MODELLED_EVENT_ACTIVITY",
+            "level": "activity",
+            "source": "traffic-phase-product-result-v1",
+            "assumptions": [
+              "event_occupancy_score_NOT_lamp_probability"
+            ],
+            "observation_support": {
+              "kind": "aggregate_fitted_signature_NOT_local_observation"
+            },
+            "abstention_reason": null,
+            "provenance": {},
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "movement": "E->S",
+          "input_event_count": 194,
+          "activity_scores_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.07781250029802322
+          },
+          "activity_estimate": {
+            "estimated_state": "MODELLED_EVENT_ACTIVITY",
+            "level": "activity",
+            "source": "traffic-phase-product-result-v1",
+            "assumptions": [
+              "event_occupancy_score_NOT_lamp_probability"
+            ],
+            "observation_support": {
+              "kind": "aggregate_fitted_signature_NOT_local_observation"
+            },
+            "abstention_reason": null,
+            "provenance": {},
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "movement": "E->W",
+          "input_event_count": 359,
+          "activity_scores_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          },
+          "activity_estimate": {
+            "estimated_state": "MODELLED_EVENT_ACTIVITY",
+            "level": "activity",
+            "source": "traffic-phase-product-result-v1",
+            "assumptions": [
+              "event_occupancy_score_NOT_lamp_probability"
+            ],
+            "observation_support": {
+              "kind": "aggregate_fitted_signature_NOT_local_observation"
+            },
+            "abstention_reason": null,
+            "provenance": {},
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        }
+      ],
+      "hardware": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "vehicle_phase_model",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "hardware_type": "UNKNOWN",
+      "additional_section_count": null
+    },
+    {
+      "origin_zone": "N",
+      "movements": [
+        {
+          "movement": "N->E",
+          "input_event_count": 35,
+          "activity_scores_by_phase": {
+            "PHASE_A": 0.02075471729040146,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          },
+          "activity_estimate": {
+            "estimated_state": "MODELLED_EVENT_ACTIVITY",
+            "level": "activity",
+            "source": "traffic-phase-product-result-v1",
+            "assumptions": [
+              "event_occupancy_score_NOT_lamp_probability"
+            ],
+            "observation_support": {
+              "kind": "aggregate_fitted_signature_NOT_local_observation"
+            },
+            "abstention_reason": null,
+            "provenance": {},
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "movement": "N->S",
+          "input_event_count": 245,
+          "activity_scores_by_phase": {
+            "PHASE_A": 0.13622641563415527,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          },
+          "activity_estimate": {
+            "estimated_state": "MODELLED_EVENT_ACTIVITY",
+            "level": "activity",
+            "source": "traffic-phase-product-result-v1",
+            "assumptions": [
+              "event_occupancy_score_NOT_lamp_probability"
+            ],
+            "observation_support": {
+              "kind": "aggregate_fitted_signature_NOT_local_observation"
+            },
+            "abstention_reason": null,
+            "provenance": {},
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "movement": "N->W",
+          "input_event_count": 116,
+          "activity_scores_by_phase": {
+            "PHASE_A": 0.0584905669093132,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          },
+          "activity_estimate": {
+            "estimated_state": "MODELLED_EVENT_ACTIVITY",
+            "level": "activity",
+            "source": "traffic-phase-product-result-v1",
+            "assumptions": [
+              "event_occupancy_score_NOT_lamp_probability"
+            ],
+            "observation_support": {
+              "kind": "aggregate_fitted_signature_NOT_local_observation"
+            },
+            "abstention_reason": null,
+            "provenance": {},
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        }
+      ],
+      "hardware": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "vehicle_phase_model",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "hardware_type": "UNKNOWN",
+      "additional_section_count": null
+    },
+    {
+      "origin_zone": "S",
+      "movements": [
+        {
+          "movement": "S->N",
+          "input_event_count": 64,
+          "activity_scores_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          },
+          "activity_estimate": {
+            "estimated_state": "MODELLED_EVENT_ACTIVITY",
+            "level": "activity",
+            "source": "traffic-phase-product-result-v1",
+            "assumptions": [
+              "event_occupancy_score_NOT_lamp_probability"
+            ],
+            "observation_support": {
+              "kind": "aggregate_fitted_signature_NOT_local_observation"
+            },
+            "abstention_reason": null,
+            "provenance": {},
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "movement": "S->W",
+          "input_event_count": 26,
+          "activity_scores_by_phase": {
+            "PHASE_A": 0.011698112823069096,
+            "PHASE_B": 0.01,
+            "PHASE_C": 0.01
+          },
+          "activity_estimate": {
+            "estimated_state": "MODELLED_EVENT_ACTIVITY",
+            "level": "activity",
+            "source": "traffic-phase-product-result-v1",
+            "assumptions": [
+              "event_occupancy_score_NOT_lamp_probability"
+            ],
+            "observation_support": {
+              "kind": "aggregate_fitted_signature_NOT_local_observation"
+            },
+            "abstention_reason": null,
+            "provenance": {},
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        }
+      ],
+      "hardware": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "vehicle_phase_model",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "hardware_type": "UNKNOWN",
+      "additional_section_count": null
+    },
+    {
+      "origin_zone": "W",
+      "movements": [
+        {
+          "movement": "W->E",
+          "input_event_count": 532,
+          "activity_scores_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.32176870107650757,
+            "PHASE_C": 0.05718750134110451
+          },
+          "activity_estimate": {
+            "estimated_state": "MODELLED_EVENT_ACTIVITY",
+            "level": "activity",
+            "source": "traffic-phase-product-result-v1",
+            "assumptions": [
+              "event_occupancy_score_NOT_lamp_probability"
+            ],
+            "observation_support": {
+              "kind": "aggregate_fitted_signature_NOT_local_observation"
+            },
+            "abstention_reason": null,
+            "provenance": {},
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "movement": "W->N",
+          "input_event_count": 192,
+          "activity_scores_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.10680272430181503,
+            "PHASE_C": 0.03718750178813934
+          },
+          "activity_estimate": {
+            "estimated_state": "MODELLED_EVENT_ACTIVITY",
+            "level": "activity",
+            "source": "traffic-phase-product-result-v1",
+            "assumptions": [
+              "event_occupancy_score_NOT_lamp_probability"
+            ],
+            "observation_support": {
+              "kind": "aggregate_fitted_signature_NOT_local_observation"
+            },
+            "abstention_reason": null,
+            "provenance": {},
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "movement": "W->S",
+          "input_event_count": 58,
+          "activity_scores_by_phase": {
+            "PHASE_A": 0.01,
+            "PHASE_B": 0.03877551108598709,
+            "PHASE_C": 0.010312500409781933
+          },
+          "activity_estimate": {
+            "estimated_state": "MODELLED_EVENT_ACTIVITY",
+            "level": "activity",
+            "source": "traffic-phase-product-result-v1",
+            "assumptions": [
+              "event_occupancy_score_NOT_lamp_probability"
+            ],
+            "observation_support": {
+              "kind": "aggregate_fitted_signature_NOT_local_observation"
+            },
+            "abstention_reason": null,
+            "provenance": {},
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        }
+      ],
+      "hardware": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "vehicle_phase_model",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "hardware_type": "UNKNOWN",
+      "additional_section_count": null
+    }
+  ],
+  "unassigned_movements": [],
+  "phase_composition": {
+    "status": "UNVERIFIED_ACTIVITY_SIGNATURE",
+    "reason": "activity_scores_do_not_identify_permission_or_hardware",
+    "legacy_plan_proposal": {
+      "enabled": true,
+      "auto_inferred": true,
+      "model": "v10_automatic_physical_signal_plan",
+      "cycle_seconds": 99.99524773335186,
+      "mapping": {
+        "PHASE_A": "NS_THROUGH",
+        "PHASE_B": "EW_THROUGH",
+        "PHASE_C": "EW_THROUGH"
+      },
+      "time_offset_s": 68.152345,
+      "recording_start_timestamp_ms": 1739545136544.0,
+      "analysis_base_timestamp_ms": 1739545137142.0,
+      "timing": {
+        "phase_anchor_model_s": 0.598,
+        "phase_anchor_physical_s": 68.152345,
+        "startup_lost_s": 0.0,
+        "slice_start_s": 0.0,
+        "cycle_rotation_s": 67.554345,
+        "event_base_offset_s": 0.598
+      },
+      "confidence": 0.8333,
+      "phases": [
+        {
+          "name": "NS_THROUGH",
+          "green_movements": [
+            "N->S",
+            "S->N"
+          ],
+          "additional_movements": [],
+          "duration_s": 36.070051,
+          "source_phase": "PHASE_A",
+          "heads": {
+            "N": {
+              "main": "GREEN",
+              "arrows": {}
+            },
+            "S": {
+              "main": "GREEN",
+              "arrows": {}
+            },
+            "E": {
+              "main": "RED",
+              "arrows": {}
+            },
+            "W": {
+              "main": "RED",
+              "arrows": {}
+            }
+          }
+        },
+        {
+          "name": "EW_THROUGH",
+          "green_movements": [
+            "E->W",
+            "W->E"
+          ],
+          "additional_movements": [],
+          "duration_s": 63.925196,
+          "source_phase": "PHASE_B",
+          "heads": {
+            "N": {
+              "main": "RED",
+              "arrows": {}
+            },
+            "S": {
+              "main": "RED",
+              "arrows": {}
+            },
+            "E": {
+              "main": "GREEN",
+              "arrows": {}
+            },
+            "W": {
+              "main": "GREEN",
+              "arrows": {}
+            }
+          }
+        }
+      ],
+      "stages": [
+        {
+          "stage_id": 1,
+          "name": "EW_THROUGH",
+          "phase_start": 0.0,
+          "phase_end": 63.925196,
+          "active_movements": [
+            "E->W",
+            "W->E"
+          ],
+          "additional_movements": [],
+          "source_phase": "PHASE_B",
+          "heads": {
+            "N": {
+              "main": "RED",
+              "arrows": {}
+            },
+            "S": {
+              "main": "RED",
+              "arrows": {}
+            },
+            "E": {
+              "main": "GREEN",
+              "arrows": {}
+            },
+            "W": {
+              "main": "GREEN",
+              "arrows": {}
+            }
+          }
+        },
+        {
+          "stage_id": 2,
+          "name": "NS_THROUGH",
+          "phase_start": 63.925196,
+          "phase_end": 99.995248,
+          "active_movements": [
+            "N->S",
+            "S->N"
+          ],
+          "additional_movements": [],
+          "source_phase": "PHASE_A",
+          "heads": {
+            "N": {
+              "main": "GREEN",
+              "arrows": {}
+            },
+            "S": {
+              "main": "GREEN",
+              "arrows": {}
+            },
+            "E": {
+              "main": "RED",
+              "arrows": {}
+            },
+            "W": {
+              "main": "RED",
+              "arrows": {}
+            }
+          }
+        }
+      ],
+      "topology": {
+        "N": {
+          "main": "N->S",
+          "arrows": []
+        },
+        "S": {
+          "main": "S->N",
+          "arrows": []
+        },
+        "E": {
+          "main": "E->W",
+          "arrows": []
+        },
+        "W": {
+          "main": "W->E",
+          "arrows": []
+        }
+      },
+      "inference": {
+        "activity_threshold": 0.08,
+        "selectivity_ratio": 1.15,
+        "phase_confidence": {
+          "PHASE_A": 1.0,
+          "PHASE_B": 1.0,
+          "PHASE_C": 0.5
+        },
+        "turn_candidate_evidence_threshold": 0.03,
+        "turn_candidate_selectivity_ratio": 1.25,
+        "strong_turn_pair_threshold": 0.2,
+        "startup_lost_s": 0.0,
+        "cycle_rotation_s": 67.554345,
+        "inherited_empty_phases": {
+          "PHASE_C": "PHASE_B"
+        },
+        "turn_reciprocal_pair_min_probability": 0.06,
+        "suppressed_turn_movements_by_phase": {
+          "PHASE_A": [
+            "N->W"
+          ],
+          "PHASE_B": [
+            "W->N",
+            "W->S"
+          ],
+          "PHASE_C": [
+            "E->S"
+          ]
+        },
+        "physical_phase_count": 2,
+        "source": "V9 stream_activity_by_phase",
+        "unobserved_movements_are_not_invented": true
+      },
+      "state_semantics": {
+        "status": "UNVERIFIED_MAPPING_HYPOTHESIS",
+        "hardware_verified": false,
+        "calibrated_lamp_probability": null,
+        "reconstruction": "UNKNOWN",
+        "reason": "turn_activity_does_not_identify_hardware_arrow"
+      }
+    },
+    "proposal_semantics": "legacy_hypothesis_NOT_verified_mapping_or_observed_lamps"
+  },
+  "history": {
+    "source": "raw_hsmm_segments",
+    "selection": "accepted",
+    "validation_error": null,
+    "unavailable_reason": null,
+    "coverage_semantics": "model_history_NOT_camera_coverage_or_lamp_accuracy",
+    "intervals_s": [
+      [
+        0.0,
+        21.0
+      ],
+      [
+        21.0,
+        56.0
+      ],
+      [
+        56.0,
+        79.0
+      ],
+      [
+        79.0,
+        129.0
+      ],
+      [
+        129.0,
+        168.0
+      ],
+      [
+        168.0,
+        188.0
+      ],
+      [
+        188.0,
+        233.0
+      ],
+      [
+        233.0,
+        270.0
+      ],
+      [
+        270.0,
+        290.0
+      ],
+      [
+        290.0,
+        332.0
+      ],
+      [
+        332.0,
+        367.0
+      ],
+      [
+        367.0,
+        382.0
+      ],
+      [
+        382.0,
+        429.0
+      ],
+      [
+        429.0,
+        467.0
+      ],
+      [
+        467.0,
+        492.0
+      ],
+      [
+        492.0,
+        532.0
+      ],
+      [
+        532.0,
+        568.0
+      ],
+      [
+        568.0,
+        591.0
+      ],
+      [
+        591.0,
+        632.0
+      ],
+      [
+        632.0,
+        668.0
+      ],
+      [
+        668.0,
+        687.0
+      ],
+      [
+        687.0,
+        732.0
+      ],
+      [
+        732.0,
+        768.0
+      ],
+      [
+        768.0,
+        787.0
+      ],
+      [
+        787.0,
+        831.0
+      ],
+      [
+        831.0,
+        867.0
+      ],
+      [
+        867.0,
+        886.0
+      ],
+      [
+        886.0,
+        932.0
+      ],
+      [
+        932.0,
+        969.0
+      ],
+      [
+        969.0,
+        991.0
+      ],
+      [
+        991.0,
+        1033.0
+      ],
+      [
+        1033.0,
+        1068.0
+      ],
+      [
+        1068.0,
+        1095.0
+      ],
+      [
+        1095.0,
+        1132.0
+      ],
+      [
+        1132.0,
+        1167.0
+      ],
+      [
+        1167.0,
+        1188.0
+      ],
+      [
+        1188.0,
+        1230.0
+      ],
+      [
+        1230.0,
+        1267.0
+      ],
+      [
+        1267.0,
+        1286.0
+      ],
+      [
+        1286.0,
+        1332.0
+      ],
+      [
+        1332.0,
+        1368.0
+      ],
+      [
+        1368.0,
+        1387.0
+      ],
+      [
+        1387.0,
+        1432.0
+      ],
+      [
+        1432.0,
+        1468.0
+      ],
+      [
+        1468.0,
+        1487.0
+      ],
+      [
+        1487.0,
+        1532.0
+      ],
+      [
+        1532.0,
+        1569.0
+      ],
+      [
+        1569.0,
+        1591.0
+      ],
+      [
+        1591.0,
+        1631.0
+      ],
+      [
+        1631.0,
+        1667.0
+      ],
+      [
+        1667.0,
+        1688.0
+      ],
+      [
+        1688.0,
+        1733.0
+      ],
+      [
+        1733.0,
+        1766.0
+      ],
+      [
+        1766.0,
+        1789.0
+      ],
+      [
+        1789.0,
+        1832.0
+      ],
+      [
+        1832.0,
+        1868.0
+      ],
+      [
+        1868.0,
+        1890.0
+      ],
+      [
+        1890.0,
+        1933.0
+      ],
+      [
+        1933.0,
+        1969.0
+      ],
+      [
+        1969.0,
+        1987.0
+      ],
+      [
+        1987.0,
+        2031.0
+      ],
+      [
+        2031.0,
+        2067.0
+      ],
+      [
+        2067.0,
+        2090.0
+      ],
+      [
+        2090.0,
+        2133.0
+      ],
+      [
+        2133.0,
+        2169.0
+      ],
+      [
+        2169.0,
+        2188.0
+      ],
+      [
+        2188.0,
+        2232.0
+      ],
+      [
+        2232.0,
+        2268.0
+      ],
+      [
+        2268.0,
+        2287.0
+      ],
+      [
+        2287.0,
+        2332.0
+      ],
+      [
+        2332.0,
+        2370.0
+      ],
+      [
+        2370.0,
+        2390.0
+      ],
+      [
+        2390.0,
+        2433.0
+      ],
+      [
+        2433.0,
+        2467.0
+      ],
+      [
+        2467.0,
+        2488.0
+      ],
+      [
+        2488.0,
+        2531.0
+      ],
+      [
+        2531.0,
+        2568.0
+      ],
+      [
+        2568.0,
+        2587.0
+      ],
+      [
+        2587.0,
+        2632.0
+      ],
+      [
+        2632.0,
+        2664.0
+      ],
+      [
+        2664.0,
+        2681.0
+      ],
+      [
+        2681.0,
+        2731.0
+      ],
+      [
+        2731.0,
+        2769.0
+      ],
+      [
+        2769.0,
+        2791.0
+      ],
+      [
+        2791.0,
+        2832.0
+      ],
+      [
+        2832.0,
+        2865.0
+      ],
+      [
+        2865.0,
+        2883.0
+      ],
+      [
+        2883.0,
+        2929.0
+      ],
+      [
+        2929.0,
+        2966.0
+      ],
+      [
+        2966.0,
+        2985.0
+      ],
+      [
+        2985.0,
+        3032.0
+      ],
+      [
+        3032.0,
+        3071.0
+      ],
+      [
+        3071.0,
+        3091.0
+      ],
+      [
+        3091.0,
+        3132.0
+      ],
+      [
+        3132.0,
+        3167.0
+      ],
+      [
+        3167.0,
+        3186.0
+      ],
+      [
+        3186.0,
+        3232.0
+      ],
+      [
+        3232.0,
+        3269.0
+      ],
+      [
+        3269.0,
+        3289.0
+      ],
+      [
+        3289.0,
+        3331.0
+      ],
+      [
+        3331.0,
+        3368.0
+      ],
+      [
+        3368.0,
+        3390.0
+      ],
+      [
+        3390.0,
+        3432.0
+      ],
+      [
+        3432.0,
+        3468.0
+      ],
+      [
+        3468.0,
+        3486.0
+      ],
+      [
+        3486.0,
+        3531.0
+      ],
+      [
+        3531.0,
+        3567.0
+      ],
+      [
+        3567.0,
+        3589.0
+      ],
+      [
+        3589.0,
+        3632.0
+      ],
+      [
+        3632.0,
+        3657.0
+      ]
+    ],
+    "internal_gaps_s": [],
+    "extent_s": [
+      0.0,
+      3657.0
+    ],
+    "covered_seconds": 3657.0,
+    "covered_fraction_within_extent": 1.0,
+    "local_observation_coverage": "UNKNOWN"
+  },
+  "query_timebase": {
+    "unit": "seconds_relative_to_schedule_anchor",
+    "anchor_ms": 1739545137142.0
+  },
+  "queries": [
+    {
+      "timestamp_s": 0.0,
+      "logical_phase": {
+        "estimated_state": "PHASE_C",
+        "level": "logical_phase",
+        "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+        "assumptions": [
+          "latent_phase_estimate_NOT_lamp_state"
+        ],
+        "observation_support": {
+          "timestamp_s": 0.0,
+          "segment_source": "raw_hsmm_segments",
+          "temporally_covered": true,
+          "vehicle_demand_is_not_lamp_observation": true,
+          "local_vehicle_observation_support": "UNKNOWN",
+          "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability",
+          "segment_interval_s": [
+            0.0,
+            21.0
+          ],
+          "segment_index": 0,
+          "phase_id": 2,
+          "query_position_s": 0.0
+        },
+        "abstention_reason": null,
+        "provenance": {
+          "schedule_anchor_ms": 1739545137142.0
+        },
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "physical_section": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "vehicle_phase_model",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      }
+    },
+    {
+      "timestamp_s": 3657.0,
+      "logical_phase": {
+        "estimated_state": "UNKNOWN",
+        "level": "logical_phase",
+        "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+        "assumptions": [
+          "latent_phase_estimate_NOT_lamp_state"
+        ],
+        "observation_support": {
+          "timestamp_s": 3657.0,
+          "segment_source": "raw_hsmm_segments",
+          "temporally_covered": false,
+          "vehicle_demand_is_not_lamp_observation": true,
+          "local_vehicle_observation_support": "UNKNOWN",
+          "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability"
+        },
+        "abstention_reason": "NO_TEMPORAL_COVERAGE",
+        "provenance": {
+          "schedule_anchor_ms": 1739545137142.0
+        },
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "physical_section": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "vehicle_phase_model",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "NO_TEMPORAL_COVERAGE",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      }
+    }
+  ],
+  "physical_section": {
+    "estimated_state": "UNKNOWN",
+    "level": "physical_section",
+    "source": "vehicle_phase_model",
+    "assumptions": [],
+    "observation_support": {},
+    "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+    "provenance": {},
+    "mode": "reconstructed",
+    "calibrated_lamp_probability": null
+  },
+  "calibrated_lamp_probability": null,
+  "limitations": [
+    "No events does not prove no approach or RED.",
+    "Turn activity does not prove an additional section.",
+    "Hardware types/counts and permissive/protected semantics need independent evidence.",
+    "2D.1 local extension reconstruction remains FAIL and opt-in."
+  ],
+  "source_prediction_sha256": "7dae8417c17148331a2ff6a34cab97a4d2c7505ceec5d2770f05279a0f9f4dd1"
+}

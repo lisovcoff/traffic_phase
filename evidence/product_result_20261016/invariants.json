@@ -1,0 +1,54 @@
+{
+  "base_sha": "e6bf625023b05e20dd8357b513d599b72e8db8f5",
+  "input_kind": "saved_stage2c_predictions",
+  "new_fitting": false,
+  "real_replay": false,
+  "large_trajectory_archive_video_files_read": 0,
+  "runs": [
+    {
+      "input": "benchmarks/stage2c_20261014/predictions/17_2025_2_19_10_v9.json",
+      "input_sha256": "096318d037ff68cd56be1a845fe7861449429d4ca107930aef63ac42f14cf040",
+      "output": "evidence/product_result_20261016/17_2025_2_19_10_v9_product.json",
+      "output_sha256": "e0c74f31c2ecb6e89f0be6225b060d4049bd892c964f34c1ef22c567995bef8d",
+      "phase_count": 3,
+      "period_s": 99.84281321021679,
+      "observed_origin_count": 4,
+      "covered_seconds": 3711.0,
+      "local_observation_coverage": "UNKNOWN",
+      "schedule_selection_period_exactly_preserved": true,
+      "invariant_sha256": "67d59da33448cfa1f16aa798d33381e3783dec8f1490cb4af01129315370d7b7",
+      "export_process_wall_s": 0.28307700000004843,
+      "runtime_semantics": "export_only_NOT_inference_or_benchmark"
+    },
+    {
+      "input": "benchmarks/stage2c_20261014/predictions/19_2025_2_24_16_v9.json",
+      "input_sha256": "cefed42efeab33674a97ba7d94d6e839beafd8176e23ea24d8436414a7c270f7",
+      "output": "evidence/product_result_20261016/19_2025_2_24_16_v9_product.json",
+      "output_sha256": "d838c0784e06e1d0ad72533f726caeba01a4b89345c05f50ef5f40895de14eec",
+      "phase_count": 2,
+      "period_s": 120.02849954941996,
+      "observed_origin_count": 4,
+      "covered_seconds": 1185.0,
+      "local_observation_coverage": "UNKNOWN",
+      "schedule_selection_period_exactly_preserved": true,
+      "invariant_sha256": "4ecfa4c10b7a911d3dcbae91705114544378d89c111b3661c75078905a95c831",
+      "export_process_wall_s": 0.21308619999763323,
+      "runtime_semantics": "export_only_NOT_inference_or_benchmark"
+    },
+    {
+      "input": "benchmarks/stage2c_20261014/predictions/6_2025_2_14_20_v9.json",
+      "input_sha256": "7dae8417c17148331a2ff6a34cab97a4d2c7505ceec5d2770f05279a0f9f4dd1",
+      "output": "evidence/product_result_20261016/6_2025_2_14_20_v9_product.json",
+      "output_sha256": "c13d67e023223b7fa199af6b841464d5a5e827dc99b7fa5fd68882a12a8868b5",
+      "phase_count": 3,
+      "period_s": 99.99524773335186,
+      "observed_origin_count": 4,
+      "covered_seconds": 3657.0,
+      "local_observation_coverage": "UNKNOWN",
+      "schedule_selection_period_exactly_preserved": true,
+      "invariant_sha256": "5df11f4c93609682e23e98bbdbb20c452210fe074c73aadadb0981874908abbc",
+      "export_process_wall_s": 0.2479830000011134,
+      "runtime_semantics": "export_only_NOT_inference_or_benchmark"
+    }
+  ]
+}

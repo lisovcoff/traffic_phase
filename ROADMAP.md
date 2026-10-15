@@ -1,5 +1,14 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: реализован [единый product result для сохранённых predictions](docs/PRODUCT_RESULT_20261016.md).
+K/period/schedule/selection сохранены на трёх записях;42 tests pass. Движения
+по source zones, shared activity signatures, общий logical query и UNKNOWN hardware
+готовы для consumers. Это ещё не новый raw JSON/ZIP endpoint и не финальный HTML.
+По явно заданному checklist закрыто2/8 инженерных пунктов (25%), не процент
+кода/точности/оставшегося времени. Следующий доступный шаг — интеграция этого
+контракта с существующими offline input/HTML, параллельно независимому пилоту.
+2D.1 FAIL/default-off, main и исторические результаты сохранены.
+
 2026-10-16: выполнен [metadata-only допуск реального пилота](docs/REAL_PILOT_READINESS_20261016.md).
 Текущие 243-track/A/B блоки — одна development-сессия, не независимый holdout.
 Есть запускаемый intake, provenance seals и 31 checks, без нового inference/replay.
