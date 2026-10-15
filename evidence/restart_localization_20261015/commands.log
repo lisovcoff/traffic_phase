@@ -1,0 +1,24 @@
+Working directory: D:\Code\PythonProjects\traffic_phase\audit_checkout
+Base HEAD: 73b017d01693ed47e8ac5a8a0341cd3560d4ea4a
+Branch: fix/restart-time-localization-20261015
+Read canonical AGENTS.md, ROADMAP.md, PRODUCT_GOAL.md, PROJECT_STATUS.md and preceding registration report.
+Sealed21-case plan BEFORE implementation and any new event-localization outputs.
+Reused existing candidate discovery, raw speed calculations and confirmation parameters; existing metric causal extractor reviewed but not reused on unknown-unit raw image coordinates.
+C:\Python314\python.exe -m pytest tests/test_restart_localization.py -q -p no:cacheprovider
+Initial25 passed2.68s (initial_tests.log).
+C:\Python314\python.exe -m pytest tests/test_restart_localization.py tests/test_vehicle_temporal_evidence.py tests/test_trajectory_events.py tests/test_local_registration_validation.py -q -p no:cacheprovider
+Before real data:77 passed2.43s (target_tests.log).
+C:\Python314\python.exe scripts/check_restart_localization.py synthetic
+21 declared cases generated; inputs/truth persisted before inference; outputs sealed before scoring; all criteria pass.
+Code/config/input SHA seal stored in code_config_seal.json BEFORE real seven-track check.
+C:\Python314\python.exe scripts/check_restart_localization.py real
+Exactly one seven-track event-only check; output seal before reading video onset review. No phase fitting/replay or video sampling.
+C:\Python314\python.exe scripts/check_restart_localization.py evaluate-real
+Exactly one descriptive evaluation of all seven outputs; no subsequent inference/config tuning.
+C:\Python314\python.exe -m pytest tests/test_restart_localization.py tests/test_restart_localization_artifacts.py tests/test_vehicle_temporal_evidence.py tests/test_trajectory_events.py tests/test_local_registration_validation.py -q -p no:cacheprovider
+Final81 passed2.51s (final_tests.log). Additional artifact tests only; no real localizer rerun.
+git diff --check
+Source, prediction and main invariants: checks.log.
+
+Portable source-content identity supplement added after outputs: canonical-LF hashes and staged Git blob IDs, original byte-exact seal retained. No inference/config changes.
+Final same81 tests passed2.86s after artifact-verifier portability adjustment; see final_portable_tests.log. No real event check repeated.

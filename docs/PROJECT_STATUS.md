@@ -1,5 +1,20 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 product-direction checkpoint: critical path consolidated at top of
+ROADMAP.md; video calibration is a prerequisite, not the product. A bounded opt-in
+restart localizer now uses unsmoothed observed interval transitions with the same
+legacy seed/threshold/confirmation parameters. Ambiguity remains UNKNOWN; shared
+StateEstimate/TemporalEvent contracts retained. Default candidate selection/output
+unchanged, proven on all7 saved seeds including duration/confidence/separation.
+Preregistered21-case synthetic gate passed:9 recovered/12 abstentions; vehicle
+point MAE0.811→0.167s on9 recoverable cases, NOT phase/lamp accuracy. One sealed
+development check:6 issued/1 UNKNOWN (two alternatives), sampled-video point
+containment1/7→6/7. No post-result tuning.81 targeted tests passed. See
+RESTART_LOCALIZATION_20261015.md. Main/default and phase predictions unchanged;
+2D.1 remains FAIL. Next: independent multi-cycle validation, explicit evidence
+integration, then K/composition/local-history acceptance; stop redoing the seven-car
+calibration. No phase decoder/likelihood/prior experiments restarted.
+
 2026-10-15 local image/clock check completed: one predeclared calibration using3
 vehicles/15 image points, sealed before4 withheld vehicles/18 visible points scored;
 2 clipped-image points explicitly unavailable. All four pass declared50px check:

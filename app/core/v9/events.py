@@ -535,7 +535,14 @@ def _recording_start_ms(tracks):
         raise ValueError('unable to determine recording start')
     return min(vals)
 
-def _kinematic_release_candidate(ds, entry_ms, exit_ms):
+def _kinematic_release_candidate(ds, entry_ms, exit_ms, *, diagnostics=None):
+    """Legacy candidate selection; optional diagnostics do not change its output.
+
+    Smoothed speeds identify a relative-motion seed, not an exact restart time.
+    The opt-in event localizer can inspect raw intervals without copying discovery.
+    """
+    if diagnostics is not None:
+        diagnostics.clear()
     pts = []
     for d in ds:
         try:
@@ -590,6 +597,8 @@ def _kinematic_release_candidate(ds, entry_ms, exit_ms):
     low = vs <= threshold
 
     stop_min = max(1.5, 7.0 * med_dt)
+    confirmation_fraction = 0.65
+    confirmation_multiplier = 1.1
     runs = []
     start = None
     for i, flag in enumerate(low):
@@ -617,9 +626,9 @@ def _kinematic_release_candidate(ds, entry_ms, exit_ms):
         after = vs[b:min(len(vs), b + width)]
         if len(after) < 3:
             continue
-        frac = float(np.mean(after > threshold * 1.1))
+        frac = float(np.mean(after > threshold * confirmation_multiplier))
         med_after = float(np.median(after))
-        if frac < 0.65 or med_after <= threshold * 1.1:
+        if frac < confirmation_fraction or med_after <= threshold * confirmation_multiplier:
             continue
         confidence = float(
             np.clip(
@@ -636,7 +645,15 @@ def _kinematic_release_candidate(ds, entry_ms, exit_ms):
             confidence,
             separation,
         ))
-    return max(candidates, key=lambda q: (q[2], q[0], -q[1])) if candidates else None
+    selected = max(candidates, key=lambda q: (q[2], q[0], -q[1])) if candidates else None
+    if diagnostics is not None and selected is not None:
+        diagnostics.update(raw_image_speeds=v.tolist(), relative_speed_threshold=threshold,
+                           observation_times_s=t.tolist(), smoothing_sigma_samples=sigma,
+                           median_dt_s=med_dt, confirmation_width_samples=width,
+                           confirmation_fraction=confirmation_fraction,
+                           confirmation_multiplier=confirmation_multiplier,
+                           selected_seed_index=int(np.searchsorted(t, selected[1])))
+    return selected
 
 def extract_event_views(tracks):
     """Legacy tuple adapter retained for evidence_policy='legacy_v9'."""

@@ -1,0 +1,805 @@
+diff --git a/.gitattributes b/.gitattributes
+index b87670f..fca86bc 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -19,3 +19,4 @@ evidence/vehicle_clock_alignment_20261015/** -text -whitespace
+ evidence/event_signal_associations_20261015/** -text -whitespace
+ evidence/seven_restart_review_20261015/** -text -whitespace
+ evidence/local_vehicle_registration_20261015/** -text -whitespace
++evidence/restart_localization_20261015/** -text -whitespace
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 072f7c2..6ff4844 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -1,5 +1,41 @@
+ # traffic_phase — план до готового продукта
+ 
++## Текущий критический путь к продукту — уточнение 2026-10-15
++
++Цель неизменна: **JSON/ZIP → подходы/движения → K и состав фаз → локальная история
++с продлениями → возможные аппаратные секции → согласованный HTML/API**.
++Завершение определяется этим сквозным результатом и независимой проверкой,
++а не числом calibration-отчётов или synthetic tests. Основные функции ещё не приняты;
++обоснованного процента «почти готово» сейчас нет.
++
++1. **Выполнен opt-in шаг:** [локализация раннего vehicle restart proxy](docs/RESTART_LOCALIZATION_20261015.md):
++   существующий smoothed seed сохранить, timestamp локализовать по raw intervals,
++   явные UNKNOWN/альтернативы; independent synthetic counterexamples, затем один
++   check всех7 сохранённых development-треков.21 synthetic cases прошли; на известных
++   машинах6 proxy/1 UNKNOWN с альтернативами. Это не phase/lamp accuracy.
++   Без нового phase fitting, clock fit, видеоразметки или настройки по семи машинам.
++   Default сохраняется; переход к production ещё требует отдельной validation.
++2. **Далее:** зафиксировать vehicle-event contract для фазовой модели и проверить
++   method-specific event→signal relation на нескольких циклах/отдельном validation.
++   Это ограниченный validation-шаг, а не бесконечная геометрическая калибровка:
++   прежние семь машин не дают права выбирать общий offset или prior.
++3. **Вернуться к основной алгоритмической цепочке:** принять состав/K по движениям
++   для3/4 подходов и shared movements; затем локальную историю hold/shortening
++   без подмены обычным циклом. K и длительности оценивать раздельно; 2D.1 пока FAIL.
++4. **Секции и режимы:** выдавать подтверждённую схему либо альтернативы с причиной
++   UNKNOWN. Автомобильный поворот не отличает стрелку от permissive движения.
++   Продление оценивается как временное отклонение; пожарная машина/нагрузка/ДТП
++   не назначаются причиной без отдельного evidence. Сценарии РФ — матрица тестов
++   и явного unsupported, не обещание распознать все причины по JSON.
++5. **Сквозная приёмка:** соединить уже существующий HTML/FastAPI с общим query
++   contract, интегрировать существующую explicit-plan правку без дубля; затем
++   независимые реальные sessions, ошибки/coverage/UNKNOWN, ZIP limits и установка.
++
++Ручное видео используется для разработки/validation. Пользователь готового
++продукта не обязан размечать каждый новый JSON. Новые decoder/likelihood/prior
++experiments остаются на паузе; текущее задание разрешает только описанный
++event-time шаг и уточнение плана. Ниже сохранён журнал прежних этапов.
++
+ 2026-10-15: [локальная image/clock привязка проверена на4 withheld машинах](docs/LOCAL_VEHICLE_REGISTRATION_20261015.md).
+ Один расчёт по3 другим машинам, без signal/RELEASE labels; max withheld residual
+ снизился158→42px при почти неизменных часах. Найден отдельный technical counterexample:
+diff --git a/app/core/v9/events.py b/app/core/v9/events.py
+index 9a5e09f..0645582 100644
+--- a/app/core/v9/events.py
++++ b/app/core/v9/events.py
+@@ -535,7 +535,14 @@ def _recording_start_ms(tracks):
+         raise ValueError('unable to determine recording start')
+     return min(vals)
+ 
+-def _kinematic_release_candidate(ds, entry_ms, exit_ms):
++def _kinematic_release_candidate(ds, entry_ms, exit_ms, *, diagnostics=None):
++    """Legacy candidate selection; optional diagnostics do not change its output.
++
++    Smoothed speeds identify a relative-motion seed, not an exact restart time.
++    The opt-in event localizer can inspect raw intervals without copying discovery.
++    """
++    if diagnostics is not None:
++        diagnostics.clear()
+     pts = []
+     for d in ds:
+         try:
+@@ -590,6 +597,8 @@ def _kinematic_release_candidate(ds, entry_ms, exit_ms):
+     low = vs <= threshold
+ 
+     stop_min = max(1.5, 7.0 * med_dt)
++    confirmation_fraction = 0.65
++    confirmation_multiplier = 1.1
+     runs = []
+     start = None
+     for i, flag in enumerate(low):
+@@ -617,9 +626,9 @@ def _kinematic_release_candidate(ds, entry_ms, exit_ms):
+         after = vs[b:min(len(vs), b + width)]
+         if len(after) < 3:
+             continue
+-        frac = float(np.mean(after > threshold * 1.1))
++        frac = float(np.mean(after > threshold * confirmation_multiplier))
+         med_after = float(np.median(after))
+-        if frac < 0.65 or med_after <= threshold * 1.1:
++        if frac < confirmation_fraction or med_after <= threshold * confirmation_multiplier:
+             continue
+         confidence = float(
+             np.clip(
+@@ -636,7 +645,15 @@ def _kinematic_release_candidate(ds, entry_ms, exit_ms):
+             confidence,
+             separation,
+         ))
+-    return max(candidates, key=lambda q: (q[2], q[0], -q[1])) if candidates else None
++    selected = max(candidates, key=lambda q: (q[2], q[0], -q[1])) if candidates else None
++    if diagnostics is not None and selected is not None:
++        diagnostics.update(raw_image_speeds=v.tolist(), relative_speed_threshold=threshold,
++                           observation_times_s=t.tolist(), smoothing_sigma_samples=sigma,
++                           median_dt_s=med_dt, confirmation_width_samples=width,
++                           confirmation_fraction=confirmation_fraction,
++                           confirmation_multiplier=confirmation_multiplier,
++                           selected_seed_index=int(np.searchsorted(t, selected[1])))
++    return selected
+ 
+ def extract_event_views(tracks):
+     """Legacy tuple adapter retained for evidence_policy='legacy_v9'."""
+diff --git a/app/experimental/restart_localization.py b/app/experimental/restart_localization.py
+new file mode 100644
+index 0000000..853b5f9
+--- /dev/null
++++ b/app/experimental/restart_localization.py
+@@ -0,0 +1,107 @@
++"""Opt-in localization of an EXISTING restart proxy on unsmoothed intervals.
++
++Offline confirmation still uses later observations and a whole-track relative
++speed threshold. This is NOT an online/causal detector or an observed STOP/GREEN.
++No production selector or timestamp is modified; a separate result is returned.
++"""
++from dataclasses import replace
++import inspect
++import math
++
++from scipy.ndimage import gaussian_filter1d
++
++from app.core.state_contract import StateEstimate, physical_estimate
++from app.core.temporal_evidence import TemporalEvent
++from app.core.trajectory_geometry import _finite_number
++from app.core.v9.events import _kinematic_release_candidate
++from app.core.v9.vehicle_evidence import CONFIG, clean_detections, track_fingerprint
++
++
++MAX_DETECTIONS = 20000  # resource limit, not a motion threshold
++
++
++def localize_restart(track, event: TemporalEvent | None):
++    source='experimental_raw_interval_restart_localization'
++    assumptions=('relative_image_motion_NOT_absolute_stop',
++                 'legacy_whole_track_threshold_and_seed_are_conditioning_assumptions',
++                 'raw_interval_is_threshold_evidence_NOT_world_or_lamp_switch_interval')
++    result=dict(status='unavailable',legacy_event=event.to_dict() if event else None,
++                localized_event=None,alternatives=[],physical=physical_estimate('UNKNOWN').to_dict())
++
++    def abstain(reason, **support):
++        result['estimate']=StateEstimate('UNKNOWN','activity',source,assumptions,
++            support,reason,{'production_default_changed':False}).to_dict()
++        return result
++
++    raw=track.get('detections') if isinstance(track,dict) else None
++    if not isinstance(raw,list) or not raw:
++        return abstain('NO_VEHICLE_OBSERVATIONS')
++    if len(raw)>MAX_DETECTIONS:
++        return abstain('DETECTION_RESOURCE_LIMIT',limit=MAX_DETECTIONS)
++    ds,stats=clean_detections(track)
++    if stats['conflicting_timestamps'] or stats['invalid_detections']:
++        return abstain('INVALID_OR_CONFLICTING_OBSERVATIONS',**stats)
++    if len(ds)<14:
++        return abstain('INSUFFICIENT_VEHICLE_SAMPLES',detections=len(ds))
++    if any(not _finite_number(d.get(k)) for d in ds for k in ['centroid_x','centroid_y']):
++        return abstain('INVALID_IMAGE_COORDINATES')
++    gaps=[b['millis']-a['millis'] for a,b in zip(ds,ds[1:])]
++    if max(gaps)>CONFIG.max_detection_gap_s*1000:
++        return abstain('OBSERVATION_GAP',max_gap_ms=max(gaps))
++    if event is None:
++        return abstain('NO_SELECTED_RESTART_PROXY')
++    if event.evidence_method!='kinematic_restart_proxy':
++        return abstain('UNSUPPORTED_RESTART_METHOD')
++    fingerprint=track_fingerprint(track,ds)
++    if event.source_track_id!=track.get('id') or event.provenance.get('track_fingerprint')!=fingerprint:
++        return abstain('SOURCE_EVENT_TRACK_MISMATCH')
++    diagnostics={}
++    seed=_kinematic_release_candidate(ds,ds[0]['millis'],ds[-1]['millis'],diagnostics=diagnostics)
++    if seed is None or not math.isclose(seed[1]*1000,event.timestamp_ms,abs_tol=.001,rel_tol=0):
++        return abstain('LEGACY_CANDIDATE_MISMATCH')
++    speeds=diagnostics['raw_image_speeds']
++    threshold=diagnostics['relative_speed_threshold']
++    width=diagnostics['confirmation_width_samples']
++    multiplier=diagnostics['confirmation_multiplier']
++    fraction=diagnostics['confirmation_fraction']
++    # Same finite kernel support as the existing SciPy Gaussian default. It bounds
++    # the seed's localization search, NOT temporal uncertainty or a confidence set.
++    truncate=inspect.signature(gaussian_filter1d).parameters['truncate'].default
++    radius=int(truncate*diagnostics['smoothing_sigma_samples']+.5)
++    center=diagnostics['selected_seed_index']
++    alternatives=[]
++    for i in range(max(1,center-radius),min(len(speeds),center+radius+1)):
++        if speeds[i-1]>threshold or speeds[i]<=threshold:
++            continue
++        after=speeds[i:i+width]
++        if len(after)!=width:  # No fabricated confirmation in a clipped tail.
++            continue
++        supported=sum(v>threshold*multiplier for v in after)/width
++        ordered=sorted(after)
++        median=(ordered[(width-1)//2]+ordered[width//2])/2
++        if supported<fraction or median<=threshold*multiplier:
++            continue
++        alternatives.append(dict(timestamp_ms=ds[i+1]['millis'],
++            observation_interval_ms=[ds[i]['millis'],ds[i+1]['millis']],
++            preceding_low_interval_ms=[ds[i-1]['millis'],ds[i]['millis']],
++            confirmation_interval_ms=[ds[i]['millis'],ds[i+width]['millis']],
++            confirmation_raw_intervals=width,raw_high_fraction=supported))
++    result['alternatives']=alternatives
++    if len(alternatives)!=1:
++        return abstain('MULTIPLE_RAW_TRANSITIONS' if alternatives else 'NO_SUPPORTED_RAW_TRANSITION',
++                       alternative_count=len(alternatives),**stats)
++    chosen=alternatives[0]
++    localized=replace(event,timestamp_ms=float(chosen['timestamp_ms']),
++        evidence_method='kinematic_restart_unsmoothed_interval_proxy',
++        provenance={**event.provenance,**chosen,'legacy_timestamp_ms':event.timestamp_ms,
++            'timing_localizer_version':1,'selection_unchanged':True,
++            'threshold_origin':'unchanged_legacy_relative_image_speed_clustering',
++            'relative_image_speed_threshold':threshold,
++            'symmetric_smoothing_used_for_timestamp':False,
++            'offline_future_confirmation_used':True,
++            'observation_interval_semantics':'threshold_displacement_support_NOT_guaranteed_world_onset_interval',
++            'uncertainty_reason':'raw_threshold_proxy_and_legacy_heuristic_radius_not_calibrated'})
++    result.update(status='available_proxy',localized_event=localized.to_dict(),
++        estimate=StateEstimate('RELATIVE_IMAGE_MOTION_TRANSITION','activity',source,assumptions,
++            chosen,None,{'track_fingerprint':fingerprint,'production_default_changed':False}).to_dict())
++    return result
+diff --git a/docs/PRODUCT_GOAL.md b/docs/PRODUCT_GOAL.md
+index 498d2ed..533302d 100644
+--- a/docs/PRODUCT_GOAL.md
++++ b/docs/PRODUCT_GOAL.md
+@@ -50,3 +50,9 @@ calibration нужны для разработки и проверки каче
+ VALIDATION_PROTOCOL.md §8, затем ограниченная проверка согласованной модели
+ на отдельном validation session. Самостоятельные эксперименты вне этих целей
+ не являются приближением к приёмке. Новые эксперименты требуют следующего задания.
++
++Уточнение по заданию 2026-10-15: разрешён один bounded event-time шаг устранения
++раннего restart proxy, с сохранением default и старых результатов. Затем работа
++должна вернуться к проверяемой цепочке K/composition/local history; повторная
++диагностика тех же семи машин не является самостоятельной целью. Сводный
++критический путь находится в начале корневого ROADMAP.md.
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index acf046d..c0c341a 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,20 @@
+ # Project status — 2D.1, 2026-10-14
+ 
++2026-10-15 product-direction checkpoint: critical path consolidated at top of
++ROADMAP.md; video calibration is a prerequisite, not the product. A bounded opt-in
++restart localizer now uses unsmoothed observed interval transitions with the same
++legacy seed/threshold/confirmation parameters. Ambiguity remains UNKNOWN; shared
++StateEstimate/TemporalEvent contracts retained. Default candidate selection/output
++unchanged, proven on all7 saved seeds including duration/confidence/separation.
++Preregistered21-case synthetic gate passed:9 recovered/12 abstentions; vehicle
++point MAE0.811→0.167s on9 recoverable cases, NOT phase/lamp accuracy. One sealed
++development check:6 issued/1 UNKNOWN (two alternatives), sampled-video point
++containment1/7→6/7. No post-result tuning.81 targeted tests passed. See
++RESTART_LOCALIZATION_20261015.md. Main/default and phase predictions unchanged;
++2D.1 remains FAIL. Next: independent multi-cycle validation, explicit evidence
++integration, then K/composition/local-history acceptance; stop redoing the seven-car
++calibration. No phase decoder/likelihood/prior experiments restarted.
++
+ 2026-10-15 local image/clock check completed: one predeclared calibration using3
+ vehicles/15 image points, sealed before4 withheld vehicles/18 visible points scored;
+ 2 clipped-image points explicitly unavailable. All four pass declared50px check:
+diff --git a/docs/RESTART_LOCALIZATION_20261015.md b/docs/RESTART_LOCALIZATION_20261015.md
+new file mode 100644
+index 0000000..592e3fe
+--- /dev/null
++++ b/docs/RESTART_LOCALIZATION_20261015.md
+@@ -0,0 +1,126 @@
++# Возврат к цели продукта и локализация restart
++
++Base `73b017d01693ed47e8ac5a8a0341cd3560d4ea4a`.
++Ветка `fix/restart-time-localization-20261015`.
++
++## Почему этот шаг нужен конечному продукту
++
++Цель: автоматический JSON/ZIP → подходы/движения → K/состав фаз → история
++продлений/сокращений → возможные основные/дополнительные секции → HTML/API.
++Последняя работа с видео выявила реальный механизм искажения входных timestamps,
++но повторная калибровка тех же семи машин сама по себе не завершает ни один из
++основных результатов. Критический путь уточнён в начале корневого ROADMAP.md.
++
++Сейчас есть загрузка, bounded discovery, защитный query contract и основа HTML.
++Правильность K/composition ещё не принята на независимых данных; local history2D.1
++FAIL, hardware mapping остаётся гипотезой без достаточного внешнего evidence.
++Поэтому мы ещё не на этапе «осталось оформить интерфейс». Процент готовности
++по количеству файлов/тестов не используется. Общая точность фаз в этом шаге
++не пересчитывалась и не объявляется улучшенной.
++
++Режимы/секции РФ должны быть проверяемой матрицей сценариев, а не обещанием
++распознать любые причины по траекториям. Обнаружить удлинение и назвать его причиной
++спецтранспорт — разные задачи. Один поворот не определяет аппаратную стрелку;
++для неразличимых вариантов нужны альтернативы/UNKNOWN, при этом обычный вход
++готового продукта остаётся JSON/ZIP без обязательной ручной разметки.
++
++## Реализованное изменение
++
++`app/core/v9/events.py::_kinematic_release_candidate` сохраняет прежний выбор,
++tuple и default timestamps. Добавлен только opt-in диагностический выход с уже
++рассчитанными raw speeds, относительным threshold и confirmation guards.
++Численные guards не изменены; вынесены в локальные переменные, чтобы эксперимент
++использовал те же значения. Старый код clustering/discovery не скопирован.
++
++`app/experimental/restart_localization.py::localize_restart` принимает исходный
++трек и **уже выбранный** TemporalEvent. Legacy seed остаётся reference; локальная
++область поиска ограничена конечной поддержкой существующего Gaussian kernel.
++Время нового proxy берётся с правой границы первого несглаженного наблюдаемого
++интервала перехода low→high при полной исходной confirmation window. Энергия
++будущего движения больше не используется как измерение скорости прошлого интервала.
++
++Это offline localizer: дальнейшие наблюдения подтверждают событие, threshold и
++seed всё ещё используют весь трек. Он **не online/causal detector**, не абсолютный
++STOP и не точное world-motion/signal onset. При двух поддержанных raw transitions
++оба сохраняются как альтернативы, публикуемый event отсутствует и estimate UNKNOWN.
++Нет выбора лучшего перехода по видео. Gaps, conflicts, короткий/обрезанный support,
++неверное происхождение и ресурсный предел имеют отдельные abstention reasons.
++
++Используются общие StateEstimate/TemporalEvent/physical_estimate и существующая
++sanitization. Heuristic confidence и radius наследуются с прежней некалиброванной
++семантикой; sampling bracket относится к threshold-displacement evidence, не к
++гарантированному моменту первого физического движения. Event→signal uncertainty
++остаётся UNKNOWN, calibrated lamp probability отсутствует. Production selector,
++default, HSMM, K/period/mapping и старые predictions не изменены.
++
++## Сначала независимые контрпримеры
++
++До реализации зафиксированы plan SHA,21 cases, seeds7/23, generation truth,
++noise/exposure, критерии и30s CPU budget. Генератор отдельно от inference создаёт
++координаты автомобиля: abrupt onset, ускорение, два sampling steps, no-motion,
++nonstop, единичный spike, gap, обрезанный tail, одинаковые/противоречивые duplicates,
++пустой вход и прежний sine witness. Ни один threshold не выбран по реальному видео.
++
++Все21 criteria выполнены:9 ожидаемо восстановимых proxy получены,12
++неидентифицируемых случаев abstain. На9 recoverable случаях point MAE относительно
++независимого world-onset: legacy0.811s → new0.167s. Это synthetic vehicle metric.
++У ускорения новая точка отстаёт на0.450s: она отмечает относительный threshold,
++а не первое ненулевое движение. Для7 abrupt cases sampling intervals содержат
++generation onset; такую гарантию для acceleration/реальных данных не заявляем.
++Все physical states UNKNOWN. Synthetic suite runtime0.297s при бюджете30s.
++
++Дополнительные структурные tests проверяют multiple alternatives, смену names,
++неразличимые причины движения, resource limit, source mismatch, одинаковые legacy
++результаты с/без diagnostics и запрет argument annotations. Исходный recovery
++gate2D.1 этим vehicle gate не заменён и остаётся FAIL.
++
++## Один development check после code/config seal
++
++После synthetic gate зафиксированы код/config и хеши входов. Один проход всех
++семи прежних треков, без новых видео, архивов, clock fit или phase replay.
++Outputs и SHA сохранены **до** загрузки video onset review для оценки.
++После результатов ни код inference, ни thresholds не изменялись.
++
++| Показатель | Прежний seed | Новый opt-in proxy |
++|---|---:|---:|
++| Всего треков | 7 | 7 |
++| Выданные события | 7 | 6 |
++| UNKNOWN/abstention | 0 | 1 |
++| Point внутри сохранённого sampled video bracket | 1/7 | 6/7 |
++| Независимых циклов | 1 | 1 |
++
++UNKNOWN у9915811: два поддержанных raw transitions; обе альтернативы сохранены,
++по truth ни одна не выбрана. Отсутствующее новое событие не исключено из знаменателя.
++Runtime семи событий0.142s. Все7 старых timestamps, duration, capped heuristic
++confidence и separation точно воспроизводятся в unchanged default path.
++
++Это **не оценка lamp accuracy**, не независимый holdout и не приёмка общей
++точности restart. Привязка часов и identities условны; сравнение сохраняет
++UNAVAILABLE для сертифицированной timing validation. Новые proxy нельзя сразу
++объявить переключением GREEN или реакцией на него. Старые phase metrics raw19/34
++и новые экспертные0/11 сохранены; новый fitting/benchmark не запускался.
++
++## Выход из этого шага
++
++Локальное искажение от сглаживания имеет отдельное проверенное исправление;
++production promotion пока отсутствует. Не продолжать бесконечно калибровать те же
++семь машин. Следующий bounded шаг — независимые циклы/отдельный validation для
++vehicle localization и method-specific signal relation, затем явная интеграция
++проверенного event contract в основную цепочку K/composition/local history.
++Если проверки провалятся, требуется конкретная модель ошибки, а не общий offset
++или выбор удачного prior по знакомым записям. Decoder/likelihood/prior experiments
++не возобновлены этим заданием.
++
++## Воспроизводимость
++
++Артефакты в `evidence/restart_localization_20261015/`: preregistered plan,
++отдельные synthetic inputs/truth/output seals/metrics, code/config seal, все7 real
++outputs с альтернативами, отдельный comparison, команды/логи, хеши/diff/ZIP.
++Большое видео и прежние predictions повторно не упакованы.
++
++Итог: **81 targeted tests passed2.86s**, включая затронутые trajectory/evidence
++regressions и проверки сохранённых артефактов. Основные команды — commands.log.
++Main и production default сохранены. Для portable проверки исходников дополнительно
++сохранены canonical-LF hashes/Git blob IDs; первоначальный byte-exact seal до
++inference не переписан. Это устраняет различие CRLF/LF при checkout без изменения
++алгоритма или параметров после real check.
+diff --git a/scripts/check_restart_localization.py b/scripts/check_restart_localization.py
+new file mode 100644
+index 0000000..888779d
+--- /dev/null
++++ b/scripts/check_restart_localization.py
+@@ -0,0 +1,176 @@
++"""Bounded event-only check. No phase inference, video sampling or label fitting.
++
++Synthetic truth and real video review enter scoring only after outputs are sealed.
++All real examples are development; this script never promotes a production policy.
++"""
++import argparse
++from dataclasses import fields
++import hashlib
++import json
++from pathlib import Path
++import sys
++import time
++
++sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
++from app.core.temporal_evidence import TemporalEvent
++from app.core.v9.events import _kinematic_release_candidate
++from app.core.v9.vehicle_evidence import clean_detections,extract_vehicle_evidence
++from app.experimental.restart_localization import localize_restart
++from tests.restart_localization_cases import generate_case
++
++ROOT=Path(__file__).resolve().parents[1]
++OUT=ROOT/'evidence/restart_localization_20261015'
++
++
++def sha(path):
++    return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++def load(path):
++    return json.loads(path.read_text(encoding='utf8'))
++
++
++def save_new(name,value):
++    path=OUT/name
++    with path.open('x',encoding='utf8') as f:
++        json.dump(value,f,indent=2,allow_nan=False)
++    return sha(path)
++
++
++def seal(name,inputs,output):
++    save_new(name,dict(inputs_sha256={str(p.relative_to(ROOT)).replace('\\','/'):sha(p) for p in inputs},
++                       output_sha256=sha(OUT/output)))
++
++
++def synthetic(plan):
++    start=time.perf_counter()
++    cases=[];truth=[]
++    for spec in plan['cases']:
++        track,label=generate_case(spec,plan['generator'])
++        cases.append(dict(name=spec['name'],track=track))
++        truth.append(dict(name=spec['name'],**label))
++    save_new('synthetic_inputs.json',cases)
++    save_new('synthetic_truth.json',truth)  # generation, before inference
++    results=[]
++    for case in cases:
++        events,_=extract_vehicle_evidence(case['track'])
++        event=next((e for e in events if e.event_type=='RELEASE'),None)
++        result=localize_restart(case['track'],event)
++        results.append(dict(name=case['name'],result=result))
++        if time.perf_counter()-start>plan['budgets']['synthetic_total_seconds']:
++            raise RuntimeError('SYNTHETIC_RESOURCE_BUDGET_EXHAUSTED_NO_REAL_CHECK')
++    save_new('synthetic_outputs.json',results)
++    seal('synthetic_output_seal.json',[OUT/'plan.json',OUT/'synthetic_inputs.json'],'synthetic_outputs.json')
++    # Only now score against independent generation truth.
++    scored=[]
++    for row,label in zip(results,load(OUT/'synthetic_truth.json')):
++        r=row['result'];kind=label['kind']
++        recover=kind in ['abrupt_dt01','abrupt_dt02','acceleration','identical_duplicates','sine_witness']
++        item=dict(name=row['name'],expected_recovery=recover,status=r['status'])
++        if recover and r['localized_event']:
++            actual=label['independent_world_onset_ms']
++            old=r['legacy_event']['timestamp_ms']-actual
++            new=r['localized_event']['timestamp_ms']-actual
++            interval=r['localized_event']['provenance']['observation_interval_ms']
++            contained=interval[0]<=actual<=interval[1]
++            passed=new>=-1 and new<=(1000 if kind=='acceleration' else label['dt_ms']+1)
++            passed=passed and (contained or kind=='acceleration')
++            item.update(old_error_ms=old,new_error_ms=new,observation_interval_contains_world_onset=contained,
++                        gate_pass=passed)
++        else:
++            item['gate_pass']=not recover and r['status']=='unavailable'
++        scored.append(item)
++    metrics=dict(cases=len(scored),gate_pass=all(x['gate_pass'] for x in scored),
++                 expected_recovery=sum(x['expected_recovery'] for x in scored),
++                 recovered=sum(x['status']=='available_proxy' for x in scored),
++                 unavailable=sum(x['status']=='unavailable' for x in scored),
++                 rows=scored,runtime_s=time.perf_counter()-start,
++                 semantics='vehicle image-motion proxy check, NOT signal-boundary or lamp accuracy')
++    save_new('synthetic_metrics.json',metrics)
++    print('Synthetic gate',metrics['gate_pass'],'cases',len(scored),'recovered',metrics['recovered'],
++          'unavailable',metrics['unavailable'])
++    if not metrics['gate_pass']:
++        raise RuntimeError('SYNTHETIC_GATE_FAIL_NO_REAL_CHECK')
++
++
++def real(plan):
++    if not load(OUT/'synthetic_metrics.json')['gate_pass']:
++        raise RuntimeError('SYNTHETIC_GATE_NOT_PASSED')
++    frozen=load(OUT/'code_config_seal.json')
++    for name,digest in frozen['files_sha256'].items():
++        if sha(ROOT/name)!=digest:
++            raise ValueError('FROZEN_CODE_CONFIG_CHANGED')
++    source=ROOT/'evidence/seven_restart_review_20261015/selected_raw_tracks.json'
++    sidecar=ROOT/'evidence/event_signal_associations_20261015/vehicle_events.json'
++    tracks=load(source)
++    events=[e for e in load(sidecar)['events'] if e['event_type']=='RELEASE'
++            and e['source_track_id'] in {r['id'] for r in tracks}]
++    if len(tracks)!=plan['budgets']['real_tracks'] or len(events)!=len(tracks):
++        raise ValueError('FIXED_REAL_COHORT_MISMATCH')
++    results=[];start=time.perf_counter()
++    for record in tracks:
++        source_event=next(e for e in events if e['source_track_id']==record['id'])
++        event=TemporalEvent(**{f.name:source_event[f.name] for f in fields(TemporalEvent)})
++        # Default selection/timestamp must still reproduce the saved seed.
++        ds,_=clean_detections(record)
++        legacy=_kinematic_release_candidate(ds,ds[0]['millis'],ds[-1]['millis'])
++        if legacy is None or abs(legacy[1]*1000-event.timestamp_ms)>.001:
++            raise ValueError('LEGACY_SEED_NOT_REPRODUCED_STOP')
++        results.append(dict(track_id=record['id'],result=localize_restart(record,event),
++                            unchanged_default_seed=list(legacy)))
++    save_new('real_outputs.json',dict(rows=results,runtime_s=time.perf_counter()-start,
++                                    fits=0,phase_model_replays=0,production_default_changed=False))
++    seal('real_output_seal.json',[source,sidecar,OUT/'code_config_seal.json'],'real_outputs.json')
++    print('Seven real event outputs sealed BEFORE reading video onset review')
++
++
++def evaluate_real():
++    output=load(OUT/'real_outputs.json')
++    if sha(OUT/'real_outputs.json')!=load(OUT/'real_output_seal.json')['output_sha256']:
++        raise ValueError('OUTPUT_SEAL_MISMATCH')
++    review_path=ROOT/'evidence/seven_restart_review_20261015/visual_review.json'
++    profile_path=ROOT/'evidence/local_vehicle_registration_20261015/local_model.json'
++    clock_path=ROOT/'evidence/local_vehicle_registration_20261015/validation_result.json'
++    review=load(review_path);profile=load(profile_path);clock=load(clock_path)
++    rows=[]
++    for row in output['rows']:
++        tid=row['track_id'];r=row['result']
++        annotation=next(a for a in review['rows'] if a['track_id_hypothesis']==tid)
++        left,right=annotation['observed_onset_bracket_s']
++        item=dict(track_id=tid,status=r['status'],video_onset_bracket_s=[left,right],
++                  timing_validation_status='UNAVAILABLE_JOINT_CLOCK_GEOMETRY_IDENTITY_NOT_CALIBRATED',
++                  physical_state='UNKNOWN',calibrated_lamp_probability=None)
++        for name,key in [('old','legacy_event'),('new','localized_event')]:
++            e=r[key]
++            if e:
++                rel=(e['timestamp_ms']-profile['origin_ms'])/1000
++                point=rel-profile['delta_s']
++                sets=[[rel-b,rel-a] for a,b in clock['joint_frozen_h_clock_sets_s']]
++                distance=max(left-point,0,point-right)
++                item[name]=dict(candidate_media_s=point,point_minus_onset_range_s=[point-right,point-left],
++                    distance_to_sampled_video_bracket_s=distance,
++                    conditional_clock_sets_s=sets,
++                    conditional_clock_sets_overlap_bracket=any(a<=right and b>=left for a,b in sets))
++        item['abstention_reason']=r['estimate']['abstention_reason']
++        rows.append(item)
++    report=dict(rows=rows,observations=len(rows),independent_cycles=1,
++        available=sum(r['status']=='available_proxy' for r in rows),
++        unavailable=sum(r['status']!='available_proxy' for r in rows),
++        old_point_in_sampled_bracket=sum(r['old']['distance_to_sampled_video_bracket_s']==0 for r in rows),
++        new_point_in_sampled_bracket=sum('new' in r and r['new']['distance_to_sampled_video_bracket_s']==0 for r in rows),
++        semantics='development vehicle-level diagnostic, not phase accuracy; missing new events NOT counted as matches',
++        video_review_sha256=sha(review_path),clock_model_sha256=sha(profile_path),
++        clock_validation_sha256=sha(clock_path),real_output_sha256=sha(OUT/'real_outputs.json'))
++    save_new('real_comparison.json',report)
++    print('Development cohort',report['available'],'available',report['unavailable'],'UNKNOWN;',
++          'point inside sampled bracket old/new',report['old_point_in_sampled_bracket'],report['new_point_in_sampled_bracket'])
++
++
++if __name__=='__main__':
++    parser=argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('mode',choices=['synthetic','real','evaluate-real'])
++    mode=parser.parse_args().mode
++    plan=load(OUT/'plan.json')
++    if sha(OUT/'plan.json')!=(OUT/'plan.sha256').read_text().strip():
++        raise ValueError('PLAN_SEAL_MISMATCH')
++    {'synthetic':lambda:synthetic(plan),'real':lambda:real(plan),'evaluate-real':evaluate_real}[mode]()
+diff --git a/tests/restart_localization_cases.py b/tests/restart_localization_cases.py
+new file mode 100644
+index 0000000..7bdad91
+--- /dev/null
++++ b/tests/restart_localization_cases.py
+@@ -0,0 +1,42 @@
++"""Declared independent world trajectories, NOT generated by the localizer."""
++import copy
++
++import numpy as np
++
++
++def generate_case(spec, config):
++    kind=spec['kind']
++    dt=config['dt_coarse_s'] if kind=='abrupt_dt02' else config['dt_s']
++    onset=config['sine_witness_onset_s'] if kind=='sine_witness' else config['onset_s']
++    t=np.arange(config['extent_s'][0],config['extent_s'][1]+dt/2,dt)
++    delta=np.maximum(0,t-onset)
++    position=.3+config['movement_rate_coordinate_per_s']*delta
++    if kind=='acceleration':
++        position=.3+.5*config['acceleration_coordinate_per_s2']*delta**2
++    if kind in ['no_motion','isolated_spike']:
++        position=np.full_like(t,.3)
++    if kind=='nonstop':
++        position=.3+config['movement_rate_coordinate_per_s']*t
++    if kind=='isolated_spike':
++        position[np.argmin(abs(t-config['spike_at_s']))]+=config['spike_amplitude']
++    noise=np.random.default_rng(spec['seed']).uniform(-1,1,len(t))*config['coordinate_noise_uniform_halfwidth']
++    if kind=='sine_witness':
++        noise=config['coordinate_noise_uniform_halfwidth']*np.sin(3*t)
++    origin,target='N','_S'
++    detections=[dict(millis=int(round(time*1000)),centroid_x=float(x+j),centroid_y=.5,
++        speed=.1,zone=origin if time<30 else target) for time,x,j in zip(t,position,noise)]
++    if kind=='observation_gap':
++        lo,hi=config['observation_gap_open_s']
++        detections=[d for d in detections if not lo*1000<d['millis']<hi*1000]
++    if kind=='truncated_after_onset':
++        detections=[d for d in detections if d['millis']<=config['truncated_end_s']*1000]
++    if kind=='identical_duplicates':
++        detections=[copy.deepcopy(d) for row in detections for d in [row,row]]
++    if kind=='conflicting_duplicates':
++        row=copy.deepcopy(next(d for d in detections if d['millis']==20100))
++        row['centroid_x']+=.02
++        detections.append(row)
++    if kind=='empty':
++        detections=[]
++    track=dict(id=1,zone_in=origin,zone_out=target,stay_duration_millis=0,detections=detections)
++    return track,dict(independent_world_onset_ms=onset*1000,dt_ms=dt*1000,kind=kind)
+diff --git a/tests/test_restart_localization.py b/tests/test_restart_localization.py
+new file mode 100644
+index 0000000..c1c1cc8
+--- /dev/null
++++ b/tests/test_restart_localization.py
+@@ -0,0 +1,100 @@
++import copy
++from dataclasses import replace
++import json
++from pathlib import Path
++
++import pytest
++
++from app.core.v9.events import _kinematic_release_candidate
++from app.core.v9.vehicle_evidence import extract_vehicle_evidence
++from app.experimental.restart_localization import localize_restart
++from tests.restart_localization_cases import generate_case
++
++
++PLAN=json.loads((Path(__file__).resolve().parents[1]/'evidence/restart_localization_20261015/plan.json').read_text())
++
++
++def legacy_event(track):
++    events,_=extract_vehicle_evidence(track)
++    return next((e for e in events if e.event_type=='RELEASE'),None)
++
++
++@pytest.mark.parametrize('spec',PLAN['cases'],ids=lambda s:s['name'])
++def test_declared_sparse_vehicle_cases(spec):
++    track,truth=generate_case(spec,PLAN['generator'])
++    before=copy.deepcopy(track)
++    event=legacy_event(track)
++    result=localize_restart(track,event)
++    assert track==before
++    assert result['physical']['estimated_state']=='UNKNOWN'
++    assert result['estimate']['calibrated_lamp_probability'] is None
++    assert result['estimate']['level']=='activity'
++    kind=spec['kind']
++    recover=kind in ['abrupt_dt01','abrupt_dt02','acceleration','identical_duplicates','sine_witness']
++    if not recover:
++        assert result['status']=='unavailable'
++        assert result['estimate']['abstention_reason']
++        return
++    assert result['status']=='available_proxy'
++    localized=result['localized_event']
++    point=localized['timestamp_ms']
++    onset=truth['independent_world_onset_ms']
++    assert point>=onset-1
++    assert point-onset<= (1000 if kind=='acceleration' else truth['dt_ms']+1)
++    if kind!='acceleration':
++        a,b=localized['uncertainty']['vehicle_event']['sampling_interval_ms']
++        assert a<=onset<=b
++    assert localized['uncertainty']['event_to_signal_switch']['status']=='UNKNOWN'
++    assert localized['confidence']==event.confidence
++    assert localized['temporal_uncertainty_ms']==event.temporal_uncertainty_ms
++
++
++def test_legacy_candidate_values_identical_with_diagnostics():
++    track,_=generate_case(PLAN['cases'][0],PLAN['generator'])
++    ds=track['detections'];diag={}
++    old=_kinematic_release_candidate(ds,0,40000)
++    new=_kinematic_release_candidate(ds,0,40000,diagnostics=diag)
++    assert old==new
++    assert diag['selected_seed_index']>=0
++    _kinematic_release_candidate([],0,40000,diagnostics=diag)
++    assert diag=={}
++
++
++def test_renaming_movements_and_unobserved_cause_does_not_change_timing():
++    track,_=generate_case(PLAN['cases'][0],PLAN['generator'])
++    event=legacy_event(track)
++    original=localize_restart(track,event)
++    for cause in ['green_queue','permissive_turn','blockage_cleared_without_switch']:
++        track['unobserved_cause']=cause
++        renamed=localize_restart(track,replace(event,movement='arbitrary-shared-movement'))
++        assert renamed['localized_event']['timestamp_ms']==original['localized_event']['timestamp_ms']
++        assert renamed['physical']['estimated_state']=='UNKNOWN'
++
++
++def test_inputs_do_not_accept_signal_labels_argument():
++    with pytest.raises(TypeError):
++        localize_restart({},None,annotations={'phase':'green'})
++
++
++def test_resource_limit_is_abstention():
++    result=localize_restart({'detections':[{}]*20001},None)
++    assert result['estimate']['abstention_reason']=='DETECTION_RESOURCE_LIMIT'
++
++
++def test_multiple_supported_raw_transitions_are_not_silently_ranked():
++    import numpy as np
++
++    track,_=generate_case(PLAN['cases'][0],PLAN['generator'])
++    for d in track['detections']:
++        t=d['millis']/1000
++        d['centroid_x']=.3+.01*(max(0,t-20)-np.clip(t-21.2,0,.3))+1e-5*np.sin(3*t)
++    result=localize_restart(track,legacy_event(track))
++    assert result['status']=='unavailable'
++    assert result['estimate']['abstention_reason']=='MULTIPLE_RAW_TRANSITIONS'
++    assert len(result['alternatives'])>=2
++
++
++def test_seed_from_another_track_is_rejected():
++    track,_=generate_case(PLAN['cases'][0],PLAN['generator'])
++    event=replace(legacy_event(track),source_track_id=999)
++    assert localize_restart(track,event)['estimate']['abstention_reason']=='SOURCE_EVENT_TRACK_MISMATCH'
+diff --git a/tests/test_restart_localization_artifacts.py b/tests/test_restart_localization_artifacts.py
+new file mode 100644
+index 0000000..513f931
+--- /dev/null
++++ b/tests/test_restart_localization_artifacts.py
+@@ -0,0 +1,66 @@
++"""Checks on saved outputs; never reruns the real localizer or phase inference."""
++import hashlib
++import json
++from pathlib import Path
++
++import pytest
++
++ROOT=Path(__file__).resolve().parents[1]
++OUT=ROOT/'evidence/restart_localization_20261015'
++
++
++def load(path):
++    return json.loads(path.read_text(encoding='utf8'))
++
++
++def test_frozen_code_and_input_hashes_match():
++    seal=load(OUT/'code_config_seal.json')
++    portable=load(OUT/'source_content_seal.json')['files']
++    for name,digest in seal['files_sha256'].items():
++        raw=(ROOT/name).read_bytes()
++        if name in portable:
++            assert portable[name]['original_run_byte_sha256']==digest
++            assert hashlib.sha256(raw.replace(b'\r\n',b'\n')).hexdigest()==portable[name]['canonical_lf_sha256']
++        else:
++            assert hashlib.sha256(raw).hexdigest()==digest
++
++
++def test_seven_saved_legacy_candidates_preserve_all_recorded_attributes():
++    source=load(ROOT/'evidence/event_signal_associations_20261015/vehicle_events.json')
++    rows=load(OUT/'real_outputs.json')['rows']
++    assert len(rows)==7
++    for row in rows:
++        original=next(e for e in source['events'] if e['event_type']=='RELEASE'
++                      and e['source_track_id']==row['track_id'])
++        duration,timestamp,confidence,separation=row['unchanged_default_seed']
++        assert timestamp*1000==pytest.approx(original['timestamp_ms'],abs=.001)
++        assert duration==original['provenance']['relative_low_speed_duration_s']
++        assert separation==original['provenance']['image_speed_separation']
++        assert min(.65,confidence)==original['confidence']
++        assert row['result']['legacy_event']['timestamp_ms']==original['timestamp_ms']
++
++
++def test_output_seal_and_unavailable_denominator_are_preserved():
++    source=OUT/'real_outputs.json'
++    assert hashlib.sha256(source.read_bytes()).hexdigest()==load(OUT/'real_output_seal.json')['output_sha256']
++    outputs=load(source)
++    comparison=load(OUT/'real_comparison.json')
++    assert comparison['available']+comparison['unavailable']==7
++    assert outputs['fits']==0 and outputs['phase_model_replays']==0
++    assert not outputs['production_default_changed']
++    for row in outputs['rows']:
++        assert row['result']['physical']['estimated_state']=='UNKNOWN'
++        if row['result']['status']=='unavailable':
++            assert row['result']['localized_event'] is None
++            assert row['result']['estimate']['abstention_reason']
++
++
++def test_synthetic_truth_separate_and_gate_not_replaced_with_real_score():
++    metrics=load(OUT/'synthetic_metrics.json')
++    assert metrics['cases']==21
++    assert metrics['gate_pass']
++    assert metrics['expected_recovery']==9
++    assert metrics['recovered']==9 and metrics['unavailable']==12
++    inputs=load(OUT/'synthetic_inputs.json')
++    assert all(set(row)=={'name','track'} for row in inputs)
++    assert all('independent_world_onset_ms' not in row['track'] for row in inputs)
