@@ -1,6 +1,7 @@
 import gzip
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -20,7 +21,8 @@ def test_all_outputs_and_frozen_inputs_sources_match_seals():
         assert hashlib.sha256((OUT/name).read_bytes()).hexdigest()==expected
     assert hashlib.sha256((ROOT/'docs/SPARSE_DURATION_PROTOCOL_20261015.md').read_bytes()).hexdigest()==m['protocol_sha256']
     for name,expected in m['source_sha256_lf'].items():
-        assert hashlib.sha256((ROOT/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest()==expected
+        frozen=subprocess.check_output(['git','show',f"{m['code_commit']}:{name}"],cwd=ROOT)
+        assert hashlib.sha256(frozen.replace(b'\r\n',b'\n')).hexdigest()==expected
     for e in s['predictions']:assert hashlib.sha256((OUT/e['path']).read_bytes()).hexdigest()==e['sha256']
 
 

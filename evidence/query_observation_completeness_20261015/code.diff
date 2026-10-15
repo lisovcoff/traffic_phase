@@ -1,0 +1,713 @@
+diff --git a/.gitattributes b/.gitattributes
+index be5f327..7189de8 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -27,3 +27,5 @@ evidence/unanchored_sequence_20261015/** -text -whitespace
+ docs/UNANCHORED_SEQUENCE_PROTOCOL_20261015.md -text
+ evidence/sparse_duration_20261015/** -text -whitespace
+ docs/SPARSE_DURATION_PROTOCOL_20261015.md -text
++evidence/query_observation_completeness_20261015/** -text -whitespace
++docs/EXTERNAL_REVIEW_RECEIVED_20261015.md -text -whitespace
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 87aff26..522fb91 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -2,6 +2,18 @@
+ 
+ ## Текущий критический путь к продукту — уточнение 2026-10-15
+ 
++Независимое ревью получено: [ответ/проверенные findings](docs/REVIEW_RESPONSE_20261015.md).
++Закрыт P1 query-completeness: short query больше не создаёт ложное negative
++evidence вне доставки; shared guard для обоих likelihood backends, rounded
++timestamp support,108+16 tests. Исторические artifacts/default сохранены.
++Следующий маршрут: (1) согласованный latent prehistory/context для реальных окон;
++(2) scalable fixed-K inference с доказанной factorization и контролем truncation,
++полный перебор только oracle; (3) независимый calibration/validation пилот при
++наличии sessions/sync, без переноса synthetic rates; (4) K/состав/секции и
++сквозная приёмка существующего HTML.2D.1 FAIL; пилотные пороги из ревью пока
++предложения, не достигнутые результаты. Не запускать новую recovery suite
++вместо исправления identified blockers.
++
+ Новейшая проверка: [sparse stochastic durations](docs/SPARSE_DURATION_RESULTS_20261015.md)
+ по frozen seeds7/23: core flat8/12 PASS,soft7/12, synthetic29/34 matched±2с;
+ hold+30 упирается в path budget.2D.1 FAIL, никаких post-result настроек.
+diff --git a/app/experimental/joint_track_model.py b/app/experimental/joint_track_model.py
+index 8b7c954..6d88879 100644
+--- a/app/experimental/joint_track_model.py
++++ b/app/experimental/joint_track_model.py
+@@ -101,6 +101,11 @@ def observation_components(view, spec, *, max_tracks=512, max_q_cells=50000):
+     pr,pc=spec.get('release_detection_probability'),spec.get('crossing_detection_probability')
+     if not _finite(pr) or not _finite(pc) or not 0<=pr<=1 or not 0<=pc<=1:
+         raise ModelUnavailable('SUPPLIED_DETECTION_PROBABILITIES_REQUIRED')
++    from app.experimental.observation_domain import require_complete_query
++    domain=require_complete_query(view,horizon_s=h,windows=windows,error_type=ModelUnavailable,
++        finite_clock=(OFFSET_MS,GRID_S*1000,n),
++        channels=[('RELEASE',[d for d,_ in delays],pr),
++            ('CROSSING_PROXY',[d+lag for d,_ in delays for lag,_ in transit],pc)])
+     tracks=tracks_from_view(view,spec)
+     if len(tracks)>max_tracks: raise ModelUnavailable('TRACK_BUDGET_EXHAUSTED')
+     if len(tracks)*n>max_q_cells: raise ModelUnavailable('Q_CELL_BUDGET_EXHAUSTED')
+@@ -132,7 +137,8 @@ def observation_components(view, spec, *, max_tracks=512, max_q_cells=50000):
+     if len(tracks) and np.any(q.sum(axis=1)==0):
+         raise ModelUnavailable('TRACK_PATTERN_UNSUPPORTED_BY_DELAY_DETECTION_MODEL')
+     return {'tracks':tracks,'q':q,'detected_probability':detected,
+-            'rates':rates,'exposure':exposure,'movements':movements,'n':n}
++            'rates':rates,'exposure':exposure,'movements':movements,'n':n,
++            'observation_domain':domain}
+ 
+ 
+ def path_loglik(labels, components):
+diff --git a/app/experimental/observation_domain.py b/app/experimental/observation_domain.py
+new file mode 100644
+index 0000000..bb4dcfe
+--- /dev/null
++++ b/app/experimental/observation_domain.py
+@@ -0,0 +1,62 @@
++"""Require full delivery of all marks reachable by a finite observation model.
++
++Query selection acts on reported timestamps, not on true detection time. This
++guard rejects incomplete delivery instead of changing the observation kernel.
++It does NOT establish camera availability, track validity or population coverage.
++"""
++import math
++
++
++def require_complete_query(view, *, horizon_s, windows, channels,
++                           error_type=ValueError, resolution_ms=None,
++                           rounding_origin_ms=None,finite_clock=None):
++    """channels=(name, shifts_s, detection_probability); all inputs validated.
++
++    Rounded: include every clock centre whose cell overlaps a reachable camera
++    interval with positive measure. Finite clock: exact discrete reachable marks.
++    A half-open query must include the rightmost reported centre itself.
++    """
++    query=view.get('range_ms')
++    def fail(reason,details=None):
++        exc=error_type(reason)
++        exc.observation_domain=details or {}
++        raise exc
++    if (not isinstance(query,(list,tuple)) or len(query)!=2 or any(
++            isinstance(x,bool) or not isinstance(x,(int,float)) or not math.isfinite(x) for x in query)
++            or query[1]<=query[0]):
++        fail('QUERY_TIMESTAMP_DOMAIN_REQUIRED')
++    report=dict(query_range_ms=list(query),selection_clock='reported_timestamp',
++        validation='finite_population_reachable_marks_NOT_camera_or_demand_verification',
++        upstream_event_delivery='ASSUMED_WITHIN_SUPPLIED_INDEX_NOT_VERIFIED_FROM_RAW_DATA',
++        required_channel_ranges_ms=[],complete=True)
++    for name,shifts,probability in channels:
++        if probability==0:continue
++        for shift in sorted(set(shifts)):
++            for a,b in windows:
++                if resolution_ms is None:
++                    # Clock comes from the existing backend, not independent defaults.
++                    offset,step,n=finite_clock
++                    offset+=shift*1000
++                    jlo=max(0,math.ceil((a*1000-offset)/step))
++                    jhi=min(n-1,math.ceil((b*1000-offset)/step)-1)
++                    if jhi<jlo:continue
++                    first,last=offset+jlo*step,offset+jhi*step
++                else:
++                    lo=max(a,shift)*1000;hi=min(b,horizon_s+shift)*1000
++                    if hi<=lo:continue
++                    half=resolution_ms/2
++                    # Cell [c-half,c+half) intersects [lo,hi) iff
++                    # lo-half < c < hi+half (zero-mass ties irrelevant).
++                    jlo=math.floor((lo-half-rounding_origin_ms)/resolution_ms)+1
++                    jhi=math.ceil((hi+half-rounding_origin_ms)/resolution_ms)-1
++                    if jhi<jlo:continue
++                    first=rounding_origin_ms+jlo*resolution_ms
++                    last=rounding_origin_ms+jhi*resolution_ms
++                report['required_channel_ranges_ms'].append(dict(channel=name,
++                    first_reported_ms=first,last_reported_ms=last))
++                if not query[0]<=first or not last<query[1]:report['complete']=False
++    if not report['complete']:fail('QUERY_DOMAIN_INCOMPLETE',report)
++    for row in view.get('events',[]):
++        ts=row['event']['timestamp_ms']
++        if not query[0]<=ts<query[1]:fail('EVENT_OUTSIDE_QUERY_DOMAIN',report)
++    return report
+diff --git a/app/experimental/phase_observation_bridge.py b/app/experimental/phase_observation_bridge.py
+index 196898d..ac1f4e4 100644
+--- a/app/experimental/phase_observation_bridge.py
++++ b/app/experimental/phase_observation_bridge.py
+@@ -12,7 +12,7 @@ import math
+ from app.core.state_contract import StateEstimate, physical_estimate
+ from app.experimental.joint_track_model import ModelUnavailable, observation_components
+ 
+-VERSION = 'experimental-phase-observation-bridge-v1'
++VERSION = 'experimental-phase-observation-bridge-v2'
+ REQUIRED = ('rates_per_s', 'rate_source', 'release_delay_s', 'transit_delay_s',
+             'delay_source', 'latent_demand_exposure', 'demand_source',
+             'observation_windows_s', 'observation_window_source',
+@@ -47,6 +47,11 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
+         return {**base, 'reason': 'INVALID_EVENT_LIMIT'}
+     if not isinstance(view, dict) or view.get('schema') != 'experimental-local-evidence-v1' or view.get('status') != 'available':
+         return {**base, 'reason': 'AVAILABLE_LOCAL_EVIDENCE_VIEW_REQUIRED'}
++    query_range=view.get('range_ms')
++    if (not isinstance(query_range,(list,tuple)) or len(query_range)!=2 or any(
++            isinstance(x,bool) or not isinstance(x,(int,float)) or not math.isfinite(x)
++            for x in query_range) or query_range[1]<=query_range[0]):
++        return {**base,'reason':'QUERY_TIMESTAMP_DOMAIN_REQUIRED'}
+     rows = view.get('events', [])
+     if not isinstance(rows, list) or len(rows) > max_events:
+         return {**base, 'reason': 'EVENT_BUDGET_EXHAUSTED'}
+@@ -75,6 +80,7 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
+     except (TypeError, ValueError):
+         return {**base, 'reason': 'INVALID_INTENSITY_MATRIX'}
+     relative = copy.deepcopy(view)
++    relative['range_ms']=[x-origin_ms for x in query_range]
+     for row in relative['events']:
+         row['event']['timestamp_ms'] -= origin_ms
+     # Keep original provenance/timestamp brackets unchanged: no false clock conversion.
+@@ -89,7 +95,8 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
+         else:
+             raise ModelUnavailable('UNSUPPORTED_CLOCK_MODEL')
+     except ModelUnavailable as exc:
+-        return {**base, 'reason': str(exc)}
++        return {**base, 'reason': str(exc),
++            'observation_domain':getattr(exc,'observation_domain',None)}
+     return {**base, 'status': 'ready_for_declared_model_only', 'reason': None,
+             'components': components,
+             'event_time_translation': {'origin_ms': origin_ms,
+diff --git a/app/experimental/rounded_observation.py b/app/experimental/rounded_observation.py
+index dedf27d..3dad7a0 100644
+--- a/app/experimental/rounded_observation.py
++++ b/app/experimental/rounded_observation.py
+@@ -72,6 +72,11 @@ def rounded_components(view, spec, *, max_tracks=512, max_q_cells=50000,
+     pr=spec.get('release_detection_probability'); pc=spec.get('crossing_detection_probability')
+     if not _finite(pr) or not _finite(pc) or not 0<=pr<=1 or not 0<=pc<=1:
+         raise ModelUnavailable('SUPPLIED_DETECTION_PROBABILITIES_REQUIRED')
++    from app.experimental.observation_domain import require_complete_query
++    domain=require_complete_query(view,horizon_s=h,windows=windows,error_type=ModelUnavailable,
++        resolution_ms=resolution,rounding_origin_ms=rounding_origin,
++        channels=[('RELEASE',[d for d,_ in delays],pr),
++            ('CROSSING_PROXY',[d+lag for d,_ in delays for lag,_ in transits],pc)])
+     rows=view.get('events',[])
+     if len(rows)>max_tracks*2:
+         raise ModelUnavailable('EVENT_BUDGET_EXHAUSTED')
+@@ -128,7 +133,7 @@ def rounded_components(view, spec, *, max_tracks=512, max_q_cells=50000,
+     if len(tracks) and np.any(q.sum(axis=1)<=0):
+         raise ModelUnavailable('TRACK_PATTERN_UNSUPPORTED_BY_DELAY_DETECTION_MODEL')
+     return dict(tracks=tracks,q=q,detected_probability=detected,rates=rates,
+-        exposure=exposure,movements=names,n=n,integration_pieces=pieces,
++        exposure=exposure,movements=names,n=n,integration_pieces=pieces,observation_domain=domain,
+         observation_model='continuous_latent_rounded_marks',
+         timestamp_resolution_ms=resolution,
+         limitations=['supplied rounding kernel, not calibrated extractor uncertainty',
+diff --git a/docs/EXTERNAL_REVIEW_RECEIVED_20261015.md b/docs/EXTERNAL_REVIEW_RECEIVED_20261015.md
+new file mode 100644
+index 0000000..370ffb7
+--- /dev/null
++++ b/docs/EXTERNAL_REVIEW_RECEIVED_20261015.md
+@@ -0,0 +1,187 @@
++**Решение: продолжать проект, исправить контракт наблюдений и остановить полный перебор как путь к production.** Сохранить его как эталон для малых задач. Оснований принимать 2D.1 или публиковать lamp accuracy нет; оснований объявлять бесполезной автоматизацию по траекториям тоже нет.
++
++Я прочитал ZIP, перечисленные модули, тесты, ROADMAP и документы протоколов. GitHub доступен: новая ветка указывает на [`c0e8946`](https://github.com/lisovcoff/traffic_phase/commit/c0e89461c0bc28f2d7fd9609b07a591a50195bbf), на два коммита после указанной базы; изменений `app` между ними нет. Четыре основных модуля ZIP совпадают с GitHub по Git blob SHA.
++
++Проверка включала:
++
++- совпадение всех **62 хэшей** из seals;
++- запуск **80 тестов — все прошли**; три отсутствовавших в ZIP служебных модуля загружены из базовой ревизии;
++- независимый пересчёт **93 024 path likelihood** и обоих posterior для всех 15 complete cases: максимальное расхождение log-likelihood `2.3e−13`, posterior `6.3e−15`;
++- независимый пересчёт boundary matching и условных интервалов.
++
++Это аудит данного экспериментального контура. Реальные видео/траектории в ZIP отсутствуют; их timing truth, исторические real-метрики и сквозной HTML/API я не проверял. Хэши подтверждают согласованность пакета, но сами по себе не доказывают всю историю его получения.
++
++**Пять приоритетных findings**
++
++1. **P1 — bridge не согласует область query с областью наблюдений likelihood. Реальный дефект контракта.**
++
++   Места: `LocalEvidenceIndex.query`, [`prepare_joint_observation`](https://github.com/lisovcoff/traffic_phase/blob/41563f5852ec2708a0db6a590d04888b256baae9/app/experimental/phase_observation_bridge.py), `rounded_components.pattern`.
++
++   Query отрезает события по `range_ms`. Bridge использует supplied camera windows, но не проверяет, что query действительно доставил все события из этих окон. Отсутствующая отметка становится *недетекцией*, хотя могла быть просто отрезана запросом.
++
++   **Воспроизведённый контрпример:** один автомобиль, RELEASE=6.250 с, CROSSING_PROXY=8.250 с, transit=2 с, обе detection probabilities=1, camera window `[0,20)`.
++
++   - `query(0,8000)` → `TRACK_PATTERN_UNSUPPORTED_BY_DELAY_DETECTION_MODEL`;
++   - `query(0,20000)` → `ready_for_declared_model_only`.
++
++   Более опасен тихий вариант: пустой query `[0,2)` принимается с observation window `[0,8)`. Для постоянных интенсивностей `.2+.03` и release detection=1 получается compensator **−1.84**, хотя доступный двухсекундный участок даёт **−0.46**. Шесть недоставленных секунд используются как отрицательное свидетельство.
++
++   **Исправление:** либо требовать подтверждённую полноту query относительно всех моделируемых каналов, либо включать механизм отбора query в observation kernel и compensator. Для rounded timestamps недостаточно механически пересечь интервалы истинного времени: отбор выполняется по округлённой отметке.
++
++2. **P1 — stationary phase start не устраняет левое цензурирование популяции автомобилей. Ограничение модели для реальных окон.**
++
++   Место: [`rounded_components`](https://github.com/lisovcoff/traffic_phase/blob/41563f5852ec2708a0db6a590d04888b256baae9/app/experimental/rounded_observation.py), интегрирование только по `u∈[0,h)`.
++
++   **Воспроизведённый контрпример:** latent vehicle time `u=−1.750 с`, release delay=2 с, наблюдаемый RELEASE=0.250 с. Такой автомобиль естественно попадает в начало вырезки непрерывной записи. Код возвращает `TRACK_PATTERN_UNSUPPORTED_BY_DELAY_DETECTION_MODEL`: вся допустимая латентная масса находится до нуля.
++
++   Это **не ошибка интеграла внутри объявленной finite-population модели**: ограничение явно написано. Но оно блокирует её прямое применение к произвольным локальным окнам. Маргинализация возраста начальной фазы решает другую задачу.
++
++   **Исправление:** латентная предыстория с согласованной фазовой моделью и достаточным observation context либо явно цензурируемая краевая зона без публикации оценок. Простого добавления событий в query недостаточно. Перекрывающиеся окна также нельзя считать независимыми: один автомобиль должен сохранять общую идентичность.
++
++3. **P1 — полный enumeration непригоден уже для многих окон короче минуты.**
++
++   Место: [`enumerate_sequences`](https://github.com/lisovcoff/traffic_phase/blob/41563f5852ec2708a0db6a590d04888b256baae9/app/experimental/unanchored_sequence.py).
++
++   Независимый подсчёт всех допустимых путей при текущей поддержке длительностей:
++
++   | Горизонт | K2 | K3 |
++   |---|---:|---:|
++   | 34 с | 5 168 | 7 752 |
++   | 36 с | 8 362 | 12 543 |
++   | 38 с | 13 530 | 20 295 |
++   | 60 с | 2 692 452 | 4 038 678 |
++   | 64 с | 7 048 870 | 10 573 305 |
++
++   Значит, `max_paths=10000` гарантированно отказывает K3 уже на 36 с, K2 — на 38 с, независимо от информативности событий. Сохранённый hold+30 подтверждает этот механизм.
++
++   Отказ без частичного posterior реализован правильно. **Увеличение бюджета не является решением для минут/часов.** Отдельно: поддержка полных длительностей 4…48 с исключает более длинный hold независимо от вычислителя. Это ограничение нужно пересматривать по новым данным, не подбирать по знакомой разметке.
++
++4. **P1 — один likelihood term на автомобиль исправляет двойной счёт, но не делает detection/demand модель проверенной.**
++
++   Места: `rounded_components.detection/pattern`, [`path_loglik`](https://github.com/lisovcoff/traffic_phase/blob/41563f5852ec2708a0db6a590d04888b256baae9/app/experimental/joint_track_model.py).
++
++   Код предполагает условно независимые Bernoulli detection каналов и произведение распределений release delay/transit delay.
++
++   **Аналитический контрпример:** автомобиль с вероятностью ½ полностью скрыт, с вероятностью ½ виден в обоих каналах. Маргинально `pr=pc=.5`, но:
++
++   - истинное `P(any detection)=.5`;
++   - код получает `.75`;
++   - код допускает одиночные отметки с вероятностями `.25/.25`, хотя в этом механизме их вероятность нулевая.
++
++   Следовательно, ошибаются и pattern probabilities, и compensator. Аналогично, движение колонной/разрядка очереди не обязаны соответствовать независимому Poisson-потоку с постоянной интенсивностью внутри фазы.
++
++   Это **контрпример переносимости допущений, а не обнаруженная ошибка арифметики**. На имеющихся данных частота такого механизма неизвестна.
++
++   Ещё одна точная неоднозначность: likelihood зависит от произведения `rate × demand exposure`. Замена `rate→c·rate`, `exposure→exposure/c` оставляет его неизменным. Отдельно восстановить оба компонента без дополнительных ограничений нельзя. Однако наблюдаемые прибытия, очередь, остановки и пропуск через зону позволяют практически ограничить demand; это не повод отказываться от всей задачи.
++
++5. **P2 — условные интервалы не являются готовым правилом выдачи результата.**
++
++   Места: `infer_unanchored` и [`check_sparse_duration.evaluate`](https://github.com/lisovcoff/traffic_phase/blob/c0e89461c0bc28f2d7fd9609b07a591a50195bbf/scripts/check_sparse_duration.py).
++
++   Независимый пересчёт подтвердил:
++
++   | Core12 | flat | soft |
++   |---|---:|---:|
++   | PASS по recall≥.8 | 8/12 | 7/12 |
++   | matched / truth / predicted | 29/34/30 | 29/34/32 |
++   | Точное число переходов | **9/12** | **8/12** |
++   | Интервалы при истинном count содержат truth | 33/34 | 33/34 |
++   | Median / p95 ширины | 2 / 8.7 с | 2 / 8.7 с |
++
++   **Контрпример из сохранённого posterior:** `K3_shortening_seed23`, truth `[4,10,20,30]`; flat MAP `[8,20]`, soft MAP `[4,8,20]`. Вероятность истинного count=4 составляет всего **.073/.265**. Интервалы после условного выбора count=4 не описывают выдаваемую MAP-историю.
++
++   Отчёт это честно оговаривает; ошибки расчёта здесь нет. Недостаёт **приёмки выдаваемого без truth результата**: count alternatives, вероятности существования границ, правила abstention и оценки пропущенных/лишних переходов. Нельзя заменить её oracle-conditioned coverage.
++
++**Что математически корректно**
++
++Для заявленной модели реализовано правильное выражение, с точностью до констант, не зависящих от пути:
++
++\[
++\ell(z)=
++-\sum_m\int \lambda_m(u\mid z)\,p_{\rm det}(u)\,du
+++\sum_i\log\int \lambda_{m_i}(u\mid z)\,q_i(u)\,du.
++\]
++
++Compensator относится к автомобилям, обнаруженным хотя бы одним каналом; пара отметок входит через один совместный kernel. Пересечения rounding cells, delay atoms и camera windows интегрируются кусочно точно. Отсутствующая отметка внутри доступного канала получает вероятность недетекции, за пределами камеры — цензурирования. Это корректно **при корректно заданной доступности**, с оговорками findings 1–2.
++
++В `renewal_log_prior` также не нашёл ошибки:
++
++- начальный residual \(P(R=r)=P(D\ge r)/E[D/2]\) соответствует заявленному stationary **grid** sampling;
++- нулевой count использует \(P(R\ge h)\);
++- последний сегмент использует survival, а не вероятность завершённой длительности;
++- граница ровно в `h` правильно исключается из внутренних переходов.
++
++Дополнительно проверил сумму prior по всем путям на 16, 24 и 34 с: единица с численной погрешностью. Uniform initial phase корректен при одинаковом распределении длительностей фаз; при разных средних длительностях потребуется другая stationary occupancy.
++
++Тесты подтверждают эти инженерные свойства, дедупликацию, отказы и численную согласованность. Они не подтверждают реальную Poisson-модель, detector calibration, K/mapping/order или соответствие latent regime физическому сигналу. Положительные off-phase rates допускают движение до GREEN, но не оценивают его причину.
++
++**Как заменить enumeration без ложного обещания ordinary DP**
++
++Для общего joint-track kernel обычного состояния `(phase, age)` недостаточно:
++
++\[
++\log\mu_i(z)=\log\left(\sum_j w_{ij}\lambda_{m_i,j}(z_j)\right).
++\]
++
++Два префикса с одинаковыми текущими phase/age могут иметь разные накопленные вклады в ещё не завершённый track factor. Объединить их одним scalar score нельзя: будущая добавка находится **внутри** логарифма.
++
++Но есть конкретная factorization:
++
++- compensator раскладывается по временным ячейкам;
++- фактор автомобиля зависит только от ячеек, где `q[i,j]>0`;
++- его можно завершить на последней такой ячейке.
++
++Поэтому при ограниченной ширине kernel допустим **semi-Markov DP с расширенным состоянием**, сохраняющим необходимую историю фаз для незавершённых факторов. Точность сохраняется; сложность экспоненциальна по ширине этой истории, а не по всей длительности записи. Если каждый kernel лежит в одной ячейке, получается обычный локальный emission и обычный semi-Markov DP. Sparse suite с нулевыми delays близок именно к этому простому случаю.
++
++Для широких kernels практичнее bounded beam по префиксам с накопленными \(\mu_i\). Но:
++
++- размер beam и стабильность MAP не измеряют потерянную posterior mass;
++- нужны upper bounds на массы отброшенных поддеревьев;
++- при сохранённой массе \(Z_{\rm kept}\) и верхней границе отброшенной массы \(U\) можно сообщать
++  \[
++  P(\text{discarded})\le U/(Z_{\rm kept}+U).
++  \]
++- если bound слишком широк, результат остаётся approximate/uncertified, без заявления exact coverage.
++
++Для bounds можно использовать максимально возможный оставшийся вклад каждого track factor и границу compensator. Они могут оказаться рыхлыми — это нужно измерить. Для часов следует выдавать компактные marginal/alternative summaries, а не все полные пути.
++
++**Один следующий scope**
++
++Предлагаю **один frozen end-to-end пилот локальной истории на новых непрерывных реальных сеансах**, с фиксированной структурой фаз, чтобы отдельно проверить observation model и масштабирование. Не новый synthetic recovery suite и не повторная настройка extractor на восьми машинах.
++
++В scope:
++
++- исправить completeness/censoring contract;
++- реализовать bounded inference с указанной factorization или честными bounds;
++- сохранить extractor и оба duration priors;
++- оценить observation nuisance parameters только на отдельной calibration session;
++- один раз обработать untouched validation session и показать результат через существующий HTML/API;
++- сравнить с замороженным повторением обычного цикла: улучшение должно проявиться именно на локальных отклонениях.
++
++**Данные:** уже имеются реализация событий, provenance, operator mapping H1 и полезные контрпримеры. Недостаёт новых непрерывных JSON+video/controller данных, независимой синхронизации с оценкой ошибки, наблюдаемости demand/очереди и truth для проверяемых сигналов. Нужны отдельные calibration/validation sessions; для пилота — хотя бы 20 полных циклов и 50 проверяемых переходов в validation, включая реальные изменения длительности. Если доступен только H1, результат ограничивается соответствующими движениями: полное K/composition перекрёстка не считается проверенным.
++
++Предлагаемые критерии следует заморозить **до просмотра validation**:
++
++| Измерение | Критерий пилота |
++|---|---|
++| Point accuracy | One-to-one matching ±2 с; precision≥.90, recall≥.80 в каждом заранее выбранном информативном блоке. UNKNOWN учитывается как отсутствие предсказания |
++| Count | Отдельно exact-count и лишние/пропущенные переходы; интервалы не компенсируют провал point gate |
++| Intervals | Выдаются без truth count. Для заявленных 90% интервалов: containment≥.90, median width≤4 с, p95≤8 с; отдельно число невыданных и ложных границ |
++| UNKNOWN | Отдельно логический и физический, по времени и событиям. Для заранее определённых наблюдаемых участков — логический UNKNOWN≤30%; gaps/непроверенная аппаратная семантика не принуждаются к состоянию |
++| Approximation | Posterior claims только при контролируемой отброшенной массе, например ≤1%; иначе явный uncertified/UNKNOWN |
++| Runtime | На объявленном оборудовании 10 минут данных ≤60 с end-to-end, peak RSS≤512 MiB; отдельный часовой проход ≤6 минут с ограниченной памятью |
++| Польза | Улучшение локальных отклонений относительно frozen recurring-plan baseline при сопоставимом UNKNOWN |
++
++Это **предлагаемые пороги**, не достигнутые результаты. Coverage на таком пилоте ещё не доказывает калибровку; нужны доверительные интервалы с учётом зависимости внутри сеансов. Ошибку синхронизации следует включать в temporal uncertainty, а не игнорировать ради допуска ±2 с.
++
++**Путь к MVP и к высокой точности различается**
++
++Для usable MVP уже оправдана автоматическая выдача наблюдаемых движений, траекторий, method-specific событий, счётчиков, известных пропусков данных и provenance. Геометрия относится к наблюдаемым подходам: отсутствие машин не исключает ненаблюдавшийся подход.
++
++Следующий полезный уровень — кандидаты K/состава/порядка, shared movements и локальные режимы обслуживания с альтернативами. Текущий fixed-K prototype сам K и состав не решает. Продление можно показывать как отклонение от оценённого обычного режима, с неопределённостью и без выдуманной причины. Во всех интерфейсах должен действовать один state/query contract.
++
++Аппаратные стрелки, protected/permissive semantics и состояния ненаблюдаемых секций остаются alternatives/UNKNOWN без независимой схемы или сигналов. Совместное движение само по себе не доказывает совместное разрешение.
++
++Для независимо проверенной высокой точности потребуется отдельная программа validation: новые перекрёстки и сеансы, 3/4 подхода, shared movements, разные нагрузки и режимы, независимые signal references, переносимость calibration. K, состав, границы, интервалы и физические секции оцениваются раздельно; нижние доверительные границы качества — на независимых сеансах, а не на множестве коррелированных автомобилей.
++
++**Практический выбор сейчас:** сохранить корректное likelihood/renewal ядро как reference, исправить два краевых контракта, перейти к bounded inference и провести один реальный пилот. Synthetic 29/34 — подтверждённый результат условной модели; улучшением real raw19/34 или точностью ламп он не является.
+\ No newline at end of file
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index 6be18be..e97bad8 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,17 @@
+ # Project status — 2D.1, 2026-10-14
+ 
++2026-10-15 external review locally checked; P1 query-observation mismatch fixed.
++Before: empty2s query admitted8s compensator−1.84. After: QUERY_DOMAIN_INCOMPLETE;
++complete queries retain same joint likelihood. Shared guard covers both backends,
++reported rounded mark support and channel delays; bridge v2 translates query
++range with event clock.108 target+16 historical artifact/adapter tests pass.
++No scientific fitting/replay/K search; historical data/seals intact. Finite vehicle
++population/left censoring, detection/demand assumptions and truth-free output
++policy remain open. Enumeration count at64s>7M/10M independently confirmed;
++keep as oracle only.2D.1 FAIL/main/default/core unchanged. See REVIEW_RESPONSE.
++Next: consistent prehistory/context and scalable factor-aware inference, followed
++by independent real pilot when sessions/sync available; no more tuning on known cars.
++
+ 2026-10-15 sparse stochastic duration validation completed with frozen inference:
+ 16 calls/27.984CPU s,15 complete finite posteriors;hold+30 horizon64s unavailable
+ on path budget. Core12 cases:flat8/12 PASS,soft7/12;29/34 synthetic boundaries
+diff --git a/docs/REVIEW_RESPONSE_20261015.md b/docs/REVIEW_RESPONSE_20261015.md
+new file mode 100644
+index 0000000..8c600f6
+--- /dev/null
++++ b/docs/REVIEW_RESPONSE_20261015.md
+@@ -0,0 +1,91 @@
++# Independent review: verified response and query contract fix
++
++Base `c0e89461c0bc28f2d7fd9609b07a591a50195bbf`.
++Branch `fix/query-observation-completeness-20261015`. Received review is preserved
++verbatim in EXTERNAL_REVIEW_RECEIVED_20261015.md; its claims of80 tests/93024
++likelihood checks are the reviewer's results, not a rerun performed here.
++
++## Findings disposition
++
++1. **Confirmed/fixed query completeness.** Before fix: truncated RELEASE6250/
++   CROSSING8250 with query[0,8000) returned unsupported pattern; complete query
++   [0,20000) was ready. Empty query[0,2000) with camera[0,8000) was ready and
++   contributed log-likelihood−1.84. Saved before.json reproduces both claims.
++   Now both truncated cases give QUERY_DOMAIN_INCOMPLETE and no likelihood.
++   Full query still ready. No fitting/decoding needed for this counterexample.
++2. **Confirmed finite-population limit, open.** Event250ms with supplied vehicle
++   delay2s requires latent time−1.75s; wide query does not solve it. Targeted test
++   preserves explicit unsupported-pattern result. Stationary initial phase age
++   does not create latent vehicles before0. Real-window application requires a
++   consistent latent prehistory/context model or an explicitly unpublished edge
++   region; this patch does neither and does not claim real-window readiness.
++3. **Confirmed scalability failure.** Cheap integer recursion independently
++   reproduces review path counts34/36/38/60/64s, without enumerating/fitting paths.
++   At64s K2=7048870,K3=10573305. Enumeration stays small-input reference.
++   The unchanged4..48s duration support is a separate hold limit.
++4. **Confirmed assumption limits, not arithmetic bugs.** Detection independence
++   yields.75 any detection for pr=pc=.5, unlike.5 for all-or-none visibility.
++   The rate×exposure confounding and conditional Poisson/delay assumptions remain;
++   no nuisance parameters estimated from known development labels.
++5. **Confirmed output-policy gap.** Saved core exact-count9/12 flat,8/12 soft
++   independently counted. Conditional-on-truth-count intervals do not certify
++   MAP/count. Published states remain UNKNOWN; old FAIL is retained.
++
++## Implemented contract
++
++New shared `observation_domain.require_complete_query` is used by BOTH finite
++and rounded observation components, including direct callers. Bridge v2 translates
++query range and event timestamps to the same explicitly supplied origin.
++It rejects unavailable/malformed query range and events outside it.
++
++Conservative policy: reject a query if it omits any possible reported mark under
++the supplied finite-population model. No partial-window kernel approximation,
++camera-window clipping or compensator reinterpretation was introduced. For each
++nonzero detection channel, delay atoms and camera windows determine reachable
++mark times. Finite clock uses exact clock points. Rounded clock includes every
++clock centre whose rounding cell intersects reachable true detection times with
++positive measure. A half-open query must include the rightmost centre itself.
++This guards rounding near window edges, including centres outside the true-time
++interval. Irrelevant camera tail beyond reachable delays need not be delivered.
++
++This proves query-bound coverage **relative to a supplied event index/model**,
++not upstream raw-source completeness, calibrated detection, camera exposure,
++demand, or vehicle population. Upstream completeness remains an explicit model
++assumption in diagnostic metadata. An index built from a selected cohort cannot
++become an intersection-wide complete sample just by widening its query.
++
++Some historical finite-horizon rounded inputs query exactly[0,h): they omit a
++possible rounded mark at h. They now legitimately require a context query that
++includes that clock centre. Historical artifacts are not rewritten/replayed.
++Tests of historical source seals now read the frozen Git revision recorded in
++each manifest, rather than demanding current corrected code equal old code.
++Protocol/input/output hashes are still checked; seals were not regenerated.
++
++108 target tests passed, plus16 historical artifact/adapter tests. Complete-input
++joint likelihood is unchanged in finite/rounded closed-form counterexamples.
++Initial new
++test found nonfinite query metadata reached JSON hashing before validation;
++validation was moved before hashing. Failure log retained. No full benchmark,
++K search, real replay, scientific sequence suite, or parameter changes. Existing
++bounded inference unit counterexamples were run as part of targeted tests.
++
++## Corrected next step
++
++Keep full enumeration as oracle. Build scalable fixed-K/order inference only
++with an explicit factorization: compensator per cell, a vehicle factor closed
++at its last nonzero q cell, and enough phase history for all unfinished factors.
++Local kernel case can use semi-Markov DP; general joint log-sum factor cannot
++be replaced by a scalar ordinary HSMM score without proof. Wide-kernel beam,
++if needed, must report truncation and uncertified mass, not exact posterior.
++
++In parallel, define latent prehistory/context and input-completeness contract for
++the real pilot. Existing video/H1/operator mapping is development material;
++independent calibration/validation, synchronization uncertainty and observable
++signal reference remain needed. The review's20cycles/50transitions, quality,
++UNKNOWN/runtime thresholds are proposals to freeze before new validation, not
++achieved metrics or automatically accepted requirements. No fresh search for
++previously missing media or another calibration of the same8 cars was performed.
++
++2D.1 FAIL/default-off;2C/protective state/query contract accepted; main/core,
++production default, old K/period/predictions/evaluator unchanged. No lamp accuracy
++claimed. Artifacts in evidence/query_observation_completeness_20261015/.
+diff --git a/scripts/check_query_observation_domain.py b/scripts/check_query_observation_domain.py
+new file mode 100644
+index 0000000..20e924a
+--- /dev/null
++++ b/scripts/check_query_observation_domain.py
+@@ -0,0 +1,46 @@
++"""Reproduce external-review P1 without phase inference or annotations."""
++import argparse
++import json
++from pathlib import Path
++
++from app.core.temporal_evidence import TemporalEvent
++from app.experimental.local_evidence import build_local_evidence
++from app.experimental.phase_observation_bridge import prepare_joint_observation
++from app.experimental.joint_track_model import path_loglik
++
++OUT=Path(__file__).resolve().parents[1]/'evidence/query_observation_completeness_20261015'
++
++
++def inputs():
++    events=[]
++    for ts,kind,method in ((6250,'RELEASE','test_release'),(8250,'CROSSING_PROXY','test_crossing')):
++        events.append(TemporalEvent(ts,kind,'m0',1,method,.5,'MEDIUM',None,
++            {'source':'review_counterexample','track_fingerprint':'one','eligible_proxy':True}))
++    index=build_local_evidence(events,source_namespace='review')
++    spec=dict(horizon_s=8,movements=['m0','m1'],rates_per_s=[[.2,.03],[.03,.2]],
++        rate_source='review witness',latent_demand_exposure=[[1]*4]*2,demand_source='review witness',
++        observation_windows_s=[[0,20]],observation_window_source='review witness',
++        release_delay_s=[[0,1.]],transit_delay_s=[[2,1.]],delay_source='review witness',
++        release_detection_probability=1.,crossing_detection_probability=1.,
++        release_method='test_release',crossing_method='test_crossing')
++    return index,spec
++
++
++def probe():
++    index,spec=inputs();results={}
++    for name,end in (('truncated_pair',8000),('complete_pair',20000)):
++        r=prepare_joint_observation(index.query(0,end),spec,origin_ms=0)
++        results[name]=dict(status=r['status'],reason=r['reason'])
++    empty=build_local_evidence([],source_namespace='empty').query(0,2000)
++    spec['observation_windows_s']=[[0,8]];spec['crossing_detection_probability']=0.
++    r=prepare_joint_observation(empty,spec,origin_ms=0)
++    results['empty_short_query']=dict(status=r['status'],reason=r['reason'],
++        log_likelihood=path_loglik([0]*4,r['components']) if r['components'] is not None else None)
++    return results
++
++
++if __name__=='__main__':
++    p=argparse.ArgumentParser();p.add_argument('stage',choices=['before','after']);args=p.parse_args()
++    result=probe()
++    with (OUT/(args.stage+'.json')).open('x',encoding='utf-8') as f:json.dump(result,f,indent=2)
++    print(json.dumps(result,indent=2))
+diff --git a/tests/test_observation_domain.py b/tests/test_observation_domain.py
+new file mode 100644
+index 0000000..33832e0
+--- /dev/null
++++ b/tests/test_observation_domain.py
+@@ -0,0 +1,104 @@
++import copy
++import math
++
++import pytest
++
++from app.core.temporal_evidence import TemporalEvent
++from app.experimental.local_evidence import build_local_evidence
++from app.experimental.joint_track_model import ModelUnavailable,observation_components,path_loglik
++from app.experimental.rounded_observation import rounded_components
++from app.experimental.phase_observation_bridge import prepare_joint_observation
++from scripts.check_query_observation_domain import inputs,probe
++from test_rounded_observation import supplied
++
++
++def empty(end,start=0):
++    return build_local_evidence([],source_namespace='test').query(start,end)
++
++
++def test_review_pair_and_empty_query_rejected_before_likelihood():
++    r=probe()
++    assert r['truncated_pair']['reason']=='QUERY_DOMAIN_INCOMPLETE'
++    assert r['complete_pair']['status']=='ready_for_declared_model_only'
++    assert r['empty_short_query']['reason']=='QUERY_DOMAIN_INCOMPLETE'
++    assert r['empty_short_query']['log_likelihood'] is None
++
++
++@pytest.mark.parametrize('backend',['legacy_finite_clock','continuous_latent_rounded_marks'])
++def test_both_component_entry_points_guard_missing_marks(backend):
++    m=supplied();m['clock_model']=backend
++    fn=rounded_components if backend=='continuous_latent_rounded_marks' else observation_components
++    with pytest.raises(ModelUnavailable,match='QUERY_DOMAIN_INCOMPLETE'):fn(empty(2000),m)
++
++
++def test_rounded_right_edge_requires_last_reported_clock_center():
++    m=supplied();m.update(crossing_detection_probability=0,observation_windows_s=[[0,8]])
++    assert prepare_joint_observation(empty(8000),m,origin_ms=0)['reason']=='QUERY_DOMAIN_INCOMPLETE'
++    r=prepare_joint_observation(empty(8001),m,origin_ms=0)
++    assert r['status']=='ready_for_declared_model_only'
++    assert r['components']['observation_domain']['required_channel_ranges_ms'][0]['last_reported_ms']==8000
++
++
++def test_rounded_selection_not_true_time_intersection():
++    m=supplied();m.update(crossing_detection_probability=0,
++        observation_windows_s=[[.00025,.00125]],timestamp_rounding_origin_ms=0)
++    # true times start.25ms; centres0ms and1ms both have positive support.
++    r=prepare_joint_observation(empty(2,start=1),m,origin_ms=0)
++    assert r['reason']=='QUERY_DOMAIN_INCOMPLETE'
++    assert r['observation_domain']['required_channel_ranges_ms'][0]['first_reported_ms']==0
++    assert prepare_joint_observation(empty(2),m,origin_ms=0)['status']=='ready_for_declared_model_only'
++
++
++def test_absolute_query_domain_translated_with_events_and_inputs_not_mutated():
++    m=supplied();v=empty(120000,start=100000);before=copy.deepcopy((v,m))
++    r=prepare_joint_observation(v,m,origin_ms=100000)
++    assert r['status']=='ready_for_declared_model_only'
++    assert r['components']['observation_domain']['query_range_ms']==[0,20000]
++    assert (v,m)==before
++
++
++def test_delayed_crossing_support_and_camera_censoring_are_distinct():
++    _,m=inputs()
++    m['clock_model']='continuous_latent_rounded_marks';m.update(timestamp_resolution_ms=1,
++        timestamp_rounding_origin_ms=0,timestamp_resolution_source='test clock')
++    assert prepare_joint_observation(empty(8001),m,origin_ms=0)['reason']=='QUERY_DOMAIN_INCOMPLETE'
++    assert prepare_joint_observation(empty(10001),m,origin_ms=0)['status']=='ready_for_declared_model_only'
++    m['observation_windows_s']=[[0,8]]
++    assert prepare_joint_observation(empty(8001),m,origin_ms=0)['status']=='ready_for_declared_model_only'
++
++
++def test_irrelevant_camera_tail_and_disabled_channels_need_no_extra_query():
++    m=supplied();m.update(observation_windows_s=[[0,1000]],crossing_detection_probability=0)
++    r=prepare_joint_observation(empty(8001),m,origin_ms=0)
++    assert r['status']=='ready_for_declared_model_only'
++    assert r['components']['observation_domain']['upstream_event_delivery'].startswith('ASSUMED')
++
++
++def test_missing_invalid_range_or_inconsistent_event_rejected():
++    m=supplied();v=empty(20000)
++    for bad in (None,[float('nan'),20000],[0,0]):
++        v['range_ms']=bad
++        assert prepare_joint_observation(v,m,origin_ms=0)['reason']=='QUERY_TIMESTAMP_DOMAIN_REQUIRED'
++    index,_=inputs();v=index.query(0,20000);v['events'][0]['event']['timestamp_ms']=30000
++    assert prepare_joint_observation(v,m,origin_ms=0)['reason']=='EVENT_OUTSIDE_QUERY_DOMAIN'
++
++
++def test_left_population_censoring_remains_explicit_not_fixed_by_wider_query():
++    m=supplied();m.update(release_method='test',release_delay_s=[[2,1.]],crossing_detection_probability=0)
++    e=TemporalEvent(250,'RELEASE','straight',1,'test',.5,'MEDIUM',None,{'source':'test','track_fingerprint':'one'})
++    v=build_local_evidence([e],source_namespace='test').query(0,20000)
++    r=prepare_joint_observation(v,m,origin_ms=0)
++    assert r['reason']=='TRACK_PATTERN_UNSUPPORTED_BY_DELAY_DETECTION_MODEL'
++
++
++@pytest.mark.parametrize('rounded',[False,True])
++def test_complete_contexts_preserve_closed_form_joint_likelihood(rounded):
++    index,m=inputs()
++    if rounded:
++        m.update(clock_model='continuous_latent_rounded_marks',timestamp_resolution_ms=1,
++            timestamp_rounding_origin_ms=0,timestamp_resolution_source='test clock')
++    a=prepare_joint_observation(index.query(0,20000),m,origin_ms=0)['components']
++    b=prepare_joint_observation(index.query(0,40000),m,origin_ms=0)['components']
++    expected=-8*(.2+.03)+math.log(.2*(.001 if rounded else 2))
++    assert path_loglik([0]*4,a)==pytest.approx(expected)
++    assert path_loglik([0]*4,b)==pytest.approx(expected)
+diff --git a/tests/test_sparse_duration_artifacts.py b/tests/test_sparse_duration_artifacts.py
+index 6779a84..e6fa6f4 100644
+--- a/tests/test_sparse_duration_artifacts.py
++++ b/tests/test_sparse_duration_artifacts.py
+@@ -1,6 +1,7 @@
+ import gzip
+ import hashlib
+ import json
++import subprocess
+ from pathlib import Path
+ 
+ import pytest
+@@ -20,7 +21,8 @@ def test_all_outputs_and_frozen_inputs_sources_match_seals():
+         assert hashlib.sha256((OUT/name).read_bytes()).hexdigest()==expected
+     assert hashlib.sha256((ROOT/'docs/SPARSE_DURATION_PROTOCOL_20261015.md').read_bytes()).hexdigest()==m['protocol_sha256']
+     for name,expected in m['source_sha256_lf'].items():
+-        assert hashlib.sha256((ROOT/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest()==expected
++        frozen=subprocess.check_output(['git','show',f"{m['code_commit']}:{name}"],cwd=ROOT)
++        assert hashlib.sha256(frozen.replace(b'\r\n',b'\n')).hexdigest()==expected
+     for e in s['predictions']:assert hashlib.sha256((OUT/e['path']).read_bytes()).hexdigest()==e['sha256']
+ 
+ 
+diff --git a/tests/test_unanchored_sequence_artifacts.py b/tests/test_unanchored_sequence_artifacts.py
+index 764a888..c3026f0 100644
+--- a/tests/test_unanchored_sequence_artifacts.py
++++ b/tests/test_unanchored_sequence_artifacts.py
+@@ -1,5 +1,6 @@
+ import hashlib
+ import json
++import subprocess
+ from pathlib import Path
+ 
+ import pytest
+@@ -20,7 +21,8 @@ def test_sealed_output_inputs_and_frozen_code():
+         assert hashlib.sha256((OUT/name).read_bytes()).hexdigest()==expected
+     assert hashlib.sha256((ROOT/'docs/UNANCHORED_SEQUENCE_PROTOCOL_20261015.md').read_bytes()).hexdigest()==manifest['protocol_sha256']
+     for name,expected in manifest['source_sha256_lf'].items():
+-        assert hashlib.sha256((ROOT/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest()==expected
++        frozen=subprocess.check_output(['git','show',f"{manifest['code_commit']}:{name}"],cwd=ROOT)
++        assert hashlib.sha256(frozen.replace(b'\r\n',b'\n')).hexdigest()==expected
+ 
+ 
+ def test_exact_witness_criterion_both_priors_and_prior_only_unknown():

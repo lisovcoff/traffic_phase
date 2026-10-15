@@ -2,6 +2,18 @@
 
 ## Текущий критический путь к продукту — уточнение 2026-10-15
 
+Независимое ревью получено: [ответ/проверенные findings](docs/REVIEW_RESPONSE_20261015.md).
+Закрыт P1 query-completeness: short query больше не создаёт ложное negative
+evidence вне доставки; shared guard для обоих likelihood backends, rounded
+timestamp support,108+16 tests. Исторические artifacts/default сохранены.
+Следующий маршрут: (1) согласованный latent prehistory/context для реальных окон;
+(2) scalable fixed-K inference с доказанной factorization и контролем truncation,
+полный перебор только oracle; (3) независимый calibration/validation пилот при
+наличии sessions/sync, без переноса synthetic rates; (4) K/состав/секции и
+сквозная приёмка существующего HTML.2D.1 FAIL; пилотные пороги из ревью пока
+предложения, не достигнутые результаты. Не запускать новую recovery suite
+вместо исправления identified blockers.
+
 Новейшая проверка: [sparse stochastic durations](docs/SPARSE_DURATION_RESULTS_20261015.md)
 по frozen seeds7/23: core flat8/12 PASS,soft7/12, synthetic29/34 matched±2с;
 hold+30 упирается в path budget.2D.1 FAIL, никаких post-result настроек.

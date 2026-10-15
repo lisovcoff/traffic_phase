@@ -1,5 +1,6 @@
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -20,7 +21,8 @@ def test_sealed_output_inputs_and_frozen_code():
         assert hashlib.sha256((OUT/name).read_bytes()).hexdigest()==expected
     assert hashlib.sha256((ROOT/'docs/UNANCHORED_SEQUENCE_PROTOCOL_20261015.md').read_bytes()).hexdigest()==manifest['protocol_sha256']
     for name,expected in manifest['source_sha256_lf'].items():
-        assert hashlib.sha256((ROOT/name).read_bytes().replace(b'\r\n',b'\n')).hexdigest()==expected
+        frozen=subprocess.check_output(['git','show',f"{manifest['code_commit']}:{name}"],cwd=ROOT)
+        assert hashlib.sha256(frozen.replace(b'\r\n',b'\n')).hexdigest()==expected
 
 
 def test_exact_witness_criterion_both_priors_and_prior_only_unknown():

@@ -101,6 +101,11 @@ def observation_components(view, spec, *, max_tracks=512, max_q_cells=50000):
     pr,pc=spec.get('release_detection_probability'),spec.get('crossing_detection_probability')
     if not _finite(pr) or not _finite(pc) or not 0<=pr<=1 or not 0<=pc<=1:
         raise ModelUnavailable('SUPPLIED_DETECTION_PROBABILITIES_REQUIRED')
+    from app.experimental.observation_domain import require_complete_query
+    domain=require_complete_query(view,horizon_s=h,windows=windows,error_type=ModelUnavailable,
+        finite_clock=(OFFSET_MS,GRID_S*1000,n),
+        channels=[('RELEASE',[d for d,_ in delays],pr),
+            ('CROSSING_PROXY',[d+lag for d,_ in delays for lag,_ in transit],pc)])
     tracks=tracks_from_view(view,spec)
     if len(tracks)>max_tracks: raise ModelUnavailable('TRACK_BUDGET_EXHAUSTED')
     if len(tracks)*n>max_q_cells: raise ModelUnavailable('Q_CELL_BUDGET_EXHAUSTED')
@@ -132,7 +137,8 @@ def observation_components(view, spec, *, max_tracks=512, max_q_cells=50000):
     if len(tracks) and np.any(q.sum(axis=1)==0):
         raise ModelUnavailable('TRACK_PATTERN_UNSUPPORTED_BY_DELAY_DETECTION_MODEL')
     return {'tracks':tracks,'q':q,'detected_probability':detected,
-            'rates':rates,'exposure':exposure,'movements':movements,'n':n}
+            'rates':rates,'exposure':exposure,'movements':movements,'n':n,
+            'observation_domain':domain}
 
 
 def path_loglik(labels, components):

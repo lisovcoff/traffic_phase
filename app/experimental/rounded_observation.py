@@ -72,6 +72,11 @@ def rounded_components(view, spec, *, max_tracks=512, max_q_cells=50000,
     pr=spec.get('release_detection_probability'); pc=spec.get('crossing_detection_probability')
     if not _finite(pr) or not _finite(pc) or not 0<=pr<=1 or not 0<=pc<=1:
         raise ModelUnavailable('SUPPLIED_DETECTION_PROBABILITIES_REQUIRED')
+    from app.experimental.observation_domain import require_complete_query
+    domain=require_complete_query(view,horizon_s=h,windows=windows,error_type=ModelUnavailable,
+        resolution_ms=resolution,rounding_origin_ms=rounding_origin,
+        channels=[('RELEASE',[d for d,_ in delays],pr),
+            ('CROSSING_PROXY',[d+lag for d,_ in delays for lag,_ in transits],pc)])
     rows=view.get('events',[])
     if len(rows)>max_tracks*2:
         raise ModelUnavailable('EVENT_BUDGET_EXHAUSTED')
@@ -128,7 +133,7 @@ def rounded_components(view, spec, *, max_tracks=512, max_q_cells=50000,
     if len(tracks) and np.any(q.sum(axis=1)<=0):
         raise ModelUnavailable('TRACK_PATTERN_UNSUPPORTED_BY_DELAY_DETECTION_MODEL')
     return dict(tracks=tracks,q=q,detected_probability=detected,rates=rates,
-        exposure=exposure,movements=names,n=n,integration_pieces=pieces,
+        exposure=exposure,movements=names,n=n,integration_pieces=pieces,observation_domain=domain,
         observation_model='continuous_latent_rounded_marks',
         timestamp_resolution_ms=resolution,
         limitations=['supplied rounding kernel, not calibrated extractor uncertainty',

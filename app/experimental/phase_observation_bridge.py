@@ -12,7 +12,7 @@ import math
 from app.core.state_contract import StateEstimate, physical_estimate
 from app.experimental.joint_track_model import ModelUnavailable, observation_components
 
-VERSION = 'experimental-phase-observation-bridge-v1'
+VERSION = 'experimental-phase-observation-bridge-v2'
 REQUIRED = ('rates_per_s', 'rate_source', 'release_delay_s', 'transit_delay_s',
             'delay_source', 'latent_demand_exposure', 'demand_source',
             'observation_windows_s', 'observation_window_source',
@@ -47,6 +47,11 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
         return {**base, 'reason': 'INVALID_EVENT_LIMIT'}
     if not isinstance(view, dict) or view.get('schema') != 'experimental-local-evidence-v1' or view.get('status') != 'available':
         return {**base, 'reason': 'AVAILABLE_LOCAL_EVIDENCE_VIEW_REQUIRED'}
+    query_range=view.get('range_ms')
+    if (not isinstance(query_range,(list,tuple)) or len(query_range)!=2 or any(
+            isinstance(x,bool) or not isinstance(x,(int,float)) or not math.isfinite(x)
+            for x in query_range) or query_range[1]<=query_range[0]):
+        return {**base,'reason':'QUERY_TIMESTAMP_DOMAIN_REQUIRED'}
     rows = view.get('events', [])
     if not isinstance(rows, list) or len(rows) > max_events:
         return {**base, 'reason': 'EVENT_BUDGET_EXHAUSTED'}
@@ -75,6 +80,7 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
     except (TypeError, ValueError):
         return {**base, 'reason': 'INVALID_INTENSITY_MATRIX'}
     relative = copy.deepcopy(view)
+    relative['range_ms']=[x-origin_ms for x in query_range]
     for row in relative['events']:
         row['event']['timestamp_ms'] -= origin_ms
     # Keep original provenance/timestamp brackets unchanged: no false clock conversion.
@@ -89,7 +95,8 @@ def prepare_joint_observation(view, spec=None, *, origin_ms=None, max_events=512
         else:
             raise ModelUnavailable('UNSUPPORTED_CLOCK_MODEL')
     except ModelUnavailable as exc:
-        return {**base, 'reason': str(exc)}
+        return {**base, 'reason': str(exc),
+            'observation_domain':getattr(exc,'observation_domain',None)}
     return {**base, 'status': 'ready_for_declared_model_only', 'reason': None,
             'components': components,
             'event_time_translation': {'origin_ms': origin_ms,

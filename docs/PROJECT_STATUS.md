@@ -1,5 +1,17 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 external review locally checked; P1 query-observation mismatch fixed.
+Before: empty2s query admitted8s compensator−1.84. After: QUERY_DOMAIN_INCOMPLETE;
+complete queries retain same joint likelihood. Shared guard covers both backends,
+reported rounded mark support and channel delays; bridge v2 translates query
+range with event clock.108 target+16 historical artifact/adapter tests pass.
+No scientific fitting/replay/K search; historical data/seals intact. Finite vehicle
+population/left censoring, detection/demand assumptions and truth-free output
+policy remain open. Enumeration count at64s>7M/10M independently confirmed;
+keep as oracle only.2D.1 FAIL/main/default/core unchanged. See REVIEW_RESPONSE.
+Next: consistent prehistory/context and scalable factor-aware inference, followed
+by independent real pilot when sessions/sync available; no more tuning on known cars.
+
 2026-10-15 sparse stochastic duration validation completed with frozen inference:
 16 calls/27.984CPU s,15 complete finite posteriors;hold+30 horizon64s unavailable
 on path budget. Core12 cases:flat8/12 PASS,soft7/12;29/34 synthetic boundaries

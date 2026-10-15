@@ -1,0 +1,8 @@
+git switch -c fix/query-observation-completeness-20261015
+C:\Python314\python.exe -m scripts.check_query_observation_domain before
+C:\Python314\python.exe -m pytest tests/test_observation_domain.py tests/test_phase_observation_bridge.py tests/test_rounded_observation.py tests/test_joint_track_model.py tests/test_unanchored_sequence.py tests/test_local_evidence_channels.py -q -p no:cacheprovider
+Initial105 passed/1 FAIL(NaN validation order); fixed106 passed; added two closed-form preservation cases108 passed.
+C:\Python314\python.exe -m scripts.check_query_observation_domain after
+C:\Python314\python.exe -m pytest tests/test_unanchored_sequence_artifacts.py tests/test_sparse_duration_artifacts.py tests/test_localized_evidence_adapter.py -q -p no:cacheprovider
+16 historical/adapter tests passed.
+Cheap integer recurrence for path counts; no path fitting/enumeration or recovery run.
