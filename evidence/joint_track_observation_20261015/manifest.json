@@ -1,0 +1,54 @@
+{
+  "schema": "joint-track-synthetic-experiment-v1",
+  "base": "59cb228516b40ad41c52334b826286500714e4b1",
+  "prepared_head": "d90fe42663fbe216144d7a0bde66225ab1eeff42",
+  "inputs_sha256": "e5a42653fde0f53e29a259efd5720c2de858c717ebe83a2c15875070171a5956",
+  "suite_sha256": "f1bfc2f34084ffc30e9efc62473797ccb259a54401440b2684ba9a39a9af3099",
+  "file_hashes": {
+    "app\\experimental\\joint_track_model.py": "f9698c72c1acdcae10cad86061560e63fee3fc1aeb3d66506c3b6e90ca451fa1",
+    "app\\experimental\\local_evidence.py": "697edb3613dfecd22a095ffe1f11c1a5167b78b5817d19669c0a5d2d55824e4d",
+    "app\\core\\state_contract.py": "7be6a99b2bc7cff4007d5f7209716ad7c56b20b8be7c93899e6ae2e142f44c69",
+    "app\\core\\temporal_evidence.py": "daf02f5102dcf920eacb3636a466d0affaa503bdd5dcb7f56eb8f8f94d25b44e",
+    "app\\core\\offline_benchmark.py": "80b6bea1f7f754653122c98accd0977b44e213e2ff5d2240ddf2a895d6ab1448",
+    "scripts\\joint_track_suite.py": "f8bc760dd5c21052b815b7ab5fe4855efb35d04edc6d4b503fc268718eda4d8b",
+    "scripts\\run_joint_track_experiment.py": "33e296b7166c2a95d5d3434bdd45edb0e7fdd33cfc7f55f90baba0b20c84a50c",
+    "tests\\test_joint_track_model.py": "80857e6dc72a68bd2a0fb5b85ebb92bb79f09b72b4f4742eebe9f78bbfa879b5",
+    "docs\\JOINT_TRACK_OBSERVATION_PROTOCOL_20261015.md": "53fa5c1039d4582ec7bb7b38f270ce72195e8efa0efabc7ea231c6cf935cd113"
+  },
+  "limits": {
+    "max_seconds": 5.0,
+    "max_paths": 10000,
+    "max_horizon_s": 80,
+    "max_tracks": 512,
+    "max_q_cells": 50000,
+    "max_memory_bytes": 33554432
+  },
+  "suite_cpu_s": 60.0,
+  "external_worker_timeout_s": 90,
+  "max_calls": 24,
+  "retries": 0,
+  "priors": {
+    "flat": {
+      "min_s": 4,
+      "max_s": 48,
+      "step_s": 2,
+      "family": "uniform"
+    },
+    "soft": {
+      "min_s": 4,
+      "max_s": 48,
+      "step_s": 2,
+      "family": "discrete_laplace",
+      "center_s": 12,
+      "scale_s": 8
+    }
+  },
+  "point_tolerance_s": 2.0,
+  "per_case_core_recall_gate": 0.8,
+  "intervals": "equal-tailed90% model-conditioned finite-grid posterior",
+  "known_assumptions": "K/order/initial anchor and exactly four observed segments supplied",
+  "original_2D1_gate": "FAIL unchanged; this test is not real acceptance",
+  "real_data_reads": 0,
+  "real_replays": 0,
+  "production_acceptance": false
+}

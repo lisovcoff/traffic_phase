@@ -23,6 +23,10 @@ opportunities возникают в центрах grid cells (offset250мс), P
 T={2,4,6}с с mass{.25,.5,.25}. R/C условно независимо detected с p=.8/.9
 только внутри supplied observation windows. Их времена совместно зависят
 от U,D,T; вероятности одного/двух пропущенных detections учитываются явно.
+Латентные машины генерируются только в [0,horizon); delayed observations этих
+машин сохраняются до horizon+10с. Это известный synthetic sampling scope;
+посторонние машины из-за краёв латентного окна не подмешиваются. Для реальных
+обрезанных треков такое ограничение не предполагается автоматически.
 Timestamp resolution1мс; supported observations лежат на grid+250мс. Никакой
 интерполяции off-grid времени: неподдерживаемый clock/delay -> unavailable.
 Эти distributions описывают генератор, а не измеренные реальные RELEASE.
@@ -77,7 +81,7 @@ evidence; counts/exposure/missing patterns корректны; unknown metadata 
 exhaustion -> unavailable; rename invariance; immutability; supplied structural
 zeros; same-car correlation; UNKNOWN common state contract.
 
-Максимум24 inference calls, одновременно вычисляют оба declared priors по одному
+Максимум24 suite inference calls (помимо лёгких contract unit tests), одновременно вычисляют оба declared priors по одному
 и тому же likelihood. CPU suite60с, call5с, максимум10000 paths, horizon80с,
 512 observed tracks, 50000 nonzero q-cells; массивы <=32MiB по declared bound.
 Один внешний timeout90с, без retries. Любое усечение -> unavailable; нельзя
