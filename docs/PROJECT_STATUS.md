@@ -1,5 +1,12 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 manual intake: three new development review exports accepted as
+operator phase-duration hypotheses (14 intervals). All source SHA256/size and
+schema checks passed. Operator reports <=2s signal timing error and sparse
+Enthusiasts traffic; these claims are recorded, not independently calibrated.
+Two small interval overlaps and window censoring remain explicit. See
+MANUAL_REVIEW_INTAKE_20261015.md. No fitting/evaluation or default changes.
+
 2026-10-15: user authorized the root ROADMAP.md and its first step. The local
 annotation workbench is implemented at /annotation (START_ANNOTATION.cmd): raw
 trajectory playback, vehicle selection, interval marks, expert intersection
@@ -7,7 +14,7 @@ knowledge, optional local video anchor, source-bound export/import and drafts.
 Trajectory-based phase labels remain hypotheses; external labels remain review
 claims pending verification. 18 targeted tests and browser round-trip checks
 passed; no phase fitting/replay or production algorithm/default changes.
-Next: user review materials and the independent calibration pilot. See
+Next: formalize the received interval-label adapter and continue the independent calibration pilot. See
 docs/ANNOTATION_WORKBENCH.md. Original 2D.1 FAIL and known regressions remain.
 
 Product goal reaffirmed 2026-10-15: see PRODUCT_GOAL.md (JSON/archive -> phase

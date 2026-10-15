@@ -1,0 +1,237 @@
+{
+  "schema": "trajectory-review-v1",
+  "created_at": "2026-10-15T04:19:55.872Z",
+  "reviewer": "сергей",
+  "session_role": "development",
+  "source": {
+    "name": "17_2025_2_12_7.json",
+    "sha256": "c03bef20e70a6d2997b1c82901f0c819e27f4fd25aeb5851041c21a621ab8d82",
+    "bytes": 200118425,
+    "timestamp_origin_ms": 1739325550213,
+    "end_timestamp_ms": 1739329199927,
+    "timestamp_field": "detections[].millis",
+    "units": {
+      "timestamp": "ms (input contract)",
+      "coordinates": "UNKNOWN",
+      "speed": "UNKNOWN"
+    },
+    "observed_extent_not_camera_coverage": true
+  },
+  "display": {
+    "preview_window_ms": [
+      0,
+      180000
+    ],
+    "coordinates": "raw image coordinates; units UNKNOWN",
+    "interpolation_max_gap_ms": 1000,
+    "flip_y": false,
+    "timezone": "Asia/Yekaterinburg"
+  },
+  "intersection_knowledge": {
+    "name": "свердловский",
+    "description": "группа 1 - ew we(без доп секций)\nгруппа 2 - ne en ns(n - основной свет + доп секция, e - только доп секция)\nгруппа 3 - ns sn(без доп секций)",
+    "source": "operator_report_not_independently_verified"
+  },
+  "annotations": [
+    {
+      "id": "46d1a4ef-b5b0-4a07-b92c-7bfe08217505",
+      "kind": "phase_hypothesis",
+      "label": "Начало группы 1",
+      "interval_start_ms": 1739325578773,
+      "interval_end_ms": 1739325611439,
+      "review_window_ms": [
+        0,
+        180000
+      ],
+      "source_track_id": "7231433",
+      "track_key": "1148:fcfe858dc0180a65",
+      "track_fingerprint": "fcfe858dc0180a653ac63b9aca4c31b60e7594da1dec8dd6b95b12aee0d61236",
+      "movement": "N->_E",
+      "evidence_source": {
+        "kind": "trajectory_with_onsite_knowledge",
+        "reference": "",
+        "synchronization": {
+          "status": "unverified",
+          "uncertainty_ms": null,
+          "verification_note": "",
+          "video_binding": null
+        },
+        "independent_source_claimed": false
+      },
+      "visibility": "visible",
+      "vehicle_timing_uncertainty_ms": null,
+      "signal_relation_uncertainty": "UNKNOWN",
+      "geometry_source": "UNKNOWN",
+      "notes": "",
+      "independently_verified": false,
+      "interpretation": "trajectory_based_hypothesis"
+    },
+    {
+      "id": "d3fed9b8-af11-4d53-af6c-d683eabc629e",
+      "kind": "phase_hypothesis",
+      "label": "Начало группы 2",
+      "interval_start_ms": 1739325611433,
+      "interval_end_ms": 1739325630378,
+      "review_window_ms": [
+        0,
+        180000
+      ],
+      "source_track_id": "7231433",
+      "track_key": "1148:fcfe858dc0180a65",
+      "track_fingerprint": "fcfe858dc0180a653ac63b9aca4c31b60e7594da1dec8dd6b95b12aee0d61236",
+      "movement": "N->_E",
+      "evidence_source": {
+        "kind": "trajectory_with_onsite_knowledge",
+        "reference": "",
+        "synchronization": {
+          "status": "unverified",
+          "uncertainty_ms": null,
+          "verification_note": "",
+          "video_binding": null
+        },
+        "independent_source_claimed": false
+      },
+      "visibility": "visible",
+      "vehicle_timing_uncertainty_ms": null,
+      "signal_relation_uncertainty": "UNKNOWN",
+      "geometry_source": "UNKNOWN",
+      "notes": "",
+      "independently_verified": false,
+      "interpretation": "trajectory_based_hypothesis"
+    },
+    {
+      "id": "6148b551-6cda-43bb-adfe-e73c63792a50",
+      "kind": "phase_hypothesis",
+      "label": "Начало группы 3",
+      "interval_start_ms": 1739325630378,
+      "interval_end_ms": 1739325662787,
+      "review_window_ms": [
+        0,
+        180000
+      ],
+      "source_track_id": "7231708",
+      "track_key": "357:638ea3892680c7d5",
+      "track_fingerprint": "638ea3892680c7d5a5545b67c6b7854d5918e702d00b10162f05dd2ebe0e406a",
+      "movement": "S->_N",
+      "evidence_source": {
+        "kind": "trajectory_with_onsite_knowledge",
+        "reference": "",
+        "synchronization": {
+          "status": "unverified",
+          "uncertainty_ms": null,
+          "verification_note": "",
+          "video_binding": null
+        },
+        "independent_source_claimed": false
+      },
+      "visibility": "visible",
+      "vehicle_timing_uncertainty_ms": null,
+      "signal_relation_uncertainty": "UNKNOWN",
+      "geometry_source": "UNKNOWN",
+      "notes": "",
+      "independently_verified": false,
+      "interpretation": "trajectory_based_hypothesis"
+    },
+    {
+      "id": "14ad03e5-e568-408d-b357-36af8b71b2f1",
+      "kind": "phase_hypothesis",
+      "label": "Начало группы 1",
+      "interval_start_ms": 1739325662787,
+      "interval_end_ms": 1739325691673,
+      "review_window_ms": [
+        0,
+        180000
+      ],
+      "source_track_id": "7231708",
+      "track_key": "357:638ea3892680c7d5",
+      "track_fingerprint": "638ea3892680c7d5a5545b67c6b7854d5918e702d00b10162f05dd2ebe0e406a",
+      "movement": "S->_N",
+      "evidence_source": {
+        "kind": "trajectory_with_onsite_knowledge",
+        "reference": "",
+        "synchronization": {
+          "status": "unverified",
+          "uncertainty_ms": null,
+          "verification_note": "",
+          "video_binding": null
+        },
+        "independent_source_claimed": false
+      },
+      "visibility": "visible",
+      "vehicle_timing_uncertainty_ms": null,
+      "signal_relation_uncertainty": "UNKNOWN",
+      "geometry_source": "UNKNOWN",
+      "notes": "",
+      "independently_verified": false,
+      "interpretation": "trajectory_based_hypothesis"
+    },
+    {
+      "id": "a4f952e6-eb85-4ef7-8496-0e950fa5036e",
+      "kind": "phase_hypothesis",
+      "label": "Начало группы 2",
+      "interval_start_ms": 1739325691673,
+      "interval_end_ms": 1739325714083,
+      "review_window_ms": [
+        0,
+        180000
+      ],
+      "source_track_id": "7231708",
+      "track_key": "357:638ea3892680c7d5",
+      "track_fingerprint": "638ea3892680c7d5a5545b67c6b7854d5918e702d00b10162f05dd2ebe0e406a",
+      "movement": "S->_N",
+      "evidence_source": {
+        "kind": "trajectory_with_onsite_knowledge",
+        "reference": "",
+        "synchronization": {
+          "status": "unverified",
+          "uncertainty_ms": null,
+          "verification_note": "",
+          "video_binding": null
+        },
+        "independent_source_claimed": false
+      },
+      "visibility": "visible",
+      "vehicle_timing_uncertainty_ms": null,
+      "signal_relation_uncertainty": "UNKNOWN",
+      "geometry_source": "UNKNOWN",
+      "notes": "",
+      "independently_verified": false,
+      "interpretation": "trajectory_based_hypothesis"
+    },
+    {
+      "id": "bdabfe5d-fbd4-4eeb-a002-a51b3818e37f",
+      "kind": "phase_hypothesis",
+      "label": "Начало группы 3",
+      "interval_start_ms": 1739325714083,
+      "interval_end_ms": 1739325730213,
+      "review_window_ms": [
+        0,
+        180000
+      ],
+      "source_track_id": "7231708",
+      "track_key": "357:638ea3892680c7d5",
+      "track_fingerprint": "638ea3892680c7d5a5545b67c6b7854d5918e702d00b10162f05dd2ebe0e406a",
+      "movement": "S->_N",
+      "evidence_source": {
+        "kind": "trajectory_with_onsite_knowledge",
+        "reference": "",
+        "synchronization": {
+          "status": "unverified",
+          "uncertainty_ms": null,
+          "verification_note": "",
+          "video_binding": null
+        },
+        "independent_source_claimed": false
+      },
+      "visibility": "visible",
+      "vehicle_timing_uncertainty_ms": null,
+      "signal_relation_uncertainty": "UNKNOWN",
+      "geometry_source": "UNKNOWN",
+      "notes": "",
+      "independently_verified": false,
+      "interpretation": "trajectory_based_hypothesis"
+    }
+  ],
+  "independent_truth_certified": false,
+  "inference_used": false
+}
