@@ -1,5 +1,16 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 joint-track model: an isolated correlated Poisson observation prototype
+was tested once on24 declared synthetic inputs after59 targeted tests. Both
+priors retained: core stable/hold/shortening matches29/30 and30/30, per-case gate
+9/10 and10/10 (flat has one FAIL). Finite-grid posterior intervals are conditional
+on supplied rates/delays/exposure and known K/order/start/count; no real accuracy
+or nominal coverage claim. No-demand/all-missing outputs are prior-only; logical
+and physical publication remain UNKNOWN. Production/default and historical gates
+unchanged; no real replay. See JOINT_TRACK_OBSERVATION_RESULTS_20261015.md.
+Next: verify suitability/synchronization of the existing video and matching JSON
+for independent calibration before transferring synthetic parameters to real data.
+
 2026-10-15 local evidence experiment: isolated app.experimental.local_evidence
 preserves method/type channels and same-track dependence, without changing the
 production selector. 49 pre-run tests passed. One bounded transformation of three
@@ -7,8 +18,8 @@ saved sidecars retained all 80 old selected events and recovered 256 crossing
 proxies; 336 events represent 256 known track groups, not independent lamp
 observations. No labels, extraction, fitting, boundary evaluation or defaults changed.
 No calibrated signal delay/exposure is asserted. Legacy timestamp union is
-explicitly unavailable; next scope is a synthetic joint per-track observation
-model with declared nonexclusive marks/delay/exposure. See
+explicitly unavailable; the subsequent joint model is now tested only in the
+declared synthetic setting with supplied nonexclusive marks/delay/exposure. See
 LOCAL_EVIDENCE_CHANNELS_RESULTS_20261015.md. 2D.1 FAIL and 0/11/19/34 remain.
 
 2026-10-15: one authorized bounded baseline on the three NEW expert-reviewed

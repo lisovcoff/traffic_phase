@@ -64,3 +64,13 @@ Synthetic tests проверяют контракт, граничные случ
 nonexclusive/permissive marks, demand и exposure. Сначала независимый paired-event
 synthetic эксперимент; production/default и метрики не менялись. Это ещё не
 приёмка восстановления времён сигнала и не закрытие calibration-пилота.
+
+2026-10-15: совместный vehicle likelihood реализован отдельно и прошёл59 tests;
+один fixed synthetic suite дал29/30 и30/30 core boundaries для двух priors.
+Flat prior имеет один per-case FAIL; production prior не выбирался.
+[Результаты и ограничения](docs/JOINT_TRACK_OBSERVATION_RESULTS_20261015.md).
+Known anchor/count/rates/delays остаются synthetic assumptions; реальные
+0/11 и19/34 не изменялись. Следующий практический приоритет шага2 — проверить
+имеющиеся видео27.02 и corresponding JSON на пригодность и синхронизацию для
+независимого calibration-пилота. Отдельно предстоит снять known-anchor/count
+ограничение модели; не заменять calibration новыми идеальными тестами.
