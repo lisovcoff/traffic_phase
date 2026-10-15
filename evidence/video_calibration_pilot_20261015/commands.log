@@ -1,0 +1,28 @@
+BASE b25128faed89703f73e666ce2704f7c1361ff42f
+BRANCH calibration/video-feasibility-20261015
+No model fitting, inference, replay, tuning, or label evaluation.
+
+Completed preparation commands (run from audit_checkout):
+powershell -File scripts/inspect_calibration_video.ps1 -VideoPath "C:\Users\sheld\Downloads\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4" -Out evidence/video_calibration_pilot_20261015/video
+node scripts/sample_calibration_frames.mjs --video "C:\Users\sheld\Downloads\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4" --out evidence/video_calibration_pilot_20261015/frames_v4 --port 9229
+node scripts/sample_calibration_frames.mjs --video "C:\Users\sheld\Downloads\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4" --out evidence/video_calibration_pilot_20261015/calibration_frames --port 9229 --times 275,335,395
+C:\Python314\python.exe -m scripts.prepare_calibration_sample --archive "D:\Code\PythonProjects\traffic_phase\data\Ленина-Свердловский 27.02.25.zip" --entry 17_2025_2_27_10.json --start 2025-02-27T10:04:00+05:00 --end 2025-02-27T10:07:00+05:00 --out evidence/video_calibration_pilot_20261015/trajectory_sample
+Preparation outputs: video/metadata.json, frames_v4/frames.json, calibration_frames/frames.json, trajectory_sample/sample_manifest.json.
+One complete chosen entry scan, plus initial <=2MiB/24-record prefix inspection. No other entry decoded.
+
+Targeted validation:
+C:\Python314\python.exe -m pytest tests/test_calibration_sample.py tests/test_annotation_workbench.py -q
+node --check app/static/annotation/workbench.js
+node --check scripts/sample_calibration_frames.mjs
+node --check scripts/check_calibration_ui.mjs
+node scripts/check_calibration_ui.mjs
+24 passed; pytest cache write permission warning only. UI checks passed, no JS exceptions.
+
+Helper/test troubleshooting, before final successful checks:
+Built-in browser runtime initialization failed writing kernel assets (OS error3).
+Fallback: own headless Chrome profile, port9229; no user browser/session controlled.
+PowerShell5.1 WinRT MediaComposition vector projection/C# WinMD approach failed; metadata-only WinRT helper succeeded.
+Large canvas data response stalled; same-origin local Range server plus chunked JPEG retrieval succeeded.
+UI smoke failures: collapsed details, letterbox click coordinates, readyState during seek, repeated lexical declarations, export racing async add. Smoke harness corrected and rerun; no model tuning. Final tests disable browser cache, open video details, await decoded frame and annotation completion.
+UI_TEST marks are only in ignored runtime, not calibration truth.
+Large sample/video/JPEGs remain local, hashes recorded; compact evidence excludes them.

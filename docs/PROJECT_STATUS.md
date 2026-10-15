@@ -1,5 +1,17 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 calibration preparation: existing 27.02 video is playable and a visible
+signal section can be magnified for manual review. A single bounded scan of one
+matching hourly JSON produced243 whole raw tracks for10:04–10:07; other ZIP entries
+remain unopened. Workbench adds exact media cursor, +/-0.1s seeks and source-pixel
+ROI with immutable per-mark provenance.24 targeted tests and browser checks passed.
+Camera overlay differs from filename by about5s; JSON/video synchronization remains
+UNVERIFIED until matching individual cars. No lamp truth, mapping, calibrated delay,
+or production prior inferred. See VIDEO_CALIBRATION_PILOT_20261015.md for the prepared
+local sample and review instructions.2D.1 FAIL/default-off and real0/11/19/34 unchanged.
+Next: independently review video/vehicle anchors and visible section states, then
+certify a separate validation split before fitting any real observation parameters.
+
 2026-10-15 joint-track model: an isolated correlated Poisson observation prototype
 was tested once on24 declared synthetic inputs after59 targeted tests. Both
 priors retained: core stable/hold/shortening matches29/30 and30/30, per-case gate
