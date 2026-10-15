@@ -1,0 +1,36 @@
+> C:\Python314\python.exe -m pytest tests/test_offline_product_html.py tests/v9/test_v9_offline_visualizer.py tests/test_product_result.py tests/test_state_contract_2b2.py tests/v9/test_v9_signal_renderer.py -q -p no:cacheprovider
+....................................................                     [100%]
+52 passed in 3.36s
+
+
+exit_code=0
+> C:\Python314\python.exe -m scripts.v9_offline_visualizer benchmarks/stage2c_20261014/predictions/17_2025_2_19_10_v9.json --prediction --output evidence/offline_product_html_20261016/17_2025_2_19_10_v9.html
+[V9] offline visualization complete
+  input: benchmarks\stage2c_20261014\predictions\17_2025_2_19_10_v9.json
+  output: evidence\offline_product_html_20261016\17_2025_2_19_10_v9.html
+  phases: 3
+  period_s: 99.843
+  duration_s: 3710.688
+
+
+exit_code=0
+> C:\Python314\python.exe -m scripts.v9_offline_visualizer benchmarks/stage2c_20261014/predictions/19_2025_2_24_16_v9.json --prediction --output evidence/offline_product_html_20261016/19_2025_2_24_16_v9.html
+[V9] offline visualization complete
+  input: benchmarks\stage2c_20261014\predictions\19_2025_2_24_16_v9.json
+  output: evidence\offline_product_html_20261016\19_2025_2_24_16_v9.html
+  phases: 2
+  period_s: 120.028
+  duration_s: 1184.664
+
+
+exit_code=0
+> C:\Python314\python.exe -m scripts.v9_offline_visualizer benchmarks/stage2c_20261014/predictions/6_2025_2_14_20_v9.json --prediction --output evidence/offline_product_html_20261016/6_2025_2_14_20_v9.html
+[V9] offline visualization complete
+  input: benchmarks\stage2c_20261014\predictions\6_2025_2_14_20_v9.json
+  output: evidence\offline_product_html_20261016\6_2025_2_14_20_v9.html
+  phases: 3
+  period_s: 99.995
+  duration_s: 3637.385
+
+
+exit_code=0

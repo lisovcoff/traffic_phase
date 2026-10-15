@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>traffic_phase — логические фазы</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#10151e;color:#e5eaf3}
+body{max-width:1100px;margin:auto;padding:24px}h1{font-size:26px}h2{font-size:19px}
+.muted{color:#aab7ca}section,.card{background:#192230;padding:18px;border:1px solid #344155;border-radius:12px;margin:16px 0}
+.stats,.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.stats strong{display:block;font-size:24px;margin-top:5px}.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+button,input,select{font:inherit}button,select{padding:8px 14px;background:#27384e;color:inherit;border:1px solid #526781;border-radius:6px}
+input[type=range]{width:100%;margin:16px 0}input[type=number]{width:130px;padding:7px}
+.timeline{height:30px;position:relative;background:#0a1018;overflow:hidden}.segment{position:absolute;height:100%;background:#446181;border-right:1px solid #b7c8dd}
+.unknown{color:#c9d3e4;font-weight:bold}.movement{padding:12px 0;border-top:1px solid #344155}.score{font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:8px;border-bottom:1px solid #344155}
+</style></head><body>
+<h1>traffic_phase — логические фазы</h1>
+<p class="muted">Оценка по автомобильным событиям. Физические лампы и типы секций не подтверждены.</p>
+<section class="stats"><div>Число фаз<strong id="phaseCount"></strong></div><div>Период модели<strong id="period"></strong></div><div>Наблюдаемые зоны входа<strong id="originCount"></strong></div></section>
+<section><div class="controls"><button id="play">Воспроизвести</button><button id="pause">Пауза</button>
+<label>Скорость <select id="speed"><option>1</option><option>5</option><option>20</option></select></label>
+<label>Время, с <input id="timeInput" type="number" step="0.1" value="0"></label><button id="seek">Перейти</button></div>
+<input id="slider" type="range" min="0" max="0" step="0.1" value="0"><div class="timeline" id="timeline"></div>
+<p id="timebase" class="muted"></p><h2 id="phaseTitle"></h2><p id="reason"></p>
+<p>Физическое состояние: <span id="lampState" class="unknown">UNKNOWN</span></p></section>
+<section><h2>Покрытие и ограничения</h2><p id="coverage"></p><p id="validation"></p>
+<p class="muted">Пробелы и время вне истории дают UNKNOWN. Нулевой спрос не доказывает красный.
+Поворот не доказывает аппаратную стрелку. Activity score не является вероятностью лампы.
+Продления и сокращения ещё не прошли приёмку; обычный цикл не подставляется вместо пробела.</p></section>
+<h2>Движения по исходным зонам</h2><div id="signalGrid" class="grid"></div>
+<section id="unassigned"></section>
+<script>
+const PRODUCT = __PRODUCT_DATA__;
+const $ = id => document.getElementById(id);
+let current=0, timer=null;
+// These intervals/states were validated and evaluated by the shared Python
+// query contract. Browser code only locates a half-open prepared interval.
+function stateAt(t){
+  let lo=0, hi=PRODUCT.intervals.length;
+  while(lo<hi){const m=(lo+hi)>>1;if(PRODUCT.intervals[m].start<=t)lo=m+1;else hi=m;}
+  const row=PRODUCT.intervals[lo-1];
+  return row && t>=row.start && t<row.end ? row.logical_phase : PRODUCT.fallback_logical_phase;
+}
+function text(tag,value,cls){const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el;}
+function render(){
+  const logical=stateAt(current), phase=logical.estimated_state;
+  $('timeInput').value=String(current);$('slider').value=String(current);
+  $('phaseTitle').textContent='Логическая фаза: '+phase;
+  $('reason').textContent=logical.abstention_reason ? 'Причина UNKNOWN: '+logical.abstention_reason : 'Модельная оценка, не наблюдение лампы';
+  $('lampState').textContent=PRODUCT.physical_section.estimated_state;
+  const grid=$('signalGrid');grid.replaceChildren();
+  for(const approach of PRODUCT.approaches){
+    const card=text('article','','card');
+    card.append(text('h2','Зона '+approach.origin_zone),text('p','Тип светофора: UNKNOWN · число допсекций: неизвестно','muted'));
+    for(const movement of approach.movements){
+      const row=text('div','','movement');row.append(text('strong',movement.movement));
+      const score=phase==='UNKNOWN'?null:movement.activity_scores_by_phase[phase];
+      row.append(text('p','Activity score: '+(score==null?'UNKNOWN':Number(score).toFixed(4)),'score'));
+      row.append(text('span','Физическая секция: UNKNOWN','unknown'));card.append(row);
+    }grid.append(card);
+  }
+}
+function setCurrent(value){const t=Number(value);if(!Number.isFinite(t))return;current=t;render();}
+function stop(){if(timer!==null)clearInterval(timer);timer=null;}
+$('seek').addEventListener('click',()=>{stop();setCurrent($('timeInput').value)});
+$('slider').addEventListener('input',e=>{stop();setCurrent(e.target.value)});
+$('pause').addEventListener('click',stop);
+$('play').addEventListener('click',()=>{stop();timer=setInterval(()=>{setCurrent(current+.25*Number($('speed').value));if(current>=Number($('slider').max))stop();},250)});
+$('phaseCount').textContent=String(PRODUCT.phase_count??'UNKNOWN');
+$('period').textContent=PRODUCT.period_s==null?'UNKNOWN':Number(PRODUCT.period_s).toFixed(3)+' с';
+$('originCount').textContent=String(PRODUCT.approaches.length)+' (не полная геометрия)';
+$('slider').max=String(Math.max(PRODUCT.history.extent_s?.[1]??0,PRODUCT.intervals.at(-1)?.end??0));
+$('timebase').textContent='Секунды от schedule anchor: '+String(PRODUCT.query_timebase.anchor_ms??'UNKNOWN')+' ms. Не время MP4.';
+$('coverage').textContent='История модели: '+PRODUCT.history.covered_seconds+' с; внутренние пробелы: '+PRODUCT.history.internal_gaps_s.length+'. Покрытие камеры и локальная наблюдаемость: UNKNOWN.';
+$('validation').textContent=PRODUCT.validation_status;
+$('unassigned').append(text('h2','Движения без определённой зоны входа'),text('p',PRODUCT.unassigned_movements.map(m=>m.movement).join(', ')||'Нет'));
+const end=Number($('slider').max);
+for(const row of PRODUCT.intervals){if(end<=0)break;const el=text('span','','segment');if(row.logical_phase.estimated_state==='UNKNOWN')el.style.background='#424a57';el.style.left=(100*row.start/end)+'%';el.style.width=(100*(row.end-row.start)/end)+'%';el.title=row.logical_phase.estimated_state+' '+row.start+'–'+row.end+' с';$('timeline').append(el);}
+render();
+</script></body></html>

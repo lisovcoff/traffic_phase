@@ -1,5 +1,16 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 offline CLI/HTML product contract integration delivered. Old JS bypassed
+Python guards with activity-based lamp colors and last-segment fallback; removed.
+Common validated interval snapshots now drive logical UI; hardware UNKNOWN and
+activity scores separate. Saved prediction mode never calls discovery; raw route
+preserved.52 tests pass including JS/DOM controls, gap/edge parity and existing
+renderer regressions. Three HTML files generated from unchanged saved predictions;
+invariant hashes match previous export. No fitting/real replay/default change.
+Browser visual QA unavailable (runtime kernel assets os error3), not claimed.
+See OFFLINE_PRODUCT_HTML_20261016.md. UI partial,2/8 engineering criteria closed;
+2D.1 FAIL and historic raw19/34,K3/2/3 retained. Main unchanged.
+
 2026-10-16 read-only product result contract delivered for saved V9 predictions.
 Observed source zones/movements and full shared activity signatures retained;
 hardware type/count and physical states UNKNOWN, not inferred from turns. Common

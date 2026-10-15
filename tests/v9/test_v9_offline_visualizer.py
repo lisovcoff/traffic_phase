@@ -58,11 +58,9 @@ def test_offline_visualizer_contains_v9_model_and_state_labels():
         red_yellow_duration_seconds=2.0,
         activity_threshold=0.05,
     )
-    assert "V9 — офлайн-реконструкция светофора" in html
-    assert "GREEN" in html
-    assert "YELLOW" in html
-    assert "RED" in html
-    assert "MODELLED_TRANSITION" in html
-    assert '"stream":"N->S"' in html
-    assert 'function movementLabel(value)' in html
-    assert 'RU[a]||a' in html
+    # Baseline-only input cannot establish reconstructed history or lamp colors.
+    assert "traffic_phase — логические фазы" in html
+    assert "UNKNOWN" in html
+    assert "MODELLED_TRANSITION" not in html
+    assert '"movement":"N-\\u003eS"' in html
+    assert '"intervals":[]' in html

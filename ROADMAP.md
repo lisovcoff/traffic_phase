@@ -1,5 +1,13 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: [offline JSON/ZIP route и HTML подключены к product/query contract](docs/OFFLINE_PRODUCT_HTML_20261016.md).
+Убран отдельный JS activity→lamp threshold и fallback на последний сегмент.
+Есть `--prediction` без fitting и три готовых HTML,52 tests; K/period/schedule/
+selection hashes совпадают с предыдущим export. Raw JSON/ZIP route сохранён,
+проверен без реального fitting. Browser visual QA не выполнена из-за ошибки
+browser runtime; UI/checklist ещё не приняты целиком. 2D.1 FAIL,2/8 закрытых
+инженерных пунктов, main/inference default и исторические метрики сохранены.
+
 2026-10-16: реализован [единый product result для сохранённых predictions](docs/PRODUCT_RESULT_20261016.md).
 K/period/schedule/selection сохранены на трёх записях;42 tests pass. Движения
 по source zones, shared activity signatures, общий logical query и UNKNOWN hardware
