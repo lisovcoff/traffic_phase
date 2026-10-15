@@ -1,5 +1,19 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 observation-contract bridge completed: localized/lossless views now
+feed preparation of the existing joint observation components under explicitly
+supplied scientific inputs. No inference call or new likelihood.74 targeted tests
+pass: nonexclusive pre-GREEN activity, within-track dependence, unknown demand,
+gaps/clock/resource guards, rename and immutable input. Saved A/B each contain
+4 events/4 vehicles; both unavailable with missing model inputs, logical/physical
+UNKNOWN. No synthetic rates/delays or timestamp rounding injected into real data.
+Existing finite-grid clock and known start/count remain product blockers, not
+solved by this adapter.2C/state contract accepted;2D.1 FAIL/default-off retained.
+Historical K3/2/3 vs truth3/2/2 and raw19/34 unchanged; no phase accuracy improvement
+claimed. See PHASE_OBSERVATION_BRIDGE_20261015.md. Next: separately bounded
+event-time observation model supporting actual timestamp resolution and unknown
+sequence anchor/count; external calibration still required for lamp semantics.
+
 2026-10-15 new-block validation completed with frozen localizer/model: first4
 chronological N RELEASE tracks in each predeclared500–560/1200–1260s window;
 all243 previously reviewed tracks excluded, one272.97MB entry scan. Event outputs

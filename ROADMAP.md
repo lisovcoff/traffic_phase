@@ -2,6 +2,14 @@
 
 ## Текущий критический путь к продукту — уточнение 2026-10-15
 
+Последний шаг: [phase observation bridge](docs/PHASE_OBSERVATION_BRIDGE_20261015.md)
+подключает lossless event views к подготовке существующего joint likelihood.
+74 targeted tests; оба сохранённых реальных окна честно unavailable из-за
+неизвестных scientific inputs. Нового inference/real replay нет. Следующий
+алгоритмический scope — непрерывная/rounded timestamp observation model и
+неизвестный start/count, с отдельно зафиксированными assumptions до запуска;
+не повторная разметка восьми машин и не новый K search.
+
 Цель неизменна: **JSON/ZIP → подходы/движения → K и состав фаз → локальная история
 с продлениями → возможные аппаратные секции → согласованный HTML/API**.
 Завершение определяется этим сквозным результатом и независимой проверкой,
@@ -37,9 +45,10 @@
    независимые реальные sessions, ошибки/coverage/UNKNOWN, ZIP limits и установка.
 
 Ручное видео используется для разработки/validation. Пользователь готового
-продукта не обязан размечать каждый новый JSON. Новые decoder/likelihood/prior
-experiments остаются на паузе; текущее задание разрешает только описанный
-event-time шаг и уточнение плана. Ниже сохранён журнал прежних этапов.
+продукта не обязан размечать каждый новый JSON. Последний явно разрешённый шаг —
+observation-contract integration, выполненный без sequence inference.
+Новый decoder/likelihood/prior experiment требует отдельного ограниченного scope.
+Ниже сохранён журнал прежних этапов.
 
 2026-10-15: [локальная image/clock привязка проверена на4 withheld машинах](docs/LOCAL_VEHICLE_REGISTRATION_20261015.md).
 Один расчёт по3 другим машинам, без signal/RELEASE labels; max withheld residual

@@ -1,0 +1,125 @@
+{
+  "base_sha": "1981bdef6e94e5e691871bb30bdb3fef7b1e36ef",
+  "source_path": "evidence/restart_multicycle_validation_20261015/evidence_adapter_queries.json",
+  "source_sha256": "8d1a631e12d3a8029328fde7cf26deef2e8802123d3bd06b3bff0d63b5657305",
+  "new_sequence_inference_calls": 0,
+  "phase_annotations_read": false,
+  "results": {
+    "A": {
+      "schema": "experimental-phase-observation-bridge-v1",
+      "status": "unavailable",
+      "reason": "OBSERVATION_MODEL_INPUTS_UNKNOWN",
+      "logical_phase": {
+        "estimated_state": "UNKNOWN",
+        "level": "logical_phase",
+        "source": "experimental-phase-observation-bridge-v1",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "NO_SEQUENCE_INFERENCE_IN_THIS_COMPONENT",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "physical_section": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "experimental-phase-observation-bridge-v1",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "calibrated_lamp_probability": null,
+      "production_default_changed": false,
+      "assumptions": [
+        "one likelihood contribution per identified vehicle",
+        "silence is informative only under supplied demand/exposure/detection",
+        "vehicle activity may precede GREEN; latent vehicle time is not a switch",
+        "finite synthetic clock remains a limitation; no timestamp rounding"
+      ],
+      "missing_inputs": [
+        "rates_per_s",
+        "rate_source",
+        "release_delay_s",
+        "transit_delay_s",
+        "delay_source",
+        "latent_demand_exposure",
+        "demand_source",
+        "observation_windows_s",
+        "observation_window_source",
+        "release_detection_probability",
+        "crossing_detection_probability",
+        "release_method",
+        "crossing_method",
+        "horizon_s",
+        "movements"
+      ],
+      "components": null,
+      "input_sha256": "dea2fe92d5adf5ae877d9560ff34a1c6b1a2697736352b56370bb1548c8561de",
+      "event_count": 4,
+      "vehicle_group_count": 4,
+      "origin_ms": null,
+      "supplied_model_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    },
+    "B": {
+      "schema": "experimental-phase-observation-bridge-v1",
+      "status": "unavailable",
+      "reason": "OBSERVATION_MODEL_INPUTS_UNKNOWN",
+      "logical_phase": {
+        "estimated_state": "UNKNOWN",
+        "level": "logical_phase",
+        "source": "experimental-phase-observation-bridge-v1",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "NO_SEQUENCE_INFERENCE_IN_THIS_COMPONENT",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "physical_section": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "experimental-phase-observation-bridge-v1",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      },
+      "calibrated_lamp_probability": null,
+      "production_default_changed": false,
+      "assumptions": [
+        "one likelihood contribution per identified vehicle",
+        "silence is informative only under supplied demand/exposure/detection",
+        "vehicle activity may precede GREEN; latent vehicle time is not a switch",
+        "finite synthetic clock remains a limitation; no timestamp rounding"
+      ],
+      "missing_inputs": [
+        "rates_per_s",
+        "rate_source",
+        "release_delay_s",
+        "transit_delay_s",
+        "delay_source",
+        "latent_demand_exposure",
+        "demand_source",
+        "observation_windows_s",
+        "observation_window_source",
+        "release_detection_probability",
+        "crossing_detection_probability",
+        "release_method",
+        "crossing_method",
+        "horizon_s",
+        "movements"
+      ],
+      "components": null,
+      "input_sha256": "6656c1d7c74c19e1cc80469f486be53f6c73a796982abe60e7f64f14305fae33",
+      "event_count": 4,
+      "vehicle_group_count": 4,
+      "origin_ms": null,
+      "supplied_model_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    }
+  }
+}
