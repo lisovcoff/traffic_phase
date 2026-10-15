@@ -1,0 +1,106 @@
+{
+  "schema": "expert-phase-duration-adapter-v1",
+  "window_ms": [
+    1739494798867,
+    1739494978867
+  ],
+  "group_definitions": {
+    "Начало группы 1": [
+      "E->W",
+      "W->E"
+    ],
+    "Начало группы 2": [
+      "N->S",
+      "S->N"
+    ]
+  },
+  "blocks": [
+    {
+      "annotation": {
+        "valid": true,
+        "errors": [],
+        "warnings": [
+          "unknown_initial_phase_before_first_mark",
+          "missing_terminal_boundary_for_last_phase",
+          "consecutive_same_kind_not_phase_transition"
+        ],
+        "marks": [
+          {
+            "timestamp_ms": 1739494807904,
+            "kind": "Начало группы 1"
+          },
+          {
+            "timestamp_ms": 1739494872034,
+            "kind": "Начало группы 2"
+          },
+          {
+            "timestamp_ms": 1739494904805,
+            "kind": "Начало группы 1"
+          },
+          {
+            "timestamp_ms": 1739494947174,
+            "kind": "Начало группы 2"
+          },
+          {
+            "timestamp_ms": 1739494978867,
+            "kind": "Начало группы 2"
+          }
+        ],
+        "labels": [
+          "Начало группы 1",
+          "Начало группы 2"
+        ],
+        "start_ms": 1739494798867,
+        "known_range_ms": [
+          1739494807904,
+          1739494978867
+        ],
+        "complete_intervals": 4,
+        "physical_lamp_truth_available": false,
+        "phase_movement_mapping": null
+      },
+      "endpoint_semantics": "left and right censoring sentinels; never boundary truth"
+    }
+  ],
+  "boundary_hypotheses": [
+    {
+      "from_group": "Начало группы 1",
+      "to_group": "Начало группы 2",
+      "endpoint_interval_ms": [
+        1739494872034,
+        1739494872034
+      ],
+      "endpoint_disagreement_ms": 0,
+      "point_diagnostic_ms": 1739494872034,
+      "interpretation": "endpoint discrepancy bracket, not calibrated lamp interval"
+    },
+    {
+      "from_group": "Начало группы 2",
+      "to_group": "Начало группы 1",
+      "endpoint_interval_ms": [
+        1739494904805,
+        1739494904805
+      ],
+      "endpoint_disagreement_ms": 0,
+      "point_diagnostic_ms": 1739494904805,
+      "interpretation": "endpoint discrepancy bracket, not calibrated lamp interval"
+    },
+    {
+      "from_group": "Начало группы 1",
+      "to_group": "Начало группы 2",
+      "endpoint_interval_ms": [
+        1739494947174,
+        1739494947174
+      ],
+      "endpoint_disagreement_ms": 0,
+      "point_diagnostic_ms": 1739494947174,
+      "interpretation": "endpoint discrepancy bracket, not calibrated lamp interval"
+    }
+  ],
+  "unlabelled_gaps_ms": [],
+  "labelled_duration_s": 170.963,
+  "operator_error_claim_ms": 2000,
+  "independent_lamp_truth": false,
+  "selected_track_used_for_mapping": false,
+  "interval_semantics_confirmed_by_operator": true
+}
