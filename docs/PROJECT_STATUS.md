@@ -1,5 +1,16 @@
 # Project status — 2D.1, 2026-10-14
 
+2026-10-15 local evidence experiment: isolated app.experimental.local_evidence
+preserves method/type channels and same-track dependence, without changing the
+production selector. 49 pre-run tests passed. One bounded transformation of three
+saved sidecars retained all 80 old selected events and recovered 256 crossing
+proxies; 336 events represent 256 known track groups, not independent lamp
+observations. No labels, extraction, fitting, boundary evaluation or defaults changed.
+No calibrated signal delay/exposure is asserted. Legacy timestamp union is
+explicitly unavailable; next scope is a synthetic joint per-track observation
+model with declared nonexclusive marks/delay/exposure. See
+LOCAL_EVIDENCE_CHANNELS_RESULTS_20261015.md. 2D.1 FAIL and 0/11/19/34 remain.
+
 2026-10-15: one authorized bounded baseline on the three NEW expert-reviewed
 dates completed after protocol/code freeze and 50 tests. K=3/2/2 matches operator
 groups; raw and baseline each match 0/11 internal boundaries at +/-2s (10 predicted).
@@ -8,8 +19,8 @@ edges excluded. Temporal coverage=100% of labelled blocks; physical UNKNOWN540/5
 No default, period solver, selector, K search or decoder changes. No retries/tuning.
 A further one-test diagnostic confirms the existing selector's remote-RELEASE
 removal of local crossing proxies; it is a mechanism witness, not an accepted fix.
-Next priority: a preregistered evidence-preserving local observation experiment,
-with separate event types/unknown delay and independent calibration still open.
+The preregistered evidence-preserving representation is now tested separately;
+method-specific observation likelihood and independent calibration remain open.
 See EXPERT_INTERVAL_BASELINE_20261015.md. 2D.1 remains FAIL.
 
 2026-10-15 manual intake: three new development review exports accepted as

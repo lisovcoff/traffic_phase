@@ -1,0 +1,823 @@
+diff --git a/.gitattributes b/.gitattributes
+index d628f21..53f43db 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -10,3 +10,4 @@ evidence/stage2d1_interval_reference/** -text -whitespace
+ evidence/stage2d1_event_time_prototype/** -text -whitespace
+ evidence/manual_review_intake_20261015/*_review.json -text
+ benchmarks/expert_intervals_20261015/** -text -whitespace
++evidence/local_evidence_channels_20261015/** -text -whitespace
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 964ad55..5e37c18 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -56,3 +56,11 @@ Synthetic tests проверяют контракт, граничные случ
+ Механизм selector воспроизведён одним отдельным тестом. Следующее изменение
+ сначала проверить независимо на synthetic cases; параметры по этим меткам не
+ подбирать. Production policy и непринятый 2D.1 в этом шаге не изменялись.
++
++2026-10-15: отдельное local-evidence представление реализовано и прошло 49 tests.
++Все 80 ранее selected events сохранены; 256 crossing-proxy возвращены без
++смешивания методов и двойного счёта треков. [Результат](docs/LOCAL_EVIDENCE_CHANNELS_RESULTS_20261015.md).
++Следующая часть шага 3 — совместная observation model на трек: явные delay,
++nonexclusive/permissive marks, demand и exposure. Сначала независимый paired-event
++synthetic эксперимент; production/default и метрики не менялись. Это ещё не
++приёмка восстановления времён сигнала и не закрытие calibration-пилота.
+diff --git a/app/experimental/__init__.py b/app/experimental/__init__.py
+new file mode 100644
+index 0000000..915054f
+--- /dev/null
++++ b/app/experimental/__init__.py
+@@ -0,0 +1 @@
++"""Explicit experimental components; never imported by production inference."""
+diff --git a/app/experimental/local_evidence.py b/app/experimental/local_evidence.py
+new file mode 100644
+index 0000000..9ed3ec4
+--- /dev/null
++++ b/app/experimental/local_evidence.py
+@@ -0,0 +1,211 @@
++"""Lossless local vehicle channels, not a signal observation likelihood.
++
++No numeric vehicle timestamps are implicitly converted to lamp switches.
++All windows are half-open. The caller supplies exposure; silence never supplies it.
++"""
++from __future__ import annotations
++
++from bisect import bisect_left
++from collections import Counter, defaultdict
++from dataclasses import dataclass
++import hashlib
++import json
++import math
++import time
++
++from app.core.temporal_evidence import EvidenceUnavailable, TemporalEvent
++from app.core.state_contract import physical_estimate
++
++VERSION = 'experimental-local-evidence-v1'
++ROLES = {'ENTRY': 'demand', 'STOP': 'vehicle_stationary', 'RELEASE': 'restart_proxy',
++         'CROSSING_PROXY': 'zone_transition_proxy', 'CROSSING': 'vehicle_crossing_verified_geometry'}
++
++
++def _canonical(value):
++    return json.dumps(value, sort_keys=True, ensure_ascii=False, allow_nan=False, separators=(',', ':'))
++
++
++def _hash(value):
++    return hashlib.sha256(_canonical(value).encode('utf-8')).hexdigest()
++
++
++def _finite(value):
++    return isinstance(value, (int,float)) and not isinstance(value,bool) and math.isfinite(value)
++
++
++def _interval(start, end):
++    if not _finite(start) or not _finite(end) or not 0 <= start < end:
++        raise ValueError('finite nonnegative half-open interval required')
++
++
++def _eligibility(event):
++    """Same RELEASE/proxy gates as accepted selector, without stream-wide choice."""
++    if event.event_type == 'RELEASE':
++        return (True,None) if event.evidence_quality != 'LOW' else (False,'LOW_QUALITY_RELEASE')
++    if event.event_type == 'CROSSING_PROXY':
++        p=event.provenance
++        if not p.get('eligible_proxy'): return False,'INELIGIBLE_PROXY'
++        if p.get('conflicting_timestamps'): return False,'CONFLICTING_TIMESTAMPS'
++        if p.get('invalid_detections'): return False,'INVALID_DETECTIONS'
++        return True,None
++    if event.event_type == 'CROSSING':
++        return True,None  # TemporalEvent requires verified_stop_line; still not GREEN.
++    return False,'DEMAND_ONLY' if event.event_type == 'ENTRY' else 'STATIONARY_VEHICLE_NOT_RED'
++
++
++@dataclass(frozen=True)
++class ExposureWindow:
++    start_ms: float
++    end_ms: float
++    source: str
++
++    def __post_init__(self):
++        _interval(self.start_ms,self.end_ms)
++        if not isinstance(self.source,str) or not self.source.strip():
++            raise ValueError('supplied exposure needs its own source')
++
++
++@dataclass(frozen=True)
++class _EventRow:
++    timestamp_ms: float
++    event_id: str
++    vehicle_group_id: str | None
++    serialized_event: str
++    eligible: bool
++    exclusion_reason: str | None
++    source_indices: tuple[int,...]
++
++
++@dataclass(frozen=True)
++class LocalEvidenceIndex:
++    rows: tuple[_EventRow,...]
++    times: tuple[float,...]
++    namespace: str
++    exposure: tuple[ExposureWindow,...] | None
++    input_event_count: int
++    duplicate_events: int
++
++    def legacy_streams(self):
++        raise EvidenceUnavailable('separate source channels require an explicit observation model; no implicit timestamp union',
++                                  reason_code='METHOD_DEPENDENCE_AND_EVENT_SIGNAL_DELAY_UNMODELLED')
++
++    def query(self, start_ms, end_ms, *, max_duration_s=1800, max_events=100000):
++        _interval(start_ms,end_ms)
++        if not _finite(max_duration_s) or max_duration_s<=0 or isinstance(max_events,bool) or not isinstance(max_events,int) or max_events<0:
++            raise ValueError('invalid query limits')
++        if end_ms-start_ms > max_duration_s*1000:
++            raise EvidenceUnavailable('query duration limit exceeded',reason_code='QUERY_DURATION_LIMIT')
++        left,right=bisect_left(self.times,start_ms),bisect_left(self.times,end_ms)
++        if right-left>max_events:
++            raise EvidenceUnavailable('query event limit exceeded',reason_code='QUERY_EVENT_LIMIT')
++        rows=self.rows[left:right]
++        channels=defaultdict(list)
++        correlated=defaultdict(list)
++        source_rows=[]
++        eligible_groups=set()
++        unidentified=0
++        conflicts=[]
++        for row in rows:
++            event=json.loads(row.serialized_event)
++            in_exposure=(None if self.exposure is None else any(w.start_ms<=row.timestamp_ms<w.end_ms for w in self.exposure))
++            item={'event_id':row.event_id,'vehicle_group_id':row.vehicle_group_id,
++                  'source_indices':list(row.source_indices),'event':event,
++                  'role':ROLES[event['event_type']],
++                  'eligible_vehicle_evidence':row.eligible,'exclusion_reason':row.exclusion_reason,
++                  'supplied_exposure_contains_timestamp':in_exposure,
++                  'signal_relation':'UNKNOWN','calibrated_lamp_probability':None}
++            source_rows.append(item)
++            channels[(event['movement'],event['event_type'],event['evidence_method'])].append(row.event_id)
++            if row.vehicle_group_id is not None:
++                correlated[row.vehicle_group_id].append(row.event_id)
++                if row.eligible: eligible_groups.add(row.vehicle_group_id)
++            elif row.eligible:
++                unidentified+=1
++            if in_exposure is False: conflicts.append(row.event_id)
++        supplied=[] if self.exposure is None else [
++            {'start_ms':max(start_ms,w.start_ms),'end_ms':min(end_ms,w.end_ms),'source':w.source}
++            for w in self.exposure if w.start_ms<end_ms and start_ms<w.end_ms]
++        supplied_ms=sum(w['end_ms']-w['start_ms'] for w in supplied)
++        exposure_status=('UNKNOWN' if self.exposure is None else
++                         'SUPPLIED_FULL_WINDOW' if supplied_ms==end_ms-start_ms else
++                         'SUPPLIED_PARTIAL_WINDOW' if supplied_ms else 'NO_SUPPLIED_WINDOW_SUPPORT')
++        count=sum(row.eligible for row in rows)
++        reason=None if count else 'NO_ELIGIBLE_LOCAL_MOVEMENT_EVIDENCE' if rows else 'NO_LOCAL_EVENTS'
++        return {'schema':VERSION,'status':'available','range_ms':[start_ms,end_ms],
++                'source_namespace':self.namespace,'events':source_rows,
++                'channels':[{'movement':m,'event_type':t,'method':method,'event_ids':ids,'event_count':len(ids)}
++                            for (m,t,method),ids in sorted(channels.items())],
++                'correlated_vehicle_groups':dict(correlated),
++                'counts':{'events':len(rows),'eligible_vehicle_events':count,
++                          'known_vehicle_groups_with_eligible_evidence':len(eligible_groups),
++                          'eligible_events_without_track_identity':unidentified,
++                          'events_by_type':dict(Counter(json.loads(r.serialized_event)['event_type'] for r in rows))},
++                'observation_support':{'status':exposure_status,'supplied_windows':supplied,
++                    'supplied_duration_s':None if self.exposure is None else supplied_ms/1000,
++                    'source':'explicit caller input, never inferred from event absence',
++                    'event_ids_outside_supplied_windows':conflicts,'demand':'UNKNOWN'},
++                'abstention_reason':reason,
++                'logical_phase':{'estimated_state':'UNKNOWN','reason':'NO_SEQUENCE_INFERENCE_IN_THIS_COMPONENT'},
++                'physical_section':physical_estimate('UNKNOWN',source=VERSION).to_dict(),
++                'legacy_likelihood_compatibility':{'status':'unavailable',
++                    'reason':'METHOD_DEPENDENCE_AND_EVENT_SIGNAL_DELAY_UNMODELLED'},
++                'assumptions':['counts are vehicle evidence, not independent lamp observations',
++                               'track fingerprints identify correlation groups, not calibrated independence',
++                               'no-event bins cannot identify no-demand, blockage or RED',
++                               'event-to-signal delay and permissive/protected semantics UNKNOWN']}
++
++
++def build_local_evidence(events, *, source_namespace, exposure_windows=None,
++                         max_events=20000, max_seconds=30.0):
++    """Snapshot existing TemporalEvent contracts, retaining all channels.
++
++    Identity/dedup depends only on the event, never remote events or phase labels.
++    Missing fingerprints remain unidentified; numeric IDs alone are not reliable.
++    """
++    if events is None:
++        raise EvidenceUnavailable('event input missing',reason_code='MISSING_EVENT_INPUT')
++    if not isinstance(source_namespace,str) or not source_namespace.strip():
++        raise ValueError('source namespace required')
++    if isinstance(max_events,bool) or not isinstance(max_events,int) or max_events<0 or not _finite(max_seconds) or max_seconds<0:
++        raise ValueError('invalid build limits')
++    deadline=time.monotonic()+max_seconds
++    exposure=None
++    if exposure_windows is not None:
++        supplied=[]
++        for window in exposure_windows:
++            if len(supplied)>=1000 or time.monotonic()>=deadline:
++                raise EvidenceUnavailable('supplied exposure budget exceeded',reason_code='EXPOSURE_INPUT_LIMIT')
++            supplied.append(window)
++        exposure=tuple(supplied)
++        if any(not isinstance(w,ExposureWindow) for w in exposure): raise ValueError('ExposureWindow required')
++        if any(a.end_ms>b.start_ms for a,b in zip(exposure,exposure[1:])):
++            raise ValueError('exposure windows must be ordered and disjoint')
++    unique={}
++    count=0
++    for index,event in enumerate(events):
++        if time.monotonic()>=deadline:
++            raise EvidenceUnavailable('build time limit exceeded',reason_code='EVIDENCE_TIME_LIMIT')
++        if index>=max_events:
++            raise EvidenceUnavailable('build event limit exceeded',reason_code='EVIDENCE_EVENT_LIMIT')
++        if not isinstance(event,TemporalEvent): raise TypeError('TemporalEvent required; no annotations accepted')
++        if isinstance(event.timestamp_ms,bool) or not _finite(event.timestamp_ms) or event.timestamp_ms<0:
++            raise ValueError('invalid event timestamp')
++        if not isinstance(event.movement,str) or not event.movement.strip(): raise ValueError('movement required')
++        payload=event.to_dict()
++        serialized=_canonical(payload)
++        eid=_hash([source_namespace,payload])
++        count+=1
++        if eid in unique:
++            unique[eid][1].append(index)
++            continue
++        fp=event.provenance.get('track_fingerprint')
++        group=(_hash([source_namespace,event.provenance.get('source'),fp])
++               if isinstance(fp,str) and fp else None)
++        eligible,reason=_eligibility(event)
++        unique[eid]=[(event.timestamp_ms,eid,group,serialized,eligible,reason),[index]]
++    if time.monotonic()>=deadline:
++        raise EvidenceUnavailable('build time limit exceeded',reason_code='EVIDENCE_TIME_LIMIT')
++    rows=tuple(sorted((_EventRow(*v[0],tuple(v[1])) for v in unique.values()), key=lambda r:(r.timestamp_ms,r.event_id)))
++    if time.monotonic()>=deadline:
++        raise EvidenceUnavailable('build time limit exceeded',reason_code='EVIDENCE_TIME_LIMIT')
++    return LocalEvidenceIndex(rows,tuple(r.timestamp_ms for r in rows),source_namespace,exposure,count,count-len(rows))
+diff --git a/docs/LOCAL_EVIDENCE_CHANNELS_20261015.md b/docs/LOCAL_EVIDENCE_CHANNELS_20261015.md
+new file mode 100644
+index 0000000..fee8f38
+--- /dev/null
++++ b/docs/LOCAL_EVIDENCE_CHANNELS_20261015.md
+@@ -0,0 +1,64 @@
++# Локальные каналы evidence: протокол до эксперимента
++
++Base: `b96f81f04d533cf0f721041460db727eb662539d`.
++Цель этого шага — устранить remote-event loss в отдельном представлении данных
++и проверить пригодность входа для будущей observation model. Никаких изменений
++production selector/default, нового fitting, K search, period inference,
++boundary offsets, likelihood или real replay.
++
++## Контракт и фиксированные проверки
++
++Сохраняются отдельные каналы (movement, event_type, evidence_method), а не
++смешанный поток timestamps. ENTRY=спрос, STOP=стационарность автомобиля,
++RELEASE=restart proxy, CROSSING_PROXY=zone-transition proxy. Даже подтверждённый
++геометрией CROSSING описывает автомобиль, а не цвет лампы. Используются прежние
++eligibility guards; не вводятся новые thresholds/weights/gap-fill.
++
++Идентичные события дедуплицируются с сохранением source indices. RELEASE и
++CROSSING_PROXY одного track fingerprint не являются независимыми автомобилями.
++Неизвестная идентичность остаётся UNKNOWN; совпавший numeric ID не объединяет
++разные fingerprint. Метод, timestamp, vehicle uncertainty и неизвестная связь
++с сигналом сохраняются. Ключ source namespace задаётся SHA256 input session.
++
++До обработки реальных артефактов фиксируются детерминированные случаи, без seeds
++или random search: remote RELEASE другого автомобиля; remote RELEASE того же
++автомобиля; no-stop crossing; restart + crossing одного автомобиля; идентичные
++дубликаты; reused track ID; missing fingerprint; permissive turn; blocked queue;
++no-demand при потенциальном GREEN; supplied observation gap; неизвестная exposure;
++shared/arbitrary movements и bijective rename; неверные timestamps; ресурсный лимит.
++
++Критерии: remote-event addition не меняет содержимое локальных каналов;
++перестановка входа и rename не меняют counts/семантику; каждый eligible event
++сохранён, кроме exact duplicates; distinct-track count не удваивается; supplied
++gaps не заполняются; no events не доказывает RED/no-demand; все физические состояния
++UNKNOWN. Original event bytes/provenance не мутируют. Лимиты явно возвращают
++unavailable без частичного «полного» результата.
++
++## Проверка на сохранённых данных
++
++Только три sealed predictions `benchmarks/expert_intervals_20261015/predictions`.
++Вход — их temporal_events и hashes. Разметку, adapters/comparison и группы фаз
++runner не читает. Окно фиксировано: первые 180с от recording_start_timestamp_ms,
++как техническое окно представления, а не обучающая выборка по truth. Runtime
++до 30с/файл, максимум 20000 событий/файл, 32MiB prediction JSON/файл, три файла,
++без retries; query до 1800с и 100000 returned events. Исходные predictions
++сохраняются; повторного inference и новых boundary metrics не будет.
++Дополнительно не более 1000 supplied exposure windows; неограниченные generators
++также прерываются ресурсными guard. Prepare читает только hash metadata прежнего
++manifest/seal для namespace; review paths не открываются и group labels не читаются.
++
++Отчёт: old selected vs eligible per channel counts, unique known tracks,
++восстановленные движения, duplicates/exclusions, local fingerprint/provenance,
++UNKNOWN/no-exposure reasons и runtime. Рост числа событий — не рост точности.
++
++## Граница использования
++
++Legacy occupancy Bernoulli likelihood принимает один timestamp-поток на movement,
++не знает зависимости нескольких событий одного track и method-specific delay.
++Новый объект не имеет неявного преобразования в такой вход. Экспортирует counts
++и source-group identifiers, пригодные для отдельной модели наблюдений.
++Совместимость с legacy likelihood должна сообщаться как unavailable, а не
++вводить произвольные веса или calibrated lamp probability. Следующее испытание
++наблюдательной модели требует явно заданных demand/exposure и delay assumptions;
++для synthetic они задаются генератором, для реальных RELEASE нужна calibration.
++Старый 2D.1 FAIL и результаты 0/11/19/34 сохраняются отдельно.
+diff --git a/docs/LOCAL_EVIDENCE_CHANNELS_RESULTS_20261015.md b/docs/LOCAL_EVIDENCE_CHANNELS_RESULTS_20261015.md
+new file mode 100644
+index 0000000..506f432
+--- /dev/null
++++ b/docs/LOCAL_EVIDENCE_CHANNELS_RESULTS_20261015.md
+@@ -0,0 +1,81 @@
++# Результат: локальное evidence сохранено, lamp timing ещё не исправлен
++
++Base: `b96f81f04d533cf0f721041460db727eb662539d`.
++Протокол до реализации: commit `55be614`,
++[LOCAL_EVIDENCE_CHANNELS_20261015](LOCAL_EVIDENCE_CHANNELS_20261015.md).
++Code/config freeze: `2058fa6d03a093b6ccb78607649ae6e40ca4f10c`.
++
++## Реализовано
++
++Изолированный `app.experimental.local_evidence` принимает существующие
++TemporalEvent и строит неизменяемый индекс. Query возвращает полузакрытое окно,
++раздельные каналы movement/type/method, source indices, исходные timestamps и
++uncertainty, eligibility/exclusion и корреляционные группы по fingerprint.
++Дубли событий объединяются с сохранением происхождения. Недостоверная identity
++не восстанавливается из одного numeric ID. Новый объект не импортируется core
++или API и не меняет production/default.
++
++Remote RELEASE не удаляет локальные события даже для того же track fingerprint.
++Это доказанная инварианта нового представления, а не приёмка всей reconstruction.
++ENTRY остаётся demand; STOP не становится RED; no events не становится no-demand.
++Exposure UNKNOWN без отдельного supplied source. Событие внутри явно supplied
++gap сохраняется как противоречие данных, не заполняет gap. Физические и
++логические состояния UNKNOWN; calibrated lamp probability отсутствует.
++
++## Однократная проверка сохранённых sidecar
++
++Никакой разметки, извлечения trajectories, fitting, period/K search, decoder,
++нового likelihood или boundary evaluation. Использованы sealed predictions
++предыдущего этапа и provenance hashes, техническое окно первых 180с.
++
++| Запись | Старые selected events | Новые eligible vehicle events | Из них возвращены | Группы треков с eligible events | Runtime, с |
++|---|---:|---:|---:|---:|---:|
++| Свердловский 17_2025_2_12_7 | 16 | 114 | 98 | 98 | 1.048 |
++| Чичерина 19_2025_2_25_8 | 61 | 211 | 150 | 150 | 0.431 |
++| Энтузиастов 6_2025_2_14_6 | 3 | 11 | 8 | 8 | 0.350 |
++
++Все 80 старых selected events сохранены; возвращены 256 CROSSING_PROXY.
++336 событий не являются 336 независимыми автомобилями: eligible evidence относится
++к 256 известным группам треков. Это сохранение данных, не увеличение точности.
++На Свердловском E→W: 0→5, W→E: 0→15. Нельзя считать это 20 точными зелёными
++сигналами или автоматически добавить 20 независимых Bernoulli observations.
++Из входных событий ничего не удалено кроме exact duplicates (в этих sidecar их 0).
++ENTRY и прочие каналы тоже доступны для анализа, но не получают permission role.
++
++49 tests прошли до применения к сохранённым файлам: locality для того же/другого
++треков, no-stop, paired evidence, duplicates/reused ID/unknown identity, permissive,
++blockage, no-demand/gaps, rename/shared movement, immutability, resource exhaustion,
++запрет annotations/fitting, прежние temporal contract regressions. Все три worker
++завершились без retry/timeout. Исходные prediction hashes и production paths
++остались прежними. Полные views с provenance и comparison находятся в
++`evidence/local_evidence_channels_20261015/`.
++
++## Как это приближает точность и что дальше
++
++Устранён конкретный способ потерять локально наблюдаемое движение. Включать
++этот объект в прежний Bernoulli HSMM как объединение timestamps сейчас некорректно:
++likelihood предполагает отдельные occupancy columns, не описывает общую машину,
++method-specific delay и неизвестный спрос. `legacy_streams()` поэтому выдаёт
++structured unavailable `METHOD_DEPENDENCE_AND_EVENT_SIGNAL_DELAY_UNMODELLED`.
++Это ограничение конкретного adapter, не утверждение о невозможности проекта.
++
++Следующий алгоритмический scope — **одна совместная модель наблюдений на трек**,
++где restart и crossing — связанные наблюдения с разными временными задержками,
++а permissive/off-phase движение допускается моделью. Начать с заранее заданного
++synthetic генератора с paired событиями, различным спросом, пропущенными detection,
++заданной exposure и delay distributions; зафиксировать параметры до decoding.
++Нельзя переносить exclusive-mark constraints из старого идеального прототипа.
++
++Проверяемые критерии следующего шага: добавление второго события того же автомобиля
++не удваивает независимую evidence; нет ложной уверенности без спроса/в gaps;
++точечные ошибки оцениваются отдельно от interval coverage/width и UNKNOWN;
++неоднозначные delay/exposure сохраняются как неоднозначность, а не нулевой offset.
++Параметры на synthetic задаёт генератор; на реальных данных источник параметров
++должен быть calibration, не эти 11 экспертных границ. Из trajectories можно
++измерять совместные наблюдаемые времена автомобиля; задержку до реального
++переключения без независимого сигнала подтвердить нельзя.
++
++Production metric новых записей остаётся **0/11**, исторических — **19/34**;
++2D.1 остаётся FAIL. K/period/raw/baseline не пересчитывались и не изменялись.
++Для дальнейшего независимого signal validation сохраняется потребность в
++синхронизированном видео/журнале, mapping и отдельном validation session.
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index ff4b242..a2251c4 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,16 @@
+ # Project status — 2D.1, 2026-10-14
+ 
++2026-10-15 local evidence experiment: isolated app.experimental.local_evidence
++preserves method/type channels and same-track dependence, without changing the
++production selector. 49 pre-run tests passed. One bounded transformation of three
++saved sidecars retained all 80 old selected events and recovered 256 crossing
++proxies; 336 events represent 256 known track groups, not independent lamp
++observations. No labels, extraction, fitting, boundary evaluation or defaults changed.
++No calibrated signal delay/exposure is asserted. Legacy timestamp union is
++explicitly unavailable; next scope is a synthetic joint per-track observation
++model with declared nonexclusive marks/delay/exposure. See
++LOCAL_EVIDENCE_CHANNELS_RESULTS_20261015.md. 2D.1 FAIL and 0/11/19/34 remain.
++
+ 2026-10-15: one authorized bounded baseline on the three NEW expert-reviewed
+ dates completed after protocol/code freeze and 50 tests. K=3/2/2 matches operator
+ groups; raw and baseline each match 0/11 internal boundaries at +/-2s (10 predicted).
+@@ -8,8 +19,8 @@ edges excluded. Temporal coverage=100% of labelled blocks; physical UNKNOWN540/5
+ No default, period solver, selector, K search or decoder changes. No retries/tuning.
+ A further one-test diagnostic confirms the existing selector's remote-RELEASE
+ removal of local crossing proxies; it is a mechanism witness, not an accepted fix.
+-Next priority: a preregistered evidence-preserving local observation experiment,
+-with separate event types/unknown delay and independent calibration still open.
++The preregistered evidence-preserving representation is now tested separately;
++method-specific observation likelihood and independent calibration remain open.
+ See EXPERT_INTERVAL_BASELINE_20261015.md. 2D.1 remains FAIL.
+ 
+ 2026-10-15 manual intake: three new development review exports accepted as
+diff --git a/scripts/local_evidence_experiment.py b/scripts/local_evidence_experiment.py
+new file mode 100644
+index 0000000..beec989
+--- /dev/null
++++ b/scripts/local_evidence_experiment.py
+@@ -0,0 +1,162 @@
++"""Bounded sidecar-only experiment. No annotations, trajectory extraction or fitting."""
++import argparse
++from dataclasses import fields
++import hashlib
++import json
++import os
++from pathlib import Path
++import subprocess
++import sys
++import time
++
++from app.core.temporal_evidence import TemporalEvent, EvidenceUnavailable
++from app.experimental.local_evidence import build_local_evidence
++from scripts.offline_benchmark import ROOT, sha256_file, write_json, git
++
++MAX_BYTES=32*1024*1024
++LIMITS={'max_events':20000,'max_seconds':30.0,'worker_timeout_s':30,'files':3,
++        'max_prediction_bytes':MAX_BYTES,'window_s':180,'retries':0,'phase_fitting_runs':0}
++
++
++def read_prediction(path, expected_sha):
++    if path.stat().st_size>MAX_BYTES:
++        raise EvidenceUnavailable('prediction byte limit exceeded',reason_code='PREDICTION_BYTE_LIMIT')
++    raw=path.read_bytes()
++    if len(raw)>MAX_BYTES: raise EvidenceUnavailable('prediction byte limit exceeded',reason_code='PREDICTION_BYTE_LIMIT')
++    if hashlib.sha256(raw).hexdigest()!=expected_sha: raise ValueError('sealed prediction changed')
++    return json.loads(raw)
++
++
++def inspect_sidecar(prediction, *, source_namespace):
++    start=prediction.get('recording_start_timestamp_ms')
++    if not isinstance(start,(int,float)) or isinstance(start,bool): raise ValueError('missing recording start')
++    raw=prediction['event_extraction']['temporal_events']
++    if not isinstance(raw,list): raise ValueError('missing temporal events')
++    if len(raw)>LIMITS['max_events']:
++        raise EvidenceUnavailable('event input limit exceeded',reason_code='EVIDENCE_EVENT_LIMIT')
++    names=[f.name for f in fields(TemporalEvent)]
++    events=[]
++    for item in raw:
++        e=TemporalEvent(**{name:item[name] for name in names})
++        if e.to_dict()!=item: raise ValueError('unsupported saved evidence contract; lossless roundtrip required')
++        events.append(e)
++    index=build_local_evidence(events,source_namespace=source_namespace,
++                               max_events=LIMITS['max_events'],max_seconds=LIMITS['max_seconds'])
++    view=index.query(start,start+180000)
++    old_indices=prediction['event_extraction']['quality_diagnostics']['selected_event_indices']
++    if any(isinstance(i,bool) or not isinstance(i,int) or not 0<=i<len(raw) for i in old_indices):
++        raise ValueError('invalid saved selected_event_indices')
++    old=[i for i in old_indices if start<=raw[i]['timestamp_ms']<start+180000]
++    old_set=set(old)
++    local=view['events']
++    recovered=[e for e in local if e['eligible_vehicle_evidence'] and not old_set.intersection(e['source_indices'])]
++    new_eligible_indices={i for e in local if e['eligible_vehicle_evidence'] for i in e['source_indices']}
++    assert old_set<=new_eligible_indices, 'previously eligible local evidence lost'
++    movements=sorted({e['event']['movement'] for e in local})
++    comparison=[]
++    for m in movements:
++        old_m=[i for i in old if raw[i]['movement']==m]
++        new_m=[e for e in local if e['event']['movement']==m and e['eligible_vehicle_evidence']]
++        recovered_m=[e for e in recovered if e['event']['movement']==m]
++        comparison.append({'movement':m,'old_selected_events':len(old_m),
++            'new_eligible_events':len(new_m),
++            'new_known_vehicle_groups':len({e['vehicle_group_id'] for e in new_m if e['vehicle_group_id'] is not None}),
++            'recovered_event_count':len(recovered_m),
++            'recovered_event_types':sorted({e['event']['event_type'] for e in recovered_m})})
++    return {'schema':'local-evidence-experiment-v1', 'view':view,
++        'input_event_count':index.input_event_count,'deduplicated_event_count':len(index.rows),
++        'exact_duplicate_events':index.duplicate_events,
++        'old_selected_local_count':len(old),'old_selected_indices':old,
++        'new_eligible_local_count':view['counts']['eligible_vehicle_events'],
++        'recovered_event_ids':[e['event_id'] for e in recovered],
++        'recovered_event_count':len(recovered),'by_movement':comparison,
++        'old_selection_preserved':True,'physical_state':'UNKNOWN','new_phase_prediction':None,
++        'interpretation':'information retention, not phase or physical lamp accuracy'}
++
++
++def prepare(baseline,output):
++    if output.exists(): raise ValueError('fresh output directory required')
++    # Provenance metadata only: no review/adapters/metrics files are opened.
++    seal_path=baseline/'predictions_seal.json'
++    seal=json.loads(seal_path.read_text(encoding='utf-8'))
++    previous=json.loads((baseline/'manifest.json').read_text(encoding='utf-8'))
++    sessions={Path(s['source']).name:s['source_sha256'] for s in previous['sessions']}
++    inputs=[]
++    for row in seal['predictions']:
++        if row['status']!='ok': raise ValueError('sealed prediction unavailable')
++        path=baseline/row['prediction']
++        if sha256_file(path)!=row['prediction_sha256']: raise ValueError('prediction changed')
++        inputs.append({'path':str(path.resolve()),'prediction_sha256':row['prediction_sha256'],
++                       'source_namespace':sessions[row['source']],'source':row['source']})
++    if len(inputs)!=3: raise ValueError('exactly three sealed sources required')
++    files=sorted([*ROOT.glob('app/core/**/*.py'),*ROOT.glob('app/experimental/*.py'),
++        Path(__file__),ROOT/'tests/test_local_evidence_channels.py',ROOT/'docs/LOCAL_EVIDENCE_CHANNELS_20261015.md'])
++    manifest={'base_sha':'b96f81f04d533cf0f721041460db727eb662539d',
++        'prepared_head':git('rev-parse','HEAD'),'inputs':inputs,'limits':LIMITS,
++        'source_predictions_seal_sha256':sha256_file(seal_path),
++        'file_hashes':{str(p.relative_to(ROOT)):sha256_file(p) for p in files},
++        'evaluation':'event retention only; no labels/fitting/boundary scoring',
++        'exposure':'UNKNOWN; no independent observation windows supplied',
++        'source_namespace':'original trajectory SHA256 from prior provenance manifest',
++        'window':'first 180s from recording_start_timestamp_ms; fixed protocol, not label crop'}
++    output.mkdir(parents=True)
++    write_json(output/'manifest.json',manifest)
++    (output/'manifest.sha256').write_text(sha256_file(output/'manifest.json')+'\n',encoding='ascii')
++
++
++def run(output):
++    expected=(output/'manifest.sha256').read_text().strip()
++    if sha256_file(output/'manifest.json')!=expected: raise ValueError('manifest seal changed')
++    manifest=json.loads((output/'manifest.json').read_text(encoding='utf-8'))
++    if manifest['limits']!=LIMITS: raise ValueError('limits changed')
++    for relative,digest in manifest['file_hashes'].items():
++        if sha256_file(ROOT/relative)!=digest: raise ValueError('frozen code changed: '+relative)
++    with (output/'started.json').open('x',encoding='utf-8') as f:
++        json.dump({'manifest_sha256':expected,'code_commit':git('rev-parse','HEAD')},f)
++    rows=[]
++    for entry in manifest['inputs']:
++        started=time.monotonic()
++        out=output/'views'/(Path(entry['source']).stem+'.json')
++        cmd=[sys.executable,'-m','scripts.local_evidence_experiment','worker','--prediction',entry['path'],
++             '--sha256',entry['prediction_sha256'],'--namespace',entry['source_namespace'],'--out',str(out)]
++        print('Sidecar only:',entry['source'],flush=True)
++        row={'source':entry['source'],'prediction_sha256':entry['prediction_sha256']}
++        try:
++            p=subprocess.run(cmd,cwd=ROOT,capture_output=True,timeout=LIMITS['worker_timeout_s'],
++                env={**os.environ,'OMP_NUM_THREADS':'1','OPENBLAS_NUM_THREADS':'1','MKL_NUM_THREADS':'1'})
++            row.update(status='ok' if p.returncode==0 else 'unavailable',exit_code=p.returncode,
++                       stderr=p.stderr.decode('utf-8',errors='replace')[-2000:])
++            if p.returncode==0:
++                artifact=json.loads(out.read_text(encoding='utf-8'))
++                row.update(view_file=str(out.relative_to(output)),view_sha256=sha256_file(out),
++                    summary={k:artifact[k] for k in ('old_selected_local_count','new_eligible_local_count',
++                        'recovered_event_count','exact_duplicate_events','old_selection_preserved','by_movement')},
++                    counts=artifact['view']['counts'],observation_support=artifact['view']['observation_support'])
++        except subprocess.TimeoutExpired:
++            row.update(status='unavailable',reason='WORKER_TIMEOUT_NO_RETRY')
++        row['runtime_s']=time.monotonic()-started
++        assert sha256_file(Path(entry['path']))==entry['prediction_sha256']
++        rows.append(row)
++        write_json(output/'comparison.json',{'manifest_sha256':expected,'rows':rows,
++            'phase_metrics':'unchanged; not re-evaluated','phase_fitting_runs':0})
++        print(row['status'],row.get('summary',{}).get('recovered_event_count'),round(row['runtime_s'],3),flush=True)
++
++
++def main():
++    p=argparse.ArgumentParser(description=__doc__)
++    p.add_argument('command',choices=['prepare','run','worker'])
++    p.add_argument('--baseline',type=Path)
++    p.add_argument('--out',required=True,type=Path)
++    p.add_argument('--prediction',type=Path)
++    p.add_argument('--sha256')
++    p.add_argument('--namespace')
++    a=p.parse_args()
++    if a.command=='prepare': prepare(a.baseline,a.out)
++    elif a.command=='run': run(a.out)
++    else:
++        prediction=read_prediction(a.prediction,a.sha256)
++        artifact=inspect_sidecar(prediction,source_namespace=a.namespace)
++        write_json(a.out,artifact)
++
++
++if __name__=='__main__': main()
+diff --git a/tests/test_local_evidence_channels.py b/tests/test_local_evidence_channels.py
+new file mode 100644
+index 0000000..6690458
+--- /dev/null
++++ b/tests/test_local_evidence_channels.py
+@@ -0,0 +1,211 @@
++import copy
++from dataclasses import replace
++import json
++import pytest
++
++from app.core.temporal_evidence import TemporalEvent, EvidenceUnavailable
++from app.core.v9.vehicle_evidence import select_permission_events
++from app.experimental.local_evidence import build_local_evidence, ExposureWindow
++
++
++def event(t=10000, kind='CROSSING_PROXY', track='car1', movement='M', **provenance):
++    defaults={'source':'synthetic','track_fingerprint':track,'eligible_proxy':True,
++              'verified_stop_line':kind=='CROSSING','signal_state_observed':False}
++    defaults.update(provenance)
++    return TemporalEvent(t,kind,movement,7,kind.lower()+'_test_method',.4,
++                         'MEDIUM' if kind=='RELEASE' else 'LOW',None,defaults)
++
++
++def build(events,**kwargs):
++    return build_local_evidence(events,source_namespace='synthetic-session',**kwargs)
++
++
++def local(events,**kwargs):
++    return build(events,**kwargs).query(0,180000)
++
++
++def semantic_projection(result):
++    result=copy.deepcopy(result)
++    for row in result['events']: row.pop('source_indices')
++    return result
++
++
++@pytest.mark.parametrize('track',['other-car','car1'])
++def test_remote_release_preserves_early_channel_in_new_view(track):
++    early=event()
++    late=event(600000,'RELEASE',track)
++    old,_=select_permission_events([early,late])
++    assert not [e for e in old if e.timestamp_ms<180000]
++    assert semantic_projection(local([early]))==semantic_projection(local([late,early]))
++
++
++def test_non_stopping_car_keeps_crossing_without_fabricated_release():
++    r=local([event()])
++    assert r['counts']['events_by_type']=={'CROSSING_PROXY':1}
++    assert r['counts']['eligible_vehicle_events']==1
++    assert r['physical_section']['estimated_state']=='UNKNOWN'
++    assert r['events'][0]['event']['uncertainty']['event_to_signal_switch']['status']=='UNKNOWN'
++
++
++def test_same_vehicle_restart_and_crossing_are_distinct_but_correlated():
++    a,b=event(10000,'RELEASE'),event(20000)
++    r=local([a,b])
++    assert len(r['channels'])==2
++    assert r['counts']['eligible_vehicle_events']==2
++    assert r['counts']['known_vehicle_groups_with_eligible_evidence']==1
++    assert len(next(iter(r['correlated_vehicle_groups'].values())))==2
++
++
++def test_exact_duplicates_preserve_provenance_without_extra_vehicle():
++    e=event(); idx=build([e,copy.deepcopy(e)])
++    r=idx.query(0,180000)
++    assert idx.duplicate_events==1
++    assert r['counts']['eligible_vehicle_events']==1
++    assert r['events'][0]['source_indices']==[0,1]
++    assert r['events'][0]['event']==e.to_dict()
++
++
++def test_reused_numeric_track_id_not_identity_and_namespace_isolated():
++    a,b=event(track='fp1'),event(track='fp2')
++    assert a.source_track_id==b.source_track_id
++    assert local([a,b])['counts']['known_vehicle_groups_with_eligible_evidence']==2
++    x=build_local_evidence([a],source_namespace='other-session').query(0,180000)
++    assert x['events'][0]['vehicle_group_id']!=local([a])['events'][0]['vehicle_group_id']
++
++
++def test_unknown_track_identity_stays_unknown():
++    r=local([event(track=None)])
++    assert r['counts']['known_vehicle_groups_with_eligible_evidence']==0
++    assert r['counts']['eligible_events_without_track_identity']==1
++    assert r['events'][0]['vehicle_group_id'] is None
++
++
++@pytest.mark.parametrize('scenario', ['permissive turn','unblocked queue','priority vehicle'])
++def test_identical_vehicle_evidence_cannot_identify_signal_or_cause(scenario):
++    e=event(kind='RELEASE',movement='arbitrary turn')
++    # Hidden scenario is deliberately not supplied to representation.
++    r=local([e])
++    assert r['logical_phase']['estimated_state']=='UNKNOWN'
++    assert r['physical_section']['estimated_state']=='UNKNOWN'
++    assert r['physical_section']['calibrated_lamp_probability'] is None
++    assert r['events'][0]['signal_relation']=='UNKNOWN'
++
++
++def test_blocked_queue_and_demand_are_not_permission_or_red():
++    r=local([event(kind='ENTRY'),event(11000,'STOP')])
++    assert r['counts']['eligible_vehicle_events']==0
++    assert r['abstention_reason']=='NO_ELIGIBLE_LOCAL_MOVEMENT_EVIDENCE'
++    assert r['physical_section']['estimated_state']=='UNKNOWN'
++
++
++def test_no_demand_cannot_be_distinguished_from_missing_observation():
++    unknown=local([])
++    supplied=local([],exposure_windows=[ExposureWindow(0,180000,'synthetic camera on')])
++    assert unknown['observation_support']['status']=='UNKNOWN'
++    assert supplied['observation_support']['status']=='SUPPLIED_FULL_WINDOW'
++    assert supplied['observation_support']['demand']=='UNKNOWN'
++    assert supplied['abstention_reason']==unknown['abstention_reason']=='NO_LOCAL_EVENTS'
++    assert supplied['physical_section']['estimated_state']=='UNKNOWN'
++    with pytest.raises(EvidenceUnavailable,match='missing'): build(None)
++
++
++def test_declared_gap_not_filled_and_contradictory_event_flagged():
++    exposure=[ExposureWindow(0,20000,'provided test window'),ExposureWindow(40000,180000,'provided test window')]
++    r=local([event(30000)],exposure_windows=exposure)
++    assert r['observation_support']['supplied_duration_s']==160
++    assert r['observation_support']['status']=='SUPPLIED_PARTIAL_WINDOW'
++    assert r['observation_support']['event_ids_outside_supplied_windows']==[r['events'][0]['event_id']]
++    assert r['physical_section']['estimated_state']=='UNKNOWN'
++    idx=build([],exposure_windows=exposure)
++    assert idx.query(20000,40000)['observation_support']['status']=='NO_SUPPLIED_WINDOW_SUPPORT'
++
++
++def test_half_open_bounds_do_not_create_boundary_events():
++    r=local([event(0),event(179999),event(180000)])
++    assert [x['event']['timestamp_ms'] for x in r['events']]==[0,179999]
++
++
++def test_order_rename_and_shared_movement_without_topology():
++    data=[event(10000,'RELEASE','fp1','shared'),event(20000,'CROSSING_PROXY','fp2','shared'),event(30000,'CROSSING_PROXY','fp3','other')]
++    assert semantic_projection(local(data))==semantic_projection(local(list(reversed(data))))
++    renamed=[replace(e,movement={'shared':'random-x','other':'random-y'}[e.movement]) for e in data]
++    assert local(renamed)['counts']==local(data)['counts']
++    assert len(local(renamed)['channels'])==3
++
++
++def test_immutable_snapshot_and_no_implicit_legacy_union():
++    e=event();original=copy.deepcopy(e.to_dict());idx=build([e]);r=idx.query(0,180000)
++    assert e.to_dict()==original
++    e.provenance['new_field']='changed after build'
++    r['events'][0]['event']['provenance']['another']='changed exported data'
++    assert idx.query(0,180000)['events'][0]['event']==original
++    with pytest.raises(EvidenceUnavailable) as exc: idx.legacy_streams()
++    assert exc.value.to_dict()['reason_code']=='METHOD_DEPENDENCE_AND_EVENT_SIGNAL_DELAY_UNMODELLED'
++
++
++@pytest.mark.parametrize('kw,reason',[({'max_events':0},'EVIDENCE_EVENT_LIMIT'),({'max_seconds':0},'EVIDENCE_TIME_LIMIT')])
++def test_resource_limit_not_partial_success(kw,reason):
++    with pytest.raises(EvidenceUnavailable) as exc: build([event()],**kw)
++    assert exc.value.to_dict()['reason_code']==reason
++    assert exc.value.to_dict()['phase_count'] is None
++
++
++def test_query_budget_and_bad_interval():
++    idx=build([event()])
++    with pytest.raises(EvidenceUnavailable): idx.query(0,2000000)
++    with pytest.raises(EvidenceUnavailable): idx.query(0,180000,max_events=0)
++    for lo,hi in [(0,float('nan')),(0,0),(True,1000),(-1,1)]:
++        with pytest.raises(ValueError): idx.query(lo,hi)
++    with pytest.raises(ValueError): build([replace(event(),timestamp_ms=True)])
++    with pytest.raises(TypeError): build([{'kind':'phase_hypothesis'}])
++
++
++def test_old_eligibility_guards_preserved_but_excluded_provenance_visible():
++    bad=event(invalid_detections=1)
++    r=local([bad])
++    assert r['counts']['eligible_vehicle_events']==0
++    assert r['events'][0]['exclusion_reason']=='INVALID_DETECTIONS'
++    assert r['events'][0]['event']==bad.to_dict()
++
++
++def test_confirmed_geometry_still_not_a_signal_observation():
++    r=local([event(kind='CROSSING')])
++    assert r['events'][0]['role']=='vehicle_crossing_verified_geometry'
++    assert r['physical_section']['estimated_state']=='UNKNOWN'
++
++
++def test_supplied_exposure_resource_and_validation():
++    with pytest.raises(EvidenceUnavailable):
++        build([],exposure_windows=[ExposureWindow(0,1,'source')]*1001)
++    with pytest.raises(ValueError):
++        build([],exposure_windows=[ExposureWindow(0,10,'source'),ExposureWindow(9,11,'source')])
++    with pytest.raises(ValueError): ExposureWindow(0,10,'')
++
++
++def test_saved_sidecar_adapter_without_labels_or_any_fit(monkeypatch):
++    from scripts.local_evidence_experiment import inspect_sidecar
++    from app.core.v9 import model
++    def forbidden(*a,**kw): raise AssertionError('inference is forbidden in sidecar experiment')
++    monkeypatch.setattr(model,'discover_records',forbidden)
++    monkeypatch.setattr(model,'discover_path',forbidden)
++    monkeypatch.setattr(model,'discover_phase_count',forbidden)
++    data=[event(),event(600000,'RELEASE','remote')]
++    saved={'recording_start_timestamp_ms':0,'event_extraction':{
++        'temporal_events':[e.to_dict() for e in data],
++        'quality_diagnostics':{'selected_event_indices':[1]}}}
++    original=copy.deepcopy(saved)
++    r=inspect_sidecar(saved,source_namespace='test')
++    assert r['old_selected_local_count']==0
++    assert r['new_eligible_local_count']==1
++    assert r['recovered_event_count']==1
++    assert r['new_phase_prediction'] is None
++    assert saved==original
++    with pytest.raises(TypeError): inspect_sidecar(saved,source_namespace='test',annotations=[])
++
++
++def test_saved_contract_loss_is_rejected():
++    from scripts.local_evidence_experiment import inspect_sidecar
++    e=event().to_dict();e['unknown_extra_metadata']='must not disappear silently'
++    with pytest.raises(ValueError,match='lossless roundtrip'):
++        inspect_sidecar({'recording_start_timestamp_ms':0,'event_extraction':{
++            'temporal_events':[e],'quality_diagnostics':{'selected_event_indices':[]}}},source_namespace='test')

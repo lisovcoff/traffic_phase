@@ -56,3 +56,11 @@ Synthetic tests проверяют контракт, граничные случ
 Механизм selector воспроизведён одним отдельным тестом. Следующее изменение
 сначала проверить независимо на synthetic cases; параметры по этим меткам не
 подбирать. Production policy и непринятый 2D.1 в этом шаге не изменялись.
+
+2026-10-15: отдельное local-evidence представление реализовано и прошло 49 tests.
+Все 80 ранее selected events сохранены; 256 crossing-proxy возвращены без
+смешивания методов и двойного счёта треков. [Результат](docs/LOCAL_EVIDENCE_CHANNELS_RESULTS_20261015.md).
+Следующая часть шага 3 — совместная observation model на трек: явные delay,
+nonexclusive/permissive marks, demand и exposure. Сначала независимый paired-event
+synthetic эксперимент; production/default и метрики не менялись. Это ещё не
+приёмка восстановления времён сигнала и не закрытие calibration-пилота.
