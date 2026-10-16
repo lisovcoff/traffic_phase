@@ -1,5 +1,14 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: [критерии и calibration evidence bundle подготовлены](docs/CALIBRATION_BUNDLE_20261016.md).
+30 typed records (9 H1 appearance,8 video-motion,8 RELEASE proxies,5 operator
+reports), source hashes и17 blank independent-review tasks;14 endpoint frames
+и10 derived proof images проверены.31 tests; без fitting/новых predictions.
+Clock transform/prior/delay не приняты; metric eligibility явно unavailable там,
+где нет truth. Следующий шаг — отдельный joint clock/geometry/mapping protocol
+по independent anchors, затем bounded observation calibration; не phase-error
+alignment или новый удобный synthetic run. 2D.1 FAIL и main/defaults сохранены.
+
 2026-10-16: [настоящий browser ZIP→spatial HTML smoke выполнен](docs/WEB_ARCHIVE_QA_20261016.md).
 Synthetic40 и real243 tracks обработаны, corrupt ZIP422. Исправлены bypass
 общего контракта в spatial JS/JSONL, implicit colors/modulo fallback и explicit

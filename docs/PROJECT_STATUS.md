@@ -1,5 +1,17 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 acceptance definitions and saved calibration evidence assembled:
+30 records in four separate kinds,9 single-head appearances/8 video motion/
+8 original proxies/5 operator reports, no continuous lamp truth expansion.
+14 original endpoint hashes+10 derived proof/lineage checks;17 blank independent
+review tasks reuse the existing template.31 targeted tests pass. Clock remains
+diagnostic/unverified, phase truth/mapping/prior/delay UNKNOWN; metric eligibility
+has explicit zero denominators/reasons.±2s and previous proposed targets retained;
+no release SLA selected from development data. No inference/new videos/raw JSON
+read, core/defaults/evaluator/historical metrics/main unchanged;2D.1 FAIL.
+See CALIBRATION_BUNDLE_20261016.md. Next: independently supported joint clock/
+geometry/mapping calibration protocol, then a preregistered observation experiment.
+
 2026-10-16 real browser archive flow verified with isolated Edge after bundled
 runtime bootstrap failure. Synthetic40/real243 tracks uploaded through actual
 file input/FormData/endpoint/iframe; corrupt ZIP clean422. Spatial renderer and

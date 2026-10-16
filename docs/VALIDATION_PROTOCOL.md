@@ -1,5 +1,11 @@
 # Протокол независимой валидации реконструкции сигналов
 
+2026-10-16: operational definitions и source eligibility зафиксированы в
+`config/calibration_acceptance_v1.json`; подготовлен набор30 разнородных записей
+одной development-сессии, см. `CALIBRATION_BUNDLE_20261016.md`. Допуск±2с и
+прежние proposed targets не менялись; independent release SLA не назначена.
+Набор не является continuous lamp truth и не создаёт новый holdout.
+
 Версия 1, 2026-10-13. Протокол задаёт будущие проверки; приведённые пороги —
 предлагаемые инженерные gates, а не уже достигнутые результаты. Аудит и
 фактические проверки описаны в `IMPLEMENTATION_PLAN.md`.

@@ -1,0 +1,66 @@
+{
+  "base_sha": "5038b7eb0a0eb7ba4ddebaf1376e2b0943b96d8b",
+  "sources": {
+    "direct_video": {
+      "path": "evidence/video_boundary_verification_20261015/verified_video_boundaries.json",
+      "sha256_lf": "91cc5d74228b564b451fa3a3cdfbf0d4f3ab3936540aab84108ede24c2b21d6d"
+    },
+    "vehicle_video": {
+      "path": "evidence/restart_multicycle_validation_20261015/visual_review.json",
+      "sha256_lf": "6e2e0752ff9d846ea0f5423901c336db61b1745c02437248c680906937d9ec15"
+    },
+    "operator": {
+      "path": "evidence/video_calibration_intake_20261015/clarified_events.json",
+      "sha256_lf": "d973f613b1ba14fa08eb9dd58123ab49e12cc0dde6144ebd05ce11fe17f103c6"
+    },
+    "proxy_queries": {
+      "path": "evidence/restart_multicycle_validation_20261015/evidence_adapter_queries.json",
+      "sha256_lf": "a0a6bda608bb4223c82afcb5df6b1d50c3124ddf1893b17d8336ded7a09d804e"
+    },
+    "clock_candidate": {
+      "path": "evidence/local_vehicle_registration_20261015/local_model.json",
+      "sha256_lf": "eadb23c972764b1074e69060e2e678d4780849477c1af93b453a230f12a02a60"
+    },
+    "clock_checks": {
+      "path": "evidence/restart_multicycle_validation_20261015/clock_check.json",
+      "sha256_lf": "db0be80b6dacdeb59067da1dfd7342401ee8355ce729d6b35eef04bb86492e65"
+    },
+    "mapping": {
+      "path": "evidence/video_calibration_intake_20261015/h1_operator_mapping.json",
+      "sha256_lf": "cf82e8679c7a90da9aded3ca4a5ee9683191057dde1f89e52c4734e7c3cd7b9f"
+    },
+    "trajectory_lineage": {
+      "path": "evidence/video_calibration_pilot_20261015/trajectory_sample/sample_manifest.json",
+      "sha256_lf": "3ef2029c0fcd9c7372b2cb4a73ed9868f064e13a37980c775b610588fbf0b685"
+    },
+    "review_template": {
+      "path": "evidence/video_calibration_pilot_20261015/review_template.json",
+      "sha256_lf": "a7994d9fdd49932bfd7bd61ec39d58886ea36e784773c2df5c3eca0f0919ce6a"
+    },
+    "review_proofs": {
+      "path": "evidence/restart_multicycle_validation_20261015/proof_manifest.json",
+      "sha256_lf": "6432f7955e4c3b026b4d1aee3df171119859c0155721da2fabe27a5af0abb83d"
+    },
+    "criteria": {
+      "path": "config/calibration_acceptance_v1.json",
+      "sha256_lf": "154f0cc076301fa74effa31c6793f09042f885faf5e7d6595cd760781cef8b47"
+    }
+  },
+  "code_sha256_lf": {
+    "app/experimental/calibration_bundle.py": "e06b410b24893b3e65ae0962de8135303763b0e0210d9b508417747798836103",
+    "scripts/prepare_calibration_bundle.py": "66ac7038b1cd07d2969c1244087477609b884b80ead85ec0db3c2a07549c6a6a",
+    "config/calibration_acceptance_v1.json": "154f0cc076301fa74effa31c6793f09042f885faf5e7d6595cd760781cef8b47"
+  },
+  "source_bytes_read": 255885,
+  "frame_bytes_read": 2963239,
+  "inference_calls": 0,
+  "video_trajectory_archive_bytes_read": 0,
+  "independent_validation_sessions": 0,
+  "outputs": {
+    "calibration_bundle.json": "00bcc8fcc7a458736bdfa9f43362a481b8406da511fa57f5260625e1280e184a",
+    "evidence_table.csv": "90b44004e6635bb666d376d535b1daa91504d97273b534b88a0120a97f2f1e0b",
+    "frame_integrity.json": "83ebf5d9d11a81befbccc3e8cfa81c303e570e2d27481452e43c62e1fa80fce0",
+    "independent_review_tasks.json": "f8ccd7a6f157a505a8837a32099e21c19f8f0811ea6cb34f43c77a6a307c34d5",
+    "metric_eligibility.json": "da409d076e4301b75ba3c78881bc8da1443dbbde3c89c9d0f67dc52615cb20fc"
+  }
+}
