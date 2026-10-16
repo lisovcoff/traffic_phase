@@ -9,6 +9,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = Path(__file__).resolve().parent
+BASE = '519e6ea94610d12f5c814721d993ca02f2015b29'
 
 
 def digest(path):
@@ -24,7 +25,7 @@ def main():
         source = ROOT/'.web_runtime'/name
         if source.is_file():
             (OUT/name).write_bytes(source.read_bytes())
-    patch = subprocess.check_output(['git', 'diff', '--cached', '--binary', '--', '.', ':!evidence'], cwd=ROOT)
+    patch = subprocess.check_output(['git', 'diff', BASE, '--binary', '--', '.', ':!evidence'], cwd=ROOT)
     (OUT/'change.patch').write_bytes(patch)
     review = dict(initial_automated='PASS_INSUFFICIENT_CHECK',
                   initial_visual='FAIL_NESTED_REPORT_HEIGHT',
@@ -34,7 +35,7 @@ def main():
                   saved_ui_replays=2, extra_phase_fits_after_initial_batch=0,
                   production_inference_modified=False, real_replays=0)
     (OUT/'visual_review.json').write_text(json.dumps(review, indent=2)+'\n', encoding='utf-8')
-    code = subprocess.check_output(['git', 'diff', '--cached', '--name-only', '--', '.', ':!evidence'], cwd=ROOT, text=True).splitlines()
+    code = subprocess.check_output(['git', 'diff', BASE, '--name-only', '--', '.', ':!evidence'], cwd=ROOT, text=True).splitlines()
     manifest = dict(base_sha='519e6ea94610d12f5c814721d993ca02f2015b29',
         branch='feat/bounded-archive-batch-20261016', python=sys.version,
         packages={name: importlib.metadata.version(name) for name in ('fastapi', 'starlette', 'numpy', 'scipy', 'scikit-learn')},
