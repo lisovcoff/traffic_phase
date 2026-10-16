@@ -11,10 +11,10 @@ from typing import Dict, List, Optional, Sequence
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
 
-def _duration_penalty(period: float, k: int, max_d: int, targets=None, strength: float=2.0):
+def _duration_penalty(period: float, k: int, max_d: int, targets=None, strength: float=2.0, *, dt: float=1.0):
     if targets is None:
         targets = [float(period) / float(k)] * k
-    d = np.arange(max_d + 1, dtype=float)
+    d = np.arange(max_d + 1, dtype=float) * dt
     out = np.zeros((k, max_d + 1), dtype=float)
     for z, target in enumerate(targets):
         target = max(2.0, float(target))
@@ -97,7 +97,7 @@ def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, 
     if observation_mask is not None:
         emissions[~np.asarray(observation_mask,dtype=bool)] = 0.0
     prefix = np.vstack([np.zeros((1, k)), np.cumsum(emissions, axis=0)])
-    dpen = _duration_penalty(period, k, int(np.max(max_d_by_state)), targets, strength=duration_penalty_strength)
+    dpen = _duration_penalty(period, k, int(np.max(max_d_by_state)), targets, strength=duration_penalty_strength, dt=dt)
     best_total = -float('inf')
     best_payload = None
     initials = range(k) if initial_phase is None else [int(initial_phase) % k]
@@ -116,7 +116,10 @@ def decode_cyclic_hsmm(x: np.ndarray, probs: np.ndarray, period: float, k: int, 
             for phase in range(k):
                 prev = (phase - 1) % k
                 min_d, max_d = int(min_d_by_state[phase]), int(max_d_by_state[phase])
-                lo, hi = max(min_d, t - max_d), t - min_d
+                # Current-state duration bounds constrain t-start, not the
+                # predecessor endpoint. Its own feasibility is already in dp.
+                # Keep start>0 so a transition cannot skip the initial segment.
+                lo, hi = max(1, t - max_d), t - min_d
                 if lo > hi:
                     continue
                 starts = np.arange(lo, hi + 1, dtype=int)

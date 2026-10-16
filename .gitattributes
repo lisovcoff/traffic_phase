@@ -1,4 +1,6 @@
 tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
+evidence/hsmm_recurrence_20261016/** -text -whitespace
+benchmarks/hsmm_recurrence_20261016/** -text -whitespace
 evidence/bounded_archive_batch_20261016/** -text -whitespace
 evidence/archive_session_isolation_20261016/** -text -whitespace
 evidence/strict_json_input_20261016/** -text -whitespace
