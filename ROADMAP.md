@@ -1,5 +1,13 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: [clock/vehicle association check выполнен](docs/CLOCK_OBSERVATION_RESULTS_20261016.md).
+Три overlay readouts несовместимы с прежним candidate и frozen-H set при обеих
+условных zero-latency display-моделях. Причина не установлена, offset не менялся.
+Все8 video-motion/H1 associations сохранены (2 до,5 после,1 касание), без delay
+fit.50 tests, один115562B checker run. Нужна detection timestamp↔camera frame
+привязка независимо от положения машины либо описание overlay/detection timing;
+joint calibration UNAVAILABLE. Main/default/2D.1 FAIL и метрики неизменны.
+
 2026-10-16: пользователь уточнил источник `millis`: **«Из часов камеры»**.
 Ответ сохранён как [user provenance](evidence/camera_clock_provenance_20261016/user_confirmation.json)
 для обсуждаемой H1 calibration, без обобщения на все архивы/поля. Это закрывает

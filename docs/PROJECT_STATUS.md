@@ -1,5 +1,16 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 bounded clock/observation check completed on saved development evidence.
+Both conditional display-rounding models (zero unmodelled latency) exclude the
+saved delta and have empty intersection with saved frozen-H feasibility. No
+causal attribution, new transform, calibration certificate or fit. All8 video
+motion/H1 associations retained:2 before,5 after,1 touching; not a causal delay
+distribution.50 targeted/regression tests pass,115562B input, one0.013s checker.
+See CLOCK_OBSERVATION_RESULTS_20261016.md. Need timestamp-to-camera-frame link
+independent of vehicle geometry, or documented overlay/detection timestamping.
+Joint calibration unavailable; no real replay/decoder/default/main changes.
+2D.1 FAIL, K3/2/3 vs truth3/2/2 and raw19/34 unchanged; separate validation open.
+
 2026-10-16 user clock-origin clarification: “Из часов камеры” (camera clock).
 Recorded in evidence/camera_clock_provenance_20261016/user_confirmation.json
 with the exact question/answer and base b85a799552383bae5d40098f8cff1176e849735b.

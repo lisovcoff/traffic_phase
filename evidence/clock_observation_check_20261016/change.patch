@@ -1,0 +1,1382 @@
+diff --git a/.gitattributes b/.gitattributes
+index 54f4cdf..fb8fbec 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,4 +1,6 @@
+ tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
++evidence/clock_observation_check_20261016/** -text -whitespace
++docs/CLOCK_OBSERVATION_PROTOCOL_20261016.md -text
+ evidence/real_pilot_readiness_20261016/** -text -whitespace
+ evidence/product_result_20261016/** -text -whitespace
+ evidence/offline_product_html_20261016/** -text -whitespace
+diff --git a/ROADMAP.md b/ROADMAP.md
+index bcafa37..d6a6e7a 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -1,5 +1,13 @@
+ # traffic_phase — план до готового продукта
+ 
++2026-10-16: [clock/vehicle association check выполнен](docs/CLOCK_OBSERVATION_RESULTS_20261016.md).
++Три overlay readouts несовместимы с прежним candidate и frozen-H set при обеих
++условных zero-latency display-моделях. Причина не установлена, offset не менялся.
++Все8 video-motion/H1 associations сохранены (2 до,5 после,1 касание), без delay
++fit.50 tests, один115562B checker run. Нужна detection timestamp↔camera frame
++привязка независимо от положения машины либо описание overlay/detection timing;
++joint calibration UNAVAILABLE. Main/default/2D.1 FAIL и метрики неизменны.
++
+ 2026-10-16: пользователь уточнил источник `millis`: **«Из часов камеры»**.
+ Ответ сохранён как [user provenance](evidence/camera_clock_provenance_20261016/user_confirmation.json)
+ для обсуждаемой H1 calibration, без обобщения на все архивы/поля. Это закрывает
+diff --git a/app/experimental/clock_observation_check.py b/app/experimental/clock_observation_check.py
+new file mode 100644
+index 0000000..3626f36
+--- /dev/null
++++ b/app/experimental/clock_observation_check.py
+@@ -0,0 +1,141 @@
++"""Read-only conditional clock checks and same-video associations; never inference.
++
++Display rounding models are hypothetical. Their feasible sets are not calibrated
++clock intervals and do not include unknown overlay/processing/geometry error.
++"""
++from copy import deepcopy
++import math
++
++
++def _finite(value):
++    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
++        raise ValueError('FINITE_NUMERIC_VALUE_REQUIRED')
++    return value
++
++
++def _interval(value):
++    if len(value) != 2:
++        raise ValueError('TWO_INTERVAL_ENDPOINTS_REQUIRED')
++    lo, hi = map(_finite, value)
++    if hi < lo:
++        raise ValueError('REVERSED_INTERVAL')
++    return lo, hi
++
++
++def conditional_display_check(confirmation, frozen_model, registration):
++    """Compare a saved candidate and frozen geometry sets, without selecting delta."""
++    readouts = confirmation['overlay_readouts']
++    if len(readouts) > 100:
++        raise ValueError('READOUT_RESOURCE_LIMIT')
++    candidate = _finite(frozen_model['delta_s'])
++    origin = _finite(frozen_model['origin_ms'])
++    saved = confirmation['clock_candidate']
++    if saved['origin_ms'] != origin or saved['delta_s'] != candidate:
++        raise ValueError('FROZEN_MODEL_MISMATCH')
++    geometry = [_interval(s) for s in registration['joint_frozen_h_clock_sets_s']]
++    rows = []
++    seen = set()
++    for row in readouts:
++        if row['file'] in seen:
++            raise ValueError('DUPLICATE_READOUT')
++        seen.add(row['file'])
++        pts = _finite(row['media_pts_s'])
++        # Subtract the epoch before converting to seconds.
++        centre = (_finite(row['interpreted_display_epoch_ms']) - origin) / 1000 - pts
++        rows.append(dict(file=row['file'], media_pts_s=pts,
++                         delta_for_exact_displayed_second_s=centre,
++                         candidate_minus_displayed_second_s=candidate-centre))
++    modes = []
++    for mode, rounding in [('floor', (0, 1)), ('nearest', (-.5, .5))]:
++        bounds = None
++        if rows:
++            bounds = [max(r['delta_for_exact_displayed_second_s']+rounding[0] for r in rows),
++                      min(r['delta_for_exact_displayed_second_s']+rounding[1] for r in rows)]
++        nonempty = bounds is not None and bounds[0] < bounds[1]
++        intersections = []
++        if nonempty:
++            for lo, hi in geometry:
++                left, right = max(lo, bounds[0]), min(hi, bounds[1])
++                inclusive = right < bounds[1]  # saved geometry intervals are closed
++                if left < right or (left == right and inclusive):
++                    intersections.append(dict(bounds_s=[left, right], lower_inclusive=True,
++                                              upper_inclusive=inclusive))
++        contains = bool(nonempty and bounds[0] <= candidate < bounds[1])
++        distance = None if not nonempty else max(bounds[0]-candidate, candidate-bounds[1], 0)
++        modes.append(dict(rounding_model=mode,
++                          conditional_delta_bounds_s=bounds if nonempty else None,
++                          lower_inclusive=True, upper_inclusive=False,
++                          status=('UNAVAILABLE_NO_READOUTS' if not rows else
++                                  'CONDITIONALLY_FEASIBLE' if nonempty else
++                                  'INCONSISTENT_UNDER_DECLARED_ASSUMPTIONS'),
++                          candidate_in_set=contains if rows else None,
++                          distance_to_set_closure_s=distance,
++                          intersection_with_saved_frozen_geometry=intersections))
++    return dict(readouts=rows, readout_count=len(rows),
++                media_extent_s=[min(r['media_pts_s'] for r in rows),
++                                max(r['media_pts_s'] for r in rows)] if rows else None,
++                rounding_convention='UNKNOWN', conditional_models=modes,
++                frozen_geometry_delta_sets_s=deepcopy(geometry),
++                saved_candidate_delta_s=candidate,
++                assumptions=['constant unit-scale clock', 'supplied UTC+5 interpretation',
++                             'JSON detection and display refer to the same instant',
++                             'zero unmodelled overlay/processing latency'],
++                assumptions_verified=False, calibrated_sync_uncertainty_ms=None,
++                accepted_json_video_clock_transform=None,
++                joint_error_status='UNAVAILABLE_JOINT_GEOMETRY_CLOCK_IDENTITY_MODEL',
++                causal_explanation='UNKNOWN', refit=False)
++
++
++def associate_same_video(motions, appearances, proxies):
++    """Retain every supplied motion. Join by capture/window, never by nearest time.
++
++    These are sampled image-appearance differences, not causal signal delays.
++    Logical phases/operator annotations and predicted phase errors are not inputs.
++    """
++    if max(len(motions), len(appearances), len(proxies)) > 1000:
++        raise ValueError('ASSOCIATION_RESOURCE_LIMIT')
++    ids = [r['record_id'] for r in motions+appearances+proxies]
++    if len(ids) != len(set(ids)):
++        raise ValueError('DUPLICATE_RECORD_ID')
++    rows = []
++    for motion in motions:
++        lo, hi = _interval(motion['media_interval_s'])
++        key = motion['capture_id'], motion['window']
++        heads = [r for r in appearances if (r['capture_id'], r['window']) == key
++                 and r['head_id'] == 'H1'
++                 and r['event'] == 'MAIN_GREEN_AND_LATERAL_GREEN_APPEARANCE']
++        matches = [r for r in proxies if (r['capture_id'], r['window']) == key
++                   and r['original_event']['source_track_id'] == motion['track_id_hypothesis']]
++        row = dict(motion_record_id=motion['record_id'], capture_id=key[0], window=key[1],
++                   track_id_hypothesis=motion['track_id_hypothesis'],
++                   identity_status=motion['identity_status'], motion_media_interval_s=[lo, hi],
++                   head_record_ids=[r['record_id'] for r in heads],
++                   status='AVAILABLE_SAME_VIDEO_ASSOCIATION' if len(heads) == 1 else
++                          'UNAVAILABLE_HEAD_REFERENCE_MISSING' if not heads else
++                          'UNAVAILABLE_HEAD_REFERENCE_AMBIGUOUS',
++                   onset_minus_H1_appearance_s=None, relation='UNKNOWN',
++                   proxy_record_ids=[r['record_id'] for r in matches],
++                   proxy_match_status='UNIQUE_ID_HYPOTHESIS' if len(matches) == 1 else
++                                      'UNAVAILABLE_MISSING_OR_AMBIGUOUS',
++                   calibrated_vehicle_signal_delay_s=None, physical_section_state='UNKNOWN')
++        if len(heads) == 1:
++            head_lo, head_hi = _interval(heads[0]['media_interval_s'])
++            difference = [lo-head_hi, hi-head_lo]
++            row.update(head_media_interval_s=[head_lo, head_hi],
++                       onset_minus_H1_appearance_s=difference,
++                       relation='WHOLLY_BEFORE' if difference[1] < 0 else
++                                'WHOLLY_AFTER' if difference[0] > 0 else
++                                'OVERLAPPING_OR_TOUCHING')
++        if len(matches) == 1:
++            event = matches[0]['original_event']
++            row['proxy_provenance'] = deepcopy({k: event.get(k) for k in
++                ['timestamp_ms', 'evidence_method', 'movement', 'source_track_id', 'uncertainty']})
++        rows.append(row)
++    relations = {key: sum(r['relation'] == key for r in rows) for key in
++                 ['WHOLLY_BEFORE', 'WHOLLY_AFTER', 'OVERLAPPING_OR_TOUCHING', 'UNKNOWN']}
++    return dict(rows=rows, motion_count=len(rows), relation_counts=relations,
++                available_association_count=sum(r['status'] == 'AVAILABLE_SAME_VIDEO_ASSOCIATION' for r in rows),
++                media_extent_s=[min(r['motion_media_interval_s'][0] for r in rows),
++                                max(r['motion_media_interval_s'][1] for r in rows)] if rows else None,
++                causal_delay_model='UNAVAILABLE', calibrated_lamp_probability=None,
++                semantics='sampled_same_video_associations_NOT_calibrated_onset_or_lamp_switch_intervals')
+diff --git a/docs/CLOCK_OBSERVATION_PROTOCOL_20261016.md b/docs/CLOCK_OBSERVATION_PROTOCOL_20261016.md
+new file mode 100644
+index 0000000..450dea0
+--- /dev/null
++++ b/docs/CLOCK_OBSERVATION_PROTOCOL_20261016.md
+@@ -0,0 +1,54 @@
++# Проверка clock/geometry и H1 vehicle associations
++
++Base: `d4be0f1dbff24003cdb88ad9794f413777940930`.
++Ветка: `calibration/clock-observation-check-20261016`.
++Протокол фиксируется до запуска нового checker. Старые наблюдения и два
++vehicle-onset-before-H1 примера уже известны: это development diagnostics,
++не пререгистрация независимого эксперимента и не новая validation.
++
++## Неизменные входы и расчёты
++
++Использовать только sealed H1 confirmation, saved local model/registration
++result и calibration bundle, а также user clock provenance. Не читать большие
++JSON, MP4/PNG/ZIP и phase labels; operator phase intervals из bundle не передавать
++расчётам. Не вызывать optimizer, event extractor, inference, evaluator или decoder.
++
++1. Сопоставить три overlay readouts с прежним clock candidate. Для проверки
++   арифметики рассмотреть **обе**, без выбора лучшей, условные модели display:
++   floor с residual `[0,1)` с и nearest с residual `[-0.5,0.5)` с. Условные
++   предположения: supplied UTC+5, один и тот же момент camera timestamp и JSON
++   detection, отсутствие overlay/processing latency, единичный clock scale.
++   Они НЕ подтверждены ответом «Из часов камеры». При неизвестном механизме
++   display/latency численный calibrated clock interval не выдавать.
++2. Для каждой display-модели вывести допустимый constant-delta set и пересечение
++   с ранее сохранённым frozen-H/50px set. Пустое пересечение — несовместимость
++   **совокупности** предположений, не доказанная причина ошибки часов, координат
++   или identity. Параметры, homography и allowances не менять; не выбирать delta.
++   Drift не оценивать по четырём секундам; min singular value/rank брать из
++   старого fit только как диагностические свойства, не calibrated uncertainty.
++3. Перенести все четыре ранее проверенных geometry anchor и их support, без
++   переоценки/отбора. Установленные локальные residuals не подтверждают units,
++   centroid semantics, стоп-линию или calibration joint geometry/clock error.
++4. Для всех восьми video-motion records A/B сопоставить ровно один H1 appearance
++   того же capture/window, не nearest-подбор. Вывести разность интервалов
++   `[vehicle_lo-H1_hi, vehicle_hi-H1_lo]`, counts и временной extent. Если
++   association отсутствует/неоднозначна — explicit unavailable. Proxy ID/method/
++   sampling interval допустимы как provenance, но не переносятся в video time.
++   Никакого delay fit, допуска, positive-only отбора или исправления extractor.
++
++## Критерии и лимиты
++
++- Проверяемый результат: source/protocol/code/output hashes, каждый из 8 records
++  сохранён, все 3 clocks и 4 geometry anchors учтены; UNKNOWN и причины явные.
++- Оба условных clock result публикуются рядом, вне зависимости от результата.
++  Никакого gate «добиться совместимости» и никакой настройки после расчёта.
++- Vehicle association — sampled video appearance, не calibrated onset или
++  lamp switch interval; до/после не означает нарушение/реакцию/причину.
++- Один checker run, до 10 с, не более 2 MiB входных JSON, каждый до 512 KiB;
++  ограничение количества readouts/anchors/records — 100/100/1000. При превышении
++  явная ошибка, результаты не повышаются до usable. Никаких тяжёлых запусков.
++- Все исходные predictions, модели и sealed evidence неизменны. Main/default,
++  2D.1 FAIL, исторические K3/2/3 и raw19/34 сохраняются. Physical states UNKNOWN.
++
++После этого достаточно либо назвать условия допуска observation calibration,
++либо конкретные недостающие данные. Новый decoder не входит в этот шаг.
+diff --git a/docs/CLOCK_OBSERVATION_RESULTS_20261016.md b/docs/CLOCK_OBSERVATION_RESULTS_20261016.md
+new file mode 100644
+index 0000000..7cd6804
+--- /dev/null
++++ b/docs/CLOCK_OBSERVATION_RESULTS_20261016.md
+@@ -0,0 +1,102 @@
++# Результат проверки времени и смысла vehicle evidence
++
++Base: `d4be0f1dbff24003cdb88ad9794f413777940930`.
++Протокол: [CLOCK_OBSERVATION_PROTOCOL_20261016.md](CLOCK_OBSERVATION_PROTOCOL_20261016.md).
++Его SHA256 до запуска: `60782c2f4a084dada5881658f1bb67aaf4f8132ae5da7868f8b8a640e9ad66df`.
++Один запуск checker, без fitting/decoding/нового извлечения событий и кадров.
++
++## Что установлено
++
++Три сохранённых overlay readout за media326.033333–330.033333с дают одинаковую
++арифметическую разность с прежним candidate: **+1.287171с**. Ответ пользователя
++«Из часов камеры» включён как provenance, без нулевой погрешности синхронизации.
++Origin прежний1740632395000ms; delta прежняя1.253838016с.
++
++| Условный механизм display | Допустимая delta, с | Candidate внутри | Пересечение с прежним frozen-H set |
++|---|---|---|---|
++| Усечение до секунды | [-0.033333, 0.966667) | Нет; расстояние до замыкания0.287171с | Пустое |
++| Округление до ближайшей секунды | [-0.533333, 0.466667) | Нет; расстояние0.787171с | Пустое |
++
++**Обе** проверки предполагают одинаковый момент timestamping display/detection,
++нулевую неизвестную latency, supplied UTC+5 и постоянный clock offset.
++Эти предположения не подтверждены. Интервалы — условные feasible sets,
++не calibrated confidence/switch-error intervals. Ни один режим не выбран.
++Новый offset не вычислялся и старый не исправлялся.
++
++Прежний frozen-H set `[1.057448,1.534785]`с получен при объявленных50px allowances
++и той же фиксированной геометрии. Его несовместимость с обеими display-моделями
++означает, что всю совокупность предположений нельзя считать подтверждённой.
++Причина не локализована до одного параметра: возможны feature/geometry/identity
++error, timestamp-stage или overlay latency/rounding assumptions.
++
++Все4 прежних geometry anchors сохранены,18 видимых точек,2 unavailable. Старые
++max residuals12.05–42.26px не переоценивались и не превратились в ошибку времени.
++Raw mappings остаются proposals, supplier centroid definition/units UNKNOWN.
++Saved scaled-Jacobian singular values2.181236…0.002039 (ratio≈1069.7) описывают
++старый fit, не задают uncertainty или доказанную неидентифицируемость всех данных.
++На участке равномерного движения `p(t+δ)=p(t)+vδ` изменение времени может
++компенсироваться пространственным переносом. Несколько разных траекторий
++могут уменьшить эту зависимость; низкий pixel residual сам по себе её не снимает.
++
++## Полная таблица восьми video associations
++
++Взяты все8 прежних наблюдений A/B, без отбора по знаку/ошибкам. H1 reference
++привязан по capture+window, не ближайшему переключению. Все8 proxy ID совпали
++по существующим identity hypotheses; это не новая identity validation.
++
++| Track hypothesis | Окно | Vehicle-onset − H1 appearance, с | Отношение |
++|---|---|---|---|
++|9916410|A|[-1.266666,-0.233334]|До|
++|9916373|A|[0.233334,1.000000]|После|
++|9916450|A|[1.000000,1.766666]|После|
++|9916436|A|[1.000000,2.000000]|После|
++|9918413|B|[-1.500000,-0.500000]|До|
++|9918426|B|[-1.000000,0.000000]|Касание|
++|9918377|B|[0.500000,1.500000]|После|
++|9918416|B|[0.733334,1.766666]|После|
++
++Знаменатель8, два H1 references, один capture; media extent наблюдений
++517.766667–1220.533333с, **не непрерывное coverage** этого промежутка.
++Это sampled image motion и appearance H1 в одной шкале video PTS; их разности
++не зависят от JSON offset. Поэтому исправление JSON clock не устранит эти два
++отрицательных same-video отношения. Это не доказательство разрешения/нарушения,
++причины старта, реакции водителя или истинного lamp switch time. Не подтверждены
++полная permission semantics, независимое review и world-motion localization.
++Модель «каждый RELEASE = H1 GREEN + неотрицательная реакция» не обоснована этими
++наблюдениями; такую модель не запускали и отрицательные значения не обрезали.
++
++## Проверки и артефакты
++
++50 targeted/regression tests PASS: half-open display sets, несовместимые clocks,
++nonfinite times, отсутствие readout, missing/ambiguous H1 association без nearest
++fallback, нулевая fabricated probability, immutability/resource guards, все8
++реальных development associations и старые seals/registration checks.
++
++Checker прочитал115562B небольших JSON; runtime0.013с — время bounded checker,
++не профиль inference и не новый runtime benchmark. Исторические confirmation,
++model/registration и bundle seals проверены. `result.json`, CSV, freeze/manifest,
++commands/tests/run logs находятся в `evidence/clock_observation_check_20261016/`.
++Freeze содержит protocol/code/source hashes до вычислений. Повторный запуск
++в тот же output запрещён; все прежние artifacts оставлены неизменными.
++
++## Решение и следующий конкретный вход
++
++Joint calibrated transform/error model **UNAVAILABLE**, не автоматически PASS.
++Vehicle-signal delay/prior не выбраны; calibrated lamp probability=null;
++physical states UNKNOWN. Никакой новой real phase accuracy не измерено.
++2C/state contract остаются приняты;2D.1 FAIL/default-off; исторические
++K3/2/3 против truth3/2/2, raw19/34 сохраняются.
++
++Чтобы отделить время от геометрии, нужен timestamp correspondence, независимый
++от положения движущейся машины: описание формирования detection timestamp и
++camera overlay (rounding, update/exposure latency) либо оригинальный экспорт,
++где detection timestamp связан с конкретным camera frame ID/PTS. По нему можно
++зафиксировать clock range **до** проверки spatial residuals, не выбирая offset
++по фазовым ошибкам. Полезны также supplier centroid feature definition/transform
++и независимое review существующих соответствий. Если этих сведений нет,
++uncertainty joint model остаётся открытой; это не запрет trajectory-only оценки
++логической активности, а ограничение утверждений о точном времени ламп.
++
++Для итоговой validation нужен отдельный capture того же перекрёстка с JSON и
++независимо видимыми сигналами/журналом контроллера. Текущие A/B и три известные
++записи development; новые параметры/допуски по ним не подбирались.
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index 405eef0..e362003 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,16 @@
+ # Project status — 2D.1, 2026-10-16
+ 
++2026-10-16 bounded clock/observation check completed on saved development evidence.
++Both conditional display-rounding models (zero unmodelled latency) exclude the
++saved delta and have empty intersection with saved frozen-H feasibility. No
++causal attribution, new transform, calibration certificate or fit. All8 video
++motion/H1 associations retained:2 before,5 after,1 touching; not a causal delay
++distribution.50 targeted/regression tests pass,115562B input, one0.013s checker.
++See CLOCK_OBSERVATION_RESULTS_20261016.md. Need timestamp-to-camera-frame link
++independent of vehicle geometry, or documented overlay/detection timestamping.
++Joint calibration unavailable; no real replay/decoder/default/main changes.
++2D.1 FAIL, K3/2/3 vs truth3/2/2 and raw19/34 unchanged; separate validation open.
++
+ 2026-10-16 user clock-origin clarification: “Из часов камеры” (camera clock).
+ Recorded in evidence/camera_clock_provenance_20261016/user_confirmation.json
+ with the exact question/answer and base b85a799552383bae5d40098f8cff1176e849735b.
+diff --git a/evidence/clock_observation_check_20261016/commands.log b/evidence/clock_observation_check_20261016/commands.log
+new file mode 100644
+index 0000000..3445538
+--- /dev/null
++++ b/evidence/clock_observation_check_20261016/commands.log
+@@ -0,0 +1,20 @@
++Base: d4be0f1dbff24003cdb88ad9794f413777940930
++Branch: calibration/clock-observation-check-20261016
++Working directory: D:\Code\PythonProjects\traffic_phase\audit_checkout
++
++git switch -c calibration/clock-observation-check-20261016
++Get-FileHash docs/CLOCK_OBSERVATION_PROTOCOL_20261016.md -Algorithm SHA256
++Protocol before calculation: 60782c2f4a084dada5881658f1bb67aaf4f8132ae5da7868f8b8a640e9ad66df
++$env:TEMP='D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\tmp'
++$env:TMP=$env:TEMP
++C:\Python314\python.exe -m pytest tests/test_clock_observation_check.py tests/test_h1_confirmation.py tests/test_calibration_bundle.py tests/test_local_registration_validation.py -q -p no:cacheprovider
++50 passed in 13.21s; see tests.log.
++C:\Python314\python.exe -m scripts.check_clock_observation
++One checker invocation; input 115562B, runtime 0.0130145s; see run.log.
++Readouts=3, saved geometry anchors=4, motions=8; before=2,after=5,touching=1.
++No optimizer/inference/decoder/event extraction/video decoding/evaluator calls.
++No raw trajectory/archive read or output prediction changes.
++git diff --check
++PASS. LF-to-CRLF working-copy notices for Markdown, not whitespace errors.
++Post-run checks in invariant_checks.log verify source/code/protocol/output hashes,
++unchanged app/core/config/benchmarks/historical evidence and main SHA.
+diff --git a/evidence/clock_observation_check_20261016/freeze.json b/evidence/clock_observation_check_20261016/freeze.json
+new file mode 100644
+index 0000000..5f30ff8
+--- /dev/null
++++ b/evidence/clock_observation_check_20261016/freeze.json
+@@ -0,0 +1,51 @@
++{
++  "base_sha": "d4be0f1dbff24003cdb88ad9794f413777940930",
++  "sources": {
++    "confirmation": {
++      "path": "evidence/h1_confirmation_20261016/confirmation.json",
++      "sha256_lf": "d1127d38bb021aec2b15b3d2d06aad71f13b4ecc96c89a0e20bd0797527f423e"
++    },
++    "confirmation_manifest": {
++      "path": "evidence/h1_confirmation_20261016/manifest.json",
++      "sha256_lf": "c70251b342de5054a1d325d990bbf427660c51fbd8ea51f73ab589eed0773c52"
++    },
++    "model": {
++      "path": "evidence/local_vehicle_registration_20261015/local_model.json",
++      "sha256_lf": "eadb23c972764b1074e69060e2e678d4780849477c1af93b453a230f12a02a60"
++    },
++    "registration": {
++      "path": "evidence/local_vehicle_registration_20261015/validation_result.json",
++      "sha256_lf": "b35680fc059f15d63f5a5e0701897e415ad113b2914719a4c8ad2316b11389f5"
++    },
++    "bundle": {
++      "path": "evidence/calibration_bundle_20261016/calibration_bundle.json",
++      "sha256_lf": "1a68f5137210979d13ea64bdd3af815f975b74faf7eefddcb3c06a734515bd41"
++    },
++    "bundle_manifest": {
++      "path": "evidence/calibration_bundle_20261016/manifest.json",
++      "sha256_lf": "ee7ddecec53813b124645dfe0cb27844eea886d638260fd8d0f218a54310271f"
++    },
++    "clock_source": {
++      "path": "evidence/camera_clock_provenance_20261016/user_confirmation.json",
++      "sha256_lf": "245a7d0ed881d4d9f5804351d53d71c028f649c5ded55d540acef591ef32b7af"
++    },
++    "clock_source_manifest": {
++      "path": "evidence/camera_clock_provenance_20261016/manifest.json",
++      "sha256_lf": "205e124d8246d5d12542d1aeb8a4a73c0de95125fc283c2ae8b3f703fa19a7df"
++    }
++  },
++  "protocol_sha256_lf": "60782c2f4a084dada5881658f1bb67aaf4f8132ae5da7868f8b8a640e9ad66df",
++  "code_sha256_lf": {
++    "app/experimental/clock_observation_check.py": "c883ed52b2e536a8edf303a4b8c6f1badce755fde4b9499b56755acf03bfbb28",
++    "scripts/check_clock_observation.py": "ebd756834d0f4e1cc163d094578eb8632d9f4f2650b624d1402a0bf4fd61a11d",
++    "tests/test_clock_observation_check.py": "25d4bdc784a055566b26b879e836833b373edc495b73637ab953fb020c1067fa"
++  },
++  "budgets": {
++    "max_seconds": 10,
++    "max_total_input_bytes": 2097152,
++    "max_file_bytes": 524288,
++    "max_checker_runs": 1
++  },
++  "frozen_before_calculation": true,
++  "previously_reviewed_development_data": true
++}
+diff --git a/evidence/clock_observation_check_20261016/invariant_checks.log b/evidence/clock_observation_check_20261016/invariant_checks.log
+new file mode 100644
+index 0000000..49b72ea
+--- /dev/null
++++ b/evidence/clock_observation_check_20261016/invariant_checks.log
+@@ -0,0 +1,4 @@
++PASS: all frozen source, protocol, code and output hashes unchanged
++PASS: protected core/config/benchmarks/prior evidence unchanged vs full base
++PASS: main a005a2521f62ce3b2c9f9d52f9f0d73913754e01 unchanged
++PASS: no fit/decoder/extraction/raw replay, all8 motions and4 anchors, physical UNKNOWN
+diff --git a/evidence/clock_observation_check_20261016/manifest.json b/evidence/clock_observation_check_20261016/manifest.json
+new file mode 100644
+index 0000000..4f3ac96
+--- /dev/null
++++ b/evidence/clock_observation_check_20261016/manifest.json
+@@ -0,0 +1,11 @@
++{
++  "base_sha": "d4be0f1dbff24003cdb88ad9794f413777940930",
++  "protocol_sha256_lf": "60782c2f4a084dada5881658f1bb67aaf4f8132ae5da7868f8b8a640e9ad66df",
++  "outputs": {
++    "freeze.json": "e84f833f92cad04627cb6febfb3ff76377df6027e84ba1e97e4e9dca389c5797",
++    "result.json": "5cfcb0a54438f265df7d9eb67d05422476bf1d450d072ca4004c0e6211b55851",
++    "vehicle_associations.csv": "5bfa8e5935debacf221a245e82c6c3eec722cfcb75c40d587580aaf9154fa46b"
++  },
++  "historical_seals_checked": true,
++  "inference_calls": 0
++}
+diff --git a/evidence/clock_observation_check_20261016/result.json b/evidence/clock_observation_check_20261016/result.json
+new file mode 100644
+index 0000000..a1fa377
+--- /dev/null
++++ b/evidence/clock_observation_check_20261016/result.json
+@@ -0,0 +1,605 @@
++{
++  "schema": "clock-observation-diagnostic-v1",
++  "clock": {
++    "readouts": [
++      {
++        "file": "frame_00326.png",
++        "media_pts_s": 326.033333,
++        "delta_for_exact_displayed_second_s": -0.03333300000002737,
++        "candidate_minus_displayed_second_s": 1.2871710162138503
++      },
++      {
++        "file": "frame_00328.png",
++        "media_pts_s": 328.033333,
++        "delta_for_exact_displayed_second_s": -0.03333300000002737,
++        "candidate_minus_displayed_second_s": 1.2871710162138503
++      },
++      {
++        "file": "frame_00330.png",
++        "media_pts_s": 330.033333,
++        "delta_for_exact_displayed_second_s": -0.03333300000002737,
++        "candidate_minus_displayed_second_s": 1.2871710162138503
++      }
++    ],
++    "readout_count": 3,
++    "media_extent_s": [
++      326.033333,
++      330.033333
++    ],
++    "rounding_convention": "UNKNOWN",
++    "conditional_models": [
++      {
++        "rounding_model": "floor",
++        "conditional_delta_bounds_s": [
++          -0.03333300000002737,
++          0.9666669999999726
++        ],
++        "lower_inclusive": true,
++        "upper_inclusive": false,
++        "status": "CONDITIONALLY_FEASIBLE",
++        "candidate_in_set": false,
++        "distance_to_set_closure_s": 0.2871710162138503,
++        "intersection_with_saved_frozen_geometry": []
++      },
++      {
++        "rounding_model": "nearest",
++        "conditional_delta_bounds_s": [
++          -0.5333330000000274,
++          0.46666699999997263
++        ],
++        "lower_inclusive": true,
++        "upper_inclusive": false,
++        "status": "CONDITIONALLY_FEASIBLE",
++        "candidate_in_set": false,
++        "distance_to_set_closure_s": 0.7871710162138503,
++        "intersection_with_saved_frozen_geometry": []
++      }
++    ],
++    "frozen_geometry_delta_sets_s": [
++      [
++        1.0574480480623834,
++        1.5347854395444642
++      ]
++    ],
++    "saved_candidate_delta_s": 1.253838016213823,
++    "assumptions": [
++      "constant unit-scale clock",
++      "supplied UTC+5 interpretation",
++      "JSON detection and display refer to the same instant",
++      "zero unmodelled overlay/processing latency"
++    ],
++    "assumptions_verified": false,
++    "calibrated_sync_uncertainty_ms": null,
++    "accepted_json_video_clock_transform": null,
++    "joint_error_status": "UNAVAILABLE_JOINT_GEOMETRY_CLOCK_IDENTITY_MODEL",
++    "causal_explanation": "UNKNOWN",
++    "refit": false
++  },
++  "geometry": {
++    "anchors": [
++      {
++        "track_id": 9915830,
++        "raw_zone_in": "N",
++        "raw_zone_out": "_E",
++        "observations": 5,
++        "max_image_residual_px": 42.260556891446505,
++        "local_pixel_check_status": "PASS_DECLARED_PIXEL_ALLOWANCE",
++        "support_semantics": "saved withheld local image check; not identity/clock/hardware certificate"
++      },
++      {
++        "track_id": 9915797,
++        "raw_zone_in": "N",
++        "raw_zone_out": "_S",
++        "observations": 4,
++        "max_image_residual_px": 20.543044701502023,
++        "local_pixel_check_status": "PASS_DECLARED_PIXEL_ALLOWANCE",
++        "support_semantics": "saved withheld local image check; not identity/clock/hardware certificate"
++      },
++      {
++        "track_id": 9915811,
++        "raw_zone_in": "N",
++        "raw_zone_out": "_S",
++        "observations": 4,
++        "max_image_residual_px": 12.049323525832513,
++        "local_pixel_check_status": "PASS_DECLARED_PIXEL_ALLOWANCE",
++        "support_semantics": "saved withheld local image check; not identity/clock/hardware certificate"
++      },
++      {
++        "track_id": 9915806,
++        "raw_zone_in": "N",
++        "raw_zone_out": "_S",
++        "observations": 5,
++        "max_image_residual_px": 20.682121814559096,
++        "local_pixel_check_status": "PASS_DECLARED_PIXEL_ALLOWANCE",
++        "support_semantics": "saved withheld local image check; not identity/clock/hardware certificate"
++      }
++    ],
++    "movement_mapping_proposals": [
++      {
++        "section": "main",
++        "raw_movement": "N->_S",
++        "verified": false
++      },
++      {
++        "section": "lateral",
++        "raw_movement": "N->_E",
++        "verified": false
++      }
++    ],
++    "support": "previously checked frozen local image correspondences; NOT recomputed",
++    "supplier_centroid_units": "UNKNOWN",
++    "stop_line_geometry": "UNKNOWN",
++    "calibrated_joint_error_model": null,
++    "saved_scaled_jacobian_singular_values": [
++      2.1812359996245845,
++      1.8884162866761067,
++      0.5572504806930416,
++      0.5035103403754748,
++      0.3257383482907572,
++      0.059505417726536676,
++      0.0386023598783232,
++      0.030033561417073012,
++      0.0020390622703115777
++    ]
++  },
++  "same_video": {
++    "rows": [
++      {
++        "motion_record_id": "0b7e3dcb98283ca1468c9784f71e6e8bd3dbc397c33247b26aa9b1cb9ee0f363",
++        "capture_id": "len-sverdl-2025-02-27",
++        "window": "A",
++        "track_id_hypothesis": 9916410,
++        "identity_status": "VISUAL_ORDER_CLASS_PATH_SUPPORTED_NOT_SUPPLIER_CERTIFIED",
++        "motion_media_interval_s": [
++          517.766667,
++          518.533333
++        ],
++        "head_record_ids": [
++          "98860b33e39bbd959507a29b2e6b3e7c346d1f288ea2eec75912951851dbb733"
++        ],
++        "status": "AVAILABLE_SAME_VIDEO_ASSOCIATION",
++        "onset_minus_H1_appearance_s": [
++          -1.2666659999999865,
++          -0.23333400000001348
++        ],
++        "relation": "WHOLLY_BEFORE",
++        "proxy_record_ids": [
++          "4bf179cde1598b68a70192f47c0edc8d8842b107895cd6322de4a625b2fa4f5e"
++        ],
++        "proxy_match_status": "UNIQUE_ID_HYPOTHESIS",
++        "calibrated_vehicle_signal_delay_s": null,
++        "physical_section_state": "UNKNOWN",
++        "head_media_interval_s": [
++          518.766667,
++          519.033333
++        ],
++        "proxy_provenance": {
++          "timestamp_ms": 1740632913996.0,
++          "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
++          "movement": "N->E",
++          "source_track_id": 9916410,
++          "uncertainty": {
++            "event_to_signal_switch": {
++              "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
++              "status": "UNKNOWN",
++              "uncertainty_ms": null
++            },
++            "vehicle_event": {
++              "calibrated": false,
++              "heuristic_localization_radius_ms": 1300,
++              "sampling_interval_ms": [
++                1740632913876,
++                1740632913996
++              ],
++              "sampling_interval_width_ms": 120,
++              "statistical_error_bound": false
++            }
++          }
++        }
++      },
++      {
++        "motion_record_id": "6588abd3ac2a01f3ce5e69716b5d74ea82f2f5dfae2c49ad203ec8c803c75978",
++        "capture_id": "len-sverdl-2025-02-27",
++        "window": "A",
++        "track_id_hypothesis": 9916373,
++        "identity_status": "VISUAL_ORDER_CLASS_PATH_SUPPORTED_NOT_SUPPLIER_CERTIFIED",
++        "motion_media_interval_s": [
++          519.266667,
++          519.766667
++        ],
++        "head_record_ids": [
++          "98860b33e39bbd959507a29b2e6b3e7c346d1f288ea2eec75912951851dbb733"
++        ],
++        "status": "AVAILABLE_SAME_VIDEO_ASSOCIATION",
++        "onset_minus_H1_appearance_s": [
++          0.23333400000001348,
++          1.0
++        ],
++        "relation": "WHOLLY_AFTER",
++        "proxy_record_ids": [
++          "0c1988ed66ce4a3bdefc76c4ad0cb168e9c9f1d2542f0cc2d4d0d2a2d615cd31"
++        ],
++        "proxy_match_status": "UNIQUE_ID_HYPOTHESIS",
++        "calibrated_vehicle_signal_delay_s": null,
++        "physical_section_state": "UNKNOWN",
++        "head_media_interval_s": [
++          518.766667,
++          519.033333
++        ],
++        "proxy_provenance": {
++          "timestamp_ms": 1740632916397.0,
++          "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
++          "movement": "N->E",
++          "source_track_id": 9916373,
++          "uncertainty": {
++            "event_to_signal_switch": {
++              "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
++              "status": "UNKNOWN",
++              "uncertainty_ms": null
++            },
++            "vehicle_event": {
++              "calibrated": false,
++              "heuristic_localization_radius_ms": 1300,
++              "sampling_interval_ms": [
++                1740632916282,
++                1740632916397
++              ],
++              "sampling_interval_width_ms": 115,
++              "statistical_error_bound": false
++            }
++          }
++        }
++      },
++      {
++        "motion_record_id": "fab31b58d7cea10a1d68eaef73d6c28c23fdbc72d75a0513a9feaeb758e62f1c",
++        "capture_id": "len-sverdl-2025-02-27",
++        "window": "A",
++        "track_id_hypothesis": 9916450,
++        "identity_status": "VISUAL_ORDER_CLASS_PATH_SUPPORTED_NOT_SUPPLIER_CERTIFIED",
++        "motion_media_interval_s": [
++          520.033333,
++          520.533333
++        ],
++        "head_record_ids": [
++          "98860b33e39bbd959507a29b2e6b3e7c346d1f288ea2eec75912951851dbb733"
++        ],
++        "status": "AVAILABLE_SAME_VIDEO_ASSOCIATION",
++        "onset_minus_H1_appearance_s": [
++          1.0,
++          1.7666659999999865
++        ],
++        "relation": "WHOLLY_AFTER",
++        "proxy_record_ids": [
++          "59705269a464bc290fcbf02aff1f0ea7a069d19bd364e8c88ca70f9f93360c73"
++        ],
++        "proxy_match_status": "UNIQUE_ID_HYPOTHESIS",
++        "calibrated_vehicle_signal_delay_s": null,
++        "physical_section_state": "UNKNOWN",
++        "head_media_interval_s": [
++          518.766667,
++          519.033333
++        ],
++        "proxy_provenance": {
++          "timestamp_ms": 1740632916514.0,
++          "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
++          "movement": "N->S",
++          "source_track_id": 9916450,
++          "uncertainty": {
++            "event_to_signal_switch": {
++              "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
++              "status": "UNKNOWN",
++              "uncertainty_ms": null
++            },
++            "vehicle_event": {
++              "calibrated": false,
++              "heuristic_localization_radius_ms": 1300,
++              "sampling_interval_ms": [
++                1740632916397,
++                1740632916514
++              ],
++              "sampling_interval_width_ms": 117,
++              "statistical_error_bound": false
++            }
++          }
++        }
++      },
++      {
++        "motion_record_id": "05100e08a1c4c49467001d37e6bd93d8d75bfc617cb1901cf29459a15912239c",
++        "capture_id": "len-sverdl-2025-02-27",
++        "window": "A",
++        "track_id_hypothesis": 9916436,
++        "identity_status": "VISUAL_ORDER_CLASS_PATH_SUPPORTED_NOT_SUPPLIER_CERTIFIED",
++        "motion_media_interval_s": [
++          520.033333,
++          520.766667
++        ],
++        "head_record_ids": [
++          "98860b33e39bbd959507a29b2e6b3e7c346d1f288ea2eec75912951851dbb733"
++        ],
++        "status": "AVAILABLE_SAME_VIDEO_ASSOCIATION",
++        "onset_minus_H1_appearance_s": [
++          1.0,
++          2.0
++        ],
++        "relation": "WHOLLY_AFTER",
++        "proxy_record_ids": [
++          "33276ac394c4e4d9e444a0f1d47b28617a9e9499bdf98629eec6fe6f7f48ab77"
++        ],
++        "proxy_match_status": "UNIQUE_ID_HYPOTHESIS",
++        "calibrated_vehicle_signal_delay_s": null,
++        "physical_section_state": "UNKNOWN",
++        "head_media_interval_s": [
++          518.766667,
++          519.033333
++        ],
++        "proxy_provenance": {
++          "timestamp_ms": 1740632917241.0,
++          "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
++          "movement": "N->S",
++          "source_track_id": 9916436,
++          "uncertainty": {
++            "event_to_signal_switch": {
++              "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
++              "status": "UNKNOWN",
++              "uncertainty_ms": null
++            },
++            "vehicle_event": {
++              "calibrated": false,
++              "heuristic_localization_radius_ms": 1300,
++              "sampling_interval_ms": [
++                1740632917128,
++                1740632917241
++              ],
++              "sampling_interval_width_ms": 113,
++              "statistical_error_bound": false
++            }
++          }
++        }
++      },
++      {
++        "motion_record_id": "bae414006a67455238fcb997cfd4b409e60c13ca04fe3b76f6d560134cf75122",
++        "capture_id": "len-sverdl-2025-02-27",
++        "window": "B",
++        "track_id_hypothesis": 9918413,
++        "identity_status": "VISUAL_ORDER_CLASS_PATH_SUPPORTED_NOT_SUPPLIER_CERTIFIED",
++        "motion_media_interval_s": [
++          1217.533333,
++          1218.266667
++        ],
++        "head_record_ids": [
++          "5e314ae248a6f64ad62cd6b97c586e1a222c6d0a08f7856707aa2689e9d259b2"
++        ],
++        "status": "AVAILABLE_SAME_VIDEO_ASSOCIATION",
++        "onset_minus_H1_appearance_s": [
++          -1.5,
++          -0.5
++        ],
++        "relation": "WHOLLY_BEFORE",
++        "proxy_record_ids": [
++          "574de73b165a6ec75ee7f129da7c2087ebd7a1ec6d54931fd81db65ba6e84551"
++        ],
++        "proxy_match_status": "UNIQUE_ID_HYPOTHESIS",
++        "calibrated_vehicle_signal_delay_s": null,
++        "physical_section_state": "UNKNOWN",
++        "head_media_interval_s": [
++          1218.766667,
++          1219.033333
++        ],
++        "proxy_provenance": {
++          "timestamp_ms": 1740633614230.0,
++          "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
++          "movement": "N->S",
++          "source_track_id": 9918413,
++          "uncertainty": {
++            "event_to_signal_switch": {
++              "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
++              "status": "UNKNOWN",
++              "uncertainty_ms": null
++            },
++            "vehicle_event": {
++              "calibrated": false,
++              "heuristic_localization_radius_ms": 1300,
++              "sampling_interval_ms": [
++                1740633614108,
++                1740633614230
++              ],
++              "sampling_interval_width_ms": 122,
++              "statistical_error_bound": false
++            }
++          }
++        }
++      },
++      {
++        "motion_record_id": "e4ecc53f41ef659d60ba2dec0dfb632515e5e13153b68ba8220a0a5134421408",
++        "capture_id": "len-sverdl-2025-02-27",
++        "window": "B",
++        "track_id_hypothesis": 9918426,
++        "identity_status": "VISUAL_ORDER_CLASS_PATH_SUPPORTED_NOT_SUPPLIER_CERTIFIED",
++        "motion_media_interval_s": [
++          1218.033333,
++          1218.766667
++        ],
++        "head_record_ids": [
++          "5e314ae248a6f64ad62cd6b97c586e1a222c6d0a08f7856707aa2689e9d259b2"
++        ],
++        "status": "AVAILABLE_SAME_VIDEO_ASSOCIATION",
++        "onset_minus_H1_appearance_s": [
++          -1.0,
++          0.0
++        ],
++        "relation": "OVERLAPPING_OR_TOUCHING",
++        "proxy_record_ids": [
++          "0a44630a86e9d77562255ecc13d2b4c655e487e6cc9e371a36934174b472e1bb"
++        ],
++        "proxy_match_status": "UNIQUE_ID_HYPOTHESIS",
++        "calibrated_vehicle_signal_delay_s": null,
++        "physical_section_state": "UNKNOWN",
++        "head_media_interval_s": [
++          1218.766667,
++          1219.033333
++        ],
++        "proxy_provenance": {
++          "timestamp_ms": 1740633614596.0,
++          "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
++          "movement": "N->S",
++          "source_track_id": 9918426,
++          "uncertainty": {
++            "event_to_signal_switch": {
++              "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
++              "status": "UNKNOWN",
++              "uncertainty_ms": null
++            },
++            "vehicle_event": {
++              "calibrated": false,
++              "heuristic_localization_radius_ms": 1300,
++              "sampling_interval_ms": [
++                1740633614471,
++                1740633614596
++              ],
++              "sampling_interval_width_ms": 125,
++              "statistical_error_bound": false
++            }
++          }
++        }
++      },
++      {
++        "motion_record_id": "a91450b5d88fe1d0b671a96439e956333fa8877ba1fa64da75fcde2468fd0c38",
++        "capture_id": "len-sverdl-2025-02-27",
++        "window": "B",
++        "track_id_hypothesis": 9918377,
++        "identity_status": "VISUAL_ORDER_CLASS_PATH_SUPPORTED_NOT_SUPPLIER_CERTIFIED",
++        "motion_media_interval_s": [
++          1219.533333,
++          1220.266667
++        ],
++        "head_record_ids": [
++          "5e314ae248a6f64ad62cd6b97c586e1a222c6d0a08f7856707aa2689e9d259b2"
++        ],
++        "status": "AVAILABLE_SAME_VIDEO_ASSOCIATION",
++        "onset_minus_H1_appearance_s": [
++          0.5,
++          1.5
++        ],
++        "relation": "WHOLLY_AFTER",
++        "proxy_record_ids": [
++          "51da1a6a7601906877e611970baaf8ffd1a641a09aceb35f4b198f24d49be242"
++        ],
++        "proxy_match_status": "UNIQUE_ID_HYPOTHESIS",
++        "calibrated_vehicle_signal_delay_s": null,
++        "physical_section_state": "UNKNOWN",
++        "head_media_interval_s": [
++          1218.766667,
++          1219.033333
++        ],
++        "proxy_provenance": {
++          "timestamp_ms": 1740633615310.0,
++          "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
++          "movement": "N->E",
++          "source_track_id": 9918377,
++          "uncertainty": {
++            "event_to_signal_switch": {
++              "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
++              "status": "UNKNOWN",
++              "uncertainty_ms": null
++            },
++            "vehicle_event": {
++              "calibrated": false,
++              "heuristic_localization_radius_ms": 1300,
++              "sampling_interval_ms": [
++                1740633615190,
++                1740633615310
++              ],
++              "sampling_interval_width_ms": 120,
++              "statistical_error_bound": false
++            }
++          }
++        }
++      },
++      {
++        "motion_record_id": "a230032da30c5a0f861a67acc61afd32af9b5724804aa4961b8f2baf0b1e19f7",
++        "capture_id": "len-sverdl-2025-02-27",
++        "window": "B",
++        "track_id_hypothesis": 9918416,
++        "identity_status": "VISUAL_ORDER_CLASS_PATH_SUPPORTED_NOT_SUPPLIER_CERTIFIED",
++        "motion_media_interval_s": [
++          1219.766667,
++          1220.533333
++        ],
++        "head_record_ids": [
++          "5e314ae248a6f64ad62cd6b97c586e1a222c6d0a08f7856707aa2689e9d259b2"
++        ],
++        "status": "AVAILABLE_SAME_VIDEO_ASSOCIATION",
++        "onset_minus_H1_appearance_s": [
++          0.7333340000000135,
++          1.7666659999999865
++        ],
++        "relation": "WHOLLY_AFTER",
++        "proxy_record_ids": [
++          "789a01746ea56e6b47e26e608e221993e10989ba98c8f38a98aa72b381f3bc74"
++        ],
++        "proxy_match_status": "UNIQUE_ID_HYPOTHESIS",
++        "calibrated_vehicle_signal_delay_s": null,
++        "physical_section_state": "UNKNOWN",
++        "head_media_interval_s": [
++          1218.766667,
++          1219.033333
++        ],
++        "proxy_provenance": {
++          "timestamp_ms": 1740633615676.0,
++          "evidence_method": "kinematic_restart_unsmoothed_interval_proxy",
++          "movement": "N->S",
++          "source_track_id": 9918416,
++          "uncertainty": {
++            "event_to_signal_switch": {
++              "reason": "vehicle_evidence_does_not_identify_signal_switch_time",
++              "status": "UNKNOWN",
++              "uncertainty_ms": null
++            },
++            "vehicle_event": {
++              "calibrated": false,
++              "heuristic_localization_radius_ms": 1300,
++              "sampling_interval_ms": [
++                1740633615548,
++                1740633615676
++              ],
++              "sampling_interval_width_ms": 128,
++              "statistical_error_bound": false
++            }
++          }
++        }
++      }
++    ],
++    "motion_count": 8,
++    "relation_counts": {
++      "WHOLLY_BEFORE": 2,
++      "WHOLLY_AFTER": 5,
++      "OVERLAPPING_OR_TOUCHING": 1,
++      "UNKNOWN": 0
++    },
++    "available_association_count": 8,
++    "media_extent_s": [
++      517.766667,
++      1220.533333
++    ],
++    "causal_delay_model": "UNAVAILABLE",
++    "calibrated_lamp_probability": null,
++    "semantics": "sampled_same_video_associations_NOT_calibrated_onset_or_lamp_switch_intervals"
++  },
++  "clock_source": "CAMERA_USER_REPORTED",
++  "joint_calibration_status": "UNAVAILABLE_UNVERIFIED_NUISANCE_MODEL",
++  "missing_inputs": [
++    "overlay rounding/update/exposure timing relative to detections",
++    "independent identity/feature and coordinate transform uncertainty",
++    "independent validation capture with observable signals"
++  ],
++  "calibrated_vehicle_signal_delay": null,
++  "physical_section_state": "UNKNOWN",
++  "calibrated_lamp_probability": null,
++  "production_usable": false,
++  "phase_fits": 0,
++  "decoder_calls": 0,
++  "event_extractions": 0,
++  "raw_video_archive_bytes_read": 0,
++  "input_bytes_read": 115562,
++  "computation_runtime_s": 0.01301450000028126
++}
+diff --git a/evidence/clock_observation_check_20261016/run.log b/evidence/clock_observation_check_20261016/run.log
+new file mode 100644
+index 0000000000000000000000000000000000000000..1f82a8b03820cd06f32b5e040124e7c41f957e7b
+GIT binary patch
+literal 646
+zcmY+CZA$_{6ot>{p#Knlj@b1L>6^V8i7S#t5G<QoTE4`pfrNj(dhX1uD3_hPd(N42
+z=ib@B-yfB<&{`{fxwWKooq%1DUx-WCp+@e#s|~s_$Xs3J<PVqu*wXPUuuN~n1T@8Q
+z%=a?v&hQ_?tY8K(w(~R8wn`&?!&<F5jITJ*6ou(h@~iX8(Pg+yK;{Qtsmh9Y>WaxR
+zxujFqO^#oNx9@ZbZe3Oa`wqL%jMX~W;F-BISf@EPy}BCIGti=X!8P{kO!rP#@HXWq
+zwUnq$JX7I9*Sg`mNA~{Z;BlyHqIy8n3#wXBC3<vdTTSkwt2=dci?2DR>`2t-?pgu&
+z72>eBkM^D?;Y^+28)>`iVNLhep-m*+^&jcXO||0Is%qpS%4#rgo4lX*1PA{=rQDkR
+SHKUzRjIu`5(QkFEBmDzo>t^r(
+
+literal 0
+HcmV?d00001
+
+diff --git a/evidence/clock_observation_check_20261016/tests.log b/evidence/clock_observation_check_20261016/tests.log
+new file mode 100644
+index 0000000000000000000000000000000000000000..6f3ab3dd12522ab9c64e7b92c5560af284e21afd
+GIT binary patch
+literal 206
+zcmezWPmh82P=SFI7|meFU;u=w46zKn3|tJRK(+!y0Yf4~F%YIQqyTxD40%A(kii(}
+LdLtlR3|0vM&KMN>
+
+literal 0
+HcmV?d00001
+
+diff --git a/evidence/clock_observation_check_20261016/vehicle_associations.csv b/evidence/clock_observation_check_20261016/vehicle_associations.csv
+new file mode 100644
+index 0000000..1072e97
+--- /dev/null
++++ b/evidence/clock_observation_check_20261016/vehicle_associations.csv
+@@ -0,0 +1,9 @@
++window,track_id_hypothesis,motion_media_interval_s,head_media_interval_s,onset_minus_H1_appearance_s,relation,status,proxy_match_status
++A,9916410,"[517.766667, 518.533333]","[518.766667, 519.033333]","[-1.2666659999999865, -0.23333400000001348]",WHOLLY_BEFORE,AVAILABLE_SAME_VIDEO_ASSOCIATION,UNIQUE_ID_HYPOTHESIS
++A,9916373,"[519.266667, 519.766667]","[518.766667, 519.033333]","[0.23333400000001348, 1.0]",WHOLLY_AFTER,AVAILABLE_SAME_VIDEO_ASSOCIATION,UNIQUE_ID_HYPOTHESIS
++A,9916450,"[520.033333, 520.533333]","[518.766667, 519.033333]","[1.0, 1.7666659999999865]",WHOLLY_AFTER,AVAILABLE_SAME_VIDEO_ASSOCIATION,UNIQUE_ID_HYPOTHESIS
++A,9916436,"[520.033333, 520.766667]","[518.766667, 519.033333]","[1.0, 2.0]",WHOLLY_AFTER,AVAILABLE_SAME_VIDEO_ASSOCIATION,UNIQUE_ID_HYPOTHESIS
++B,9918413,"[1217.533333, 1218.266667]","[1218.766667, 1219.033333]","[-1.5, -0.5]",WHOLLY_BEFORE,AVAILABLE_SAME_VIDEO_ASSOCIATION,UNIQUE_ID_HYPOTHESIS
++B,9918426,"[1218.033333, 1218.766667]","[1218.766667, 1219.033333]","[-1.0, 0.0]",OVERLAPPING_OR_TOUCHING,AVAILABLE_SAME_VIDEO_ASSOCIATION,UNIQUE_ID_HYPOTHESIS
++B,9918377,"[1219.533333, 1220.266667]","[1218.766667, 1219.033333]","[0.5, 1.5]",WHOLLY_AFTER,AVAILABLE_SAME_VIDEO_ASSOCIATION,UNIQUE_ID_HYPOTHESIS
++B,9918416,"[1219.766667, 1220.533333]","[1218.766667, 1219.033333]","[0.7333340000000135, 1.7666659999999865]",WHOLLY_AFTER,AVAILABLE_SAME_VIDEO_ASSOCIATION,UNIQUE_ID_HYPOTHESIS
+diff --git a/scripts/check_clock_observation.py b/scripts/check_clock_observation.py
+new file mode 100644
+index 0000000..ac1b479
+--- /dev/null
++++ b/scripts/check_clock_observation.py
+@@ -0,0 +1,121 @@
++"""Bounded saved-evidence diagnostic. python -m scripts.check_clock_observation"""
++import csv
++import hashlib
++import json
++from pathlib import Path
++import time
++
++from app.experimental.clock_observation_check import (
++    associate_same_video, conditional_display_check,
++)
++
++ROOT = Path(__file__).resolve().parents[1]
++FOLDER = ROOT / 'evidence/clock_observation_check_20261016'
++BASE = 'd4be0f1dbff24003cdb88ad9794f413777940930'
++SOURCES = {
++    'confirmation': 'evidence/h1_confirmation_20261016/confirmation.json',
++    'confirmation_manifest': 'evidence/h1_confirmation_20261016/manifest.json',
++    'model': 'evidence/local_vehicle_registration_20261015/local_model.json',
++    'registration': 'evidence/local_vehicle_registration_20261015/validation_result.json',
++    'bundle': 'evidence/calibration_bundle_20261016/calibration_bundle.json',
++    'bundle_manifest': 'evidence/calibration_bundle_20261016/manifest.json',
++    'clock_source': 'evidence/camera_clock_provenance_20261016/user_confirmation.json',
++    'clock_source_manifest': 'evidence/camera_clock_provenance_20261016/manifest.json',
++}
++
++
++def sha(data):
++    return hashlib.sha256(data.replace(b'\r\n', b'\n')).hexdigest()
++
++
++def main():
++    started = time.monotonic()
++    if FOLDER.exists():
++        raise ValueError('OUTPUT_EXISTS_DO_NOT_OVERWRITE')
++    values, seals, payloads = {}, {}, {}
++    total = 0
++    for name, relative in SOURCES.items():
++        path = ROOT / relative
++        if path.stat().st_size > 512 * 1024:
++            raise ValueError('INPUT_FILE_RESOURCE_LIMIT')
++        raw = path.read_bytes()
++        total += len(raw)
++        if total > 2 * 1024 * 1024 or time.monotonic()-started > 10:
++            raise ValueError('INPUT_RESOURCE_LIMIT')
++        payloads[name] = raw
++        values[name] = json.loads(raw)
++        seals[name] = dict(path=relative, sha256_lf=sha(raw))
++    confirmation = values['confirmation']
++    if hashlib.sha256(payloads['confirmation']).hexdigest() != values['confirmation_manifest']['confirmation_sha256']:
++        raise ValueError('HISTORICAL_CONFIRMATION_SEAL_MISMATCH')
++    for key in ['model', 'registration']:
++        previous = confirmation['source_catalog']['model' if key == 'model' else 'validation']
++        if previous['path'] != SOURCES[key] or previous['sha256_lf'] != seals[key]['sha256_lf']:
++            raise ValueError('HISTORICAL_REGISTRATION_SEAL_MISMATCH')
++    if hashlib.sha256(payloads['bundle']).hexdigest() != values['bundle_manifest']['outputs']['calibration_bundle.json']:
++        raise ValueError('HISTORICAL_BUNDLE_SEAL_MISMATCH')
++    previous = next(s for s in values['clock_source_manifest']['sources'] if s['path'] == SOURCES['clock_source'])
++    if previous['sha256_lf'] != seals['clock_source']['sha256_lf']:
++        raise ValueError('CLOCK_SOURCE_SEAL_MISMATCH')
++    protocol = ROOT / 'docs/CLOCK_OBSERVATION_PROTOCOL_20261016.md'
++    code_paths = ['app/experimental/clock_observation_check.py',
++                  'scripts/check_clock_observation.py', 'tests/test_clock_observation_check.py']
++    freeze = dict(base_sha=BASE, sources=seals, protocol_sha256_lf=sha(protocol.read_bytes()),
++                  code_sha256_lf={p: sha((ROOT/p).read_bytes()) for p in code_paths},
++                  budgets=dict(max_seconds=10, max_total_input_bytes=2*1024*1024,
++                               max_file_bytes=512*1024, max_checker_runs=1),
++                  frozen_before_calculation=True, previously_reviewed_development_data=True)
++    FOLDER.mkdir()
++
++    def save(name, data):
++        (FOLDER/name).write_text(json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False)+'\n', encoding='utf-8')
++
++    save('freeze.json', freeze)
++    records = values['bundle']['records']
++    if len(records) > 1000 or len(confirmation['local_raw_zone_anchors']) > 100:
++        raise ValueError('RECORD_RESOURCE_LIMIT')
++    clock = conditional_display_check(confirmation, values['model'], values['registration'])
++    associations = associate_same_video(
++        [r for r in records if r['kind'] == 'sampled_vehicle_motion'],
++        [r for r in records if r['kind'] == 'sampled_signal_appearance' and 'window' in r],
++        [r for r in records if r['kind'] == 'vehicle_event_proxy'])
++    geometry = dict(anchors=confirmation['local_raw_zone_anchors'],
++                    movement_mapping_proposals=confirmation['movement_mapping_proposals'],
++                    support='previously checked frozen local image correspondences; NOT recomputed',
++                    supplier_centroid_units='UNKNOWN', stop_line_geometry='UNKNOWN',
++                    calibrated_joint_error_model=None,
++                    saved_scaled_jacobian_singular_values=values['model']['scaled_jacobian_singular_values'])
++    runtime = time.monotonic()-started
++    if runtime > 10:
++        save('unavailable.json', dict(status='UNAVAILABLE_TIME_BUDGET', runtime_s=runtime))
++        raise ValueError('DIAGNOSTIC_TIME_BUDGET_EXCEEDED')
++    result = dict(schema='clock-observation-diagnostic-v1', clock=clock,
++                  geometry=geometry, same_video=associations,
++                  clock_source=values['clock_source']['clock_source'],
++                  joint_calibration_status='UNAVAILABLE_UNVERIFIED_NUISANCE_MODEL',
++                  missing_inputs=['overlay rounding/update/exposure timing relative to detections',
++                                  'independent identity/feature and coordinate transform uncertainty',
++                                  'independent validation capture with observable signals'],
++                  calibrated_vehicle_signal_delay=None, physical_section_state='UNKNOWN',
++                  calibrated_lamp_probability=None, production_usable=False,
++                  phase_fits=0, decoder_calls=0, event_extractions=0, raw_video_archive_bytes_read=0,
++                  input_bytes_read=total, computation_runtime_s=runtime)
++    save('result.json', result)
++    with (FOLDER/'vehicle_associations.csv').open('w', encoding='utf-8', newline='') as handle:
++        fields = ['window', 'track_id_hypothesis', 'motion_media_interval_s', 'head_media_interval_s',
++                  'onset_minus_H1_appearance_s', 'relation', 'status', 'proxy_match_status']
++        writer = csv.DictWriter(handle, fieldnames=fields, extrasaction='ignore')
++        writer.writeheader()
++        writer.writerows(associations['rows'])
++    manifest = dict(base_sha=BASE, protocol_sha256_lf=freeze['protocol_sha256_lf'],
++                    outputs={p.name: sha(p.read_bytes()) for p in sorted(FOLDER.iterdir()) if p.is_file()},
++                    historical_seals_checked=True, inference_calls=0)
++    save('manifest.json', manifest)
++    print(json.dumps(dict(output=str(FOLDER), readouts=clock['readout_count'],
++                          geometry_anchors=len(geometry['anchors']),
++                          motions=associations['motion_count'], relations=associations['relation_counts'],
++                          runtime_s=runtime, input_bytes=total)))
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/tests/test_clock_observation_check.py b/tests/test_clock_observation_check.py
+new file mode 100644
+index 0000000..7a138e3
+--- /dev/null
++++ b/tests/test_clock_observation_check.py
+@@ -0,0 +1,121 @@
++import copy
++import json
++from pathlib import Path
++
++import pytest
++
++from app.experimental.clock_observation_check import (
++    associate_same_video, conditional_display_check,
++)
++
++
++def clock_inputs():
++    return ({'clock_candidate': {'origin_ms': 1000000, 'delta_s': 1.25},
++             'overlay_readouts': [{'file': 'one', 'media_pts_s': 10,
++                                   'interpreted_display_epoch_ms': 1010000}]},
++            {'origin_ms': 1000000, 'delta_s': 1.25},
++            {'joint_frozen_h_clock_sets_s': [[1.05, 1.5]]})
++
++
++def test_candidate_outside_both_conditional_models_does_not_select_new_offset():
++    out = conditional_display_check(*clock_inputs())
++    floor, nearest = out['conditional_models']
++    assert floor['conditional_delta_bounds_s'] == [0, 1]
++    assert nearest['conditional_delta_bounds_s'] == [-.5, .5]
++    assert not floor['candidate_in_set'] and not nearest['candidate_in_set']
++    assert floor['intersection_with_saved_frozen_geometry'] == []
++    assert out['saved_candidate_delta_s'] == 1.25
++    assert out['accepted_json_video_clock_transform'] is out['calibrated_sync_uncertainty_ms'] is None
++    assert out['causal_explanation'] == 'UNKNOWN'
++
++
++@pytest.mark.parametrize('candidate,in_set', [(0, True), (1, False), (-.001, False)])
++def test_display_floor_is_half_open(candidate, in_set):
++    c, m, g = clock_inputs()
++    c['clock_candidate']['delta_s'] = m['delta_s'] = candidate
++    out = conditional_display_check(c, m, g)
++    assert out['conditional_models'][0]['candidate_in_set'] == in_set
++
++
++def test_repeated_display_value_can_falsify_constant_clock_assumptions():
++    c, m, g = clock_inputs()
++    c['overlay_readouts'].append(dict(file='two', media_pts_s=12, interpreted_display_epoch_ms=1010000))
++    out = conditional_display_check(c, m, g)
++    assert all(x['status'] == 'INCONSISTENT_UNDER_DECLARED_ASSUMPTIONS' for x in out['conditional_models'])
++
++
++def test_no_readout_is_unavailable_and_different_model_is_rejected():
++    c, m, g = clock_inputs()
++    c['overlay_readouts'] = []
++    out = conditional_display_check(c, m, g)
++    assert all(x['candidate_in_set'] is None for x in out['conditional_models'])
++    m['delta_s'] += 1
++    with pytest.raises(ValueError, match='MODEL_MISMATCH'):
++        conditional_display_check(c, m, g)
++
++
++@pytest.mark.parametrize('value', [True, float('nan'), float('inf')])
++def test_nonfinite_time_refused(value):
++    c, m, g = clock_inputs()
++    c['overlay_readouts'][0]['media_pts_s'] = value
++    with pytest.raises(ValueError, match='FINITE_NUMERIC'):
++        conditional_display_check(c, m, g)
++
++
++def motion(track=1):
++    return dict(record_id=f'm{track}', capture_id='capture', window='A', track_id_hypothesis=track,
++                media_interval_s=[8, 9], identity_status='PROVISIONAL')
++
++
++def head():
++    return dict(record_id='h', capture_id='capture', window='A', head_id='H1',
++                event='MAIN_GREEN_AND_LATERAL_GREEN_APPEARANCE', media_interval_s=[10, 11])
++
++
++def test_before_appearance_is_retained_not_clipped_to_positive_reaction_delay():
++    out = associate_same_video([motion()], [head()], [])
++    row = out['rows'][0]
++    assert row['onset_minus_H1_appearance_s'] == [-3, -1]
++    assert row['relation'] == 'WHOLLY_BEFORE'
++    assert row['calibrated_vehicle_signal_delay_s'] is None
++    assert row['physical_section_state'] == 'UNKNOWN'
++
++
++def test_no_nearest_matching_for_missing_or_ambiguous_head():
++    wrong = head(); wrong['capture_id'] = 'different'
++    out = associate_same_video([motion()], [wrong], [])
++    assert out['rows'][0]['status'] == 'UNAVAILABLE_HEAD_REFERENCE_MISSING'
++    other = head(); other['record_id'] = 'h2'
++    out = associate_same_video([motion()], [head(), other], [])
++    assert out['rows'][0]['status'] == 'UNAVAILABLE_HEAD_REFERENCE_AMBIGUOUS'
++    assert out['rows'][0]['onset_minus_H1_appearance_s'] is None
++
++
++def test_empty_input_and_touching_intervals_do_not_fabricate_event_or_direction():
++    assert associate_same_video([], [], [])['media_extent_s'] is None
++    m = motion(); m['media_interval_s'] = [9, 10]
++    assert associate_same_video([m], [head()], [])['rows'][0]['relation'] == 'OVERLAPPING_OR_TOUCHING'
++
++
++def test_input_immutability_and_resource_limit():
++    args = clock_inputs(); before = copy.deepcopy(args)
++    conditional_display_check(*args)
++    assert args == before
++    with pytest.raises(ValueError, match='RESOURCE_LIMIT'):
++        associate_same_video([motion()] * 1001, [], [])
++
++
++def test_saved_inputs_retain_all_motions_and_existing_video_differences():
++    root = Path(__file__).resolve().parents[1]
++    bundle = json.loads((root/'evidence/calibration_bundle_20261016/calibration_bundle.json').read_text(encoding='utf-8'))
++    records = bundle['records']
++    motions = [r for r in records if r['kind'] == 'sampled_vehicle_motion']
++    heads = [r for r in records if r['kind'] == 'sampled_signal_appearance' and 'window' in r]
++    proxies = [r for r in records if r['kind'] == 'vehicle_event_proxy']
++    out = associate_same_video(motions, heads, proxies)
++    assert out['motion_count'] == out['available_association_count'] == 8
++    assert out['relation_counts'] == dict(WHOLLY_BEFORE=2, WHOLLY_AFTER=5, OVERLAPPING_OR_TOUCHING=1, UNKNOWN=0)
++    for row, original in zip(out['rows'], motions):
++        assert row['motion_record_id'] == original['record_id']
++        assert row['onset_minus_H1_appearance_s'] == pytest.approx(original['vehicle_onset_minus_H1_appearance_s'])
++        assert row['proxy_match_status'] == 'UNIQUE_ID_HYPOTHESIS'

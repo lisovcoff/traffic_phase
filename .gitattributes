@@ -1,4 +1,6 @@
 tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
+evidence/clock_observation_check_20261016/** -text -whitespace
+docs/CLOCK_OBSERVATION_PROTOCOL_20261016.md -text
 evidence/real_pilot_readiness_20261016/** -text -whitespace
 evidence/product_result_20261016/** -text -whitespace
 evidence/offline_product_html_20261016/** -text -whitespace

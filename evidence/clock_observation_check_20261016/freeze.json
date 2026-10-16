@@ -1,0 +1,51 @@
+{
+  "base_sha": "d4be0f1dbff24003cdb88ad9794f413777940930",
+  "sources": {
+    "confirmation": {
+      "path": "evidence/h1_confirmation_20261016/confirmation.json",
+      "sha256_lf": "d1127d38bb021aec2b15b3d2d06aad71f13b4ecc96c89a0e20bd0797527f423e"
+    },
+    "confirmation_manifest": {
+      "path": "evidence/h1_confirmation_20261016/manifest.json",
+      "sha256_lf": "c70251b342de5054a1d325d990bbf427660c51fbd8ea51f73ab589eed0773c52"
+    },
+    "model": {
+      "path": "evidence/local_vehicle_registration_20261015/local_model.json",
+      "sha256_lf": "eadb23c972764b1074e69060e2e678d4780849477c1af93b453a230f12a02a60"
+    },
+    "registration": {
+      "path": "evidence/local_vehicle_registration_20261015/validation_result.json",
+      "sha256_lf": "b35680fc059f15d63f5a5e0701897e415ad113b2914719a4c8ad2316b11389f5"
+    },
+    "bundle": {
+      "path": "evidence/calibration_bundle_20261016/calibration_bundle.json",
+      "sha256_lf": "1a68f5137210979d13ea64bdd3af815f975b74faf7eefddcb3c06a734515bd41"
+    },
+    "bundle_manifest": {
+      "path": "evidence/calibration_bundle_20261016/manifest.json",
+      "sha256_lf": "ee7ddecec53813b124645dfe0cb27844eea886d638260fd8d0f218a54310271f"
+    },
+    "clock_source": {
+      "path": "evidence/camera_clock_provenance_20261016/user_confirmation.json",
+      "sha256_lf": "245a7d0ed881d4d9f5804351d53d71c028f649c5ded55d540acef591ef32b7af"
+    },
+    "clock_source_manifest": {
+      "path": "evidence/camera_clock_provenance_20261016/manifest.json",
+      "sha256_lf": "205e124d8246d5d12542d1aeb8a4a73c0de95125fc283c2ae8b3f703fa19a7df"
+    }
+  },
+  "protocol_sha256_lf": "60782c2f4a084dada5881658f1bb67aaf4f8132ae5da7868f8b8a640e9ad66df",
+  "code_sha256_lf": {
+    "app/experimental/clock_observation_check.py": "c883ed52b2e536a8edf303a4b8c6f1badce755fde4b9499b56755acf03bfbb28",
+    "scripts/check_clock_observation.py": "ebd756834d0f4e1cc163d094578eb8632d9f4f2650b624d1402a0bf4fd61a11d",
+    "tests/test_clock_observation_check.py": "25d4bdc784a055566b26b879e836833b373edc495b73637ab953fb020c1067fa"
+  },
+  "budgets": {
+    "max_seconds": 10,
+    "max_total_input_bytes": 2097152,
+    "max_file_bytes": 524288,
+    "max_checker_runs": 1
+  },
+  "frozen_before_calculation": true,
+  "previously_reviewed_development_data": true
+}
