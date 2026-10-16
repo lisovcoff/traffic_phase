@@ -1,5 +1,14 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 user clock-origin clarification: “Из часов камеры” (camera clock).
+Recorded in evidence/camera_clock_provenance_20261016/user_confirmation.json
+with the exact question/answer and base b85a799552383bae5d40098f8cff1176e849735b.
+This is user-reported provenance for the discussed export, not a supplier
+certificate covering every field/session. Clock transform, timestamping latency,
+drift and calibrated sync uncertainty remain unverified; no zero-error assumption
+or hardware/mapping promotion. Previous sealed confirmation remains historical.
+No code/default/fitting/replay change;2D.1 FAIL and historical metrics retained.
+
 2026-10-16 saved H1/clock anchors checked without refit: camera overlay read from
 three full frames,2s+2s increments agree with PTS over4s. This confirms observed
 display progression, not JSON sync/UTC accuracy. Existing raw7 source/four withheld
@@ -7,7 +16,8 @@ image anchors verified; raw mapping proposals remain supported/unverified,
 operator-confirmed video-relative H1 directions retained. Supplier Info.docx
 timestamp excerpt records offline-processing warning: millis may differ from
 real event time; field/session scope not specified. Clock source for detection
-millis requested from user; no answer incorporated.25 tests; no phase labels/
+millis was requested from user at that checkpoint; the later answer is recorded
+above, not retroactively inserted into frozen artifacts.25 tests; no phase labels/
 RELEASE times used, no fitting/new frames/real replay/default or main changes.
 See H1_CONFIRMATION_20261016.md.2D.1 FAIL and calibration uncertainty remain open.
 

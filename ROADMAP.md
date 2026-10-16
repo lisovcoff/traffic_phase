@@ -1,13 +1,22 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: пользователь уточнил источник `millis`: **«Из часов камеры»**.
+Ответ сохранён как [user provenance](evidence/camera_clock_provenance_20261016/user_confirmation.json)
+для обсуждаемой H1 calibration, без обобщения на все архивы/поля. Это закрывает
+вопрос происхождения на уровне сообщения пользователя, но не измеряет sync,
+latency или drift. Старые sealed artifacts, диагностический offset и UNKNOWN
+не изменены. Следующий шаг — совместный clock/geometry uncertainty protocol,
+а не повторный вопрос об источнике часов или новый fitting.
+
 2026-10-16: [H1/clock facts проверены по существующим anchors](docs/H1_CONFIRMATION_20261016.md).
 На3 полных сохранённых кадрах прочитан camera timestamp, increments2+2с совпали
 с PTS; это локальный readout check, не JSON sync certificate. Source raw7 и4
 withheld registration anchors сверены, N->_S/N->_E proposals сохранены с
 verified=false; operator video-relative H1 mapping уже подтверждён. В Инфо.docx
 найдено явное предупреждение offline processing/millis≠real event time (scope
-поля/этого сеанса не уточнён). Нужен источник detections[].millis и joint error
-model.25 tests; без новых fits/кадров/replay, main/default/2D.1 FAIL сохранены.
+поля/этого сеанса не уточнён). На момент этого предыдущего checkpoint источник
+часов ожидался; ответ пользователя внесён выше. Joint error model остаётся
+открытой.25 tests; без новых fits/кадров/replay, main/default/2D.1 FAIL сохранены.
 
 2026-10-16: [критерии и calibration evidence bundle подготовлены](docs/CALIBRATION_BUNDLE_20261016.md).
 30 typed records (9 H1 appearance,8 video-motion,8 RELEASE proxies,5 operator

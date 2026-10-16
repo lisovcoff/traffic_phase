@@ -46,9 +46,15 @@ calibrated sync uncertainty=null. 30/50px allowances прежнего image gate
 переноса времени из видео не определены этими абзацами. Top-level departure
 millis не заменяет detection time и не является crossing стоп-линии.
 
-У пользователя запрошено происхождение clocks для `detections[].millis`:
-камера либо сервер обработки/неизвестно. Ответ пока не внесён. Даже сообщение
-о тех же часах будет provenance, а не само по себе численной оценкой uncertainty.
+После этого checkpoint пользователь ответил на вопрос об источнике `millis`:
+**«Из часов камеры»**. Точный вопрос и ответ сохранены в
+[отдельном provenance sidecar](../evidence/camera_clock_provenance_20261016/user_confirmation.json).
+Это предоставленная семантика происхождения времени обсуждаемой выгрузки.
+Вопрос называл `millis` в целом: ответ не является независимой сертификацией
+всех timestamp fields, стадий обработки или других архивов. Старый sealed
+`confirmation.json` намеренно не переписан; его awaiting-status исторический.
+Сообщение о camera source не задаёт численную uncertainty: transform, latency,
+drift и округление остаются неподтверждёнными. Предупреждение Инфо.docx сохранено.
 
 ## Соответствие H1 движениям
 
@@ -78,8 +84,8 @@ manifest и commands.log.25 targeted tests проверяют, что успеш
 readout, supplier warning или изменение delta не повышают статус clock/hardware,
 а повреждённые frame references/PTS отвергаются. Исходники неизменяемы.
 
-Для следующего calibration эксперимента остаётся определить источник detection
-timestamps и обосновать совместную модель image/clock/identity погрешности.
+Для следующего calibration эксперимента остаётся обосновать совместную модель
+image/clock/identity погрешности и применимость timestamp semantics к этому сеансу.
 Нужен отдельно замороженный ограниченный протокол; нельзя подбирать offset по
 phase errors или подменять его driver reaction delay. Текущая работа дала
 подтверждённые **частичные** связи, а не полное подтверждение синхронизации.
