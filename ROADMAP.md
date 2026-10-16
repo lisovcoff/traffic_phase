@@ -1,5 +1,14 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: [H1/clock facts проверены по существующим anchors](docs/H1_CONFIRMATION_20261016.md).
+На3 полных сохранённых кадрах прочитан camera timestamp, increments2+2с совпали
+с PTS; это локальный readout check, не JSON sync certificate. Source raw7 и4
+withheld registration anchors сверены, N->_S/N->_E proposals сохранены с
+verified=false; operator video-relative H1 mapping уже подтверждён. В Инфо.docx
+найдено явное предупреждение offline processing/millis≠real event time (scope
+поля/этого сеанса не уточнён). Нужен источник detections[].millis и joint error
+model.25 tests; без новых fits/кадров/replay, main/default/2D.1 FAIL сохранены.
+
 2026-10-16: [критерии и calibration evidence bundle подготовлены](docs/CALIBRATION_BUNDLE_20261016.md).
 30 typed records (9 H1 appearance,8 video-motion,8 RELEASE proxies,5 operator
 reports), source hashes и17 blank independent-review tasks;14 endpoint frames

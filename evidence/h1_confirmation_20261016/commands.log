@@ -1,0 +1,23 @@
+TEMP/TMP for these processes: D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\tmp
+> C:\Python314\python.exe -m scripts.check_h1_confirmation
+{"overlay_frames": 3, "withheld_track_anchors": 4, "clock_certified": false, "raw_mapping_independently_certified": false, "fit_calls": 0}
+
+
+exit_code=0
+> C:\Python314\python.exe -m pytest tests/test_h1_confirmation.py tests/test_calibration_bundle.py -q -p no:cacheprovider
+.........................                                                [100%]
+25 passed in 0.11s
+
+
+exit_code=0
+> git diff --check
+
+warning: in the working copy of 'ROADMAP.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/PROJECT_STATUS.md', LF will be replaced by CRLF the next time Git touches it
+
+exit_code=0
+> git rev-parse main
+a005a2521f62ce3b2c9f9d52f9f0d73913754e01
+
+
+exit_code=0

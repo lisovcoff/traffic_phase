@@ -1,5 +1,16 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 saved H1/clock anchors checked without refit: camera overlay read from
+three full frames,2s+2s increments agree with PTS over4s. This confirms observed
+display progression, not JSON sync/UTC accuracy. Existing raw7 source/four withheld
+image anchors verified; raw mapping proposals remain supported/unverified,
+operator-confirmed video-relative H1 directions retained. Supplier Info.docx
+timestamp excerpt records offline-processing warning: millis may differ from
+real event time; field/session scope not specified. Clock source for detection
+millis requested from user; no answer incorporated.25 tests; no phase labels/
+RELEASE times used, no fitting/new frames/real replay/default or main changes.
+See H1_CONFIRMATION_20261016.md.2D.1 FAIL and calibration uncertainty remain open.
+
 2026-10-16 acceptance definitions and saved calibration evidence assembled:
 30 records in four separate kinds,9 single-head appearances/8 video motion/
 8 original proxies/5 operator reports, no continuous lamp truth expansion.
