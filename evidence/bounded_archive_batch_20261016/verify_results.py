@@ -1,5 +1,6 @@
 """Verify saved outputs only. No fitting, real data, annotations or new metrics."""
 import json
+import argparse
 from pathlib import Path
 import subprocess
 import zipfile
@@ -15,13 +16,16 @@ MAIN = 'a005a2521f62ce3b2c9f9d52f9f0d73913754e01'
 
 def differences(a, b, path=''):
     if isinstance(a, dict) and isinstance(b, dict):
-        return [p for key in a.keys() | b.keys() for p in differences(a.get(key), b.get(key), path+'/'+key)]
+        return [p for key in sorted(a.keys() | b.keys()) for p in differences(a.get(key), b.get(key), path+'/'+key)]
     if isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
         return [p for i, (x, y) in enumerate(zip(a, b)) for p in differences(x, y, path+'/'+str(i))]
     return [] if a == b else [path]
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--write', action='store_true', help='create summary before sealing; default verifies read-only')
+    args = parser.parse_args()
     freeze = json.loads((OUT/'freeze.json').read_text(encoding='utf-8'))
     assert sha256_file(ROOT/freeze['input']) == freeze['input_sha256']
     old = json.loads((ROOT/'evidence/archive_session_isolation_20261016/server_prediction.json').read_text(encoding='utf-8'))
@@ -93,7 +97,14 @@ def main():
         replay_predictions_exact=True, browser_core=checks,
         source_runtime_s=archives['download.zip']['manifest']['runtime_s'],
         note='Technical invariance, not independent K/phase/lamp accuracy. Existing 2D.1 FAIL retained.')
-    (OUT/'invariants.json').write_text(json.dumps(output, indent=2)+'\n', encoding='utf-8')
+    if args.write:
+        (OUT/'invariants.json').write_text(json.dumps(output, indent=2)+'\n', encoding='utf-8')
+    else:
+        saved = json.loads((OUT/'invariants.json').read_text(encoding='utf-8'))
+        assert output == saved
+        manifest = json.loads((OUT/'manifest.json').read_text(encoding='utf-8'))
+        for name, expected in manifest['outputs_sha256_raw'].items():
+            assert sha256_file(OUT/name) == expected, name
     print(json.dumps(output, indent=2))
 
 
