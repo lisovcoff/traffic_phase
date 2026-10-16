@@ -4,6 +4,7 @@ import json
 import itertools
 import codecs
 import zipfile
+from contextlib import closing, nullcontext
 from array import array
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -35,12 +36,18 @@ def _track_detection_times(tr):
     return ds
 
 def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 1024 * 1024):
+    """Yield records incrementally; validate the whole array on exhaustion."""
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be positive")
+    if max_object_chars <= 0:
+        raise ValueError("max_object_chars must be positive")
     decoder = json.JSONDecoder()
     utf8 = codecs.getincrementaldecoder("utf-8")()
     buffer = ""
     eof = False
     started = False
     expect_value = True
+    allow_empty = True
 
     def fill() -> bool:
         nonlocal buffer, eof
@@ -53,6 +60,17 @@ def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 10
         buffer += utf8.decode(b"", final=True)
         eof = True
         return False
+
+    def finish_array():
+        nonlocal buffer
+        buffer = buffer[1:]
+        while True:
+            if buffer.strip():
+                raise ValueError("unexpected data after trajectory JSON array")
+            if eof:
+                return
+            buffer = ""
+            fill()
 
     while True:
         if not started:
@@ -75,9 +93,11 @@ def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 10
 
         if expect_value:
             if buffer[0] == "]":
-                buffer = buffer[1:]
-                expect_value = False
-                continue
+                if not allow_empty:
+                    raise ValueError("invalid trajectory JSON: trailing comma")
+                finish_array()
+                return
+            allow_empty = False
             while True:
                 try:
                     value, end_index = decoder.raw_decode(buffer)
@@ -92,6 +112,8 @@ def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 10
                             "trajectory JSON object exceeds bounded streaming size"
                         ) from exc
                     fill()
+            if end_index > max_object_chars:
+                raise ValueError("trajectory JSON object exceeds bounded streaming size")
             buffer = buffer[end_index:]
             expect_value = False
             if isinstance(value, dict):
@@ -109,13 +131,7 @@ def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 10
             expect_value = True
             continue
         if buffer[0] == "]":
-            buffer = buffer[1:]
-            if buffer.strip():
-                raise ValueError("unexpected data after trajectory JSON array")
-            while not eof:
-                fill()
-                if buffer.strip():
-                    raise ValueError("unexpected data after trajectory JSON array")
+            finish_array()
             return
         raise ValueError("expected ',' or ']' in trajectory JSON array")
 
@@ -401,25 +417,27 @@ def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _
     temporal, files, seen = [], [], set()
     stats = Counter()
     trajectory_count, recording_start = 0, None
-    sources = [("records", iter(_records))] if _records is not None else _iter_source_records(Path(path))
-    for source_name, records in sources:
-        files.append(source_name)
-        for track in records:
-            trajectory_count += 1
-            events, quality_stats = extract_vehicle_evidence(track, source_name=source_name)
-            if not events:
+    source_context = (nullcontext([("records", iter(_records))]) if _records is not None
+                      else closing(_iter_source_records(Path(path))))
+    with source_context as sources:
+        for source_name, records in sources:
+            files.append(source_name)
+            for track in records:
+                trajectory_count += 1
+                events, quality_stats = extract_vehicle_evidence(track, source_name=source_name)
+                if not events:
+                    stats.update(quality_stats)
+                    stats["tracks_without_usable_events"] += 1
+                    continue
+                key = events[0].provenance["track_fingerprint"]
+                if key in seen:
+                    stats["duplicate_tracks"] += 1
+                    continue
+                seen.add(key)
                 stats.update(quality_stats)
-                stats["tracks_without_usable_events"] += 1
-                continue
-            key = events[0].provenance["track_fingerprint"]
-            if key in seen:
-                stats["duplicate_tracks"] += 1
-                continue
-            seen.add(key)
-            stats.update(quality_stats)
-            start = events[0].provenance["track_range_ms"][0]
-            recording_start = min(recording_start, start) if recording_start is not None else start
-            temporal.extend(events)
+                start = events[0].provenance["track_range_ms"][0]
+                recording_start = min(recording_start, start) if recording_start is not None else start
+                temporal.extend(events)
     temporal.sort(key=lambda e: (e.timestamp_ms, e.event_type, e.movement))
     entries = [e for e in temporal if e.event_type == "ENTRY"]
     if not entries:

@@ -49,6 +49,7 @@ def iter_trajectory_payload_stream(
     eof = False
     started = False
     expect_value = True
+    allow_empty = True
 
     def fill() -> bool:
         nonlocal buffer, eof
@@ -67,6 +68,17 @@ def iter_trajectory_payload_stream(
         else:
             buffer += utf8.decode(chunk, final=False)
         return True
+
+    def finish_array():
+        nonlocal buffer
+        buffer = buffer[1:]
+        while True:
+            if buffer.strip():
+                raise ValueError("unexpected data after trajectory JSON array")
+            if eof:
+                return
+            buffer = ""
+            fill()
 
     while True:
         if not started:
@@ -90,9 +102,12 @@ def iter_trajectory_payload_stream(
 
         if expect_value:
             if buffer[0] == "]":
-                buffer = buffer[1:]
-                expect_value = False
+                if not allow_empty:
+                    raise ValueError("invalid trajectory JSON: trailing comma")
+                finish_array()
+                return
             else:
+                allow_empty = False
                 while True:
                     try:
                         value, end_index = decoder.raw_decode(buffer)
@@ -107,6 +122,8 @@ def iter_trajectory_payload_stream(
                                 "trajectory JSON object exceeds bounded streaming size"
                             ) from exc
                         fill()
+                if end_index > max_object_chars:
+                    raise ValueError("trajectory JSON object exceeds bounded streaming size")
                 buffer = buffer[end_index:]
                 expect_value = False
                 if isinstance(value, dict):
@@ -126,19 +143,7 @@ def iter_trajectory_payload_stream(
             expect_value = True
             continue
         if buffer[0] == "]":
-            buffer = buffer[1:]
-            while not eof:
-                if not buffer.strip():
-                    if not fill():
-                        break
-                else:
-                    raise ValueError(
-                        "unexpected data after trajectory JSON array"
-                    )
-            if buffer.strip():
-                raise ValueError(
-                    "unexpected data after trajectory JSON array"
-                )
+            finish_array()
             return
         raise ValueError("expected ',' or ']' in trajectory JSON array")
 

@@ -1,5 +1,17 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 input correctness fix delivered (ROADMAP9 partial): both streaming
+readers now accept empty arrays, reject extra closings/outside-array records,
+enforce completed-object bounds and drain trailing whitespace incrementally.
+Canonical permission ingestion explicitly closes file sources on errors, fixing
+Windows ZIP cleanup masking parser error with WinError32.172 tests pass,6 actual
+multipart ASGI requests; no V9 model fitting on invalid/empty inputs. Saved7
+tracks/3851detections exactly match stdlib JSON through JSON/ZIP readers.2C saved
+predictions Git-unchanged; historical seals reused without large JSON reparse.
+See STRICT_JSON_INPUT_20261016.md. No inference default/HSMM/K/period/mapping or
+main change;2D.1 FAIL and raw19/34 retained. Calibration needs producer frame
+timing input. Next independent product step: archive session/provenance isolation.
+
 2026-10-16 frame-clock input availability checked: all3851 detections of saved7
 tracks inspected, no explicit frame/PTS link. MP4 metadata inspected without
 decoding; tags/rates/start_time do not supply JSON clock correspondence. No FPS

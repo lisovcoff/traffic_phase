@@ -1,5 +1,14 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: [исправлен реальный JSON/ZIP input defect](docs/STRICT_JSON_INPUT_20261016.md),
+пункт9 плана. Два streaming readers отвергали пустой[] и принимали лишние closing
+brackets/records вне массива; теперь закрытие/EOF/лимит объекта корректны.
+Canonical V9 source закрывается при ошибке: Windows ZIP cleanup больше не
+подменяет JSON error на WinError32.172 tests,6 multipart API requests, реальные
+7tracks/3851detections JSON/ZIP равны stdlib. Новых fitting/phase metrics нет;
+2D.1 FAIL,main/default сохранены. Calibration ждёт producer input; доступный
+следующий шаг — изоляция archive sessions/provenance, не повтор clock diagnostics.
+
 2026-10-16: [доступность frame↔clock входов проверена](docs/FRAME_CLOCK_INPUTS_20261016.md).
 В3851 detections всех7 сохранённых raw tracks frame/PTS link отсутствует;
 container metadata MP4 не связывает camera clock с JSON. Различающиеся FPS

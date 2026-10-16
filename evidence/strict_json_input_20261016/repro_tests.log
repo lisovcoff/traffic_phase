@@ -1,0 +1,293 @@
+FFFF
+================================== FAILURES ===================================
+___ test_valid_arrays_and_split_utf8_are_accepted[[]-1-_iter_json_records] ____
+
+reader = <function _iter_json_records at 0x00000171C12B6610>, chunk_size = 1
+payload = '[]'
+
+    @pytest.mark.parametrize('reader', READERS)
+    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
+    @pytest.mark.parametrize('payload', ['[]', ' [ ] \r\n', '[{}]', '[{}, {}]',
+                                        '[{"note":"\u041f\u0440\u0438\u0432\u0435\u0442 , ] \\\""}]'])
+    def test_valid_arrays_and_split_utf8_are_accepted(reader, chunk_size, payload):
+        expected = json.loads(payload)
+>       actual = list(reader(BytesIO(payload.encode()), chunk_size=chunk_size))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_strict_trajectory_json.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+stream = <_io.BytesIO object at 0x00000171C186C900>, chunk_size = 1
+max_object_chars = 16777216
+
+    def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 1024 * 1024):
+        decoder = json.JSONDecoder()
+        utf8 = codecs.getincrementaldecoder("utf-8")()
+        buffer = ""
+        eof = False
+        started = False
+        expect_value = True
+    
+        def fill() -> bool:
+            nonlocal buffer, eof
+            if eof:
+                return False
+            chunk = stream.read(chunk_size)
+            if chunk:
+                buffer += chunk if isinstance(chunk, str) else utf8.decode(chunk, final=False)
+                return True
+            buffer += utf8.decode(b"", final=True)
+            eof = True
+            return False
+    
+        while True:
+            if not started:
+                buffer = buffer.lstrip()
+                if not buffer:
+                    if not fill():
+                        raise ValueError("Trajectory JSON root must be a list")
+                    continue
+                if not buffer.startswith("["):
+                    raise ValueError("Trajectory JSON root must be a list")
+                buffer = buffer[1:]
+                started = True
+    
+            buffer = buffer.lstrip()
+            if not buffer:
+                if eof:
+>                   raise ValueError("unterminated trajectory JSON array")
+E                   ValueError: unterminated trajectory JSON array
+
+app\core\v9\events.py:72: ValueError
+_ test_valid_arrays_and_split_utf8_are_accepted[[]-1-iter_trajectory_payload_stream] _
+
+reader = <function iter_trajectory_payload_stream at 0x00000171AF6EEAE0>
+chunk_size = 1, payload = '[]'
+
+    @pytest.mark.parametrize('reader', READERS)
+    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
+    @pytest.mark.parametrize('payload', ['[]', ' [ ] \r\n', '[{}]', '[{}, {}]',
+                                        '[{"note":"\u041f\u0440\u0438\u0432\u0435\u0442 , ] \\\""}]'])
+    def test_valid_arrays_and_split_utf8_are_accepted(reader, chunk_size, payload):
+        expected = json.loads(payload)
+>       actual = list(reader(BytesIO(payload.encode()), chunk_size=chunk_size))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_strict_trajectory_json.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+stream = <_io.BytesIO object at 0x00000171C188D990>, chunk_size = 1
+max_object_chars = 16777216
+
+    def iter_trajectory_payload_stream(
+        stream: BinaryIO,
+        *,
+        chunk_size: int = DEFAULT_JSON_STREAM_CHUNK_BYTES,
+        max_object_chars: int = DEFAULT_JSON_MAX_OBJECT_CHARS,
+    ) -> Iterator[Trajectory]:
+        """Incrementally decode a trajectory JSON array.
+    
+        At most the current JSON object plus a bounded input buffer is retained.
+        """
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        if max_object_chars <= 0:
+            raise ValueError("max_object_chars must be positive")
+    
+        decoder = json.JSONDecoder()
+        utf8 = codecs.getincrementaldecoder("utf-8")()
+        buffer = ""
+        eof = False
+        started = False
+        expect_value = True
+    
+        def fill() -> bool:
+            nonlocal buffer, eof
+            if eof:
+                return False
+            chunk = stream.read(chunk_size)
+            if not chunk:
+                if isinstance(chunk, str):
+                    buffer += chunk
+                else:
+                    buffer += utf8.decode(b"", final=True)
+                eof = True
+                return False
+            if isinstance(chunk, str):
+                buffer += chunk
+            else:
+                buffer += utf8.decode(chunk, final=False)
+            return True
+    
+        while True:
+            if not started:
+                while True:
+                    buffer = buffer.lstrip()
+                    if buffer:
+                        if not buffer.startswith("["):
+                            raise ValueError("Trajectory JSON root must be a list")
+                        buffer = buffer[1:]
+                        started = True
+                        break
+                    if not fill():
+                        raise ValueError("Trajectory JSON root must be a list")
+    
+            buffer = buffer.lstrip()
+            if not buffer:
+                if eof:
+>                   raise ValueError("unterminated trajectory JSON array")
+E                   ValueError: unterminated trajectory JSON array
+
+app\core\preprocessing.py:87: ValueError
+___ test_valid_arrays_and_split_utf8_are_accepted[[]-2-_iter_json_records] ____
+
+reader = <function _iter_json_records at 0x00000171C12B6610>, chunk_size = 2
+payload = '[]'
+
+    @pytest.mark.parametrize('reader', READERS)
+    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
+    @pytest.mark.parametrize('payload', ['[]', ' [ ] \r\n', '[{}]', '[{}, {}]',
+                                        '[{"note":"\u041f\u0440\u0438\u0432\u0435\u0442 , ] \\\""}]'])
+    def test_valid_arrays_and_split_utf8_are_accepted(reader, chunk_size, payload):
+        expected = json.loads(payload)
+>       actual = list(reader(BytesIO(payload.encode()), chunk_size=chunk_size))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_strict_trajectory_json.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+stream = <_io.BytesIO object at 0x00000171C192ABB0>, chunk_size = 2
+max_object_chars = 16777216
+
+    def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 1024 * 1024):
+        decoder = json.JSONDecoder()
+        utf8 = codecs.getincrementaldecoder("utf-8")()
+        buffer = ""
+        eof = False
+        started = False
+        expect_value = True
+    
+        def fill() -> bool:
+            nonlocal buffer, eof
+            if eof:
+                return False
+            chunk = stream.read(chunk_size)
+            if chunk:
+                buffer += chunk if isinstance(chunk, str) else utf8.decode(chunk, final=False)
+                return True
+            buffer += utf8.decode(b"", final=True)
+            eof = True
+            return False
+    
+        while True:
+            if not started:
+                buffer = buffer.lstrip()
+                if not buffer:
+                    if not fill():
+                        raise ValueError("Trajectory JSON root must be a list")
+                    continue
+                if not buffer.startswith("["):
+                    raise ValueError("Trajectory JSON root must be a list")
+                buffer = buffer[1:]
+                started = True
+    
+            buffer = buffer.lstrip()
+            if not buffer:
+                if eof:
+>                   raise ValueError("unterminated trajectory JSON array")
+E                   ValueError: unterminated trajectory JSON array
+
+app\core\v9\events.py:72: ValueError
+_ test_valid_arrays_and_split_utf8_are_accepted[[]-2-iter_trajectory_payload_stream] _
+
+reader = <function iter_trajectory_payload_stream at 0x00000171AF6EEAE0>
+chunk_size = 2, payload = '[]'
+
+    @pytest.mark.parametrize('reader', READERS)
+    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
+    @pytest.mark.parametrize('payload', ['[]', ' [ ] \r\n', '[{}]', '[{}, {}]',
+                                        '[{"note":"\u041f\u0440\u0438\u0432\u0435\u0442 , ] \\\""}]'])
+    def test_valid_arrays_and_split_utf8_are_accepted(reader, chunk_size, payload):
+        expected = json.loads(payload)
+>       actual = list(reader(BytesIO(payload.encode()), chunk_size=chunk_size))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_strict_trajectory_json.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+stream = <_io.BytesIO object at 0x00000171C192BD30>, chunk_size = 2
+max_object_chars = 16777216
+
+    def iter_trajectory_payload_stream(
+        stream: BinaryIO,
+        *,
+        chunk_size: int = DEFAULT_JSON_STREAM_CHUNK_BYTES,
+        max_object_chars: int = DEFAULT_JSON_MAX_OBJECT_CHARS,
+    ) -> Iterator[Trajectory]:
+        """Incrementally decode a trajectory JSON array.
+    
+        At most the current JSON object plus a bounded input buffer is retained.
+        """
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        if max_object_chars <= 0:
+            raise ValueError("max_object_chars must be positive")
+    
+        decoder = json.JSONDecoder()
+        utf8 = codecs.getincrementaldecoder("utf-8")()
+        buffer = ""
+        eof = False
+        started = False
+        expect_value = True
+    
+        def fill() -> bool:
+            nonlocal buffer, eof
+            if eof:
+                return False
+            chunk = stream.read(chunk_size)
+            if not chunk:
+                if isinstance(chunk, str):
+                    buffer += chunk
+                else:
+                    buffer += utf8.decode(b"", final=True)
+                eof = True
+                return False
+            if isinstance(chunk, str):
+                buffer += chunk
+            else:
+                buffer += utf8.decode(chunk, final=False)
+            return True
+    
+        while True:
+            if not started:
+                while True:
+                    buffer = buffer.lstrip()
+                    if buffer:
+                        if not buffer.startswith("["):
+                            raise ValueError("Trajectory JSON root must be a list")
+                        buffer = buffer[1:]
+                        started = True
+                        break
+                    if not fill():
+                        raise ValueError("Trajectory JSON root must be a list")
+    
+            buffer = buffer.lstrip()
+            if not buffer:
+                if eof:
+>                   raise ValueError("unterminated trajectory JSON array")
+E                   ValueError: unterminated trajectory JSON array
+
+app\core\preprocessing.py:87: ValueError
+============================== warnings summary ===============================
+C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1
+  C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_strict_trajectory_json.py::test_valid_arrays_and_split_utf8_are_accepted[[]-1-_iter_json_records]
+FAILED tests/test_strict_trajectory_json.py::test_valid_arrays_and_split_utf8_are_accepted[[]-1-iter_trajectory_payload_stream]
+FAILED tests/test_strict_trajectory_json.py::test_valid_arrays_and_split_utf8_are_accepted[[]-2-_iter_json_records]
+FAILED tests/test_strict_trajectory_json.py::test_valid_arrays_and_split_utf8_are_accepted[[]-2-iter_trajectory_payload_stream]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 4 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+4 failed, 1 warning in 4.70s

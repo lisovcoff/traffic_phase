@@ -1,0 +1,1417 @@
+diff --git a/.gitattributes b/.gitattributes
+index 59d40c0..e863b49 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,4 +1,5 @@
+ tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
++evidence/strict_json_input_20261016/** -text -whitespace
+ config/frame_clock_links_template.json -text
+ evidence/frame_clock_intake_20261016/** -text -whitespace
+ evidence/clock_observation_check_20261016/** -text -whitespace
+diff --git a/ROADMAP.md b/ROADMAP.md
+index f4b0966..eb1901e 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -1,5 +1,14 @@
+ # traffic_phase — план до готового продукта
+ 
++2026-10-16: [исправлен реальный JSON/ZIP input defect](docs/STRICT_JSON_INPUT_20261016.md),
++пункт9 плана. Два streaming readers отвергали пустой[] и принимали лишние closing
++brackets/records вне массива; теперь закрытие/EOF/лимит объекта корректны.
++Canonical V9 source закрывается при ошибке: Windows ZIP cleanup больше не
++подменяет JSON error на WinError32.172 tests,6 multipart API requests, реальные
++7tracks/3851detections JSON/ZIP равны stdlib. Новых fitting/phase metrics нет;
++2D.1 FAIL,main/default сохранены. Calibration ждёт producer input; доступный
++следующий шаг — изоляция archive sessions/provenance, не повтор clock diagnostics.
++
+ 2026-10-16: [доступность frame↔clock входов проверена](docs/FRAME_CLOCK_INPUTS_20261016.md).
+ В3851 detections всех7 сохранённых raw tracks frame/PTS link отсутствует;
+ container metadata MP4 не связывает camera clock с JSON. Различающиеся FPS
+diff --git a/app/core/preprocessing.py b/app/core/preprocessing.py
+index b3087b0..aa897a4 100644
+--- a/app/core/preprocessing.py
++++ b/app/core/preprocessing.py
+@@ -49,6 +49,7 @@ def iter_trajectory_payload_stream(
+     eof = False
+     started = False
+     expect_value = True
++    allow_empty = True
+ 
+     def fill() -> bool:
+         nonlocal buffer, eof
+@@ -68,6 +69,17 @@ def iter_trajectory_payload_stream(
+             buffer += utf8.decode(chunk, final=False)
+         return True
+ 
++    def finish_array():
++        nonlocal buffer
++        buffer = buffer[1:]
++        while True:
++            if buffer.strip():
++                raise ValueError("unexpected data after trajectory JSON array")
++            if eof:
++                return
++            buffer = ""
++            fill()
++
+     while True:
+         if not started:
+             while True:
+@@ -90,9 +102,12 @@ def iter_trajectory_payload_stream(
+ 
+         if expect_value:
+             if buffer[0] == "]":
+-                buffer = buffer[1:]
+-                expect_value = False
++                if not allow_empty:
++                    raise ValueError("invalid trajectory JSON: trailing comma")
++                finish_array()
++                return
+             else:
++                allow_empty = False
+                 while True:
+                     try:
+                         value, end_index = decoder.raw_decode(buffer)
+@@ -107,6 +122,8 @@ def iter_trajectory_payload_stream(
+                                 "trajectory JSON object exceeds bounded streaming size"
+                             ) from exc
+                         fill()
++                if end_index > max_object_chars:
++                    raise ValueError("trajectory JSON object exceeds bounded streaming size")
+                 buffer = buffer[end_index:]
+                 expect_value = False
+                 if isinstance(value, dict):
+@@ -126,19 +143,7 @@ def iter_trajectory_payload_stream(
+             expect_value = True
+             continue
+         if buffer[0] == "]":
+-            buffer = buffer[1:]
+-            while not eof:
+-                if not buffer.strip():
+-                    if not fill():
+-                        break
+-                else:
+-                    raise ValueError(
+-                        "unexpected data after trajectory JSON array"
+-                    )
+-            if buffer.strip():
+-                raise ValueError(
+-                    "unexpected data after trajectory JSON array"
+-                )
++            finish_array()
+             return
+         raise ValueError("expected ',' or ']' in trajectory JSON array")
+ 
+diff --git a/app/core/v9/events.py b/app/core/v9/events.py
+index 0645582..054d2ab 100644
+--- a/app/core/v9/events.py
++++ b/app/core/v9/events.py
+@@ -4,6 +4,7 @@ import json
+ import itertools
+ import codecs
+ import zipfile
++from contextlib import closing, nullcontext
+ from array import array
+ from collections import Counter, defaultdict
+ from pathlib import Path
+@@ -35,12 +36,18 @@ def _track_detection_times(tr):
+     return ds
+ 
+ def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 1024 * 1024):
++    """Yield records incrementally; validate the whole array on exhaustion."""
++    if chunk_size <= 0:
++        raise ValueError("chunk_size must be positive")
++    if max_object_chars <= 0:
++        raise ValueError("max_object_chars must be positive")
+     decoder = json.JSONDecoder()
+     utf8 = codecs.getincrementaldecoder("utf-8")()
+     buffer = ""
+     eof = False
+     started = False
+     expect_value = True
++    allow_empty = True
+ 
+     def fill() -> bool:
+         nonlocal buffer, eof
+@@ -54,6 +61,17 @@ def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 10
+         eof = True
+         return False
+ 
++    def finish_array():
++        nonlocal buffer
++        buffer = buffer[1:]
++        while True:
++            if buffer.strip():
++                raise ValueError("unexpected data after trajectory JSON array")
++            if eof:
++                return
++            buffer = ""
++            fill()
++
+     while True:
+         if not started:
+             buffer = buffer.lstrip()
+@@ -75,9 +93,11 @@ def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 10
+ 
+         if expect_value:
+             if buffer[0] == "]":
+-                buffer = buffer[1:]
+-                expect_value = False
+-                continue
++                if not allow_empty:
++                    raise ValueError("invalid trajectory JSON: trailing comma")
++                finish_array()
++                return
++            allow_empty = False
+             while True:
+                 try:
+                     value, end_index = decoder.raw_decode(buffer)
+@@ -92,6 +112,8 @@ def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 10
+                             "trajectory JSON object exceeds bounded streaming size"
+                         ) from exc
+                     fill()
++            if end_index > max_object_chars:
++                raise ValueError("trajectory JSON object exceeds bounded streaming size")
+             buffer = buffer[end_index:]
+             expect_value = False
+             if isinstance(value, dict):
+@@ -109,13 +131,7 @@ def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 10
+             expect_value = True
+             continue
+         if buffer[0] == "]":
+-            buffer = buffer[1:]
+-            if buffer.strip():
+-                raise ValueError("unexpected data after trajectory JSON array")
+-            while not eof:
+-                fill()
+-                if buffer.strip():
+-                    raise ValueError("unexpected data after trajectory JSON array")
++            finish_array()
+             return
+         raise ValueError("expected ',' or ']' in trajectory JSON array")
+ 
+@@ -401,25 +417,27 @@ def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _
+     temporal, files, seen = [], [], set()
+     stats = Counter()
+     trajectory_count, recording_start = 0, None
+-    sources = [("records", iter(_records))] if _records is not None else _iter_source_records(Path(path))
+-    for source_name, records in sources:
+-        files.append(source_name)
+-        for track in records:
+-            trajectory_count += 1
+-            events, quality_stats = extract_vehicle_evidence(track, source_name=source_name)
+-            if not events:
++    source_context = (nullcontext([("records", iter(_records))]) if _records is not None
++                      else closing(_iter_source_records(Path(path))))
++    with source_context as sources:
++        for source_name, records in sources:
++            files.append(source_name)
++            for track in records:
++                trajectory_count += 1
++                events, quality_stats = extract_vehicle_evidence(track, source_name=source_name)
++                if not events:
++                    stats.update(quality_stats)
++                    stats["tracks_without_usable_events"] += 1
++                    continue
++                key = events[0].provenance["track_fingerprint"]
++                if key in seen:
++                    stats["duplicate_tracks"] += 1
++                    continue
++                seen.add(key)
+                 stats.update(quality_stats)
+-                stats["tracks_without_usable_events"] += 1
+-                continue
+-            key = events[0].provenance["track_fingerprint"]
+-            if key in seen:
+-                stats["duplicate_tracks"] += 1
+-                continue
+-            seen.add(key)
+-            stats.update(quality_stats)
+-            start = events[0].provenance["track_range_ms"][0]
+-            recording_start = min(recording_start, start) if recording_start is not None else start
+-            temporal.extend(events)
++                start = events[0].provenance["track_range_ms"][0]
++                recording_start = min(recording_start, start) if recording_start is not None else start
++                temporal.extend(events)
+     temporal.sort(key=lambda e: (e.timestamp_ms, e.event_type, e.movement))
+     entries = [e for e in temporal if e.event_type == "ENTRY"]
+     if not entries:
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index d8af9df..5ea6673 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,17 @@
+ # Project status — 2D.1, 2026-10-16
+ 
++2026-10-16 input correctness fix delivered (ROADMAP9 partial): both streaming
++readers now accept empty arrays, reject extra closings/outside-array records,
++enforce completed-object bounds and drain trailing whitespace incrementally.
++Canonical permission ingestion explicitly closes file sources on errors, fixing
++Windows ZIP cleanup masking parser error with WinError32.172 tests pass,6 actual
++multipart ASGI requests; no V9 model fitting on invalid/empty inputs. Saved7
++tracks/3851detections exactly match stdlib JSON through JSON/ZIP readers.2C saved
++predictions Git-unchanged; historical seals reused without large JSON reparse.
++See STRICT_JSON_INPUT_20261016.md. No inference default/HSMM/K/period/mapping or
++main change;2D.1 FAIL and raw19/34 retained. Calibration needs producer frame
++timing input. Next independent product step: archive session/provenance isolation.
++
+ 2026-10-16 frame-clock input availability checked: all3851 detections of saved7
+ tracks inspected, no explicit frame/PTS link. MP4 metadata inspected without
+ decoding; tags/rates/start_time do not supply JSON clock correspondence. No FPS
+diff --git a/docs/STRICT_JSON_INPUT_20261016.md b/docs/STRICT_JSON_INPUT_20261016.md
+new file mode 100644
+index 0000000..b819424
+--- /dev/null
++++ b/docs/STRICT_JSON_INPUT_20261016.md
+@@ -0,0 +1,99 @@
++# Надёжное чтение JSON/ZIP: исправление рамки массива и закрытия ZIP
++
++Base: `1a4e0c656baf004f09a6632abf91922772e6b2b4`.
++Ветка: `fix/strict-v9-json-input-20261016`.
++Пункт9 ROADMAP: корректность входа и отказов. Независимая clock calibration
++ожидает внешний producer input; повторного исследования тех же vehicle timings нет.
++
++## Подтверждённые дефекты
++
++В `app/core/v9/events.py::_iter_json_records` и существующем
++`app/core/preprocessing.py::iter_trajectory_payload_stream` одинаково нарушена
++ветка закрытия массива, когда parser ожидает значение:
++
++| Вход | Раньше | Теперь |
++|---|---|---|
++|`[]` и `[]` с whitespace|Ошибка «unterminated»|Корректный пустой массив|
++|`[{},]]`|Принимался один record|Отказ: trailing comma|
++|`[],{}]`|Принимался record за пределами массива|Отказ: unexpected data|
++|`[{},]`|Ошибка «unterminated»|Отказ: trailing comma|
++|Корректный массив объектов|Records выдавались|Те же records|
++
++Причина: первая `]` потреблялась без завершения документа; следующая `]`
++могла завершить неправильный документ. Теперь empty array разрешён только до
++первого значения, закрытие проверяет весь хвост вплоть до EOF. Пробелы хвоста
++сбрасываются после каждого chunk, а не копятся в памяти. Кавычки/escaped brackets
++и split UTF-8 не трактуются как структурные delimiters вручную: используется
++прежний JSONDecoder.
++
++Подтверждён также обход существующего `max_object_chars`, если oversized object
++целиком декодировался в очередном chunk. Размер проверяется и после успешного
++decode. Default16Mi chars и chunk64KiB не менялись. Это не новый общий budget
++ZIP/uncompressed bytes/upload size и не приёмка многогигабайтных архивов.
++
++Первичная HTTP-проверка обнаружила отдельный Windows failure: ошибка parser
++внутри ZIP оставляла suspended source generator/ZipFile открытым. При выходе
++из TemporaryDirectory возникал WinError32, подменявший исходный JSON error.
++В canonical `load_event_streams` file-source iterator теперь обёрнут `closing`;
++in-memory records используют `nullcontext`. Event loop, selection и параметры
++extractor не менялись. Отдельный тест проверяет закрытие и при ошибке extractor.
++Это гарантия canonical default ingestion, не заявление о полном аудите lifetime
++каждого исторического caller частного `_iter_source_records`.
++
++## Проверки
++
++172 targeted/regression tests PASS за3.42с. Проверены оба readers, chunk1/2/7/
++65536, пустой массив, trailing comma/лишние скобки/данные после массива, длинный
++whitespace tail и поздний garbage, UTF-8/escaped quotes, object limits, JSON/ZIP
++source, архивные streaming/evidence regressions и существующий web contract.
++
++Четыре настоящих multipart HTTP requests через ASGI TestClient проверили
++`/api/v1/v9/analyze` и `/visualization/analyze`, каждый с JSON и ZIP. Неправильный
++документ получает422 с исходной причиной; sentinel подтверждает, что построение
++V9 модели не началось. Для пустого JSON ещё2 requests дают422 с evidence UNKNOWN,
++без fabricated phase_count и без ложной ошибки синтаксиса. Пустой массив не
++означает наличие наблюдений или камеры с подтверждённым покрытием.
++
++Это HTTP/core verification; нового браузерного screenshot review не было и
++изменений HTML/JS/API endpoint code нет. Один установленный Starlette/httpx
++deprecation warning сохранён; зависимости ради него не устанавливались.
++
++До исправления записаны `before.json` и красный regression log. В ходе проверки
++исправлены две ошибки новых test assertions: `{}` — валидный JSON с недопустимым
++root type для этого контракта; `[{},]]` может быть отвергнут раньше, как trailing
++comma. Эти исправления ожиданий не меняли требования отказа. Сбой WinError32
++сохранён отдельно и устранён в коде, не ослаблением HTTP assertion.
++
++## Неизменность корректных данных и моделей
++
++Без нового extraction проверен небольшой1.32MB source:7 целых tracks,
++3851 detections. Структуры нового V9 reader для JSON и ZIP точно равны
++`json.loads` того же источника, со всеми полями/порядком/timestamps.
++Это проверка reader, не повторный vehicle onset/clock calibration.
++
++Три saved2C predictions неизменны относительно полного base через Git. Их
++K3/2/3, periods99.842813/120.028500/99.995248с и прежние invariant SHA взяты из
++неизменённого historical manifest. Новые большие prediction JSON не разбирались:
++первоначальный verification guard4MiB остановил такое чтение, затем checker
++переведён на маленький прежний manifest и Git content comparison. Бюджет не
++увеличивался. Это не новый fitting/benchmark или пересчёт accuracy.
++
++Новых изменений K solver/HSMM/period inference/mapping/offset/thresholds нет.
++State/query UNKNOWN semantics и experimental default-off сохранены. Исторические
++K3/2/3 vs truth3/2/2, raw19/34 остаются;2D.1 FAIL не принят. Main неизменён.
++
++## Артефакты и границы следующей работы
++
++`evidence/strict_json_input_20261016/` содержит before/after, тестовые логи,
++`input_invariants.json`, воспроизводимый `verify_inputs.py`, commands/hashes/diff
++и компактный ZIP. Реальные raw tracks/predictions повторно не пакуются.
++Iterator гарантирует валидность всего документа после полного исчерпания;
++частично прочитанный префикс не является сертификатом корректности всего JSON.
++
++Этот шаг закрывает конкретный input defect. Шаг9 целиком не принят: остаются
++общие archive/upload budgets, изоляция разных sessions/intersections, нагрузка
++и независимая сквозная приёмка. Следующий независимый от camera log приоритет —
++проверить, как canonical archive route сохраняет границы сеансов и происхождение
++входов, чтобы разные дни/режимы не стали одним циклом. Новый phase experiment
++не запускать под видом такого input check. Clock-пилот по-прежнему требует
++соответствия exposure/PTS/millis от producer или документированного механизма.
+diff --git a/evidence/strict_json_input_20261016/after.json b/evidence/strict_json_input_20261016/after.json
+new file mode 100644
+index 0000000..c3c0c82
+--- /dev/null
++++ b/evidence/strict_json_input_20261016/after.json
+@@ -0,0 +1,74 @@
++[
++  {
++    "reader": "v9",
++    "payload": "[]",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "v9",
++    "payload": "[]\n",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "v9",
++    "payload": "[{}]",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "v9",
++    "payload": "[{},]]",
++    "status": "rejected",
++    "error": "invalid trajectory JSON: trailing comma"
++  },
++  {
++    "reader": "v9",
++    "payload": "[],{}]",
++    "status": "rejected",
++    "error": "unexpected data after trajectory JSON array"
++  },
++  {
++    "reader": "v9",
++    "payload": "[{},]",
++    "status": "rejected",
++    "error": "invalid trajectory JSON: trailing comma"
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[]",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[]\n",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[{}]",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[{},]]",
++    "status": "rejected",
++    "error": "invalid trajectory JSON: trailing comma"
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[],{}]",
++    "status": "rejected",
++    "error": "unexpected data after trajectory JSON array"
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[{},]",
++    "status": "rejected",
++    "error": "invalid trajectory JSON: trailing comma"
++  }
++]
+diff --git a/evidence/strict_json_input_20261016/before.json b/evidence/strict_json_input_20261016/before.json
+new file mode 100644
+index 0000000..9f5719f
+--- /dev/null
++++ b/evidence/strict_json_input_20261016/before.json
+@@ -0,0 +1,74 @@
++[
++  {
++    "reader": "v9",
++    "payload": "[]",
++    "status": "rejected",
++    "error": "unterminated trajectory JSON array"
++  },
++  {
++    "reader": "v9",
++    "payload": "[]\n",
++    "status": "rejected",
++    "error": "unterminated trajectory JSON array"
++  },
++  {
++    "reader": "v9",
++    "payload": "[{}]",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "v9",
++    "payload": "[{},]]",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "v9",
++    "payload": "[],{}]",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "v9",
++    "payload": "[{},]",
++    "status": "rejected",
++    "error": "unterminated trajectory JSON array"
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[]",
++    "status": "rejected",
++    "error": "unterminated trajectory JSON array"
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[]\n",
++    "status": "rejected",
++    "error": "unterminated trajectory JSON array"
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[{}]",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[{},]]",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[],{}]",
++    "status": "accepted",
++    "error": null
++  },
++  {
++    "reader": "legacy_stream",
++    "payload": "[{},]",
++    "status": "rejected",
++    "error": "unterminated trajectory JSON array"
++  }
++]
+diff --git a/evidence/strict_json_input_20261016/commands.log b/evidence/strict_json_input_20261016/commands.log
+new file mode 100644
+index 0000000..717488c
+--- /dev/null
++++ b/evidence/strict_json_input_20261016/commands.log
+@@ -0,0 +1,32 @@
++Base: 1a4e0c656baf004f09a6632abf91922772e6b2b4
++Branch: fix/strict-v9-json-input-20261016
++Working directory: D:\Code\PythonProjects\traffic_phase\audit_checkout
++
++git switch -c fix/strict-v9-json-input-20261016
++Before: exhaust both streaming readers on []/[]newline/[{}]/[{},]]/[],{}]/[{},].
++Recorded exact accepts/errors in before.json (no inference).
++$env:TEMP='D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\tmp'
++$env:TMP=$env:TEMP
++C:\Python314\python.exe -m pytest tests/test_strict_trajectory_json.py -q -p no:cacheprovider --maxfail=4
++Before-code regression:4 failures (empty array), stopped; repro_tests.log.
++Next test run exposed incorrect new test assertion that {} is malformed JSON;
++separated valid-JSON/wrong-root contract case. test_assertion_failure.log retained.
++Next run: two over-specific message assertions corrected to accept trailing-comma
++error; actual Windows ZIP cleanup WinError32 fixed in canonical source closing.
++windows_handle_failure.log retained; HTTP assertion for original JSON error kept.
++
++C:\Python314\python.exe -m pytest tests/test_strict_trajectory_json.py tests/test_archive_streaming.py tests/test_vehicle_temporal_evidence.py tests/test_temporal_evidence_contract_diagnostics.py tests/test_web_archive_contract.py -q -p no:cacheprovider
++166 passed. Added long-tail/empty-evidence HTTP cases and bounded tail-buffer reset.
++Same command:172 passed in3.42s; one installed Starlette/httpx deprecation warning.
++No new dependency installed. tests.log contains final output.
++
++C:\Python314\python.exe -m evidence.strict_json_input_20261016.verify_inputs
++First verification stopped before parsing predictions larger than its4MiB guard.
++Replaced large-prediction parse with unchanged historical manifest+Git check;
++budget not increased; reran verification only (no model/algorithm experiment).
++PASS: source7 tracks/3851detections exactly preserved via JSON and ZIP readers;
++all3 saved predictions Git-unchanged; old K/period/invariant seals reused.
++No event extraction/fitting/benchmark in this verification script.
++git diff --check
++PASS. Main/default/K/period/HSMM/mapping/evaluator/source annotations unchanged.
++No new browser/UI run; HTTP via actual ASGI multipart routes only.
+diff --git a/evidence/strict_json_input_20261016/input_invariants.json b/evidence/strict_json_input_20261016/input_invariants.json
+new file mode 100644
+index 0000000..b100055
+--- /dev/null
++++ b/evidence/strict_json_input_20261016/input_invariants.json
+@@ -0,0 +1,44 @@
++{
++  "base_sha": "1a4e0c656baf004f09a6632abf91922772e6b2b4",
++  "source": "evidence/seven_restart_review_20261015/selected_raw_tracks.json",
++  "source_bytes": 1322708,
++  "source_sha256": "05210a00341f8a910c3d019fda9919262240a574c3d962f1110bc4e1c359b4c9",
++  "tracks": 7,
++  "detections": 3851,
++  "stdlib_json_equal": true,
++  "zip_records_equal": true,
++  "parsed_records_sha256": "89298e30d720d6429429c1ef2a254414e48deb2cd242041a5ca7746786105990",
++  "saved_predictions": [
++    {
++      "path": "benchmarks/stage2c_20261014/predictions/17_2025_2_19_10_v9.json",
++      "size_bytes": 11577611,
++      "historical_sha256": "096318d037ff68cd56be1a845fe7861449429d4ca107930aef63ac42f14cf040",
++      "phase_count": 3,
++      "period_s": 99.84281321021679,
++      "invariant_sha256": "67d59da33448cfa1f16aa798d33381e3783dec8f1490cb4af01129315370d7b7",
++      "verification": "Git unchanged vs base; historical seals reused, JSON not reparsed"
++    },
++    {
++      "path": "benchmarks/stage2c_20261014/predictions/19_2025_2_24_16_v9.json",
++      "size_bytes": 5295906,
++      "historical_sha256": "cefed42efeab33674a97ba7d94d6e839beafd8176e23ea24d8436414a7c270f7",
++      "phase_count": 2,
++      "period_s": 120.02849954941996,
++      "invariant_sha256": "4ecfa4c10b7a911d3dcbae91705114544378d89c111b3661c75078905a95c831",
++      "verification": "Git unchanged vs base; historical seals reused, JSON not reparsed"
++    },
++    {
++      "path": "benchmarks/stage2c_20261014/predictions/6_2025_2_14_20_v9.json",
++      "size_bytes": 9141795,
++      "historical_sha256": "7dae8417c17148331a2ff6a34cab97a4d2c7505ceec5d2770f05279a0f9f4dd1",
++      "phase_count": 3,
++      "period_s": 99.99524773335186,
++      "invariant_sha256": "5df11f4c93609682e23e98bbdbb20c452210fe074c73aadadb0981874908abbc",
++      "verification": "Git unchanged vs base; historical seals reused, JSON not reparsed"
++    }
++  ],
++  "fitting_calls": 0,
++  "benchmark_runs": 0,
++  "event_extractions": 0,
++  "main_unchanged": true
++}
+diff --git a/evidence/strict_json_input_20261016/manifest.json b/evidence/strict_json_input_20261016/manifest.json
+new file mode 100644
+index 0000000..ab61281
+--- /dev/null
++++ b/evidence/strict_json_input_20261016/manifest.json
+@@ -0,0 +1,29 @@
++{
++  "base_sha": "1a4e0c656baf004f09a6632abf91922772e6b2b4",
++  "hash_normalization": "CRLF to LF",
++  "code_sha256_lf": {
++    "app/core/v9/events.py": "08e92571847191fdb08a4f3b7cad96a1a73ece63f65ed842f310ebbba65dba91",
++    "app/core/preprocessing.py": "47009e9b3d74c0b0348c7f3e424ddc815b9bc58cd5c1825949190194124782d5",
++    "tests/test_strict_trajectory_json.py": "51090903ee8fb495d7ed2e61960a4fe11e3e4ac908469e1c48fb59ada8c8b19f"
++  },
++  "outputs": {
++    "after.json": "67579ca702f5d0a962d1d6a9a63d9be5af31dded8ea869c5a3c0b94b58a592b6",
++    "before.json": "056b1a92d012749503a566b9d947a761f97c07daa3ac65efaf012d61f4b5088e",
++    "commands.log": "311d03ccedbb4391f886be131ec20787720d7008b045436821974b9b328d765e",
++    "input_invariants.json": "9068d5e006e57fc39767c1267a94546a314ac218baa16c2b003199e7581e88df",
++    "repro_tests.log": "4074e7e8657aa7b5710f05a6d6c4ede8503adfc8b8efe6d859c31e5d165f1169",
++    "targeted_tests.log": "8a35f5dd82d99579c5ef849d4a23c224a523d102b34c4383547b9166d40cc4b0",
++    "tests.log": "d178e93fb98924c5a8f40749c4af5ec36e182e230a9e191c5e4f9f1d994d9319",
++    "test_assertion_failure.log": "8a35f5dd82d99579c5ef849d4a23c224a523d102b34c4383547b9166d40cc4b0",
++    "verify_inputs.py": "839dd1267bfced7254b04f0f3ff93ef68dfba5d6af18d21f38cb1d1249118eaf",
++    "windows_handle_failure.log": "467c84f012e7e1c20bb3cdd8199015b54df6e12b85ab07531a6f80548790b830"
++  },
++  "tests_passed": 172,
++  "http_counterexample_requests": 6,
++  "new_v9_phase_fits": 0,
++  "new_real_benchmark_runs": 0,
++  "protected_code_and_artifacts_unchanged": true,
++  "main_unchanged": true,
++  "physical_accuracy": "NOT_MEASURED",
++  "stage2d1": "FAIL_EXPERIMENTAL_DEFAULT_OFF"
++}
+diff --git a/evidence/strict_json_input_20261016/repro_tests.log b/evidence/strict_json_input_20261016/repro_tests.log
+new file mode 100644
+index 0000000..70c3239
+--- /dev/null
++++ b/evidence/strict_json_input_20261016/repro_tests.log
+@@ -0,0 +1,293 @@
++FFFF
++================================== FAILURES ===================================
++___ test_valid_arrays_and_split_utf8_are_accepted[[]-1-_iter_json_records] ____
++
++reader = <function _iter_json_records at 0x00000171C12B6610>, chunk_size = 1
++payload = '[]'
++
++    @pytest.mark.parametrize('reader', READERS)
++    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++    @pytest.mark.parametrize('payload', ['[]', ' [ ] \r\n', '[{}]', '[{}, {}]',
++                                        '[{"note":"\u041f\u0440\u0438\u0432\u0435\u0442 , ] \\\""}]'])
++    def test_valid_arrays_and_split_utf8_are_accepted(reader, chunk_size, payload):
++        expected = json.loads(payload)
++>       actual = list(reader(BytesIO(payload.encode()), chunk_size=chunk_size))
++                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++
++tests\test_strict_trajectory_json.py:23: 
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
++
++stream = <_io.BytesIO object at 0x00000171C186C900>, chunk_size = 1
++max_object_chars = 16777216
++
++    def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 1024 * 1024):
++        decoder = json.JSONDecoder()
++        utf8 = codecs.getincrementaldecoder("utf-8")()
++        buffer = ""
++        eof = False
++        started = False
++        expect_value = True
++    
++        def fill() -> bool:
++            nonlocal buffer, eof
++            if eof:
++                return False
++            chunk = stream.read(chunk_size)
++            if chunk:
++                buffer += chunk if isinstance(chunk, str) else utf8.decode(chunk, final=False)
++                return True
++            buffer += utf8.decode(b"", final=True)
++            eof = True
++            return False
++    
++        while True:
++            if not started:
++                buffer = buffer.lstrip()
++                if not buffer:
++                    if not fill():
++                        raise ValueError("Trajectory JSON root must be a list")
++                    continue
++                if not buffer.startswith("["):
++                    raise ValueError("Trajectory JSON root must be a list")
++                buffer = buffer[1:]
++                started = True
++    
++            buffer = buffer.lstrip()
++            if not buffer:
++                if eof:
++>                   raise ValueError("unterminated trajectory JSON array")
++E                   ValueError: unterminated trajectory JSON array
++
++app\core\v9\events.py:72: ValueError
++_ test_valid_arrays_and_split_utf8_are_accepted[[]-1-iter_trajectory_payload_stream] _
++
++reader = <function iter_trajectory_payload_stream at 0x00000171AF6EEAE0>
++chunk_size = 1, payload = '[]'
++
++    @pytest.mark.parametrize('reader', READERS)
++    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++    @pytest.mark.parametrize('payload', ['[]', ' [ ] \r\n', '[{}]', '[{}, {}]',
++                                        '[{"note":"\u041f\u0440\u0438\u0432\u0435\u0442 , ] \\\""}]'])
++    def test_valid_arrays_and_split_utf8_are_accepted(reader, chunk_size, payload):
++        expected = json.loads(payload)
++>       actual = list(reader(BytesIO(payload.encode()), chunk_size=chunk_size))
++                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++
++tests\test_strict_trajectory_json.py:23: 
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
++
++stream = <_io.BytesIO object at 0x00000171C188D990>, chunk_size = 1
++max_object_chars = 16777216
++
++    def iter_trajectory_payload_stream(
++        stream: BinaryIO,
++        *,
++        chunk_size: int = DEFAULT_JSON_STREAM_CHUNK_BYTES,
++        max_object_chars: int = DEFAULT_JSON_MAX_OBJECT_CHARS,
++    ) -> Iterator[Trajectory]:
++        """Incrementally decode a trajectory JSON array.
++    
++        At most the current JSON object plus a bounded input buffer is retained.
++        """
++        if chunk_size <= 0:
++            raise ValueError("chunk_size must be positive")
++        if max_object_chars <= 0:
++            raise ValueError("max_object_chars must be positive")
++    
++        decoder = json.JSONDecoder()
++        utf8 = codecs.getincrementaldecoder("utf-8")()
++        buffer = ""
++        eof = False
++        started = False
++        expect_value = True
++    
++        def fill() -> bool:
++            nonlocal buffer, eof
++            if eof:
++                return False
++            chunk = stream.read(chunk_size)
++            if not chunk:
++                if isinstance(chunk, str):
++                    buffer += chunk
++                else:
++                    buffer += utf8.decode(b"", final=True)
++                eof = True
++                return False
++            if isinstance(chunk, str):
++                buffer += chunk
++            else:
++                buffer += utf8.decode(chunk, final=False)
++            return True
++    
++        while True:
++            if not started:
++                while True:
++                    buffer = buffer.lstrip()
++                    if buffer:
++                        if not buffer.startswith("["):
++                            raise ValueError("Trajectory JSON root must be a list")
++                        buffer = buffer[1:]
++                        started = True
++                        break
++                    if not fill():
++                        raise ValueError("Trajectory JSON root must be a list")
++    
++            buffer = buffer.lstrip()
++            if not buffer:
++                if eof:
++>                   raise ValueError("unterminated trajectory JSON array")
++E                   ValueError: unterminated trajectory JSON array
++
++app\core\preprocessing.py:87: ValueError
++___ test_valid_arrays_and_split_utf8_are_accepted[[]-2-_iter_json_records] ____
++
++reader = <function _iter_json_records at 0x00000171C12B6610>, chunk_size = 2
++payload = '[]'
++
++    @pytest.mark.parametrize('reader', READERS)
++    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++    @pytest.mark.parametrize('payload', ['[]', ' [ ] \r\n', '[{}]', '[{}, {}]',
++                                        '[{"note":"\u041f\u0440\u0438\u0432\u0435\u0442 , ] \\\""}]'])
++    def test_valid_arrays_and_split_utf8_are_accepted(reader, chunk_size, payload):
++        expected = json.loads(payload)
++>       actual = list(reader(BytesIO(payload.encode()), chunk_size=chunk_size))
++                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++
++tests\test_strict_trajectory_json.py:23: 
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
++
++stream = <_io.BytesIO object at 0x00000171C192ABB0>, chunk_size = 2
++max_object_chars = 16777216
++
++    def _iter_json_records(stream, *, chunk_size=64 * 1024, max_object_chars=16 * 1024 * 1024):
++        decoder = json.JSONDecoder()
++        utf8 = codecs.getincrementaldecoder("utf-8")()
++        buffer = ""
++        eof = False
++        started = False
++        expect_value = True
++    
++        def fill() -> bool:
++            nonlocal buffer, eof
++            if eof:
++                return False
++            chunk = stream.read(chunk_size)
++            if chunk:
++                buffer += chunk if isinstance(chunk, str) else utf8.decode(chunk, final=False)
++                return True
++            buffer += utf8.decode(b"", final=True)
++            eof = True
++            return False
++    
++        while True:
++            if not started:
++                buffer = buffer.lstrip()
++                if not buffer:
++                    if not fill():
++                        raise ValueError("Trajectory JSON root must be a list")
++                    continue
++                if not buffer.startswith("["):
++                    raise ValueError("Trajectory JSON root must be a list")
++                buffer = buffer[1:]
++                started = True
++    
++            buffer = buffer.lstrip()
++            if not buffer:
++                if eof:
++>                   raise ValueError("unterminated trajectory JSON array")
++E                   ValueError: unterminated trajectory JSON array
++
++app\core\v9\events.py:72: ValueError
++_ test_valid_arrays_and_split_utf8_are_accepted[[]-2-iter_trajectory_payload_stream] _
++
++reader = <function iter_trajectory_payload_stream at 0x00000171AF6EEAE0>
++chunk_size = 2, payload = '[]'
++
++    @pytest.mark.parametrize('reader', READERS)
++    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++    @pytest.mark.parametrize('payload', ['[]', ' [ ] \r\n', '[{}]', '[{}, {}]',
++                                        '[{"note":"\u041f\u0440\u0438\u0432\u0435\u0442 , ] \\\""}]'])
++    def test_valid_arrays_and_split_utf8_are_accepted(reader, chunk_size, payload):
++        expected = json.loads(payload)
++>       actual = list(reader(BytesIO(payload.encode()), chunk_size=chunk_size))
++                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++
++tests\test_strict_trajectory_json.py:23: 
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
++
++stream = <_io.BytesIO object at 0x00000171C192BD30>, chunk_size = 2
++max_object_chars = 16777216
++
++    def iter_trajectory_payload_stream(
++        stream: BinaryIO,
++        *,
++        chunk_size: int = DEFAULT_JSON_STREAM_CHUNK_BYTES,
++        max_object_chars: int = DEFAULT_JSON_MAX_OBJECT_CHARS,
++    ) -> Iterator[Trajectory]:
++        """Incrementally decode a trajectory JSON array.
++    
++        At most the current JSON object plus a bounded input buffer is retained.
++        """
++        if chunk_size <= 0:
++            raise ValueError("chunk_size must be positive")
++        if max_object_chars <= 0:
++            raise ValueError("max_object_chars must be positive")
++    
++        decoder = json.JSONDecoder()
++        utf8 = codecs.getincrementaldecoder("utf-8")()
++        buffer = ""
++        eof = False
++        started = False
++        expect_value = True
++    
++        def fill() -> bool:
++            nonlocal buffer, eof
++            if eof:
++                return False
++            chunk = stream.read(chunk_size)
++            if not chunk:
++                if isinstance(chunk, str):
++                    buffer += chunk
++                else:
++                    buffer += utf8.decode(b"", final=True)
++                eof = True
++                return False
++            if isinstance(chunk, str):
++                buffer += chunk
++            else:
++                buffer += utf8.decode(chunk, final=False)
++            return True
++    
++        while True:
++            if not started:
++                while True:
++                    buffer = buffer.lstrip()
++                    if buffer:
++                        if not buffer.startswith("["):
++                            raise ValueError("Trajectory JSON root must be a list")
++                        buffer = buffer[1:]
++                        started = True
++                        break
++                    if not fill():
++                        raise ValueError("Trajectory JSON root must be a list")
++    
++            buffer = buffer.lstrip()
++            if not buffer:
++                if eof:
++>                   raise ValueError("unterminated trajectory JSON array")
++E                   ValueError: unterminated trajectory JSON array
++
++app\core\preprocessing.py:87: ValueError
++============================== warnings summary ===============================
++C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1
++  C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
++    from starlette.testclient import TestClient as TestClient  # noqa
++
++-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
++=========================== short test summary info ===========================
++FAILED tests/test_strict_trajectory_json.py::test_valid_arrays_and_split_utf8_are_accepted[[]-1-_iter_json_records]
++FAILED tests/test_strict_trajectory_json.py::test_valid_arrays_and_split_utf8_are_accepted[[]-1-iter_trajectory_payload_stream]
++FAILED tests/test_strict_trajectory_json.py::test_valid_arrays_and_split_utf8_are_accepted[[]-2-_iter_json_records]
++FAILED tests/test_strict_trajectory_json.py::test_valid_arrays_and_split_utf8_are_accepted[[]-2-iter_trajectory_payload_stream]
++!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 4 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
++4 failed, 1 warning in 4.70s
+diff --git a/evidence/strict_json_input_20261016/targeted_tests.log b/evidence/strict_json_input_20261016/targeted_tests.log
+new file mode 100644
+index 0000000..04179af
+--- /dev/null
++++ b/evidence/strict_json_input_20261016/targeted_tests.log
+@@ -0,0 +1,60 @@
++........................................................................ [ 53%]
++........................................FFF
++================================== FAILURES ===================================
++____ test_malformed_complete_document_is_rejected[{}-1-_iter_json_records] ____
++
++reader = <function _iter_json_records at 0x0000025515DDAC40>, chunk_size = 1
++payload = '{}'
++
++    @pytest.mark.parametrize('reader', READERS)
++    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++    @pytest.mark.parametrize('payload', ['[{},]]', '[],{}]', '[{},]', '[]]',
++                                        '[] []', '[{}]suffix', '[', '[{}', '[,{}]', '{}'])
++    def test_malformed_complete_document_is_rejected(reader, chunk_size, payload):
++>       with pytest.raises(ValueError):
++             ^^^^^^^^^^^^^^^^^^^^^^^^^
++E       Failed: DID NOT RAISE ValueError
++
++tests\test_strict_trajectory_json.py:35: Failed
++_ test_malformed_complete_document_is_rejected[{}-1-iter_trajectory_payload_stream] _
++
++reader = <function iter_trajectory_payload_stream at 0x000002550410EC40>
++chunk_size = 1, payload = '{}'
++
++    @pytest.mark.parametrize('reader', READERS)
++    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++    @pytest.mark.parametrize('payload', ['[{},]]', '[],{}]', '[{},]', '[]]',
++                                        '[] []', '[{}]suffix', '[', '[{}', '[,{}]', '{}'])
++    def test_malformed_complete_document_is_rejected(reader, chunk_size, payload):
++>       with pytest.raises(ValueError):
++             ^^^^^^^^^^^^^^^^^^^^^^^^^
++E       Failed: DID NOT RAISE ValueError
++
++tests\test_strict_trajectory_json.py:35: Failed
++____ test_malformed_complete_document_is_rejected[{}-2-_iter_json_records] ____
++
++reader = <function _iter_json_records at 0x0000025515DDAC40>, chunk_size = 2
++payload = '{}'
++
++    @pytest.mark.parametrize('reader', READERS)
++    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++    @pytest.mark.parametrize('payload', ['[{},]]', '[],{}]', '[{},]', '[]]',
++                                        '[] []', '[{}]suffix', '[', '[{}', '[,{}]', '{}'])
++    def test_malformed_complete_document_is_rejected(reader, chunk_size, payload):
++>       with pytest.raises(ValueError):
++             ^^^^^^^^^^^^^^^^^^^^^^^^^
++E       Failed: DID NOT RAISE ValueError
++
++tests\test_strict_trajectory_json.py:35: Failed
++============================== warnings summary ===============================
++C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1
++  C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
++    from starlette.testclient import TestClient as TestClient  # noqa
++
++-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
++=========================== short test summary info ===========================
++FAILED tests/test_strict_trajectory_json.py::test_malformed_complete_document_is_rejected[{}-1-_iter_json_records]
++FAILED tests/test_strict_trajectory_json.py::test_malformed_complete_document_is_rejected[{}-1-iter_trajectory_payload_stream]
++FAILED tests/test_strict_trajectory_json.py::test_malformed_complete_document_is_rejected[{}-2-_iter_json_records]
++!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 3 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
++3 failed, 112 passed, 1 warning in 3.32s
+diff --git a/evidence/strict_json_input_20261016/test_assertion_failure.log b/evidence/strict_json_input_20261016/test_assertion_failure.log
+new file mode 100644
+index 0000000..04179af
+--- /dev/null
++++ b/evidence/strict_json_input_20261016/test_assertion_failure.log
+@@ -0,0 +1,60 @@
++........................................................................ [ 53%]
++........................................FFF
++================================== FAILURES ===================================
++____ test_malformed_complete_document_is_rejected[{}-1-_iter_json_records] ____
++
++reader = <function _iter_json_records at 0x0000025515DDAC40>, chunk_size = 1
++payload = '{}'
++
++    @pytest.mark.parametrize('reader', READERS)
++    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++    @pytest.mark.parametrize('payload', ['[{},]]', '[],{}]', '[{},]', '[]]',
++                                        '[] []', '[{}]suffix', '[', '[{}', '[,{}]', '{}'])
++    def test_malformed_complete_document_is_rejected(reader, chunk_size, payload):
++>       with pytest.raises(ValueError):
++             ^^^^^^^^^^^^^^^^^^^^^^^^^
++E       Failed: DID NOT RAISE ValueError
++
++tests\test_strict_trajectory_json.py:35: Failed
++_ test_malformed_complete_document_is_rejected[{}-1-iter_trajectory_payload_stream] _
++
++reader = <function iter_trajectory_payload_stream at 0x000002550410EC40>
++chunk_size = 1, payload = '{}'
++
++    @pytest.mark.parametrize('reader', READERS)
++    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++    @pytest.mark.parametrize('payload', ['[{},]]', '[],{}]', '[{},]', '[]]',
++                                        '[] []', '[{}]suffix', '[', '[{}', '[,{}]', '{}'])
++    def test_malformed_complete_document_is_rejected(reader, chunk_size, payload):
++>       with pytest.raises(ValueError):
++             ^^^^^^^^^^^^^^^^^^^^^^^^^
++E       Failed: DID NOT RAISE ValueError
++
++tests\test_strict_trajectory_json.py:35: Failed
++____ test_malformed_complete_document_is_rejected[{}-2-_iter_json_records] ____
++
++reader = <function _iter_json_records at 0x0000025515DDAC40>, chunk_size = 2
++payload = '{}'
++
++    @pytest.mark.parametrize('reader', READERS)
++    @pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++    @pytest.mark.parametrize('payload', ['[{},]]', '[],{}]', '[{},]', '[]]',
++                                        '[] []', '[{}]suffix', '[', '[{}', '[,{}]', '{}'])
++    def test_malformed_complete_document_is_rejected(reader, chunk_size, payload):
++>       with pytest.raises(ValueError):
++             ^^^^^^^^^^^^^^^^^^^^^^^^^
++E       Failed: DID NOT RAISE ValueError
++
++tests\test_strict_trajectory_json.py:35: Failed
++============================== warnings summary ===============================
++C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1
++  C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
++    from starlette.testclient import TestClient as TestClient  # noqa
++
++-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
++=========================== short test summary info ===========================
++FAILED tests/test_strict_trajectory_json.py::test_malformed_complete_document_is_rejected[{}-1-_iter_json_records]
++FAILED tests/test_strict_trajectory_json.py::test_malformed_complete_document_is_rejected[{}-1-iter_trajectory_payload_stream]
++FAILED tests/test_strict_trajectory_json.py::test_malformed_complete_document_is_rejected[{}-2-_iter_json_records]
++!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 3 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
++3 failed, 112 passed, 1 warning in 3.32s
+diff --git a/evidence/strict_json_input_20261016/tests.log b/evidence/strict_json_input_20261016/tests.log
+new file mode 100644
+index 0000000..f1326f1
+--- /dev/null
++++ b/evidence/strict_json_input_20261016/tests.log
+@@ -0,0 +1,10 @@
++........................................................................ [ 41%]
++........................................................................ [ 83%]
++............................                                             [100%]
++============================== warnings summary ===============================
++C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1
++  C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
++    from starlette.testclient import TestClient as TestClient  # noqa
++
++-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
++172 passed, 1 warning in 3.42s
+diff --git a/evidence/strict_json_input_20261016/verify_inputs.py b/evidence/strict_json_input_20261016/verify_inputs.py
+new file mode 100644
+index 0000000..effe17d
+--- /dev/null
++++ b/evidence/strict_json_input_20261016/verify_inputs.py
+@@ -0,0 +1,76 @@
++"""Read-only preservation check; no event extraction or model fitting."""
++from contextlib import closing
++from io import BytesIO
++import hashlib
++import json
++from pathlib import Path
++import subprocess
++from tempfile import TemporaryDirectory
++from zipfile import ZIP_DEFLATED, ZipFile
++
++from app.core.v9.events import _iter_json_records, _iter_source_records
++from app.core.preprocessing import iter_trajectory_payload_stream
++
++ROOT = Path(__file__).resolve().parents[2]
++OUT = Path(__file__).resolve().parent
++BASE = '1a4e0c656baf004f09a6632abf91922772e6b2b4'
++
++
++def seal(value):
++    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
++                                     ensure_ascii=False, allow_nan=False).encode()).hexdigest()
++
++
++rows = []
++for name, reader in [('v9', _iter_json_records), ('legacy_stream', iter_trajectory_payload_stream)]:
++    for payload in ['[]', '[]\n', '[{}]', '[{},]]', '[],{}]', '[{},]']:
++        try:
++            list(reader(BytesIO(payload.encode()), chunk_size=2))
++            status, error = 'accepted', None
++        except ValueError as exc:
++            status, error = 'rejected', str(exc)
++        rows.append(dict(reader=name, payload=payload, status=status, error=error))
++(OUT/'after.json').write_text(json.dumps(rows, indent=2)+'\n', encoding='utf-8')
++
++source = ROOT/'evidence/seven_restart_review_20261015/selected_raw_tracks.json'
++if source.stat().st_size > 2*1024*1024:
++    raise ValueError('SOURCE_BYTE_BUDGET')
++raw = source.read_bytes()
++expected = json.loads(raw)
++parsed = list(_iter_json_records(BytesIO(raw)))
++assert parsed == expected
++with TemporaryDirectory(dir=ROOT/'.web_runtime/tmp', prefix='strict_json_invariant_') as tmp:
++    path = Path(tmp)/'raw.zip'
++    with ZipFile(path, 'w', ZIP_DEFLATED) as archive:
++        archive.writestr('nested/raw.json', raw)
++    zipped = []
++    with closing(_iter_source_records(path)) as sources:
++        for _, records in sources:
++            zipped.extend(records)
++    assert zipped == expected
++
++# Reuse the small historical seals instead of parsing the 5-12MB predictions.
++seal_path = ROOT/'evidence/offline_product_html_20261016/manifest.json'
++seal_bytes = seal_path.read_bytes()
++assert seal_bytes == subprocess.check_output(
++    ['git', 'show', f'{BASE}:{seal_path.relative_to(ROOT).as_posix()}'], cwd=ROOT)
++predictions = []
++for saved in json.loads(seal_bytes)['runs']:
++    path = ROOT/saved['input']
++    subprocess.run(['git', 'diff', '--exit-code', BASE, '--', saved['input']], cwd=ROOT, check=True,
++                   stdout=subprocess.DEVNULL)
++    predictions.append(dict(path=saved['input'], size_bytes=path.stat().st_size,
++                            historical_sha256=saved['input_sha256'],
++                            phase_count=saved['phase_count'], period_s=saved['period_s'],
++                            invariant_sha256=saved['invariant_sha256'],
++                            verification='Git unchanged vs base; historical seals reused, JSON not reparsed'))
++assert len(predictions) == 3
++assert subprocess.check_output(['git','rev-parse','main'], cwd=ROOT, text=True).strip() == 'a005a2521f62ce3b2c9f9d52f9f0d73913754e01'
++result = dict(base_sha=BASE, source=source.relative_to(ROOT).as_posix(),
++              source_bytes=len(raw), source_sha256=hashlib.sha256(raw).hexdigest(),
++              tracks=len(parsed), detections=sum(len(r['detections']) for r in parsed),
++              stdlib_json_equal=True, zip_records_equal=True, parsed_records_sha256=seal(parsed),
++              saved_predictions=predictions, fitting_calls=0, benchmark_runs=0, event_extractions=0,
++              main_unchanged=True)
++(OUT/'input_invariants.json').write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
++print(json.dumps(result, indent=2))
+diff --git a/evidence/strict_json_input_20261016/windows_handle_failure.log b/evidence/strict_json_input_20261016/windows_handle_failure.log
+new file mode 100644
+index 0000000..7bbd104
+--- /dev/null
++++ b/evidence/strict_json_input_20261016/windows_handle_failure.log
+@@ -0,0 +1,86 @@
++........................................................................ [ 43%]
++..................................................FF...F
++================================== FAILURES ===================================
++___________ test_source_reader_rejects_extra_closing_bracket[.json] ___________
++
++suffix = '.json'
++tmp_path = WindowsPath('D:/Code/PythonProjects/traffic_phase/audit_checkout/.web_runtime/tmp/pytest-of-sheld/pytest-0/test_source_reader_rejects_ext0')
++
++    @pytest.mark.parametrize('suffix', ['.json', '.zip'])
++    def test_source_reader_rejects_extra_closing_bracket(suffix, tmp_path):
++        path = tmp_path / ('raw'+suffix)
++        if suffix == '.json':
++            path.write_bytes(b'[{},]]')
++        else:
++            with ZipFile(path, 'w') as archive:
++                archive.writestr('nested/raw.json', b'[{},]]')
++>       with pytest.raises(ValueError, match='unexpected data'):
++             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++E       AssertionError: Regex pattern did not match.
++E         Expected regex: 'unexpected data'
++E         Actual message: 'invalid trajectory JSON: trailing comma'
++
++tests\test_strict_trajectory_json.py:71: AssertionError
++___________ test_source_reader_rejects_extra_closing_bracket[.zip] ____________
++
++suffix = '.zip'
++tmp_path = WindowsPath('D:/Code/PythonProjects/traffic_phase/audit_checkout/.web_runtime/tmp/pytest-of-sheld/pytest-0/test_source_reader_rejects_ext1')
++
++    @pytest.mark.parametrize('suffix', ['.json', '.zip'])
++    def test_source_reader_rejects_extra_closing_bracket(suffix, tmp_path):
++        path = tmp_path / ('raw'+suffix)
++        if suffix == '.json':
++            path.write_bytes(b'[{},]]')
++        else:
++            with ZipFile(path, 'w') as archive:
++                archive.writestr('nested/raw.json', b'[{},]]')
++>       with pytest.raises(ValueError, match='unexpected data'):
++             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++E       AssertionError: Regex pattern did not match.
++E         Expected regex: 'unexpected data'
++E         Actual message: 'invalid trajectory JSON: trailing comma'
++
++tests\test_strict_trajectory_json.py:71: AssertionError
++_ test_http_rejects_malformed_input_before_model_or_html[.zip-/visualization/analyze] _
++
++endpoint = '/visualization/analyze', suffix = '.zip'
++monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000015DAA3606B0>
++
++    @pytest.mark.parametrize('endpoint', ['/api/v1/v9/analyze', '/visualization/analyze'])
++    @pytest.mark.parametrize('suffix', ['.json', '.zip'])
++    def test_http_rejects_malformed_input_before_model_or_html(endpoint, suffix, monkeypatch):
++        calls = []
++    
++        def forbidden(*args, **kwargs):
++            calls.append(True)
++            raise AssertionError('model must not start on malformed input')
++    
++        monkeypatch.setattr(model, '_discover_bundle', forbidden)
++        # A valid source record prefix ensures the old bug can reach model building.
++        record = dict(id=1, zone_in='N', zone_out='_S', stay_duration_millis=0,
++                      detections=[dict(millis=1000, zone='N'), dict(millis=2000, zone='_S')])
++        raw = b'[],' + json.dumps(record).encode() + b']'
++        if suffix == '.zip':
++            buffer = BytesIO()
++            with ZipFile(buffer, 'w') as archive:
++                archive.writestr('raw.json', raw)
++            raw = buffer.getvalue()
++        with TestClient(app) as client:
++            response = client.post(endpoint, files={'file': ('raw'+suffix, raw)}, data={'dt': '1'})
++        assert response.status_code == 422
++>       assert 'unexpected data after trajectory JSON array' in response.json()['detail']
++E       assert 'unexpected data after trajectory JSON array' in "[WinError 32] ������� �� ����� �������� ������ � �����, ��� ��� ���� ���� ����� ������ ���������: 'D:\\\\Code\\\\PythonProjects\\\\traffic_phase\\\\audit_checkout\\\\.web_runtime\\\\tmp\\\\traffic_phase_visualization_vhhhb5tm\\\\raw.zip'"
++
++tests\test_strict_trajectory_json.py:98: AssertionError
++============================== warnings summary ===============================
++C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1
++  C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
++    from starlette.testclient import TestClient as TestClient  # noqa
++
++-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
++=========================== short test summary info ===========================
++FAILED tests/test_strict_trajectory_json.py::test_source_reader_rejects_extra_closing_bracket[.json]
++FAILED tests/test_strict_trajectory_json.py::test_source_reader_rejects_extra_closing_bracket[.zip]
++FAILED tests/test_strict_trajectory_json.py::test_http_rejects_malformed_input_before_model_or_html[.zip-/visualization/analyze]
++!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 3 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
++3 failed, 125 passed, 1 warning in 3.87s
+diff --git a/tests/test_strict_trajectory_json.py b/tests/test_strict_trajectory_json.py
+new file mode 100644
+index 0000000..3d860dd
+--- /dev/null
++++ b/tests/test_strict_trajectory_json.py
+@@ -0,0 +1,142 @@
++from io import BytesIO
++import json
++from zipfile import ZipFile
++
++import pytest
++from fastapi.testclient import TestClient
++
++from app.core.preprocessing import iter_trajectory_payload_stream
++from app.core.v9.events import _iter_json_records, _iter_source_records
++from app.core.v9 import model
++from app.main import app
++
++
++READERS = [_iter_json_records, iter_trajectory_payload_stream]
++
++
++@pytest.mark.parametrize('reader', READERS)
++@pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++@pytest.mark.parametrize('payload', ['[]', ' [ ] \r\n', '[{}]', '[{}, {}]',
++                                    '[{"note":"\u041f\u0440\u0438\u0432\u0435\u0442 , ] \\\""}]'])
++def test_valid_arrays_and_split_utf8_are_accepted(reader, chunk_size, payload):
++    expected = json.loads(payload)
++    actual = list(reader(BytesIO(payload.encode()), chunk_size=chunk_size))
++    if reader is _iter_json_records:
++        assert actual == expected
++    else:
++        assert actual == []  # these grammar fixtures are not car trajectories
++
++
++@pytest.mark.parametrize('reader', READERS)
++@pytest.mark.parametrize('chunk_size', [1, 2, 7, 65536])
++@pytest.mark.parametrize('payload', ['[{},]]', '[],{}]', '[{},]', '[]]',
++                                    '[] []', '[{}]suffix', '[', '[{}', '[,{}]'])
++def test_malformed_complete_document_is_rejected(reader, chunk_size, payload):
++    with pytest.raises(ValueError):
++        json.loads(payload)
++    with pytest.raises(ValueError, match='trajectory JSON|Trajectory JSON'):
++        list(reader(BytesIO(payload.encode()), chunk_size=chunk_size))
++
++
++@pytest.mark.parametrize('reader', READERS)
++def test_valid_json_object_is_rejected_by_the_array_root_contract(reader):
++    assert json.loads('{}') == {}
++    with pytest.raises(ValueError, match='root must be a list'):
++        list(reader(BytesIO(b'{}')))
++
++
++@pytest.mark.parametrize('reader', READERS)
++@pytest.mark.parametrize('trailer', [b'', b'[{}]'])
++def test_long_whitespace_tail_is_consumed_and_later_garbage_is_rejected(reader, trailer):
++    stream = BytesIO(b'[]' + b' '*131072 + trailer)
++    if trailer:
++        with pytest.raises(ValueError, match='unexpected data'):
++            list(reader(stream, chunk_size=64))
++    else:
++        assert list(reader(stream, chunk_size=64)) == []
++    assert stream.tell() == len(stream.getvalue())
++
++
++@pytest.mark.parametrize('reader', READERS)
++@pytest.mark.parametrize('chunk_size', [1, 65536])
++def test_object_limit_applies_even_if_value_completes_in_one_read(reader, chunk_size):
++    payload = json.dumps([{'text': 'x'*100}]).encode()
++    with pytest.raises(ValueError, match='bounded streaming size'):
++        list(reader(BytesIO(payload), chunk_size=chunk_size, max_object_chars=32))
++
++
++@pytest.mark.parametrize('reader', READERS)
++@pytest.mark.parametrize('keyword', ['chunk_size', 'max_object_chars'])
++def test_zero_resource_limit_is_explicit(reader, keyword):
++    with pytest.raises(ValueError, match='positive'):
++        list(reader(BytesIO(b'[]'), **{keyword: 0}))
++
++
++@pytest.mark.parametrize('suffix', ['.json', '.zip'])
++def test_source_reader_rejects_extra_closing_bracket(suffix, tmp_path):
++    path = tmp_path / ('raw'+suffix)
++    if suffix == '.json':
++        path.write_bytes(b'[{},]]')
++    else:
++        with ZipFile(path, 'w') as archive:
++            archive.writestr('nested/raw.json', b'[{},]]')
++    with pytest.raises(ValueError, match='trajectory JSON'):
++        for _, records in _iter_source_records(path):
++            list(records)
++
++
++@pytest.mark.parametrize('endpoint', ['/api/v1/v9/analyze', '/visualization/analyze'])
++@pytest.mark.parametrize('suffix', ['.json', '.zip'])
++def test_http_rejects_malformed_input_before_model_or_html(endpoint, suffix, monkeypatch):
++    calls = []
++
++    def forbidden(*args, **kwargs):
++        calls.append(True)
++        raise AssertionError('model must not start on malformed input')
++
++    monkeypatch.setattr(model, '_discover_bundle', forbidden)
++    # A valid source record prefix ensures the old bug can reach model building.
++    record = dict(id=1, zone_in='N', zone_out='_S', stay_duration_millis=0,
++                  detections=[dict(millis=1000, zone='N'), dict(millis=2000, zone='_S')])
++    raw = b'[],' + json.dumps(record).encode() + b']'
++    if suffix == '.zip':
++        buffer = BytesIO()
++        with ZipFile(buffer, 'w') as archive:
++            archive.writestr('raw.json', raw)
++        raw = buffer.getvalue()
++    with TestClient(app) as client:
++        response = client.post(endpoint, files={'file': ('raw'+suffix, raw)}, data={'dt': '1'})
++    assert response.status_code == 422
++    assert 'unexpected data after trajectory JSON array' in response.json()['detail']
++    assert not calls
++
++
++def test_canonical_ingestion_closes_source_even_if_extractor_raises(monkeypatch, tmp_path):
++    from app.core.v9 import events, vehicle_evidence
++    closed = []
++
++    def sources(_):
++        try:
++            yield 'record.json', iter([{}])
++        finally:
++            closed.append(True)
++
++    def fail(*args, **kwargs):
++        raise ValueError('extractor rejected track')
++
++    monkeypatch.setattr(events, '_iter_source_records', sources)
++    monkeypatch.setattr(vehicle_evidence, 'extract_vehicle_evidence', fail)
++    with pytest.raises(ValueError, match='extractor rejected'):
++        events.load_event_streams(tmp_path)
++    assert closed == [True]
++
++
++@pytest.mark.parametrize('endpoint', ['/api/v1/v9/analyze', '/visualization/analyze'])
++def test_http_empty_array_is_unknown_evidence_not_broken_json(endpoint, monkeypatch):
++    monkeypatch.setattr(model, '_discover_bundle', lambda *a, **kw: pytest.fail('no evidence must not fit'))
++    with TestClient(app) as client:
++        response = client.post(endpoint, files={'file': ('empty.json', b'[]')}, data={'dt': '1'})
++    assert response.status_code == 422
++    assert 'evidence is UNKNOWN' in response.json()['detail']
++    assert 'unterminated' not in response.json()['detail']
++    assert 'phase_count' not in response.json()
