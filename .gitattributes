@@ -1,4 +1,6 @@
 tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
+evidence/review_intake_20261017/** -text -whitespace
+benchmarks/seed_flow_20261017/** -text -whitespace
 evidence/hsmm_recurrence_20261016/** -text -whitespace
 benchmarks/hsmm_recurrence_20261016/** -text -whitespace
 evidence/bounded_archive_batch_20261016/** -text -whitespace
