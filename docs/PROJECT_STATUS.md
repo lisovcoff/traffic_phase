@@ -1,5 +1,16 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 frame-clock input availability checked: all3851 detections of saved7
+tracks inspected, no explicit frame/PTS link. MP4 metadata inspected without
+decoding; tags/rates/start_time do not supply JSON clock correspondence. No FPS
+index-to-time assumption adopted. Bounded supplied-frame manifest checker and
+empty template added, actual empty-input result UNAVAILABLE_NO_FRAME_LINKS;
+53 targeted/regression tests pass. Supplier request prepared locally, not sent.
+See FRAME_CLOCK_INPUTS_20261016.md. Need original same-exposure ID/PTS/millis
+mapping or documented timestamp mechanism, not another user clock-origin answer.
+No core/default/main/offset/prediction or scientific gate change;2D.1 FAIL,
+historical metrics unchanged. Independent real validation still open.
+
 2026-10-16 bounded clock/observation check completed on saved development evidence.
 Both conditional display-rounding models (zero unmodelled latency) exclude the
 saved delta and have empty intersection with saved frozen-H feasibility. No

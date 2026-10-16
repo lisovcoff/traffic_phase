@@ -1,4 +1,6 @@
 tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
+config/frame_clock_links_template.json -text
+evidence/frame_clock_intake_20261016/** -text -whitespace
 evidence/clock_observation_check_20261016/** -text -whitespace
 docs/CLOCK_OBSERVATION_PROTOCOL_20261016.md -text
 evidence/real_pilot_readiness_20261016/** -text -whitespace

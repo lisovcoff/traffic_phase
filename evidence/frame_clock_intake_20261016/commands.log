@@ -1,0 +1,30 @@
+Base: 145b7a04e86d1430dfdf94c04cd4fc9dab0e4962
+Branch: calibration/frame-clock-intake-20261016
+Working directory: D:\Code\PythonProjects\traffic_phase\audit_checkout
+
+git switch -c calibration/frame-clock-intake-20261016
+Read canonical AGENTS/ROADMAP/PROJECT_STATUS and existing saved metadata/sample.
+rg searches in canonical app/scripts found no original camera timestamp producer.
+Read Info.docx word/document.xml text paragraphs for timestamp/coordinate/frame
+terms only; no new textual frame/PTS definition. No render/OCR of embedded images.
+
+ffprobe -v error -probesize 1048576 -analyzeduration 0 -show_entries format=format_name,start_time,duration:format_tags:stream=index,codec_type,time_base,start_time,duration,nb_frames,r_frame_rate,avg_frame_rate:stream_tags -of json "C:\Users\sheld\Downloads\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4"
+Invoked through Python subprocess.run(capture_output=True,text=True,timeout=15).
+Exit0, stderr empty; stdout saved as container_metadata.json; no decoding,
+show_frames or show_packets. Probesize limits probing, not total demuxer I/O.
+ffprobe -version (first line in ffprobe_version.txt)
+
+$env:TEMP='D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\tmp'
+$env:TMP=$env:TEMP
+C:\Python314\python.exe -m pytest tests/test_frame_clock_links.py tests/test_clock_observation_check.py tests/test_h1_confirmation.py tests/test_calibration_bundle.py -q -p no:cacheprovider
+52 passed initially. Added signed-PTS/equal-ms contract case and support.
+Same command: 53 passed in0.22s (tests.log). No scientific experiment/tuning.
+C:\Python314\python.exe -m scripts.check_frame_clock_links --input config/frame_clock_links_template.json --out evidence/frame_clock_intake_20261016/template_check.json
+UNAVAILABLE_NO_FRAME_LINKS,0 rows; no transform promotion.
+C:\Python314\python.exe evidence/frame_clock_intake_20261016/inspect_saved_inputs.py
+7 tracks,3851 detections,1322708B; source seal verified; frame link UNAVAILABLE.
+
+git diff --check
+PASS. Final invariants/source-output hashes stored in manifest/invariant_checks.
+No phase labels, fitting, new decoder, K search, real replay, offset change or
+production default change. Supplier request prepared locally; not sent.

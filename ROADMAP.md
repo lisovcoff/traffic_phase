@@ -1,5 +1,13 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: [доступность frame↔clock входов проверена](docs/FRAME_CLOCK_INPUTS_20261016.md).
+В3851 detections всех7 сохранённых raw tracks frame/PTS link отсутствует;
+container metadata MP4 не связывает camera clock с JSON. Различающиеся FPS
+поля не использованы для выдуманной frame-time привязки. Готов bounded manifest
+checker+пустой template и точный локальный supplier request;53 tests. Нужен
+исходный exposure/PTS/millis fragment либо механизм timestamping от producer.
+Новые fitting/replay не запускались; main/default/2D.1 FAIL сохранены.
+
 2026-10-16: [clock/vehicle association check выполнен](docs/CLOCK_OBSERVATION_RESULTS_20261016.md).
 Три overlay readouts несовместимы с прежним candidate и frozen-H set при обеих
 условных zero-latency display-моделях. Причина не установлена, offset не менялся.

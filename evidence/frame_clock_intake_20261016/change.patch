@@ -1,0 +1,944 @@
+diff --git a/.gitattributes b/.gitattributes
+index fb8fbec..59d40c0 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,4 +1,6 @@
+ tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
++config/frame_clock_links_template.json -text
++evidence/frame_clock_intake_20261016/** -text -whitespace
+ evidence/clock_observation_check_20261016/** -text -whitespace
+ docs/CLOCK_OBSERVATION_PROTOCOL_20261016.md -text
+ evidence/real_pilot_readiness_20261016/** -text -whitespace
+diff --git a/ROADMAP.md b/ROADMAP.md
+index d6a6e7a..f4b0966 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -1,5 +1,13 @@
+ # traffic_phase — план до готового продукта
+ 
++2026-10-16: [доступность frame↔clock входов проверена](docs/FRAME_CLOCK_INPUTS_20261016.md).
++В3851 detections всех7 сохранённых raw tracks frame/PTS link отсутствует;
++container metadata MP4 не связывает camera clock с JSON. Различающиеся FPS
++поля не использованы для выдуманной frame-time привязки. Готов bounded manifest
++checker+пустой template и точный локальный supplier request;53 tests. Нужен
++исходный exposure/PTS/millis fragment либо механизм timestamping от producer.
++Новые fitting/replay не запускались; main/default/2D.1 FAIL сохранены.
++
+ 2026-10-16: [clock/vehicle association check выполнен](docs/CLOCK_OBSERVATION_RESULTS_20261016.md).
+ Три overlay readouts несовместимы с прежним candidate и frozen-H set при обеих
+ условных zero-latency display-моделях. Причина не установлена, offset не менялся.
+diff --git a/app/experimental/frame_clock_links.py b/app/experimental/frame_clock_links.py
+new file mode 100644
+index 0000000..d494d34
+--- /dev/null
++++ b/app/experimental/frame_clock_links.py
+@@ -0,0 +1,87 @@
++"""Validate supplied frame identity/time pairs; never guess a clock from motion.
++
++Numeric bounds condition on a constant unit-scale clock relation and supplied
++timestamp-error bounds. Declarations do not certify clocks or producer identity.
++"""
++from fractions import Fraction
++import math
++
++
++def _integer(value, positive=False, signed=False):
++    if (isinstance(value, bool) or not isinstance(value, int)
++            or (not signed and value < int(positive))):
++        raise ValueError('INVALID_INTEGER_TIME_OR_TIME_BASE')
++    return value
++
++
++def inspect_frame_clock_links(document):
++    if document.get('schema') != 'frame-clock-links-v1':
++        raise ValueError('INVALID_FRAME_CLOCK_SCHEMA')
++    if document.get('timestamp_field') != 'detections[].millis':
++        raise ValueError('DETECTION_TIMESTAMP_FIELD_REQUIRED')
++    if document.get('association_basis') != 'producer_frame_identity':
++        raise ValueError('FRAME_IDENTITY_REQUIRED_NOT_MOTION_OR_PHASE_ALIGNMENT')
++    rows = document.get('rows')
++    if not isinstance(rows, list):
++        raise ValueError('FRAME_ROWS_REQUIRED')
++    if len(rows) > 1000:
++        raise ValueError('FRAME_LINK_RESOURCE_LIMIT')
++    missing = [k for k in ['capture_id', 'video_source_id', 'trajectory_source_id', 'source_reference']
++               if not isinstance(document.get(k), str) or not document[k].strip()]
++    seen = set()
++    output = []
++    previous = None
++    for row in rows:
++        frame_id = row.get('frame_id')
++        if not isinstance(frame_id, str) or not frame_id.strip() or frame_id in seen:
++            raise ValueError('MISSING_OR_DUPLICATE_FRAME_ID')
++        seen.add(frame_id)
++        tb = row.get('video_time_base')
++        if not isinstance(tb, list) or len(tb) != 2:
++            raise ValueError('EXPLICIT_RATIONAL_TIME_BASE_REQUIRED')
++        numerator, denominator = [_integer(x, positive=True) for x in tb]
++        pts = Fraction(_integer(row.get('video_pts_ticks'), signed=True) * numerator * 1000, denominator)
++        detection = _integer(row.get('detection_timestamp_ms'))
++        if previous is not None and (pts <= previous[0] or detection < previous[1]):
++            raise ValueError('UNSORTED_OR_CONFLICTING_FRAME_SEQUENCE')
++        previous = pts, detection
++        uncertainty = row.get('timestamp_uncertainty_ms')
++        if uncertainty is not None and (isinstance(uncertainty, bool)
++                or not isinstance(uncertainty, (int, float))
++                or not math.isfinite(uncertainty) or uncertainty < 0):
++            raise ValueError('INVALID_TIMESTAMP_UNCERTAINTY')
++        if not isinstance(row.get('frame_identity_reference'), str) or not row['frame_identity_reference'].strip():
++            raise ValueError('FRAME_IDENTITY_PROVENANCE_REQUIRED')
++        has_error_source = isinstance(row.get('uncertainty_source'), str) and bool(row['uncertainty_source'].strip())
++        offset = Fraction(detection)-pts
++        bounds = None
++        if uncertainty is not None and has_error_source:
++            radius = Fraction(str(uncertainty))
++            bounds = [offset-radius, offset+radius]
++        output.append(dict(frame_id=frame_id, video_pts_ms_rational=str(pts),
++                           detection_timestamp_ms=detection,
++                           nominal_epoch_offset_ms_rational=str(offset),
++                           conditional_offset_bounds_ms_rational=[str(x) for x in bounds] if bounds else None))
++    bounds = None
++    complete = bool(output) and all(r['conditional_offset_bounds_ms_rational'] is not None for r in output)
++    if complete:
++        intervals = [list(map(Fraction, r['conditional_offset_bounds_ms_rational'])) for r in output]
++        bounds = [max(s[0] for s in intervals), min(s[1] for s in intervals)]
++    inconsistent = bounds is not None and bounds[0] > bounds[1]
++    status = ('UNAVAILABLE_NO_FRAME_LINKS' if not rows else
++              'UNAVAILABLE_SOURCE_PROVENANCE' if missing else
++              'UNAVAILABLE_TIMESTAMP_UNCERTAINTY' if not complete else
++              'INCONSISTENT_DECLARED_CONSTANT_CLOCK' if inconsistent else
++              'DECLARATIONS_READY_FOR_INDEPENDENT_REVIEW')
++    return dict(schema='frame-clock-link-check-v1', status=status, row_count=len(rows),
++                missing_metadata=missing, rows=output,
++                conditional_constant_epoch_offset_ms_rational=(
++                    [str(x) for x in bounds] if bounds is not None and not inconsistent and not missing else None),
++                assumptions=['same captured exposure matched by producer frame identity',
++                             'PTS time base explicitly supplied; no average-FPS conversion',
++                             'constant unit-scale clock relation',
++                             'supplied timestamp bounds include relevant timestamping/exposure error'],
++                scientific_validation='NOT_PERFORMED', production_usable=False,
++                accepted_json_video_clock_transform=None, calibrated_sync_uncertainty_ms=None,
++                physical_section_state='UNKNOWN', calibrated_lamp_probability=None,
++                inference_calls=0)
+diff --git a/config/frame_clock_links_template.json b/config/frame_clock_links_template.json
+new file mode 100644
+index 0000000..627eae7
+--- /dev/null
++++ b/config/frame_clock_links_template.json
+@@ -0,0 +1,10 @@
++{
++  "schema": "frame-clock-links-v1",
++  "capture_id": "len-sverdl-2025-02-27",
++  "video_source_id": null,
++  "trajectory_source_id": null,
++  "timestamp_field": "detections[].millis",
++  "association_basis": "producer_frame_identity",
++  "source_reference": null,
++  "rows": []
++}
+diff --git a/docs/FRAME_CLOCK_INPUTS_20261016.md b/docs/FRAME_CLOCK_INPUTS_20261016.md
+new file mode 100644
+index 0000000..a74c8a3
+--- /dev/null
++++ b/docs/FRAME_CLOCK_INPUTS_20261016.md
+@@ -0,0 +1,108 @@
++# Timestamp ↔ frame: проверка доступных входов
++
++Base: `145b7a04e86d1430dfdf94c04cd4fc9dab0e4962`.
++Ветка: `calibration/frame-clock-intake-20261016`.
++Fitting, decoding, новый phase replay и изменение offset не выполнялись.
++
++## Что проверено
++
++В исходном сохранённом семитрековом cohort проверены **все3851 detections**,
++1,322,708B JSON. Source SHA совпал с ранее sealed raw-anchor source.
++В track/detection fields нет `frame_id`, `frame_number`, `pts`, `dts`, `time_base`
++и перечисленных в source inventory aliases. Полные key/count tables сохранены.
++В detections есть `millis`, bounding box, centroid, speed, lat/lng и zone.
++Числа координат сами по себе не подтверждают их supplier semantics/units.
++Вывод об отсутствии frame-link ограничен этим cohort, не всеми архивами.
++
++Проверено, что `scripts/build_restart_video_review.py` копирует целые raw records
++из ранее подготовленного sample; `app/core/calibration_sample.py` также сохраняет
++track целиком. Новые frame IDs этими consumers не создаются. В проверенных
++canonical app/scripts нет реализации timestamping исходной камеры/экспортера.
++Никакие исторические producer-пакеты не приняты как текущая production-основа.
++
++Один `ffprobe`-запуск прочитал metadata существующего MP4, без `show_frames`,
++`show_packets` или декодирования. `probesize=1048576`, `analyzeduration=0`,
++subprocess timeout15с. Probesize **не** является верхней границей всего I/O
++demuxer; фактические bytes read не измерялись. Размер исходника совпал с saved
++metadata3,089,546,077B; это не новая full-content identity validation.
++
++Получено:
++
++- `start_time=0`, `time_base=1/90000`, `nb_frames=180650`;
++- `r_frame_rate=30/1`, `avg_frame_rate=541950/21649` (около25.03);
++- duration7216.333333с; tags содержат `encoder=Lavf58.76.100`, container brands,
++  language/handler, но не связь absolute camera timestamp с JSON detection.
++
++Это не доказательство режима переменной частоты само по себе и не проверка всех
++MP4 atoms. Разные rate fields нельзя использовать как основание для
++`PTS=frame_number/30`; нужен реальный PTS и учёт происхождения/редактирования
++записи. Encoder tag описывает muxer, не источник detection clock. Файловый mtime,
++имя MP4 и container start_time не подставлены вместо camera clock.
++
++В Инфо.docx проверены только относящиеся к timestamp/frame/centroid поля:
++текст содержит прежние определения millis и offline warning; нового текстового
++frame-ID/PTS определения не найдено. Это не утверждение о расшифровке embedded
++screenshots или наличии внешней vendor documentation. Старый excerpt не изменён.
++
++## Готовый приёмник поставляемой привязки
++
++`app/experimental/frame_clock_links.py` и CLI работают отдельно от production:
++
++```powershell
++C:\Python314\python.exe -m scripts.check_frame_clock_links --input config/frame_clock_links_template.json --out frame_clock_check.json
++```
++
++Текущий template содержит0 строк и незаполненные source IDs. Реальный запуск
++вернул `UNAVAILABLE_NO_FRAME_LINKS`, offset/uncertainty=null, лампы UNKNOWN.
++Шаблон не следует заполнять временами, угаданными по движению.
++
++Нужен JSON такого же schema от producer или документированной frame-identity
++связи; поля строки:
++
++| Поле | Содержание |
++|---|---|
++|frame_id|Идентификатор исходного exposure; связь с кадром экспортированного MP4 должна иметь источник|
++|video_pts_ticks|Реальный presentation timestamp этого кадра, integer; signed PTS допустим|
++|video_time_base|Пара положительных integers numerator/denominator, не FPS|
++|detection_timestamp_ms|Значение именно detections[].millis для этого exposure|
++|frame_identity_reference|Ссылка на exporter row/log/source, подтверждающий тот же кадр|
++|timestamp_uncertainty_ms|Предоставленная граница relevant timestamp/exposure error либо null|
++|uncertainty_source|Источник/смысл этой границы; не heuristic restart radius|
++
++На уровне документа нужны capture/video/trajectory source IDs, source_reference
++и `association_basis=producer_frame_identity`. Предпочтительны несколько пар
++в разнесённых частях записи, а не повторения одного кадра. Если переданы только
++clock-origin сведения без таких пар, это сохраняется как provenance, не sync.
++
++Checker использует точные rational PTS arithmetic. Для полностью supplied error
++bounds выдаёт пересечение **условных** constant-offset sets с закрытыми концами.
++Clock scale/drift не подбираются; противоречие даёт
++`INCONSISTENT_DECLARED_CONSTANT_CLOCK`. Missing uncertainty или provenance
++сохраняют UNAVAILABLE. Повторные/несортированные frame identities, bool/nonfinite
++uncertainty отвергаются; равные integer millisecond timestamps разных frames
++допустимы при возрастающих PTS. До1000 rows/512KiB, свежий output обязателен.
++
++Даже статус `DECLARATIONS_READY_FOR_INDEPENDENT_REVIEW` не является scientific
++validation или автоматическим promotion transform в inference. Во всех случаях
++`production_usable=false`, accepted transform/calibrated uncertainty=null.
++Ни phase labels, ни vehicle motion не принимаются как association basis.
++
++## Проверки и следующий конкретный вход
++
++53 targeted/regression tests PASS (включая rational/signed timestamps, no input,
++unsourced uncertainty, conflicting frames, immutability/resource limits и
++предыдущие clock/bundle seals). Metadata/полный key inventory, template result,
++commands и tests сохранены в `evidence/frame_clock_intake_20261016/`.
++Core/default/main, старые predictions и scientific gate не менялись.
++
++**Нужен один внешний материал:** небольшой исходный exporter/log fragment с
++соответствием `camera frame/exposure → MP4 PTS + detections[].millis` либо
++vendor-описание, как это соответствие и его погрешность формируются. Точный
++вопрос поставщику сохранён в `SUPPLIER_REQUEST.md` рядом с evidence. Самостоятельно
++создать такую ground truth из этих же траекторий нельзя. Новый interface для
++повторной разметки тех же машин не требуется.
++
++2D.1 FAIL/experimental/default-off остаётся; historical K3/2/3 vs truth3/2/2,
++raw19/34 не пересчитывались. Trajectory-only logical activity остаётся доступной
++со своим UNKNOWN contract; этот конкретный independent clock-validation шаг
++ожидает вход, а не блокирует весь проект навсегда.
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index e362003..d8af9df 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,16 @@
+ # Project status — 2D.1, 2026-10-16
+ 
++2026-10-16 frame-clock input availability checked: all3851 detections of saved7
++tracks inspected, no explicit frame/PTS link. MP4 metadata inspected without
++decoding; tags/rates/start_time do not supply JSON clock correspondence. No FPS
++index-to-time assumption adopted. Bounded supplied-frame manifest checker and
++empty template added, actual empty-input result UNAVAILABLE_NO_FRAME_LINKS;
++53 targeted/regression tests pass. Supplier request prepared locally, not sent.
++See FRAME_CLOCK_INPUTS_20261016.md. Need original same-exposure ID/PTS/millis
++mapping or documented timestamp mechanism, not another user clock-origin answer.
++No core/default/main/offset/prediction or scientific gate change;2D.1 FAIL,
++historical metrics unchanged. Independent real validation still open.
++
+ 2026-10-16 bounded clock/observation check completed on saved development evidence.
+ Both conditional display-rounding models (zero unmodelled latency) exclude the
+ saved delta and have empty intersection with saved frozen-H feasibility. No
+diff --git a/evidence/frame_clock_intake_20261016/SUPPLIER_REQUEST.md b/evidence/frame_clock_intake_20261016/SUPPLIER_REQUEST.md
+new file mode 100644
+index 0000000..bdefd6a
+--- /dev/null
++++ b/evidence/frame_clock_intake_20261016/SUPPLIER_REQUEST.md
+@@ -0,0 +1,25 @@
++# Запрос по времени исходной выгрузки
++
++Для записи Ленина—Свердловский 27.02.2025 требуется небольшой исходный фрагмент
++лога/экспорта с несколькими соответствиями **одного и того же exposure**:
++
++1. camera/frame ID;
++2. PTS кадра экспортированного MP4 и его time_base;
++3. `detections[].millis` этого exposure;
++4. версия/название экспортера и источник соответствия;
++5. определение millis: время exposure/детекции/получения/обработки и возможная
++   задержка/погрешность относительно exposure;
++6. формирование надписи времени камеры: округление/усечение, частота обновления,
++   связь с exposure, часовой пояс; что происходит при offline processing.
++
++Желательны несколько пар из разнесённых частей записи, не только один кадр.
++Если кадры MP4 были переупакованы/обрезаны/перекодированы, нужна связь их PTS с
++original camera frame IDs. Не нужно подбирать offset по движению автомобилей
++или сигналам и не нужны все архивы. Известно со слов пользователя, что часы —
++камеры; требуется не повторное подтверждение этого, а механизм frame timestamp.
++
++Машиночитаемый шаблон: `config/frame_clock_links_template.json`.
++Если нужный лог недоступен, достаточно явно указать неизвестные пункты;
++числа погрешности и PTS по среднему FPS выдумывать не следует.
++
++Запрос подготовлен локально; третьим лицам автоматически не отправлялся.
+diff --git a/evidence/frame_clock_intake_20261016/commands.log b/evidence/frame_clock_intake_20261016/commands.log
+new file mode 100644
+index 0000000..4870a0b
+--- /dev/null
++++ b/evidence/frame_clock_intake_20261016/commands.log
+@@ -0,0 +1,30 @@
++Base: 145b7a04e86d1430dfdf94c04cd4fc9dab0e4962
++Branch: calibration/frame-clock-intake-20261016
++Working directory: D:\Code\PythonProjects\traffic_phase\audit_checkout
++
++git switch -c calibration/frame-clock-intake-20261016
++Read canonical AGENTS/ROADMAP/PROJECT_STATUS and existing saved metadata/sample.
++rg searches in canonical app/scripts found no original camera timestamp producer.
++Read Info.docx word/document.xml text paragraphs for timestamp/coordinate/frame
++terms only; no new textual frame/PTS definition. No render/OCR of embedded images.
++
++ffprobe -v error -probesize 1048576 -analyzeduration 0 -show_entries format=format_name,start_time,duration:format_tags:stream=index,codec_type,time_base,start_time,duration,nb_frames,r_frame_rate,avg_frame_rate:stream_tags -of json "C:\Users\sheld\Downloads\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4"
++Invoked through Python subprocess.run(capture_output=True,text=True,timeout=15).
++Exit0, stderr empty; stdout saved as container_metadata.json; no decoding,
++show_frames or show_packets. Probesize limits probing, not total demuxer I/O.
++ffprobe -version (first line in ffprobe_version.txt)
++
++$env:TEMP='D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\tmp'
++$env:TMP=$env:TEMP
++C:\Python314\python.exe -m pytest tests/test_frame_clock_links.py tests/test_clock_observation_check.py tests/test_h1_confirmation.py tests/test_calibration_bundle.py -q -p no:cacheprovider
++52 passed initially. Added signed-PTS/equal-ms contract case and support.
++Same command: 53 passed in0.22s (tests.log). No scientific experiment/tuning.
++C:\Python314\python.exe -m scripts.check_frame_clock_links --input config/frame_clock_links_template.json --out evidence/frame_clock_intake_20261016/template_check.json
++UNAVAILABLE_NO_FRAME_LINKS,0 rows; no transform promotion.
++C:\Python314\python.exe evidence/frame_clock_intake_20261016/inspect_saved_inputs.py
++7 tracks,3851 detections,1322708B; source seal verified; frame link UNAVAILABLE.
++
++git diff --check
++PASS. Final invariants/source-output hashes stored in manifest/invariant_checks.
++No phase labels, fitting, new decoder, K search, real replay, offset change or
++production default change. Supplier request prepared locally; not sent.
+diff --git a/evidence/frame_clock_intake_20261016/container_metadata.json b/evidence/frame_clock_intake_20261016/container_metadata.json
+new file mode 100644
+index 0000000..ac6cb79
+--- /dev/null
++++ b/evidence/frame_clock_intake_20261016/container_metadata.json
+@@ -0,0 +1,35 @@
++{
++    "programs": [
++
++    ],
++    "stream_groups": [
++
++    ],
++    "streams": [
++        {
++            "index": 0,
++            "codec_type": "video",
++            "r_frame_rate": "30/1",
++            "avg_frame_rate": "541950/21649",
++            "time_base": "1/90000",
++            "start_time": "0.000000",
++            "duration": "7216.333333",
++            "nb_frames": "180650",
++            "tags": {
++                "language": "und",
++                "handler_name": "VideoHandler"
++            }
++        }
++    ],
++    "format": {
++        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
++        "start_time": "0.000000",
++        "duration": "7216.333333",
++        "tags": {
++            "major_brand": "isom",
++            "minor_version": "512",
++            "compatible_brands": "isomiso2avc1mp41",
++            "encoder": "Lavf58.76.100"
++        }
++    }
++}
+diff --git a/evidence/frame_clock_intake_20261016/ffprobe_version.txt b/evidence/frame_clock_intake_20261016/ffprobe_version.txt
+new file mode 100644
+index 0000000..2b33257
+--- /dev/null
++++ b/evidence/frame_clock_intake_20261016/ffprobe_version.txt
+@@ -0,0 +1 @@
++ffprobe version 8.1.1-full_build-www.gyan.dev Copyright (c) 2007-2026 the FFmpeg developers
+\ No newline at end of file
+diff --git a/evidence/frame_clock_intake_20261016/inspect_saved_inputs.py b/evidence/frame_clock_intake_20261016/inspect_saved_inputs.py
+new file mode 100644
+index 0000000..3049d3e
+--- /dev/null
++++ b/evidence/frame_clock_intake_20261016/inspect_saved_inputs.py
+@@ -0,0 +1,51 @@
++"""Reproduce only the saved sample/container inventory, not ffprobe or inference."""
++import hashlib
++import json
++from collections import Counter
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[2]
++OUT = Path(__file__).resolve().parent
++sample = ROOT/'evidence/seven_restart_review_20261015/selected_raw_tracks.json'
++if sample.stat().st_size > 4*1024*1024:
++    raise ValueError('INPUT_BYTE_LIMIT')
++raw = sample.read_bytes()
++expected = json.loads((ROOT/'evidence/h1_confirmation_20261016/confirmation.json').read_text(encoding='utf-8'))['source_catalog']['raw_anchors']['sha256_lf']
++digest = hashlib.sha256(raw.replace(b'\r\n', b'\n')).hexdigest()
++assert digest == expected, 'SOURCE_SAMPLE_SEAL_MISMATCH'
++records = json.loads(raw)
++track_fields, detection_fields = Counter(), Counter()
++rows = []
++for record in records:
++    track_fields.update(record.keys())
++    fields = Counter()
++    for detection in record['detections']:
++        fields.update(detection.keys())
++    detection_fields.update(fields)
++    rows.append(dict(track_id=record['id'], detections=len(record['detections']),
++                     detection_fields=dict(sorted(fields.items()))))
++aliases = ['frame', 'frame_id', 'frameId', 'frame_index', 'frame_number', 'frameNumber',
++           'pts', 'dts', 'video_pts_ticks', 'time_base', 'frame_timestamp', 'capture_timestamp']
++metadata_path = OUT/'container_metadata.json'
++metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
++result = dict(schema='frame-clock-source-inventory-v1',
++              scope='all detections of the saved seven-track cohort only; not all archives',
++              sample_path=sample.relative_to(ROOT).as_posix(), sample_bytes=len(raw),
++              sample_sha256_lf=digest, track_count=len(records),
++              detection_count=sum(len(r['detections']) for r in records),
++              track_fields=dict(sorted(track_fields.items())),
++              detection_fields=dict(sorted(detection_fields.items())), tracks=rows,
++              explicit_frame_link_alias_counts={k: dict(track=track_fields[k], detection=detection_fields[k]) for k in aliases},
++              container_metadata_path=metadata_path.relative_to(ROOT).as_posix(),
++              container_metadata_sha256_lf=hashlib.sha256(metadata_path.read_bytes().replace(b'\r\n', b'\n')).hexdigest(),
++              metadata=metadata,
++              absolute_detection_to_frame_link='UNAVAILABLE',
++              clock_tag_interpretation='container start_time/rates/encoder tags do not identify detections[].millis',
++              media_decoding_calls=0, inference_calls=0, clock_fit_calls=0,
++              physical_section_state='UNKNOWN')
++target = OUT/'source_inventory.json'
++if target.exists():
++    raise ValueError('FRESH_OUTPUT_REQUIRED')
++target.write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
++print(json.dumps(dict(tracks=result['track_count'], detections=result['detection_count'],
++                     frame_link=result['absolute_detection_to_frame_link'], sample_bytes=len(raw))))
+diff --git a/evidence/frame_clock_intake_20261016/invariant_checks.log b/evidence/frame_clock_intake_20261016/invariant_checks.log
+new file mode 100644
+index 0000000..c555075
+--- /dev/null
++++ b/evidence/frame_clock_intake_20261016/invariant_checks.log
+@@ -0,0 +1,5 @@
++PASS: all3851 detections accounted; no listed frame/PTS alias in saved7-track cohort
++PASS: source sample seal and blank-template input SHA match
++PASS: no fabricated transform/uncertainty/physical state
++PASS: core/API/evaluator/benchmarks/prior evidence unchanged
++PASS: main a005a2521f62ce3b2c9f9d52f9f0d73913754e01 unchanged
+diff --git a/evidence/frame_clock_intake_20261016/manifest.json b/evidence/frame_clock_intake_20261016/manifest.json
+new file mode 100644
+index 0000000..8f89d62
+--- /dev/null
++++ b/evidence/frame_clock_intake_20261016/manifest.json
+@@ -0,0 +1,33 @@
++{
++  "base_sha": "145b7a04e86d1430dfdf94c04cd4fc9dab0e4962",
++  "scope": "frame-clock input availability and declaration validator only",
++  "normalized_hashes": "CRLF to LF",
++  "source_sample": {
++    "path": "evidence/seven_restart_review_20261015/selected_raw_tracks.json",
++    "sha256_lf": "05210a00341f8a910c3d019fda9919262240a574c3d962f1110bc4e1c359b4c9"
++  },
++  "code_sha256_lf": {
++    "app/experimental/frame_clock_links.py": "0002983bf609bdbf68c8399c914acd462719b2dcf8ef6ffe19f31d4ce9fd2774",
++    "scripts/check_frame_clock_links.py": "c6dfd2824bb693c30f099b7e037e7f8bc2e418b6ef728771b0bb74ce56d8c5c1",
++    "tests/test_frame_clock_links.py": "26200615226d2172ba410f38bca53796bce66ecc5f1cd62667aa1ecb239daf0e",
++    "config/frame_clock_links_template.json": "ca25f3ecaeef43cc159fad92a28bcb4a1799030d9565782593e8c4f742df6f89"
++  },
++  "files": {
++    "commands.log": "01ad72bb79c176175760c5e3ea6da3edf6674399af4c116a4f1de6c84533a836",
++    "container_metadata.json": "cef84ea45574b080473689c65d1b8532ec674dfdfe19aeaebe0b1cf3e9d35d28",
++    "ffprobe_version.txt": "67ae298e355a4130cfbf3e018459a380de4ce5adf28b43969a323bfe407b8d73",
++    "inspect_saved_inputs.py": "191e1db941d220729416b8090b4552b5c9ce614affdcf68284710dfbd23e70c9",
++    "invariant_checks.log": "7ed4f4b6ef06f1ca9bc74a5eaa6844d3f2ec5c786e92e429569f17248e7a034a",
++    "source_inventory.json": "4bb36d245d5762badbcef6f146fca3a9334486fec9de90490c209fc7cf281022",
++    "SUPPLIER_REQUEST.md": "0f56117ffa28c2458dc736b5106ab3ff48c062b562fe389ac09c6dfad3425eab",
++    "template_check.json": "49d50cf4f2e819f7b4a93dbc12d181dc11a79e9096046c12d5adaf85f5b9fa08",
++    "tests.log": "b9418a3d11a622318f5c1b401ca3a74d26025134d6cc6b5499fc3c2a5b54edeb"
++  },
++  "fit_calls": 0,
++  "decoder_calls": 0,
++  "event_extractions": 0,
++  "real_replay_calls": 0,
++  "media_inspection": "one ffprobe metadata invocation; no decoding; actual media I/O bytes not measured",
++  "actual_point_accuracy": "NOT_MEASURED",
++  "production_usable": false
++}
+diff --git a/evidence/frame_clock_intake_20261016/source_inventory.json b/evidence/frame_clock_intake_20261016/source_inventory.json
+new file mode 100644
+index 0000000..6ec2f1e
+--- /dev/null
++++ b/evidence/frame_clock_intake_20261016/source_inventory.json
+@@ -0,0 +1,263 @@
++{
++  "schema": "frame-clock-source-inventory-v1",
++  "scope": "all detections of the saved seven-track cohort only; not all archives",
++  "sample_path": "evidence/seven_restart_review_20261015/selected_raw_tracks.json",
++  "sample_bytes": 1322708,
++  "sample_sha256_lf": "05210a00341f8a910c3d019fda9919262240a574c3d962f1110bc4e1c359b4c9",
++  "track_count": 7,
++  "detection_count": 3851,
++  "track_fields": {
++    "category_name": 7,
++    "detections": 7,
++    "distance": 7,
++    "id": 7,
++    "line_in": 7,
++    "line_out": 7,
++    "max_speed": 7,
++    "millis": 7,
++    "move_duration_millis": 7,
++    "speed": 7,
++    "stay_duration_millis": 7,
++    "zone_in": 7,
++    "zone_out": 7
++  },
++  "detection_fields": {
++    "category": 3851,
++    "centroid_x": 3851,
++    "centroid_y": 3851,
++    "lat": 3851,
++    "lng": 3851,
++    "millis": 3851,
++    "score": 3851,
++    "speed": 3851,
++    "x1": 3851,
++    "x2": 3851,
++    "y1": 3851,
++    "y2": 3851,
++    "zone": 3851
++  },
++  "tracks": [
++    {
++      "track_id": 9915830,
++      "detections": 531,
++      "detection_fields": {
++        "category": 531,
++        "centroid_x": 531,
++        "centroid_y": 531,
++        "lat": 531,
++        "lng": 531,
++        "millis": 531,
++        "score": 531,
++        "speed": 531,
++        "x1": 531,
++        "x2": 531,
++        "y1": 531,
++        "y2": 531,
++        "zone": 531
++      }
++    },
++    {
++      "track_id": 9915764,
++      "detections": 664,
++      "detection_fields": {
++        "category": 664,
++        "centroid_x": 664,
++        "centroid_y": 664,
++        "lat": 664,
++        "lng": 664,
++        "millis": 664,
++        "score": 664,
++        "speed": 664,
++        "x1": 664,
++        "x2": 664,
++        "y1": 664,
++        "y2": 664,
++        "zone": 664
++      }
++    },
++    {
++      "track_id": 9915815,
++      "detections": 504,
++      "detection_fields": {
++        "category": 504,
++        "centroid_x": 504,
++        "centroid_y": 504,
++        "lat": 504,
++        "lng": 504,
++        "millis": 504,
++        "score": 504,
++        "speed": 504,
++        "x1": 504,
++        "x2": 504,
++        "y1": 504,
++        "y2": 504,
++        "zone": 504
++      }
++    },
++    {
++      "track_id": 9915800,
++      "detections": 522,
++      "detection_fields": {
++        "category": 522,
++        "centroid_x": 522,
++        "centroid_y": 522,
++        "lat": 522,
++        "lng": 522,
++        "millis": 522,
++        "score": 522,
++        "speed": 522,
++        "x1": 522,
++        "x2": 522,
++        "y1": 522,
++        "y2": 522,
++        "zone": 522
++      }
++    },
++    {
++      "track_id": 9915797,
++      "detections": 567,
++      "detection_fields": {
++        "category": 567,
++        "centroid_x": 567,
++        "centroid_y": 567,
++        "lat": 567,
++        "lng": 567,
++        "millis": 567,
++        "score": 567,
++        "speed": 567,
++        "x1": 567,
++        "x2": 567,
++        "y1": 567,
++        "y2": 567,
++        "zone": 567
++      }
++    },
++    {
++      "track_id": 9915811,
++      "detections": 544,
++      "detection_fields": {
++        "category": 544,
++        "centroid_x": 544,
++        "centroid_y": 544,
++        "lat": 544,
++        "lng": 544,
++        "millis": 544,
++        "score": 544,
++        "speed": 544,
++        "x1": 544,
++        "x2": 544,
++        "y1": 544,
++        "y2": 544,
++        "zone": 544
++      }
++    },
++    {
++      "track_id": 9915806,
++      "detections": 519,
++      "detection_fields": {
++        "category": 519,
++        "centroid_x": 519,
++        "centroid_y": 519,
++        "lat": 519,
++        "lng": 519,
++        "millis": 519,
++        "score": 519,
++        "speed": 519,
++        "x1": 519,
++        "x2": 519,
++        "y1": 519,
++        "y2": 519,
++        "zone": 519
++      }
++    }
++  ],
++  "explicit_frame_link_alias_counts": {
++    "frame": {
++      "track": 0,
++      "detection": 0
++    },
++    "frame_id": {
++      "track": 0,
++      "detection": 0
++    },
++    "frameId": {
++      "track": 0,
++      "detection": 0
++    },
++    "frame_index": {
++      "track": 0,
++      "detection": 0
++    },
++    "frame_number": {
++      "track": 0,
++      "detection": 0
++    },
++    "frameNumber": {
++      "track": 0,
++      "detection": 0
++    },
++    "pts": {
++      "track": 0,
++      "detection": 0
++    },
++    "dts": {
++      "track": 0,
++      "detection": 0
++    },
++    "video_pts_ticks": {
++      "track": 0,
++      "detection": 0
++    },
++    "time_base": {
++      "track": 0,
++      "detection": 0
++    },
++    "frame_timestamp": {
++      "track": 0,
++      "detection": 0
++    },
++    "capture_timestamp": {
++      "track": 0,
++      "detection": 0
++    }
++  },
++  "container_metadata_path": "evidence/frame_clock_intake_20261016/container_metadata.json",
++  "container_metadata_sha256_lf": "cef84ea45574b080473689c65d1b8532ec674dfdfe19aeaebe0b1cf3e9d35d28",
++  "metadata": {
++    "programs": [],
++    "stream_groups": [],
++    "streams": [
++      {
++        "index": 0,
++        "codec_type": "video",
++        "r_frame_rate": "30/1",
++        "avg_frame_rate": "541950/21649",
++        "time_base": "1/90000",
++        "start_time": "0.000000",
++        "duration": "7216.333333",
++        "nb_frames": "180650",
++        "tags": {
++          "language": "und",
++          "handler_name": "VideoHandler"
++        }
++      }
++    ],
++    "format": {
++      "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
++      "start_time": "0.000000",
++      "duration": "7216.333333",
++      "tags": {
++        "major_brand": "isom",
++        "minor_version": "512",
++        "compatible_brands": "isomiso2avc1mp41",
++        "encoder": "Lavf58.76.100"
++      }
++    }
++  },
++  "absolute_detection_to_frame_link": "UNAVAILABLE",
++  "clock_tag_interpretation": "container start_time/rates/encoder tags do not identify detections[].millis",
++  "media_decoding_calls": 0,
++  "inference_calls": 0,
++  "clock_fit_calls": 0,
++  "physical_section_state": "UNKNOWN"
++}
+diff --git a/evidence/frame_clock_intake_20261016/template_check.json b/evidence/frame_clock_intake_20261016/template_check.json
+new file mode 100644
+index 0000000..248de54
+--- /dev/null
++++ b/evidence/frame_clock_intake_20261016/template_check.json
+@@ -0,0 +1,27 @@
++{
++  "schema": "frame-clock-link-check-v1",
++  "status": "UNAVAILABLE_NO_FRAME_LINKS",
++  "row_count": 0,
++  "missing_metadata": [
++    "video_source_id",
++    "trajectory_source_id",
++    "source_reference"
++  ],
++  "rows": [],
++  "conditional_constant_epoch_offset_ms_rational": null,
++  "assumptions": [
++    "same captured exposure matched by producer frame identity",
++    "PTS time base explicitly supplied; no average-FPS conversion",
++    "constant unit-scale clock relation",
++    "supplied timestamp bounds include relevant timestamping/exposure error"
++  ],
++  "scientific_validation": "NOT_PERFORMED",
++  "production_usable": false,
++  "accepted_json_video_clock_transform": null,
++  "calibrated_sync_uncertainty_ms": null,
++  "physical_section_state": "UNKNOWN",
++  "calibrated_lamp_probability": null,
++  "inference_calls": 0,
++  "input_sha256": "ca25f3ecaeef43cc159fad92a28bcb4a1799030d9565782593e8c4f742df6f89",
++  "input_bytes": 275
++}
+diff --git a/evidence/frame_clock_intake_20261016/tests.log b/evidence/frame_clock_intake_20261016/tests.log
+new file mode 100644
+index 0000000..60cf88a
+--- /dev/null
++++ b/evidence/frame_clock_intake_20261016/tests.log
+@@ -0,0 +1,2 @@
++.....................................................                    [100%]
++53 passed in 0.22s
+diff --git a/scripts/check_frame_clock_links.py b/scripts/check_frame_clock_links.py
+new file mode 100644
+index 0000000..94be3b0
+--- /dev/null
++++ b/scripts/check_frame_clock_links.py
+@@ -0,0 +1,28 @@
++"""Check a small supplied frame-clock manifest; no media/trajectory read or fit."""
++import argparse
++import hashlib
++import json
++from pathlib import Path
++
++from app.experimental.frame_clock_links import inspect_frame_clock_links
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--input', type=Path, required=True)
++    parser.add_argument('--out', type=Path, required=True)
++    args = parser.parse_args()
++    if args.out.exists():
++        raise ValueError('FRESH_OUTPUT_REQUIRED')
++    if args.input.stat().st_size > 512*1024:
++        raise ValueError('FRAME_MANIFEST_BYTE_LIMIT')
++    raw = args.input.read_bytes()
++    result = inspect_frame_clock_links(json.loads(raw))
++    result['input_sha256'] = hashlib.sha256(raw).hexdigest()
++    result['input_bytes'] = len(raw)
++    args.out.write_text(json.dumps(result, indent=2, allow_nan=False)+'\n', encoding='utf-8')
++    print(json.dumps(dict(status=result['status'], rows=result['row_count'], out=str(args.out))))
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/tests/test_frame_clock_links.py b/tests/test_frame_clock_links.py
+new file mode 100644
+index 0000000..123198c
+--- /dev/null
++++ b/tests/test_frame_clock_links.py
+@@ -0,0 +1,98 @@
++import copy
++
++import pytest
++
++from app.experimental.frame_clock_links import inspect_frame_clock_links
++
++
++def manifest():
++    return dict(schema='frame-clock-links-v1', capture_id='synthetic-contract-test',
++                video_source_id='v', trajectory_source_id='j', source_reference='test fixture',
++                timestamp_field='detections[].millis', association_basis='producer_frame_identity',
++                rows=[dict(frame_id='f1', video_pts_ticks=3003, video_time_base=[1, 90000],
++                           detection_timestamp_ms=1033, timestamp_uncertainty_ms=1,
++                           frame_identity_reference='export row1', uncertainty_source='supplied test bound'),
++                      dict(frame_id='f2', video_pts_ticks=9000, video_time_base=[1, 90000],
++                           detection_timestamp_ms=1100, timestamp_uncertainty_ms=1,
++                           frame_identity_reference='export row2', uncertainty_source='supplied test bound')])
++
++
++def test_actual_pts_not_fps_and_exact_rational_intersection_without_certification():
++    out = inspect_frame_clock_links(manifest())
++    assert out['rows'][0]['video_pts_ms_rational'] == '1001/30'
++    assert out['conditional_constant_epoch_offset_ms_rational'] == ['999', '30019/30']
++    assert out['status'] == 'DECLARATIONS_READY_FOR_INDEPENDENT_REVIEW'
++    assert out['accepted_json_video_clock_transform'] is out['calibrated_sync_uncertainty_ms'] is None
++    assert not out['production_usable'] and out['physical_section_state'] == 'UNKNOWN'
++
++
++def test_blank_template_is_unavailable_no_fabricated_zero_offset():
++    d = manifest(); d['rows'] = []
++    out = inspect_frame_clock_links(d)
++    assert out['status'] == 'UNAVAILABLE_NO_FRAME_LINKS'
++    assert out['conditional_constant_epoch_offset_ms_rational'] is None
++
++
++def test_signed_presentation_timestamp_and_equal_millisecond_values_are_valid():
++    d = manifest()
++    d['rows'][0]['video_pts_ticks'] = -90
++    d['rows'][1]['video_pts_ticks'] = 0
++    d['rows'][0]['detection_timestamp_ms'] = 1000
++    d['rows'][1]['detection_timestamp_ms'] = 1000
++    out = inspect_frame_clock_links(d)
++    assert out['rows'][0]['video_pts_ms_rational'] == '-1'
++    assert out['status'] == 'DECLARATIONS_READY_FOR_INDEPENDENT_REVIEW'
++
++
++def test_unknown_uncertainty_not_silently_treated_as_zero_or_dropped():
++    d = manifest(); d['rows'][0]['timestamp_uncertainty_ms'] = None
++    out = inspect_frame_clock_links(d)
++    assert out['row_count'] == 2
++    assert out['status'] == 'UNAVAILABLE_TIMESTAMP_UNCERTAINTY'
++    assert out['conditional_constant_epoch_offset_ms_rational'] is None
++
++
++def test_unsourced_uncertainty_and_provenance_cannot_enable_timing_model():
++    d = manifest(); d['rows'][0]['uncertainty_source'] = ''
++    assert inspect_frame_clock_links(d)['status'] == 'UNAVAILABLE_TIMESTAMP_UNCERTAINTY'
++    d = manifest(); d['source_reference'] = None
++    assert inspect_frame_clock_links(d)['status'] == 'UNAVAILABLE_SOURCE_PROVENANCE'
++
++
++@pytest.mark.parametrize('basis', ['phase_labels', 'vehicle_motion', 'overlay_readout_only'])
++def test_reject_alignment_from_phase_errors_motion_or_overlay_without_frame_identity(basis):
++    d = manifest(); d['association_basis'] = basis
++    with pytest.raises(ValueError, match='FRAME_IDENTITY_REQUIRED'):
++        inspect_frame_clock_links(d)
++
++
++@pytest.mark.parametrize('value', [True, float('nan'), -.1])
++def test_bad_uncertainty_refused(value):
++    d = manifest(); d['rows'][0]['timestamp_uncertainty_ms'] = value
++    with pytest.raises(ValueError, match='INVALID_TIMESTAMP_UNCERTAINTY'):
++        inspect_frame_clock_links(d)
++
++
++def test_duplicate_and_unsorted_frame_links_refused():
++    d = manifest(); d['rows'][1]['frame_id'] = 'f1'
++    with pytest.raises(ValueError, match='DUPLICATE_FRAME_ID'):
++        inspect_frame_clock_links(d)
++    d = manifest(); d['rows'].reverse()
++    with pytest.raises(ValueError, match='FRAME_SEQUENCE'):
++        inspect_frame_clock_links(d)
++
++
++def test_conflicting_pairs_report_inconsistency_without_fitting_drift():
++    d = manifest(); d['rows'][1]['detection_timestamp_ms'] += 100
++    out = inspect_frame_clock_links(d)
++    assert out['status'] == 'INCONSISTENT_DECLARED_CONSTANT_CLOCK'
++    assert out['conditional_constant_epoch_offset_ms_rational'] is None
++
++
++def test_input_unchanged_and_resource_limit():
++    d = manifest(); before = copy.deepcopy(d)
++    inspect_frame_clock_links(d)
++    assert d == before
++    d['rows'] *= 501
++    with pytest.raises(ValueError, match='RESOURCE_LIMIT'):
++        inspect_frame_clock_links(d)

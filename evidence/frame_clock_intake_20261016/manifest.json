@@ -1,0 +1,33 @@
+{
+  "base_sha": "145b7a04e86d1430dfdf94c04cd4fc9dab0e4962",
+  "scope": "frame-clock input availability and declaration validator only",
+  "normalized_hashes": "CRLF to LF",
+  "source_sample": {
+    "path": "evidence/seven_restart_review_20261015/selected_raw_tracks.json",
+    "sha256_lf": "05210a00341f8a910c3d019fda9919262240a574c3d962f1110bc4e1c359b4c9"
+  },
+  "code_sha256_lf": {
+    "app/experimental/frame_clock_links.py": "0002983bf609bdbf68c8399c914acd462719b2dcf8ef6ffe19f31d4ce9fd2774",
+    "scripts/check_frame_clock_links.py": "c6dfd2824bb693c30f099b7e037e7f8bc2e418b6ef728771b0bb74ce56d8c5c1",
+    "tests/test_frame_clock_links.py": "26200615226d2172ba410f38bca53796bce66ecc5f1cd62667aa1ecb239daf0e",
+    "config/frame_clock_links_template.json": "ca25f3ecaeef43cc159fad92a28bcb4a1799030d9565782593e8c4f742df6f89"
+  },
+  "files": {
+    "commands.log": "01ad72bb79c176175760c5e3ea6da3edf6674399af4c116a4f1de6c84533a836",
+    "container_metadata.json": "cef84ea45574b080473689c65d1b8532ec674dfdfe19aeaebe0b1cf3e9d35d28",
+    "ffprobe_version.txt": "67ae298e355a4130cfbf3e018459a380de4ce5adf28b43969a323bfe407b8d73",
+    "inspect_saved_inputs.py": "191e1db941d220729416b8090b4552b5c9ce614affdcf68284710dfbd23e70c9",
+    "invariant_checks.log": "7ed4f4b6ef06f1ca9bc74a5eaa6844d3f2ec5c786e92e429569f17248e7a034a",
+    "source_inventory.json": "4bb36d245d5762badbcef6f146fca3a9334486fec9de90490c209fc7cf281022",
+    "SUPPLIER_REQUEST.md": "0f56117ffa28c2458dc736b5106ab3ff48c062b562fe389ac09c6dfad3425eab",
+    "template_check.json": "49d50cf4f2e819f7b4a93dbc12d181dc11a79e9096046c12d5adaf85f5b9fa08",
+    "tests.log": "b9418a3d11a622318f5c1b401ca3a74d26025134d6cc6b5499fc3c2a5b54edeb"
+  },
+  "fit_calls": 0,
+  "decoder_calls": 0,
+  "event_extractions": 0,
+  "real_replay_calls": 0,
+  "media_inspection": "one ffprobe metadata invocation; no decoding; actual media I/O bytes not measured",
+  "actual_point_accuracy": "NOT_MEASURED",
+  "production_usable": false
+}
