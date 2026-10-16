@@ -1,5 +1,23 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 algorithmic HSMM correction delivered (not another UI step).
+Current-phase min duration no longer restricts predecessor endpoint; duration
+penalty converts bins to seconds for dt!=1.17 independent cases:12 failed before,
+17 pass after including exact exhaustive objective.199 unique targeted tests pass
+(93+102+4; the17 new decoder tests repeated in the cache suite). One unchanged
+cached control reproduces exact saved schedule/K/period. Code committed before
+single three-file development run:98446c4d94a4a38a9a291d7ff53aab6ec569b7cc.
+Events/selection reconstructed exactly from saved lossless caches; no raw large
+trajectory/ZIP read, annotations accessed only after all prediction hashes sealed.
+Candidate objectives change for some unselected K, but all selected schedules,
+periods and metrics remain exact:K3/2/3 vs truth3/2/2,raw19/34,baseline17/34.
+No real accuracy improvement claimed, no timeouts or post-result tuning.2D.1
+still FAIL/default-off; physical states UNKNOWN, main unchanged. Existing emission
+assumptions and finite-window censoring limitations remain unvalidated.
+See HSMM_RECURRENCE_RESULTS_20261016. Next concrete algorithmic candidate is
+the K3 split-seed dataflow in em_fit (added after unique list is built, not visited
+by its evaluation loop); requires independent structural test before modification.
+
 2026-10-16 bounded archive batch delivered: independent source/session jobs,
 one extraction/source, subprocess wall timeout, shared attempt/time/byte budgets,
 checkpointed partial results and self-contained HTML + downloadable ZIP.

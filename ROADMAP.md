@@ -1,5 +1,20 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: выполнено [алгоритмическое исправление HSMM](docs/HSMM_RECURRENCE_RESULTS_20261016.md),
+без UI. Исправлены ложный запрет короткого предшественника перед длинной фазой и
+bin/second mismatch штрафа при dt≠1. Независимый exhaustive oracle:12 FAIL до
+исправления, все17 cases PASS после;199 уникальных targeted checks прошли.
+Один unchanged control точно воспроизвёл saved schedule/K/period. Затем один
+cached-evidence development run3 записей без rawJSON ingestion/настройки: некоторые
+невыбранные кандидаты улучшили objective, итоговые schedules и метрики неизменны.
+Raw19/34, baseline17/34, K3/2/3 против3/2/2; это **не рост реальной точности**.
+2D.1 FAIL/default-off,main/selector/period/Kcriterion/mapping/UNKNOWN сохранены.
+Следующий алгоритмический пункт — отдельным независимым structural test проверить
+seed candidate flow в em_fit: K3 split-seeds добавляются после построения unique,
+но оценочный цикл проходит только unique. Не подбирать этот шаг по ошибкам записи6.
+Calibration/отдельная validation остаются обязательными для приёмки точности,
+но не блокируют исправления математически воспроизводимых ошибок ядра.
+
 2026-10-16: [bounded batch JSON/ZIP→сеансы→HTML/ZIP готов](docs/BOUNDED_ARCHIVE_BATCH_20261016.md).
 Автоматически обрабатываются отдельные source/session views без общего archive K;
 один extraction на источник, отдельный subprocess с hard wall timeout, общие
