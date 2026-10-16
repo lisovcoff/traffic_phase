@@ -1094,6 +1094,8 @@ def build_spatial_visualization(
     red_yellow_duration_seconds: float = DEFAULT_RED_YELLOW_DURATION_SECONDS,
     activity_threshold: float = DEFAULT_ACTIVITY_THRESHOLD,
     physical_plan_path: Path | None = None,
+    source_member: str | None = None,
+    session_id: str | None = None,
 ) -> dict[str, Any]:
     """Build the canonical spatial HTML used by both CLI and Uvicorn."""
     input_path = Path(input_path)
@@ -1110,7 +1112,17 @@ def build_spatial_visualization(
     result = discover_path(
         input_path,
         dt=float(dt),
+        **({k: v for k, v in {'source_member': source_member, 'session_id': session_id}.items() if v is not None}),
     )
+
+    scope = result.get('input_scope') or {}
+    track_scope = {}
+    if scope.get('status') == 'SELECTED_SESSION_ONLY':
+        track_scope['source_member'] = scope['source_member']
+        selected = scope['selected_session']
+        if scope.get('source_session_count', 1) > 1:
+            track_scope.update(start_timestamp_ms=selected['observation_start_ms'],
+                               end_timestamp_ms=selected['observation_end_ms'])
 
     regime = result.get("regime_detection")
     display_window_start_ms = None
@@ -1140,6 +1152,7 @@ def build_spatial_visualization(
             input_path,
             start_timestamp_ms=display_window_start_ms,
             end_timestamp_ms=display_window_end_ms,
+            **({'source_member': track_scope['source_member']} if 'source_member' in track_scope else {}),
         )
         display_base_ms = float(result["analysis_base_timestamp_ms"])
         display_duration_s = max(
@@ -1147,7 +1160,7 @@ def build_spatial_visualization(
             (display_window_end_ms - display_base_ms) / 1000.0,
         )
     else:
-        tracks = load_tracks(input_path)
+        tracks = load_tracks(input_path, **track_scope)
         display_base_ms = (
             float(result["recording_start_timestamp_ms"])
             if result.get("recording_start_timestamp_ms") is not None
@@ -1187,6 +1200,16 @@ def build_spatial_visualization(
         display_duration_s=display_duration_s,
         display_base_timestamp_ms=display_base_ms,
     )
+    if scope.get('status') == 'SELECTED_SESSION_ONLY':
+        from html import escape
+        selected = scope['selected_session']
+        banner = ("<div class='muted' id='input-scope' style='overflow-wrap:anywhere'>Источник: " + escape(scope['source_member']) +
+                  " · Сеанс " + str(selected['session_number']) + " / " +
+                  str(scope['source_session_count']) +
+                  ". Показан только выбранный сеанс; остальные источники и интервалы не анализировались.</div>")
+        if scope.get('analysis_scope') == 'REPRESENTATIVE_WINDOW_ONLY':
+            banner += "<div class='muted'>Внутри сеанса показан представительный отрезок. Остальная история не восстановлена.</div>"
+        html = html.replace('<body>', '<body>'+banner, 1)
     return {
         "html": html,
         "result": result,
@@ -1201,6 +1224,8 @@ def main()->int:
     parser.add_argument("input",type=Path)
     parser.add_argument("--output",type=Path,default=Path("v9_spatial.html"))
     parser.add_argument("--dt",type=float,default=1.0)
+    parser.add_argument('--source-member', default=None)
+    parser.add_argument('--session-id', default=None)
     parser.add_argument("--yellow",type=float,default=DEFAULT_YELLOW_DURATION_SECONDS)
     parser.add_argument("--red-yellow",type=float,default=DEFAULT_RED_YELLOW_DURATION_SECONDS)
     parser.add_argument("--activity-threshold",type=float,default=DEFAULT_ACTIVITY_THRESHOLD)
@@ -1216,14 +1241,16 @@ def main()->int:
     if args.yellow<0 or args.red_yellow<0:raise SystemExit("transition durations must be non-negative")
     if not 0<=args.activity_threshold<=1:raise SystemExit("--activity-threshold must be in [0,1]")
 
-    built=build_spatial_visualization(
-        args.input,
-        dt=args.dt,
-        yellow_duration_seconds=args.yellow,
-        red_yellow_duration_seconds=args.red_yellow,
-        activity_threshold=args.activity_threshold,
-        physical_plan_path=args.physical_plan,
-    )
+    from app.core.v9.source_scope import ScopeChoiceRequired
+    try:
+        built=build_spatial_visualization(
+            args.input, dt=args.dt, yellow_duration_seconds=args.yellow,
+            red_yellow_duration_seconds=args.red_yellow,
+            activity_threshold=args.activity_threshold, physical_plan_path=args.physical_plan,
+            source_member=args.source_member, session_id=args.session_id)
+    except ScopeChoiceRequired as exc:
+        print(json.dumps(exc.to_dict(),ensure_ascii=False,indent=2))
+        return 2
     html=built["html"]
     result=built["result"]
     projection=built["projection"]

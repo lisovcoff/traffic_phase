@@ -14,6 +14,7 @@ input[type=range]{width:100%;margin:16px 0}input[type=number]{width:130px;paddin
 table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:8px;border-bottom:1px solid #344155}
 </style></head><body>
 <h1>traffic_phase — логические фазы</h1>
+<p id="inputScope" class="muted" hidden></p>
 <p class="muted">Оценка по автомобильным событиям. Физические лампы и типы секций не подтверждены.</p>
 <section class="stats"><div>Число фаз<strong id="phaseCount"></strong></div><div>Период модели<strong id="period"></strong></div><div>Наблюдаемые зоны входа<strong id="originCount"></strong></div></section>
 <section><div class="controls"><button id="play">Воспроизвести</button><button id="pause">Пауза</button>
@@ -72,6 +73,13 @@ $('slider').max=String(Math.max(PRODUCT.history.extent_s?.[1]??0,PRODUCT.interva
 $('timebase').textContent='Секунды от schedule anchor: '+String(PRODUCT.query_timebase.anchor_ms??'UNKNOWN')+' ms. Не время MP4.';
 $('coverage').textContent='История модели: '+PRODUCT.history.covered_seconds+' с; внутренние пробелы: '+PRODUCT.history.internal_gaps_s.length+'. Покрытие камеры и локальная наблюдаемость: UNKNOWN.';
 $('validation').textContent=PRODUCT.validation_status;
+if(PRODUCT.input_scope?.status==='SELECTED_SESSION_ONLY'){
+  $('inputScope').hidden=false;
+  $('inputScope').textContent='Источник: '+PRODUCT.input_scope.source_member+' · сеанс '+
+    PRODUCT.input_scope.selected_session.session_number+'/'+PRODUCT.input_scope.source_session_count+
+    '. Остальные источники и сеансы не анализировались.'+
+    (PRODUCT.input_scope.analysis_scope==='REPRESENTATIVE_WINDOW_ONLY'?' Показан представительный отрезок сеанса; остальная история не восстановлена.':'');
+}
 $('unassigned').append(text('h2','Движения без определённой зоны входа'),text('p',PRODUCT.unassigned_movements.map(m=>m.movement).join(', ')||'Нет'));
 const end=Number($('slider').max);
 for(const row of PRODUCT.intervals){if(end<=0)break;const el=text('span','','segment');if(row.logical_phase.estimated_state==='UNKNOWN')el.style.background='#424a57';el.style.left=(100*row.start/end)+'%';el.style.width=(100*(row.end-row.start)/end)+'%';el.title=row.logical_phase.estimated_state+' '+row.start+'–'+row.end+' с';$('timeline').append(el);}

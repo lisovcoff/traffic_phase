@@ -10,6 +10,7 @@ from app.core.v9.signal_renderer import (
     DEFAULT_YELLOW_DURATION_SECONDS,
 )
 from app.core.v9.v9_discovery import discover_path
+from app.core.v9.source_scope import ScopeChoiceRequired
 
 
 from app.core.offline_product_report import render_product_html
@@ -37,6 +38,8 @@ def main() -> int:
         default=Path("v9_offline_report.html"),
     )
     parser.add_argument("--dt", type=float, default=1.0)
+    parser.add_argument('--source-member')
+    parser.add_argument('--session-id')
     parser.add_argument(
         "--yellow",
         type=float,
@@ -71,7 +74,13 @@ def main() -> int:
             raise SystemExit("prediction exceeds 32 MiB limit")
         result = json.loads(args.input.read_bytes())
     else:
-        result = discover_path(args.input, dt=args.dt)
+        try:
+            result = discover_path(args.input, dt=args.dt,
+                                   **{k: v for k, v in {'source_member': args.source_member,
+                                      'session_id': args.session_id}.items() if v is not None})
+        except ScopeChoiceRequired as exc:
+            print(json.dumps(exc.to_dict(), ensure_ascii=False, indent=2))
+            return 2
     page = render_html(
         result,
         history_source=args.history,

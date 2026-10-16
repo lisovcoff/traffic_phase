@@ -137,6 +137,7 @@ def test_http_empty_array_is_unknown_evidence_not_broken_json(endpoint, monkeypa
     with TestClient(app) as client:
         response = client.post(endpoint, files={'file': ('empty.json', b'[]')}, data={'dt': '1'})
     assert response.status_code == 422
-    assert 'evidence is UNKNOWN' in response.json()['detail']
-    assert 'unterminated' not in response.json()['detail']
-    assert 'phase_count' not in response.json()
+    detail = response.json()['detail']
+    assert detail['state'] == 'UNKNOWN' and detail['phase_count'] is None
+    assert detail['reason_code'] == 'NO_USABLE_DEMAND_EVIDENCE'
+    assert 'unterminated' not in detail['reason']

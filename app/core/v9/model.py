@@ -952,17 +952,24 @@ def discover_records(
     evidence_policy: str = "permission_per_stream",
     phase_search_config: PhaseSearchConfig | None = None,
     experimental_local_history: bool = False,
+    session_id: str | None = None,
 ) -> dict[str, object]:
     if not isinstance(experimental_local_history,bool):
         raise ValueError("experimental_local_history requires an explicit boolean")
     if not tracks:
         raise EvidenceUnavailable("no trajectory records supplied", reason_code="NO_TRAJECTORY_RECORDS")
     if evidence_policy == "permission_per_stream":
+        from .source_scope import choose_session, attach_input_scope
         bundle = extract_timing_streams(tracks)
-        return _discover_bundle(bundle, input_name=input_name, dt=dt, marks_path=marks_path,
-                                evidence_policy=evidence_policy, phase_search_config=phase_search_config, experimental_local_history=experimental_local_history)
+        scoped, selected, sessions = choose_session(bundle, 'records', session_id)
+        result = _discover_bundle(scoped, input_name=input_name, dt=dt, marks_path=marks_path,
+                                  evidence_policy=evidence_policy, phase_search_config=phase_search_config,
+                                  experimental_local_history=experimental_local_history)
+        return attach_input_scope(result, 'records', selected, sessions)
     if evidence_policy != "legacy_v9":
         raise ValueError("unknown evidence policy")
+    if session_id is not None:
+        raise ValueError('legacy_v9 is an unpartitioned comparison path')
     recording_start_ms = float(_recording_start_ms(tracks))
     events, entry_events, release_evidence, method_counts = extract_event_views(tracks)
     return _discover_from_event_views(
@@ -988,6 +995,8 @@ def discover_path(
     evidence_policy: str = "permission_per_stream",
     phase_search_config: PhaseSearchConfig | None = None,
     experimental_local_history: bool = False,
+    source_member: str | None = None,
+    session_id: str | None = None,
 ) -> dict[str, object]:
     if not isinstance(experimental_local_history,bool):
         raise ValueError("experimental_local_history requires an explicit boolean")
@@ -997,10 +1006,25 @@ def discover_path(
     if path.is_dir() and not path.exists():
         raise FileNotFoundError(path)
 
-    bundle = load_event_streams(path, evidence_policy=evidence_policy)
-    return _discover_bundle(bundle, input_name=str(path), dt=dt, marks_path=marks_path,
+    from .source_scope import choose_source, choose_session, attach_input_scope
+    if evidence_policy == 'legacy_v9':
+        if source_member is not None or session_id is not None:
+            raise ValueError('legacy_v9 is an unpartitioned comparison path; explicit scope requires permission_per_stream')
+        bundle = load_event_streams(path, evidence_policy=evidence_policy)
+        result = _discover_bundle(bundle, input_name=str(path), dt=dt, marks_path=marks_path,
+                                  evidence_policy=evidence_policy, phase_search_config=phase_search_config,
+                                  experimental_local_history=experimental_local_history,
+                                  source_files=[str(path)] if path.is_file() else bundle[5])
+        result['input_scope'] = {'status': 'LEGACY_COMPARISON_UNPARTITIONED', 'production_session_isolation': False}
+        return result
+    chosen_source, sources = choose_source(path, source_member)
+    scope_kwargs = {'source_member': chosen_source} if source_member is not None or len(sources) > 1 else {}
+    bundle = load_event_streams(path, evidence_policy=evidence_policy, **scope_kwargs)
+    scoped, selected_session, sessions = choose_session(bundle, chosen_source, session_id)
+    result = _discover_bundle(scoped, input_name=str(path), dt=dt, marks_path=marks_path,
                             evidence_policy=evidence_policy, phase_search_config=phase_search_config,
                             experimental_local_history=experimental_local_history, source_files=[str(path)] if path.is_file() else bundle[5])
+    return attach_input_scope(result, chosen_source, selected_session, sessions, source_count=len(sources))
 
 
 def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None, phase_search_config=None, experimental_local_history=False):

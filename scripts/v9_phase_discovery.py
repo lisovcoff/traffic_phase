@@ -15,6 +15,7 @@ from app.core.v10.semantic_mapping import (
     normalized_segments,
 )
 from app.core.v9.v9_discovery import discover_path
+from app.core.v9.source_scope import ScopeChoiceRequired
 
 
 def main() -> int:
@@ -37,6 +38,8 @@ def main() -> int:
         default=Path("v9_output"),
     )
     parser.add_argument("--dt", type=float, default=1.0)
+    parser.add_argument('--source-member')
+    parser.add_argument('--session-id')
     parser.add_argument(
         "--physical-plan",
         type=Path,
@@ -48,11 +51,13 @@ def main() -> int:
     args = parser.parse_args()
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    result = discover_path(
-        args.input,
-        dt=args.dt,
-        marks_path=args.marks,
-    )
+    try:
+        result = discover_path(args.input, dt=args.dt, marks_path=args.marks,
+                               **{k: v for k, v in {'source_member': args.source_member,
+                                  'session_id': args.session_id}.items() if v is not None})
+    except ScopeChoiceRequired as exc:
+        print(json.dumps(exc.to_dict(), ensure_ascii=False, indent=2))
+        return 2
 
     if args.physical_plan is not None:
         physical_payload = json.loads(

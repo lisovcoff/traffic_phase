@@ -1,0 +1,54 @@
+Base: 13bc172de40c8f531ce174637e9d66aeb574aa18
+Branch: fix/archive-session-isolation-20261016
+Working directory: D:\Code\PythonProjects\traffic_phase\audit_checkout
+
+Read canonical AGENTS.md/ROADMAP.md/docs/PROJECT_STATUS.md and current source,
+regime/session/query/web callers. Confirmed path discovery pools ZIP members;
+existing DEFAULT_SESSION_GAP_SECONDS=1800 reused, not re-estimated.
+
+$env:TEMP='D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\tmp'
+$env:TMP=$env:TEMP
+C:\Python314\python.exe -m pytest tests/test_v9_source_scope.py tests/test_strict_trajectory_json.py tests/test_web_archive_contract.py tests/test_vehicle_temporal_evidence.py tests/test_temporal_evidence_contract_diagnostics.py tests/test_product_result.py tests/v9/test_v9_spatial_visualizer.py tests/v9/test_v9_offline_visualizer.py tests/v9/test_v9_api.py tests/test_archive_streaming.py -q -p no:cacheprovider
+Final:219 passed in4.51s, installed Starlette/httpx deprecation warning only.
+Earlier review exposed an old exact mocked-result envelope assertion; updated
+to retain captured-sidecar check and assert additive input_scope. Failure retained
+in envelope_expectation_failure.log. No algorithm expectation was relaxed.
+
+Browser SKILL.md read. browser-client setup/getForUrl returned no available browser;
+bootstrap-troubleshooting read, browsers.list=[]; no attached browser controlled.
+Fallback: isolated headless Edge on9239, own profiles under .web_runtime, no user
+profile/cookies/session access. Own Uvicorn app.main server on8019; TEMP onD.
+
+Before ordinary smoke: freeze.json saved with full base/input/source/code hashes,
+existing PhaseSearchConfig default2..6/5candidates/60s and dt1; max1 ordinary
+discovery submission,180s browser wait budget; synthetic fixture only, no truth.
+node scripts/qa_source_scope.mjs
+Actual upload/button/source choice/session choice: HTTP409,409,200.
+One ordinary V9 discovery completed: source b.json,session2,40tracks/events,
+K2,period120.00208155391648; upload-to-ready9.603s, not CPU profiling.
+Visual review rejected initial mobile screenshot: native select widened viewport
+to465px despite declared390. Original automated overflow predicate missed it.
+
+Fixed width constraints/wrapping and removed absolute internal log path from
+user HTML. Stopped own ordinary server, started scripts.serve_saved_scope_qa
+on8019: one sealed selected prediction, validates selected fingerprints, no fit.
+node scripts/qa_source_scope.mjs --saved
+HTTP409,409,200; saved-prediction replay0.631s. Corrected root/client and iframe
+overflow predicates false, width390/390; desktop/mobile screenshots inspected;
+stale result cleared on session change; no JS errors. No second discovery fit.
+Both Edge instances closed by their drivers; own QA servers stopped by verified
+PID/command-line identity. Existing user annotation server untouched.
+
+After smoke code review also closed in-memory discover_records bypass through
+the same helper; targeted test refuses multi-session input before fit. No new
+model/decoder run. Final tests above cover this guard and additive metadata.
+
+C:\Python314\python.exe -m evidence.archive_session_isolation_20261016.verify_scope
+Exact single-session packed/events/selected-indices/provenance hash parity with
+base:228684981be3d2b6add9f11eaa36fabe92019c4268c74e4562bee4991ebb7423.
+12 browser/common Python query matches; other-session query UNKNOWN; fitting
+function ASTs identical, fit/decoder/primitives/vehicle_evidence/state_contract/
+mapping/evaluator/config/benchmarks unchanged; main unchanged. No fitting in
+verification. Original server v9_result.json169902B copied with SHA provenance.
+git diff --check
+PASS. No real replay/benchmark, parameter search, annotations or new priors.

@@ -184,7 +184,9 @@ def test_model_receives_lossless_sidecar_before_phase_fit(monkeypatch):
         received.update(kwargs)
         return {"captured": True}
     monkeypatch.setattr(model, "_discover_from_stream_views", capture)
-    assert model.discover_records([track(stopped=True)]) == {"captured": True}
+    result = model.discover_records([track(stopped=True)])
+    assert result['captured'] is True
+    assert result['input_scope']['source_member'] == 'records'
     assert received["evidence_policy"] == "permission_per_stream"
     assert received["temporal_events"]
     assert list(received["permission_streams"]["N->S"]) == [6]

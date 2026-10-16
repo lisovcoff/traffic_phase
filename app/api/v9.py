@@ -15,6 +15,8 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from app.core.v9.v9_discovery import OnlinePhaseTracker, discover_path
+from app.core.v9.source_scope import ScopeChoiceRequired
+from app.core.temporal_evidence import EvidenceUnavailable
 
 router = APIRouter(prefix="/api/v1/v9", tags=["v9"])
 
@@ -239,6 +241,8 @@ def v9_info() -> dict[str, object]:
 async def v9_analyze(
     file: UploadFile = File(...),
     dt: float = Form(default=1.0, gt=0.0),
+    source_member: str | None = Form(default=None),
+    session_id: str | None = Form(default=None),
 ) -> dict[str, object]:
     if not file.filename:
         raise HTTPException(
@@ -265,44 +269,12 @@ async def v9_analyze(
                     length=1024 * 1024,
                 )
 
-            if lowered.endswith(".zip"):
-                source = root / "archive"
-                source.mkdir()
-                with zipfile.ZipFile(target) as archive:
-                    for info in archive.infolist():
-                        if (
-                            info.is_dir()
-                            or not info.filename.lower().endswith(".json")
-                        ):
-                            continue
-                        member = Path(info.filename)
-                        if (
-                            member.is_absolute()
-                            or ".." in member.parts
-                        ):
-                            raise ValueError(
-                                f"unsafe ZIP member path: {info.filename}"
-                            )
-                        destination = source / member
-                        destination.parent.mkdir(
-                            parents=True,
-                            exist_ok=True,
-                        )
-                        with (
-                            archive.open(info) as src,
-                            destination.open("wb") as dst,
-                        ):
-                            shutil.copyfileobj(
-                                src,
-                                dst,
-                                length=1024 * 1024,
-                            )
-            else:
-                source = target
-
             result = discover_path(
-                source,
+                target,
                 dt=dt,
+                **{k: v for k, v in {
+                    'source_member': getattr(source_member, 'default', source_member),
+                    'session_id': getattr(session_id, 'default', session_id)}.items() if v is not None},
             )
             model_id = runtime_registry.register_model(result)
             result["api"] = {
@@ -317,6 +289,10 @@ async def v9_analyze(
             }
             return result
 
+    except ScopeChoiceRequired as exc:
+        raise HTTPException(status_code=409, detail=exc.to_dict()) from exc
+    except EvidenceUnavailable as exc:
+        raise HTTPException(status_code=422, detail=exc.to_dict()) from exc
     except zipfile.BadZipFile as exc:
         raise HTTPException(
             status_code=422,

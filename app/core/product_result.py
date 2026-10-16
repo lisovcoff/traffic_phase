@@ -93,6 +93,7 @@ def build_product_result(prediction, *, timestamps_s=(), history_source='accepte
                  ('schedule', 'phase_model_selection', 'period_inference', 'schedule_base_timestamp_ms',
                   'analysis_base_timestamp_ms', 'event_base_timestamp_ms', 'recording_start_timestamp_ms')}
     return dict(schema=VERSION, inference_performed=False, scientific_validation='NOT_PERFORMED',
+                input_scope=deepcopy(prediction.get('input_scope')),
                 invariant_payload=invariant, invariant_sha256=_seal(invariant),
                 phase_count=schedule.get('phase_count'), period_s=schedule.get('period_s'),
                 observed_origin_count=len(by_origin), complete_approach_count=None,

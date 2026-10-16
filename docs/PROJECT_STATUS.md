@@ -1,5 +1,19 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 source/session isolation integrated end-to-end (ROADMAP8/9 partial).
+Multi-member archives require source choice before decompression; multi-session
+permission evidence requires session choice before fitting, shared with in-memory
+entry point. Existing1800s support-gap rule reused; not a signal-regime detector.
+Scoped selection/provenance/UNKNOWN reaches both APIs, CLI and HTML.219 tests,
+one ordinary fixed-synthetic discovery, browser409/409/200,selected40 tracks/events.
+Mobile overflow found visually and fixed; saved-prediction replay only, no second
+fit;12 browser/core queries match. Exact old/new single-session event bundle
+hash parity and unchanged fitting-function ASTs verified. See ARCHIVE_SESSION_ISOLATION.
+Main/default algorithm settings/historical K3/2/3 and raw19/34 unchanged;2D.1 FAIL.
+Input workflow is safer, not independent accuracy acceptance. Calibration/vendor
+frame timing, continuous local history/hardware validation and bounded batch jobs
+remain open. QA processes stopped; user media/results preserved.
+
 2026-10-16 input correctness fix delivered (ROADMAP9 partial): both streaming
 readers now accept empty arrays, reject extra closings/outside-array records,
 enforce completed-object bounds and drain trailing whitespace incrementally.

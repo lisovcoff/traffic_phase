@@ -1,5 +1,16 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: [archive/session isolation доведён до HTML](docs/ARCHIVE_SESSION_ISOLATION_20261016.md).
+Canonical V9 не объединяет разные ZIP JSON по умолчанию; metadata choices до
+extraction, session choices до model fitting. Тот же guard у discover_records,
+тот же selector только на выбранном scope, существующий gap1800с не менялся.
+API/UI/CLI поддерживают выбор; OTHER intervals UNKNOWN.219 tests, один synthetic
+ordinary discovery и actual browser409→409→200,40/40 tracks/events. Mobile defect
+найден по screenshot и исправлен с saved replay без нового fit;12 queries совпали
+с Python. Односеансовый event bundle exact baseline parity, fit functions AST
+unchanged. Main/2D.1 FAIL и real metrics сохранены. Batch-all-sources, общие
+ресурсные лимиты, точная локальная история и independent calibration ещё открыты.
+
 2026-10-16: [исправлен реальный JSON/ZIP input defect](docs/STRICT_JSON_INPUT_20261016.md),
 пункт9 плана. Два streaming readers отвергали пустой[] и принимали лишние closing
 brackets/records вне массива; теперь закрытие/EOF/лимит объекта корректны.

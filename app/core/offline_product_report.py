@@ -19,6 +19,7 @@ def build_report_payload(result, *, history_source='accepted'):
     missing = query.at(-1)
     # Do not ship legacy GREEN/RED proposals or raw event arrays into the UI.
     return dict(schema=product['schema'], phase_count=product['phase_count'],
+                input_scope=product['input_scope'],
                 period_s=product['period_s'], approaches=product['approaches'],
                 unassigned_movements=product['unassigned_movements'], history=product['history'],
                 query_timebase=product['query_timebase'], intervals=states,

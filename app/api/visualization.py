@@ -19,6 +19,8 @@ from app.core.v9.signal_renderer import (
     DEFAULT_YELLOW_DURATION_SECONDS,
 )
 from scripts.v9_spatial_visualizer import build_spatial_visualization
+from app.core.v9.source_scope import ScopeChoiceRequired
+from app.core.temporal_evidence import EvidenceUnavailable
 from app.core.state_contract import prepare_logical_query
 
 router = APIRouter(prefix="/visualization", tags=["visualization"])
@@ -232,6 +234,9 @@ h1{margin:0 0 8px;font-size:30px}
 p{line-height:1.5}.muted{color:#98a2b3}
 .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:20px}
 input[type=file]{max-width:100%;padding:10px;border:1px solid #343b46;border-radius:9px;background:#10141a;color:#edf2f7}
+#source-choice,#session-choice{margin-top:10px;min-width:0;max-width:100%}
+#source-choice label,#session-choice label{display:block;min-width:0;max-width:100%}
+#source-choice select,#session-choice select{display:block;box-sizing:border-box;width:100%;max-width:100%;font:inherit;padding:8px;background:#10141a;color:#edf2f7;border:1px solid #343b46;border-radius:9px}
 button{font:inherit;border:0;border-radius:9px;padding:10px 16px;cursor:pointer}
 button.primary{background:#f0f3f7;color:#111}
 button:disabled{opacity:.45;cursor:default}
@@ -253,6 +258,8 @@ button:disabled{opacity:.45;cursor:default}
 <input id="file" name="file" type="file" accept=".json,.zip,application/json,application/zip" required>
 <button class="primary" id="submit" type="submit">Запустить анализ</button>
 </div>
+<div id="source-choice" hidden><label>JSON в архиве <select id="source-member" aria-label="JSON в архиве"></select></label></div>
+<div id="session-choice" hidden><label>Сеанс наблюдений <select id="session-id" aria-label="Сеанс наблюдений"></select></label></div>
 </form>
 <div id="status" class="status muted">Выберите JSON или ZIP-архив.</div>
 <div class="note muted">
@@ -269,19 +276,58 @@ const file=document.getElementById("file");
 const submit=document.getElementById("submit");
 const status=document.getElementById("status");
 const viewer=document.getElementById("viewer");
+const sourceSelect=document.getElementById("source-member");
+const sessionSelect=document.getElementById("session-id");
+let chosenSource="",chosenSession="";
+function clearResult(){viewer.style.display="none";viewer.srcdoc="";}
+file.addEventListener("change",()=>{
+  chosenSource="";chosenSession="";sourceSelect.replaceChildren();sessionSelect.replaceChildren();
+  document.getElementById("source-choice").hidden=true;document.getElementById("session-choice").hidden=true;
+  clearResult();status.textContent="Выберите источник и запустите анализ.";
+});
+sourceSelect.addEventListener("change",()=>{
+  chosenSource=sourceSelect.value;chosenSession="";sessionSelect.replaceChildren();
+  document.getElementById("session-choice").hidden=true;clearResult();
+  status.textContent="Источник изменён. Запустите отдельный анализ.";
+});
+sessionSelect.addEventListener("change",()=>{chosenSession=sessionSelect.value;clearResult();status.textContent="Сеанс изменён. Запустите отдельный анализ.";});
+function offerChoice(scope){
+  const isSource=scope.choice_kind==="source";
+  const select=isSource?sourceSelect:sessionSelect;
+  if(scope.source_member)chosenSource=scope.source_member;
+  select.replaceChildren(new Option("Выберите…",""));
+  const fmt=new Intl.DateTimeFormat("ru-RU",{timeZone:"Asia/Yekaterinburg",dateStyle:"short",timeStyle:"medium"});
+  const timeLabel=value=>{const date=new Date(value);return Number.isFinite(date.getTime())?fmt.format(date):String(value)+" ms";};
+  for(const row of scope.choices){
+    const label=isSource?row.source_member+" ("+row.uncompressed_bytes+" байт)":
+      "Сеанс "+row.session_number+": "+timeLabel(row.observation_start_ms)+" — "+
+      timeLabel(row.observation_end_ms)+" · "+row.track_count+" треков";
+    select.add(new Option(label,isSource?row.source_member:row.session_id));
+  }
+  document.getElementById(isSource?"source-choice":"session-choice").hidden=false;
+  status.textContent=isSource?"В архиве несколько JSON. Выберите один источник для отдельного анализа.":
+    "Найдены разрывы наблюдений. Выберите сеанс; разрыв не означает переключение светофора.";
+}
 
 form.addEventListener("submit",async function(event){
   event.preventDefault();
   if(!file.files.length)return;
   submit.disabled=true;
+  file.disabled=true;sourceSelect.disabled=true;sessionSelect.disabled=true;
   status.textContent="V10 анализирует архив…";
   viewer.style.display="none";
   try{
     const body=new FormData();
     body.append("file",file.files[0]);
+    if(chosenSource)body.append("source_member",chosenSource);
+    if(chosenSession)body.append("session_id",chosenSession);
     const response=await fetch("/visualization/analyze",{method:"POST",body});
     const html=await response.text();
-    if(!response.ok)throw new Error(html || ("HTTP "+response.status));
+    if(!response.ok){
+      let detail;try{detail=JSON.parse(html).detail;}catch{}
+      if(response.status===409 && detail?.choices){offerChoice(detail);return;}
+      throw new Error(typeof detail==="string"?detail:(detail?.reason||html||("HTTP "+response.status)));
+    }
     viewer.srcdoc=html;
     viewer.style.display="block";
     status.textContent="Готово. V10 визуализация построена.";
@@ -290,6 +336,7 @@ form.addEventListener("submit",async function(event){
     status.textContent="Ошибка: "+String(error.message||error);
   }finally{
     submit.disabled=false;
+    file.disabled=false;sourceSelect.disabled=false;sessionSelect.disabled=false;
   }
 });
 </script>
@@ -319,6 +366,8 @@ async def visualization_analyze(
         ge=0.0,
         le=1.0,
     ),
+    source_member: str | None = Form(default=None),
+    session_id: str | None = Form(default=None),
 ) -> HTMLResponse:
     if not file.filename:
         raise HTTPException(status_code=400, detail="Filename is required")
@@ -354,6 +403,9 @@ async def visualization_analyze(
                 yellow_duration_seconds=yellow_value,
                 red_yellow_duration_seconds=red_yellow_value,
                 activity_threshold=activity_threshold_value,
+                **{k: v for k, v in {
+                    'source_member': getattr(source_member, 'default', source_member),
+                    'session_id': getattr(session_id, 'default', session_id)}.items() if v is not None},
             )
             html = built["html"]
             result = built["result"]
@@ -405,7 +457,7 @@ async def visualization_analyze(
                     "<h1>V9 — пространственная реконструкция перекрёстка</h1>",
                     (
                         "<h1>V9 — пространственная реконструкция перекрёстка</h1>"
-                        f"<p class='muted'>Run: {run_id} · logs: {run_dir}</p>"
+                        f"<p class='muted' style='overflow-wrap:anywhere'>Результат: {run_id}</p>"
                     ),
                     1,
                 ),
@@ -415,6 +467,10 @@ async def visualization_analyze(
                 },
             )
 
+    except ScopeChoiceRequired as exc:
+        raise HTTPException(status_code=409, detail=exc.to_dict()) from exc
+    except EvidenceUnavailable as exc:
+        raise HTTPException(status_code=422, detail=exc.to_dict()) from exc
     except (ValueError, zipfile.BadZipFile) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except OSError as exc:

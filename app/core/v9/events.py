@@ -141,15 +141,19 @@ def _iter_json_records_from_path(path: Path):
         yield from _iter_json_records(stream)
 
 
-def _iter_source_records(path: Path):
+def _iter_source_records(path: Path, *, source_member=None):
     path = Path(path)
     if path.is_file() and path.suffix.lower() == ".json":
+        if source_member is not None and source_member != path.name:
+            raise ValueError('unknown source_member')
         yield path.name, _iter_json_records_from_path(path)
         return
     if path.is_file() and path.suffix.lower() == ".zip":
         with zipfile.ZipFile(path) as archive:
             for info in sorted(archive.infolist(), key=lambda item: item.filename):
                 if info.is_dir() or not info.filename.lower().endswith(".json"):
+                    continue
+                if source_member is not None and source_member != info.filename:
                     continue
                 member = Path(info.filename)
                 if member.is_absolute() or ".." in member.parts:
@@ -165,6 +169,8 @@ def _iter_source_records(path: Path):
         return
     if path.is_dir():
         for item in sorted(path.rglob("*.json")):
+            if source_member is not None and source_member != str(item):
+                continue
             name = item.name.lower()
             if (
                 name.endswith("_manual_marks.json")
@@ -401,24 +407,26 @@ def _load_event_streams_legacy(path: Path):
         int(event_count),
     )
 
-def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _records=None):
+def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _records=None, source_member=None):
     """Keep packed tuple compatibility, with lossless vehicle evidence sidecar.
 
     Legacy policy is explicit and uses the historical extractor/selection rules.
     The default never replaces movement-permission evidence with demand entries.
     """
     if evidence_policy == "legacy_v9":
+        if source_member is not None:
+            raise ValueError('legacy_v9 source scoping is unsupported; use permission_per_stream')
         if _records is not None:
             raise ValueError("legacy records use extract_event_views")
         return _load_event_streams_legacy(path)
     if evidence_policy != "permission_per_stream":
         raise ValueError("unknown evidence policy")
-    from .vehicle_evidence import extract_vehicle_evidence, select_permission_events, diagnostics
+    from .vehicle_evidence import extract_vehicle_evidence
     temporal, files, seen = [], [], set()
     stats = Counter()
     trajectory_count, recording_start = 0, None
     source_context = (nullcontext([("records", iter(_records))]) if _records is not None
-                      else closing(_iter_source_records(Path(path))))
+                      else closing(_iter_source_records(Path(path), **({'source_member': source_member} if source_member is not None else {}))))
     with source_context as sources:
         for source_name, records in sources:
             files.append(source_name)
@@ -438,7 +446,13 @@ def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _
                 start = events[0].provenance["track_range_ms"][0]
                 recording_start = min(recording_start, start) if recording_start is not None else start
                 temporal.extend(events)
-    temporal.sort(key=lambda e: (e.timestamp_ms, e.event_type, e.movement))
+    return _pack_temporal_events(temporal, files, trajectory_count, recording_start, stats)
+
+
+def _pack_temporal_events(temporal, files, trajectory_count, recording_start, stats):
+    """Same selector/packed contract, reusable after a source-session partition."""
+    from .vehicle_evidence import select_permission_events, diagnostics
+    temporal = sorted(temporal, key=lambda e: (e.timestamp_ms, e.event_type, e.movement))
     entries = [e for e in temporal if e.event_type == "ENTRY"]
     if not entries:
         raise EvidenceUnavailable("no usable demand or permission events; evidence is UNKNOWN",
@@ -474,6 +488,7 @@ def load_tracks(
     *,
     start_timestamp_ms: float | None = None,
     end_timestamp_ms: float | None = None,
+    source_member: str | None = None,
 ):
     if (
         start_timestamp_ms is not None
@@ -483,7 +498,7 @@ def load_tracks(
         raise ValueError("end_timestamp_ms must be >= start_timestamp_ms")
 
     tracks = []
-    for _name, records in _iter_source_records(Path(path)):
+    for _name, records in _iter_source_records(Path(path), **({'source_member': source_member} if source_member is not None else {})):
         for track in records:
             if start_timestamp_ms is not None or end_timestamp_ms is not None:
                 detections = _track_detection_times(track)
