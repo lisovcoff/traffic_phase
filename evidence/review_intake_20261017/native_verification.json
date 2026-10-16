@@ -1,0 +1,184 @@
+{
+  "base_sha": "b7675c70bf191a20454fe974baa18cc161f01856",
+  "native_control_exact": true,
+  "only_production_change": "AST block relocation in em_fit",
+  "other_fit_functions_exact": true,
+  "protected_files_unchanged": true,
+  "main_unchanged": "a005a2521f62ce3b2c9f9d52f9f0d73913754e01",
+  "native_tests_passed": 208,
+  "open_expected_failures": 8,
+  "open_defects": 7,
+  "results": [
+    {
+      "file": "17_2025_2_19_10_v9.json",
+      "selected_k": 3,
+      "selected_initialization": {
+        "method": "anonymous_stream_center_cluster_plus_group_onset",
+        "group_onsets_s": [
+          37.94026901988238,
+          59.40647386007899,
+          90.85696002129727
+        ],
+        "durations_s": [
+          21.46620484019661,
+          31.45048616121828,
+          46.926122208801914
+        ],
+        "group_sizes": [
+          4,
+          2,
+          1
+        ],
+        "onset_strengths": [
+          0.7722044841245774,
+          2.2373885435636076,
+          0.7751342508248109
+        ],
+        "source": "robust_release_seed"
+      },
+      "split_refinements_complete": 2,
+      "schedule_exact": true,
+      "metrics": [
+        {
+          "field": "raw_hsmm_segments",
+          "matched": 15,
+          "truth": 17,
+          "predicted": 18,
+          "precision": 0.8333333333333334,
+          "recall": 0.8823529411764706,
+          "matched_mae_s": 0.7092666666666667,
+          "matched_p95_s": 1.4851999999999999,
+          "nearest_mae_s": 1.1051764705882354,
+          "n": 15,
+          "range_ms": [
+            1739941438144,
+            1739942036080
+          ],
+          "coverage": 1.0,
+          "reason": null
+        },
+        {
+          "field": "baseline_segments",
+          "matched": 15,
+          "truth": 17,
+          "predicted": 17,
+          "precision": 0.8823529411764706,
+          "recall": 0.8823529411764706,
+          "matched_mae_s": 0.7483207845052083,
+          "matched_p95_s": 1.7859468994140622,
+          "nearest_mae_s": 1.0859252211626838,
+          "n": 15,
+          "range_ms": [
+            1739941438144,
+            1739942036080
+          ],
+          "coverage": 1.0,
+          "reason": null
+        }
+      ],
+      "runtime_s": 17.42808079999668
+    },
+    {
+      "file": "19_2025_2_24_16_v9.json",
+      "selected_k": 2,
+      "selected_initialization": {
+        "method": "equal_duration_offset_search+hsmm"
+      },
+      "split_refinements_complete": 2,
+      "schedule_exact": true,
+      "metrics": [
+        {
+          "field": "raw_hsmm_segments",
+          "matched": 1,
+          "truth": 8,
+          "predicted": 8,
+          "precision": 0.125,
+          "recall": 0.125,
+          "matched_mae_s": 1.546,
+          "matched_p95_s": 1.546,
+          "nearest_mae_s": 4.782,
+          "n": 1,
+          "range_ms": [
+            1740397207758,
+            1740397732720
+          ],
+          "coverage": 1.0,
+          "reason": null
+        },
+        {
+          "field": "baseline_segments",
+          "matched": 1,
+          "truth": 8,
+          "predicted": 8,
+          "precision": 0.125,
+          "recall": 0.125,
+          "matched_mae_s": 1.599451171875,
+          "matched_p95_s": 1.599451171875,
+          "nearest_mae_s": 3.9515511169433593,
+          "n": 1,
+          "range_ms": [
+            1740397207758,
+            1740397732720
+          ],
+          "coverage": 1.0,
+          "reason": null
+        }
+      ],
+      "runtime_s": 7.085917199998221
+    },
+    {
+      "file": "6_2025_2_14_20_v9.json",
+      "selected_k": 3,
+      "selected_initialization": {
+        "method": "robust_release_seed+hsmm"
+      },
+      "split_refinements_complete": 2,
+      "schedule_exact": true,
+      "metrics": [
+        {
+          "field": "raw_hsmm_segments",
+          "matched": 3,
+          "truth": 9,
+          "predicted": 15,
+          "precision": 0.2,
+          "recall": 0.3333333333333333,
+          "matched_mae_s": 1.4713333333333334,
+          "matched_p95_s": 1.7969,
+          "nearest_mae_s": 2.8058888888888887,
+          "n": 3,
+          "range_ms": [
+            1739545472172,
+            1739545972279
+          ],
+          "coverage": 1.0,
+          "reason": null
+        },
+        {
+          "field": "baseline_segments",
+          "matched": 1,
+          "truth": 9,
+          "predicted": 15,
+          "precision": 0.06666666666666667,
+          "recall": 0.1111111111111111,
+          "matched_mae_s": 1.418416015625,
+          "matched_p95_s": 1.418416015625,
+          "nearest_mae_s": 2.751939398871528,
+          "n": 1,
+          "range_ms": [
+            1739545472172,
+            1739545972279
+          ],
+          "coverage": 1.0,
+          "reason": null
+        }
+      ],
+      "runtime_s": 16.32376729999669
+    }
+  ],
+  "structural_gate": "PASS",
+  "development_benefit_gate": "FAIL_NO_GAIN",
+  "local_2D1": "FAIL_DEFAULT_OFF",
+  "real_accuracy_improvement": false,
+  "raw_trajectory_reads": 0,
+  "no_post_result_tuning": true
+}

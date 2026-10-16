@@ -1,4 +1,22 @@
-# Project status — 2D.1, 2026-10-16
+# Project status — 2D.1, 2026-10-17
+
+2026-10-17 external review intake verified against b7675c70bf191a20454fe974baa18cc161f01856.
+Both originals/patch/ZIP preserved with raw hashes. Astra source hashes match;
+local --runxfail reproduces all8 reported defects (12 FAIL,1 PASS test cases).
+Only D1 fixed: dedup block moved after split generation.208 PASS/8 strict XFAIL
+afterwards; seven other defects remain open. This is not a clean all-quality gate.
+Code before new comparison:35fc8fe899193bea4440b3e910e4f49782563836.
+One native control exact (no numerical tolerance needed); separate from Astra's
+stopped cross-platform control. One frozen cached development run,3 outputs sealed
+before full unchanged evaluator/original annotations. Both split parents finish
+real refinement on all3 inputs but none wins; all schedules/metrics unchanged:
+K3/2/3 vs3/2/2,raw19/34,baseline17/34. All K2..6 evaluated, no timeout/tuning.
+Structural gate PASS; development benefit FAIL_NO_GAIN;2D.1 FAIL/default-off.
+See REVIEW_RESPONSE_20261017. Gemini offers hypotheses without code access;
+unsupported lag constants/exposure-derived masks/interval-confidence/physical
+guarantees are not adopted. Next algorithmic task is coherent seed/refinement
+score and parameter snapshots(D2+D3), not UI or waiting for supplier to fix code.
+Existing observation/lamp validation remains open; main/protected contracts intact.
 
 2026-10-16 algorithmic HSMM correction delivered (not another UI step).
 Current-phase min duration no longer restricts predecessor endpoint; duration

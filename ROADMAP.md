@@ -1,5 +1,20 @@
 # traffic_phase — план до готового продукта
 
+2026-10-17: [оба внешних ревью проверены локально](docs/REVIEW_RESPONSE_20261017.md).
+Astra:8 дефектов воспроизведены; D1(потеря K3 split-seeds) исправлен единственным
+переносом существующего блока.208 PASS,8 strict XFAIL для7 открытых дефектов.
+Нативный unchanged control exact; один cached run3 файлов после code/config
+commit,6 новых split refinements выполнены, но не выбраны: K3/2/3,raw19/34,
+baseline17/34 без изменений, benefit gate FAIL_NO_GAIN. Нового тюнинга нет.
+Gemini не видел код; его fixed−2с/4с, queue⇒RED, positive-motion⇒GREEN,
+profile-score confidence и гарантии anchored DP не приняты как доказательства.
+Полная замена архитектуры пока не обоснована. Следующий алгоритмический приоритет:
+единый контракт score/data_loglik/params для seed/refined(D2+D3), затем
+tie-invariant redundancy и joint shared signatures(D7/D6), circular matching/
+общий выбор ensemble(D4/D5), censored baseline(D8). Каждый эффект отделять.
+Калибровку наблюдений вести отдельным этапом, без ожидания supplier для кодовых
+дефектов.2D.1 FAIL/default-off,UNKNOWN и main сохранены; знакомые данные development.
+
 2026-10-16: выполнено [алгоритмическое исправление HSMM](docs/HSMM_RECURRENCE_RESULTS_20261016.md),
 без UI. Исправлены ложный запрет короткого предшественника перед длинной фазой и
 bin/second mismatch штрафа при dt≠1. Независимый exhaustive oracle:12 FAIL до

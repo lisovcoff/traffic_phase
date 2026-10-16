@@ -1,0 +1,718 @@
+diff --git a/.gitattributes b/.gitattributes
+index e26b603..0cbb6d8 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,4 +1,6 @@
+ tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
++evidence/review_intake_20261017/** -text -whitespace
++benchmarks/seed_flow_20261017/** -text -whitespace
+ evidence/hsmm_recurrence_20261016/** -text -whitespace
+ benchmarks/hsmm_recurrence_20261016/** -text -whitespace
+ evidence/bounded_archive_batch_20261016/** -text -whitespace
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 26b1689..6af65b1 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -1,5 +1,20 @@
+ # traffic_phase — план до готового продукта
+ 
++2026-10-17: [оба внешних ревью проверены локально](docs/REVIEW_RESPONSE_20261017.md).
++Astra:8 дефектов воспроизведены; D1(потеря K3 split-seeds) исправлен единственным
++переносом существующего блока.208 PASS,8 strict XFAIL для7 открытых дефектов.
++Нативный unchanged control exact; один cached run3 файлов после code/config
++commit,6 новых split refinements выполнены, но не выбраны: K3/2/3,raw19/34,
++baseline17/34 без изменений, benefit gate FAIL_NO_GAIN. Нового тюнинга нет.
++Gemini не видел код; его fixed−2с/4с, queue⇒RED, positive-motion⇒GREEN,
++profile-score confidence и гарантии anchored DP не приняты как доказательства.
++Полная замена архитектуры пока не обоснована. Следующий алгоритмический приоритет:
++единый контракт score/data_loglik/params для seed/refined(D2+D3), затем
++tie-invariant redundancy и joint shared signatures(D7/D6), circular matching/
++общий выбор ensemble(D4/D5), censored baseline(D8). Каждый эффект отделять.
++Калибровку наблюдений вести отдельным этапом, без ожидания supplier для кодовых
++дефектов.2D.1 FAIL/default-off,UNKNOWN и main сохранены; знакомые данные development.
++
+ 2026-10-16: выполнено [алгоритмическое исправление HSMM](docs/HSMM_RECURRENCE_RESULTS_20261016.md),
+ без UI. Исправлены ложный запрет короткого предшественника перед длинной фазой и
+ bin/second mismatch штрафа при dt≠1. Независимый exhaustive oracle:12 FAIL до
+diff --git a/app/core/v9/fit.py b/app/core/v9/fit.py
+index 6a98235..264122b 100644
+--- a/app/core/v9/fit.py
++++ b/app/core/v9/fit.py
+@@ -231,21 +231,6 @@ def em_fit(
+     except Exception:
+         pass
+ 
+-    unique = []
+-    seen = set()
+-    for source, labels, info in seed_candidates:
+-        sig = tuple(
+-            int(z)
+-            for z in labels[
+-                :min(len(labels), int(round(period / dt)) + 2)
+-            ]
+-        )
+-        if sig in seen and source != 'release_entry_seed_ensemble':
+-            continue
+-        seen.add(sig)
+-        unique.append((source, labels, info))
+-
+-    fitted = []
+     if k == 3:
+         try:
+             split_offset = initial_offset_search(
+@@ -316,6 +301,23 @@ def em_fit(
+         except Exception:
+             pass
+ 
++    # Finalize the candidate list before deduplication: internal split seeds
++    # must reach the same fitting loop as the original seed views.
++    unique = []
++    seen = set()
++    for source, labels, info in seed_candidates:
++        sig = tuple(
++            int(z)
++            for z in labels[
++                :min(len(labels), int(round(period / dt)) + 2)
++            ]
++        )
++        if sig in seen and source != 'release_entry_seed_ensemble':
++            continue
++        seen.add(sig)
++        unique.append((source, labels, info))
++
++    fitted = []
+     for source, labels0, seed_info in unique:
+         seed_fit = _seed_labels_to_fit(
+             labels0,
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index c9620fa..145f56e 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,4 +1,22 @@
+-# Project status — 2D.1, 2026-10-16
++# Project status — 2D.1, 2026-10-17
++
++2026-10-17 external review intake verified against b7675c70bf191a20454fe974baa18cc161f01856.
++Both originals/patch/ZIP preserved with raw hashes. Astra source hashes match;
++local --runxfail reproduces all8 reported defects (12 FAIL,1 PASS test cases).
++Only D1 fixed: dedup block moved after split generation.208 PASS/8 strict XFAIL
++afterwards; seven other defects remain open. This is not a clean all-quality gate.
++Code before new comparison:35fc8fe899193bea4440b3e910e4f49782563836.
++One native control exact (no numerical tolerance needed); separate from Astra's
++stopped cross-platform control. One frozen cached development run,3 outputs sealed
++before full unchanged evaluator/original annotations. Both split parents finish
++real refinement on all3 inputs but none wins; all schedules/metrics unchanged:
++K3/2/3 vs3/2/2,raw19/34,baseline17/34. All K2..6 evaluated, no timeout/tuning.
++Structural gate PASS; development benefit FAIL_NO_GAIN;2D.1 FAIL/default-off.
++See REVIEW_RESPONSE_20261017. Gemini offers hypotheses without code access;
++unsupported lag constants/exposure-derived masks/interval-confidence/physical
++guarantees are not adopted. Next algorithmic task is coherent seed/refinement
++score and parameter snapshots(D2+D3), not UI or waiting for supplier to fix code.
++Existing observation/lamp validation remains open; main/protected contracts intact.
+ 
+ 2026-10-16 algorithmic HSMM correction delivered (not another UI step).
+ Current-phase min duration no longer restricts predecessor endpoint; duration
+diff --git a/docs/REVIEW_RESPONSE_20261017.md b/docs/REVIEW_RESPONSE_20261017.md
+new file mode 100644
+index 0000000..f50d063
+--- /dev/null
++++ b/docs/REVIEW_RESPONSE_20261017.md
+@@ -0,0 +1,141 @@
++# Внешние ревью: что подтверждено и что делаем дальше
++
++Base `b7675c70bf191a20454fe974baa18cc161f01856`.
++Ветка `fix/review-seed-flow-20261017`.
++Исходные Gemini/Astra и весь маленький ZIP сохранены без редактирования:
++`evidence/review_intake_20261017/`. Проверены hashes всех членов manifest Astra,
++совпадение отдельно присланных report/patch с ZIP и LF hashes всех8 просмотренных
++им исходников с нашей базой. Чужие логи не называются нашими тестами/запусками.
++
++## Astra: локальная проверка выводов
++
++Полностью прочитан patch, тесты и runner; внешние installation/runner команды
++не исполнялись. Из пакета перенесены проверенные unit counterexamples, применён
++только D1 diff после git apply --check. Реальные runs выполнены нашим отдельным
++runner, со своими исходниками, freeze и доступными локально original annotations.
++
++| ID | Механизм и локальное свидетельство | Решение |
++|---|---|---|
++|D1|`em_fit`: unique построен до добавления K3 split-seeds. Ни один parent не посещался; dt.5/1/2 и реальный refinement воспроизводят дефект.|Исправлено: существующий dedup перемещён после генерации, никаких новых правил.|
++|D2|`_fit_from_initial_labels`: score под old_probs возвращается с new_probs. Независимый пересчёт −13.192524 против возвращённых−31.199677.|Подтверждено, открыт отдельный score/params fix.|
++|D3|`candidate_metrics`: seed score=data LL, refined score=penalized decoder score. Один path/probs даёт BIC21.383715 против22.883715.|Подтверждено, требует явного общего selection objective.|
++|D4|`em_fit`: sorted zip фаз +линейное среднее не circular-equivariant. Общий сдвиг10с меняет исходный ансамбль[25,75]→[0,50].|Подтверждено; один circular mean без group matching недостаточен.|
++|D5|Special ensemble preference исключает pure release/entry независимо от разницы Q. Контроль Qrelease−.05 лучше Qensemble−.20, но побеждает ensemble.|Подтверждено; нужен общий выбор по объявленному quality/tie rule.|
++|D6|Exclusive-stream support объявляет AB/AC/BC unsupported=3, хотя joint emission signatures различны.|Подтверждено как неправильное отождествление exclusive support с различимостью. Distinct fitted rows сами по себе не доказывают физическую/логическую истинность K.|
++|D7|Double argsort раздаёт разные ranks ties: перестановка колонок меняет correlation−1→−.5 и отдельный полный redundancy decision False→True.|Подтверждено; существующий renaming test не охватывал ties.|
++|D8|`periodic_baseline_from_segments` включает цензурированный start0 как onset; из истинных onsets30/10 получается32.951672/10.|Подтверждено; endpoint окна не событие переключения.|
++
++Наш before: **12 FAIL,1 PASS** с --runxfail, все8 механизмов воспроизведены.
++После D1: **208 PASS,8 strict XFAIL**. Восемь XFAIL — восемь cases для семи
++ещё открытых дефектов; это не прохождение восьми требований. Включены recurrence
++oracle, cached lossless/no-label checks, K4/renaming/shared/budgets, state/query,
++event contracts, API, product/HTML и unchanged evaluator tests. Новые зависимости
++не установлены; только прежнее предупреждение Starlette/httpx deprecation.
++
++AST-проверка: весь production diff — перенос четырёх прежних AST nodes в em_fit
++после существующего if k==3 и комментарий. Остальные функции fit.py идентичны.
++Decoder, objective rules, thresholds, selector, period, mapping, uncertainty,
++query contract, evaluator и historical artifacts не менялись.
++
++## Gemini: архитектурные идеи и неподтверждённые гарантии
++
++Gemini прямо указал, что не читал этот код. Поэтому его текст — архитектурная
++гипотеза. Полезны разделение demand/visibility/motion, recurring plan/local history,
++shared movements и hardware alternatives. Эти направления уже согласуются с
++product contract; они не означают, что предложенный EC-AHSMM проверен.
++
++Не принимаем без отдельной модели/данных:
++
++- RELEASE «в первые4с GREEN», универсальный сдвиг−2с, clearance2..4с, min phase6..8с,
++  окно hold+20с и sigma4с не установлены на этих источниках. Самостоятельное
++  объявление их «физическими константами» не является calibration; hold+30 вообще
++  выходит за предложенный search window.
++- Стоп/стоящая очередь не доказывают RED или отсутствие protected режима:
++  возможна блокировка при GREEN. Проезд ходом не удостоверяет GREEN; vehicle
++  queue restart может отражать снятие препятствия. Геометрия/units не сертифицированы.
++- E=I(наблюдённые события/очередь) — outcome-derived mask, не независимо известная
++  экспозиция камеры или спрос. Обнуление всех остальных bins не создаёт само
++  по себе нормированную observation likelihood. Alpha/beta scores в предложении
++  ещё не определяют вероятностную модель.
++- Bracket между последним и первым проездами ограничивает switch только при
++  дополнительных exclusive-mark/order/delay assumptions. Для реальных RELEASE
++  эти предположения не установлены; аналогичный synthetic reference уже существует.
++- Drop score2.0 и ширина4/12с не являются calibrated confidence interval или
++  доказательством TRAFFIC_LOCKED. Shared demand/delay nuisance и change-point
++  nonregularity должны входить в отдельное обоснование неопределённости.
++- Anchored prior может оставить nominal baseline point при тишине, но не
++  гарантирует правильный hold. Два одинаковых vehicle inputs допускают стабильный
++  план и hold без спроса: правильные границы различны. Нельзя публиковать prior
++  point как поддержанную реконструкцию вместо UNKNOWN.
++- Нулевой прирост от одного arithmetic fix не доказывает исчерпанность старой
++  архитектуры. Gemini неверно свёл исправление predecessor feasibility только
++  к duration cost и не измерил заявленное доминирование emissions. Новые локально
++  подтверждённые D2–D8 опровергают вывод, что кодовые исправления уже исчерпаны.
++- Его Arm2 одновременно меняет emissions и censoring, Arm3 добавляет несколько
++  prior terms: такие результаты не изолируют заявленные причины. «Ровно в switch»,
++  гарантированный прирост,≤20ms и календарные сроки не измерены. MAE — mean,
++  а не названная в ответе «медианная абсолютная ошибка».
++
++Не выполнялся новый lag/threshold/grid search по34 известным границам. Полная
++замена алгоритма и гарантии «никогда не хуже baseline» не приняты.
++
++## Один нативный development comparison
++
++Заранее зафиксирован [протокол](SEED_FLOW_PROTOCOL_20261017.md). Это отдельная
++native проверка, не продолжение/перезапись остановленного эксперимента Astra.
++Внешний control остановился при~1e-15 roundoff в другой среде; его FAIL сохранён.
++Наш новый control19 воспроизвёл schedule/K/period **точно**, поэтому заранее
++разрешённый численный atol1e-12 вообще не понадобился. Raw/K/selected indices
++требовались exact; evaluator ±2с не менялся.
++
++Код перед patched run: `35fc8fe899193bea4440b3e910e4f49782563836`.
++1control+3patched workers,seed0,dt1,K2..6/max5/60с,hard90с/worker. Каждый output
++и его SHA записан до full unchanged evaluate_prediction с прежними marks по
++проверенным hashes. Большие raw JSON/ZIP не читались. Все K рассмотрены, timeouts0.
++Оба K3 split parent завершили настоящий refinement на всех3 записях —6 новых
++refinements, но ни один не стал победителем. Пассивная трассировка сохраняет
++инициализации, quality, labels/probs hashes; решения/score не модифицирует.
++
++| Запись | K before→after / экспертные labels | Raw matched/truth/predicted | Raw P/R | MAE /p95 /nearest, с | Baseline matched/truth/predicted | Cached wall, с |
++|---|---|---|---|---|---|---:|
++|17|3→3 /3|15/17/18→15/17/18|.8333/.8824|.7093/1.4852/1.1052|15/17/17→15/17/17|17.428|
++|19|2→2 /2|1/8/8→1/8/8|.1250/.1250|1.5460/1.5460/4.7820|1/8/8→1/8/8|7.086|
++|6|3→3 /2|3/9/15→3/9/15|.2000/.3333|1.4713/1.7969/2.8059|1/9/15→1/9/15|16.324|
++
++Все6 полных metric payloads и выбранные schedules точны прежним. Raw19/34,
++precision19/41=46.34%,recall55.88%. Baseline17/34,precision17/40=42.50%,recall50%.
++Baseline matched MAE/p95/nearest17=.7483/1.7859/1.0859;19=1.5995/1.5995/3.9516;
++6=1.4184/1.4184/2.7519с. Period errors17/19/6=.01819/.29950/.12925с, неизменны.
++Full ranges/denominators/reasons/coverage, traces и inputs — в
++`benchmarks/seed_flow_20261017/comparison.json` и `native_verification.json`.
++Model temporal coverage1.0 на размеченных интервалах; local observation/lamp
++coverage UNKNOWN. Physical state UNKNOWN, probability отсутствует. Знакомые
++записи — development, не holdout. Runtime включает cache validation/import/
++fitting/export, не raw ingestion и не CPU profile. Не является доказанным
++ускорением/замедлением относительно другого окружения.
++
++**Structural D1 gate PASS, development benefit FAIL_NO_GAIN.** Исправлена
++достижимость существующих кандидатов, но реальная точность не улучшена. Нет
++пострезультатной настройки, дополнительных retries или скрытого принятия2D.1.
++Main сохранён;2D.1 FAIL/default-off и старые artifacts остаются.
++
++## Скорректированный алгоритмический маршрут
++
++1. **Следующий связный scope — D2+D3:** immutable согласованный snapshot
++   labels/probs/data_loglik/penalized_decode_score; общий явно названный K objective
++   для seed/refinement. Сначала независимые equality/snapshot counterexamples,
++   затем один заранее заданный development comparison. Семантика критерия должна
++   быть объявлена до метрик; не выбирать вариант по известным labels.
++2. **D7/D6:** tie-correct redundancy и устранение ложного hard rejection joint
++   shared signatures. Отдельные изменения/контроли: простое различие float rows
++   не превращать в calibrated identifiability.
++3. **D4/D5:** phase membership/circular matching с abstention при неоднозначности,
++   затем одинаковое правило выбора по quality. Единый max не лечит circular pairing.
++4. **D8:** censored endpoints исключить из onset evidence; отсутствие observed
++   onsets не заменять нулями или точными boundary. Проверить callers/UNKNOWN.
++5. Затем observation-model/local-history эксперимент по зарегистрированным
++   assumptions и calibration, с отдельно измеренной prior dependence. Не переносить
++   идеальные exclusive marks или фиксированную driver delay на реальные RELEASE.
++
++Это возвращает работу к алгоритму. Ожидание supplier не блокирует D2–D8; приёмка
++реальной сигнальной семантики по-прежнему требует independent validation.
+diff --git a/docs/SEED_FLOW_PROTOCOL_20261017.md b/docs/SEED_FLOW_PROTOCOL_20261017.md
+new file mode 100644
+index 0000000..4469d3f
+--- /dev/null
++++ b/docs/SEED_FLOW_PROTOCOL_20261017.md
+@@ -0,0 +1,49 @@
++# Native verification of external reviews — one isolated seed-flow correction
++
++Base `b7675c70bf191a20454fe974baa18cc161f01856`.
++Branch `fix/review-seed-flow-20261017`. Main remains unchanged.
++Both external reviews are preserved verbatim under evidence/review_intake_20261017.
++Their instructions/results are review input, not automatically trusted evidence.
++
++Only D1 is changed in production: move existing seed deduplication after the
++existing K3 split generator. No changed generator, dedup signature, threshold,
++criterion, score, ensemble preference, event selection, period, decoder or mapping.
++The other seven findings get independent local counterexamples, remain explicitly
++open strict xfails, and will not be bundled or adjusted after real metrics.
++Gemini's assumed2s lag, fixed transition times, queue=RED, motion=GREEN,
++observed-event exposure mask, likelihood-drop confidence intervals and baseline
++accuracy guarantees are NOT adopted. No new observation model/prior is inferred.
++
++Local before test: imported fully inspected tests with --runxfail. All8 reported
++defects must reproduce in their own counterexamples; before/after logs retained.
++Structural gate for D1: both distinct parents visit seed fit and refinement at
++dt.5/1/2; duplicate seed not repeated; K2 route preserved; both splits finish the
++actual decoder. Existing recurrence/K4/renaming/shared/budget/cache/query tests.
++An xfail is an open defect, never evidence of a passing quality requirement.
++
++Native experiment is new and separate from Astra's stopped cross-platform run.
++At most1 unchanged native control19 +3 patched cached discovery workers,90s each,
++360s total worker allowance, max1 suite, no tuning/retries. Cache inputs and prior
++b767 results hashed before fitting; exact TemporalEvent/selection/anchor checks.
++Raw trajectory files/ZIP not opened. Seed0,dt1,K2..6/max5/cooperative60s unchanged.
++Control gate predeclared before native control: raw segments and K exact;
++selected indices exact; finite baseline/period diagnostic floats atol1e-12s,
++rtol0, remaining discrete fields exact. This accounts only for tiny numerical
++roundoff; evaluator tolerance remains exactly2s. Report exact equality separately.
++Stop on any other mismatch. Do not rewrite/waive the external failed exact gate.
++Capture passive seed/refinement traces without changing decisions or scores.
++
++Commit code/config after tests and before patched comparison. Seal every output
++hash before opening original *_manual_marks.json. Use unchanged full evaluator
++and original annotations by pinned hashes (available locally), not reconstructed
++labels or optimal test permutations for physical claims. No UI, videos or tuning.
++
++Report K/period; raw AND baseline matched/truth/predicted counts, precision/recall
++±2s, matched MAE/p95, nearest MAE, temporal coverage/UNKNOWN, runtime and candidates.
++Useful development change requires no loss of prior K matches, and either more
++correct K or raw matched>19/34, no per-record raw matched/precision/nearest-MAE
++regression, aggregate precision>=19/41 and complete requested K search in budget.
++Otherwise report no gain/tradeoff/FAIL, not production accuracy acceptance.
++Period, selection, event hashes are invariants. Mark 2D.1 FAIL/default-off and
++physical state UNKNOWN regardless of synthetic success. Known records remain
++development, not holdout. Stop after the single comparison.
+diff --git a/scripts/seed_flow_review.py b/scripts/seed_flow_review.py
+new file mode 100644
+index 0000000..8a24ccc
+--- /dev/null
++++ b/scripts/seed_flow_review.py
+@@ -0,0 +1,161 @@
++"""One native seed-flow comparison. Inference takes no annotations."""
++import argparse
++from dataclasses import asdict
++import importlib.metadata
++import json
++import math
++import os
++from pathlib import Path
++import subprocess
++import sys
++import time
++
++from scripts.hsmm_recurrence_check import cached_bundle, sha, save
++
++ROOT = Path(__file__).resolve().parents[1]
++OUT = ROOT/'benchmarks/seed_flow_20261017'
++SOURCE = ROOT/'benchmarks/stage2c_20261014/predictions'
++BASELINE = ROOT/'benchmarks/hsmm_recurrence_20261016/predictions'
++BASE = 'b7675c70bf191a20454fe974baa18cc161f01856'
++
++
++def numerically_equal(a, b):
++    if isinstance(a, dict) and isinstance(b, dict):
++        return a.keys() == b.keys() and all(numerically_equal(a[k], b[k]) for k in a)
++    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
++        return len(a) == len(b) and all(numerically_equal(x, y) for x, y in zip(a, b))
++    if type(a) is float and type(b) is float:
++        return math.isfinite(a) and math.isfinite(b) and abs(a-b) <= 1e-12
++    return type(a) is type(b) and a == b
++
++
++def infer(source, output):
++    import hashlib
++    import numpy as np
++    from app.core.v9 import fit
++    from app.core.v9.model import _discover_bundle
++    np.random.seed(0)
++    pred, bundle = cached_bundle(source)
++    fits, refinements = [], []
++    original_fit, original_refine = fit.em_fit, fit._fit_from_initial_labels
++
++    def identity(result):
++        return dict(labels_sha256=hashlib.sha256(result['labels'].tobytes()).hexdigest(),
++                    probs_sha256=hashlib.sha256(result['probs'].tobytes()).hexdigest())
++
++    def trace_refine(*args, **kwargs):
++        result, history = original_refine(*args, **kwargs)
++        refinements.append(dict(k=args[2], source=args[7].get('source'),
++            parent=args[7].get('split_parent_phase'), score=result['score'],
++            pointwise_loglik=result['pointwise_loglik'], **identity(result)))
++        return result, history
++
++    def trace_fit(*args, **kwargs):
++        result = original_fit(*args, **kwargs)
++        fits.append({**{key: result[key] for key in ('k', 'initialization', 'initialization_candidates',
++            'score', 'pointwise_loglik', 'model_quality')}, **identity(result)})
++        return result
++
++    fit.em_fit, fit._fit_from_initial_labels = trace_fit, trace_refine
++    started = time.monotonic()
++    try:
++        result = _discover_bundle(bundle, input_name=pred['input'], dt=1., marks_path=None,
++            evidence_policy='permission_per_stream', source_files=pred['archive']['source_files'],
++            experimental_local_history=False)
++    finally:
++        fit.em_fit, fit._fit_from_initial_labels = original_fit, original_refine
++    result['event_extraction'].pop('temporal_events')
++    result['event_extraction']['temporal_events_ref'] = dict(file=source.relative_to(ROOT).as_posix(), sha256=sha(source))
++    result['seed_flow_trace'] = dict(fits=fits, refinements=refinements,
++        annotations_used=False, cached_runtime_s=time.monotonic()-started)
++    save(output, result)
++
++
++def worker(source, target):
++    started = time.monotonic()
++    env = {**os.environ, 'PYTHONHASHSEED':'0', 'OMP_NUM_THREADS':'1',
++           'OPENBLAS_NUM_THREADS':'1', 'MKL_NUM_THREADS':'1'}
++    try:
++        done = subprocess.run([sys.executable, '-m', 'scripts.seed_flow_review', 'infer',
++            str(source), str(target)], cwd=ROOT, env=env, capture_output=True, text=True, timeout=90)
++        reason = None if done.returncode == 0 else done.stderr[-3000:]
++    except subprocess.TimeoutExpired:
++        reason = 'WORKER_TIMEOUT_90S'
++    return dict(file=source.name, runtime_s=time.monotonic()-started, reason=reason,
++                prediction_sha256=sha(target) if target.exists() else None)
++
++
++def freeze():
++    from app.core.v9.fit import PhaseSearchConfig
++    OUT.mkdir(exist_ok=False)
++    inputs = []
++    for source in sorted(SOURCE.glob('*_v9.json')):
++        _, bundle = cached_bundle(source)
++        inputs.append(dict(file=source.name, sha256=sha(source), baseline_sha256=sha(BASELINE/source.name),
++            temporal_events=len(bundle.temporal_events), selected_indices=bundle.diagnostics['selected_event_indices']))
++    assert len(inputs) == 3
++    save(OUT/'freeze.json', dict(base_sha=BASE, inputs=inputs, seed=0, dt=1.,
++        search_config=asdict(PhaseSearchConfig()), max_control_runs=1, max_corrected_runs=3,
++        worker_timeout_s=90, total_worker_allowance_s=360, boundary_tolerance_s=2.,
++        control_float_atol=1e-12, control_float_rtol=0, control_raw_segments_and_K='EXACT',
++        package_versions={n:importlib.metadata.version(n) for n in ('numpy','scipy','scikit-learn','fastapi')},
++        protocol_sha256=sha(ROOT/'docs/SEED_FLOW_PROTOCOL_20261017.md'),
++        local_2D1='FAIL_DEFAULT_OFF', source='lossless_event_cache_NOT_original_ingestion'))
++
++
++def control():
++    save(OUT/'control_started.json', dict(fit_sha256=sha(ROOT/'app/core/v9/fit.py')))
++    entry = next(e for e in json.loads((OUT/'freeze.json').read_text())['inputs'] if e['file'].startswith('19_'))
++    assert sha(SOURCE/entry['file']) == entry['sha256']
++    row = worker(SOURCE/entry['file'], OUT/'control.json')
++    if row['reason'] is None:
++        old = json.loads((BASELINE/entry['file']).read_text(encoding='utf-8'))
++        new = json.loads((OUT/'control.json').read_text(encoding='utf-8'))
++        row.update(raw_exact=old['schedule']['raw_hsmm_segments'] == new['schedule']['raw_hsmm_segments'],
++            k_exact=old['schedule']['phase_count'] == new['schedule']['phase_count'],
++            schedule_exact=old['schedule'] == new['schedule'], period_exact=old['period_inference'] == new['period_inference'],
++            schedule_numerical_parity=numerically_equal(old['schedule'], new['schedule']),
++            period_numerical_parity=numerically_equal(old['period_inference'], new['period_inference']))
++    save(OUT/'control_check.json', row)
++    assert not row['reason'] and all(row[k] for k in ('raw_exact','k_exact','schedule_numerical_parity','period_numerical_parity')), 'STOP_UNEXPLAINED_NATIVE_CONTROL_MISMATCH'
++    print(json.dumps(row))
++
++
++def run():
++    check = json.loads((OUT/'control_check.json').read_text())
++    assert not check['reason'] and all(check[k] for k in ('raw_exact','k_exact','schedule_numerical_parity','period_numerical_parity'))
++    frozen = json.loads((OUT/'freeze.json').read_text())
++    assert sha(ROOT/'docs/SEED_FLOW_PROTOCOL_20261017.md') == frozen['protocol_sha256']
++    save(OUT/'corrected_started.json', dict(code_sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
++                                         fit_sha256=sha(ROOT/'app/core/v9/fit.py')))
++    rows = []
++    for entry in frozen['inputs']:
++        assert sha(SOURCE/entry['file']) == entry['sha256']
++        assert sha(BASELINE/entry['file']) == entry['baseline_sha256']
++        print('One corrected cached worker:', entry['file'], flush=True)
++        rows.append(worker(SOURCE/entry['file'], OUT/'predictions'/entry['file']))
++    save(OUT/'predictions_sealed.json', rows)
++    print('All prediction hashes sealed before annotation access')
++
++
++def evaluate():
++    # Reuse the already inspected full evaluator orchestration, changing only
++    # the new output directory. Native original annotations are available.
++    from scripts import hsmm_recurrence_check as evaluator
++    evaluator.OUT = OUT
++    evaluator.evaluate()
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('command', choices=('freeze','control','infer','run','evaluate'))
++    parser.add_argument('paths', nargs='*', type=Path)
++    args = parser.parse_args()
++    if args.command == 'infer':
++        infer(*args.paths)
++    else:
++        globals()[args.command]()
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/tests/test_seed_flow_control.py b/tests/test_seed_flow_control.py
+new file mode 100644
+index 0000000..a945fd0
+--- /dev/null
++++ b/tests/test_seed_flow_control.py
+@@ -0,0 +1,18 @@
++import pytest
++
++from scripts.seed_flow_review import numerically_equal
++
++
++def test_numerical_control_accepts_only_predeclared_roundoff():
++    before = {'boundaries': [10., 30.], 'count': 2, 'valid': True}
++    roundoff = {'boundaries': [10., 30.+7.105427357601002e-15], 'count': 2, 'valid': True}
++    different = {'boundaries': [10., 30.+1e-8], 'count': 2, 'valid': True}
++    assert numerically_equal(before, roundoff)
++    assert not numerically_equal(before, different)
++    assert not numerically_equal(before, {**before, 'count': 3})
++    assert not numerically_equal(before, {**before, 'valid': 1})
++
++
++@pytest.mark.parametrize('invalid', [float('nan'), float('inf'), -float('inf')])
++def test_nonfinite_diagnostics_cannot_pass_control(invalid):
++    assert not numerically_equal({'value': invalid}, {'value': invalid})
+diff --git a/tests/test_v9_independent_review.py b/tests/test_v9_independent_review.py
+new file mode 100644
+index 0000000..6082aea
+--- /dev/null
++++ b/tests/test_v9_independent_review.py
+@@ -0,0 +1,205 @@
++"""Small independent counterexamples; no real annotations or fitted thresholds.
++
++Only split-candidate visitation is fixed in this review. Strict xfails retain
++the other observed defects without silently treating them as regressions fixed.
++"""
++from unittest.mock import patch
++
++import numpy as np
++import pytest
++
++from app.core.v9 import fit
++from app.core.v9.decoder import _segments_from_labels
++from app.core.v9.events import periodic_baseline_from_segments
++from app.core.v9.primitives import fit_bernoulli_templates, _pointwise_loglik
++
++
++@pytest.mark.parametrize("dt", [0.5, 1.0, 2.0])
++def test_both_distinct_internal_splits_reach_template_fit_and_refinement(dt):
++    # A 24-bin cycle with two possible half-cycle parents; no stream seed view.
++    labels = np.tile(np.repeat([0, 1, 2], [6, 6, 12]), 2)
++    x = np.eye(3)[labels]
++    visited_seed, visited_refine = [], []
++    original = fit._seed_labels_to_fit
++
++    def seed(*args):
++        visited_seed.append((args[6]["source"], args[6].get("split_parent_phase")))
++        return original(*args)
++
++    def refine(*args):
++        visited_refine.append((args[7]["source"], args[7].get("split_parent_phase")))
++        raise RuntimeError("refinement deliberately unavailable; seed must survive")
++
++    with patch.object(fit, "_seed_labels_to_fit", seed), patch.object(fit, "_fit_from_initial_labels", refine):
++        result = fit.em_fit(x, 24 * dt, 3, dt=dt)
++    required = {( "two_phase_internal_split_seed", parent) for parent in (0, 1)}
++    assert required <= set(visited_seed)
++    assert required <= set(visited_refine)
++    assert sum(c["source"] == "two_phase_internal_split_seed" for c in result["initialization_candidates"]) == 2
++
++
++def test_duplicate_split_not_refitted_and_existing_k2_path_unchanged():
++    # At K3 the first split of [0000 1111] equals [00 11 2222].
++    x = np.eye(3)[np.tile([0, 0, 1, 1, 2, 2, 2, 2], 3)]
++    duplicate = np.tile([0, 0, 1, 1, 2, 2, 2, 2], 3)
++    visited = []
++
++    def stream_seed(streams, period, k, n, dt):
++        return duplicate, {"durations_s": [2., 2., 4.]}
++
++    def refine(*args):
++        visited.append(tuple(args[1]))
++        raise RuntimeError("structural test")
++
++    with patch.object(fit, "initial_seed_from_streams", stream_seed), patch.object(fit, "initial_offset_search", return_value=0.), patch.object(fit, "_fit_from_initial_labels", refine):
++        fit.em_fit(x, 8., 3, by_stream_global={"a": [0.]})
++    assert visited.count(tuple(duplicate)) == 1
++    visited.clear()
++    with patch.object(fit, "_fit_from_initial_labels", refine):
++        result = fit.em_fit(x, 8., 2)
++    assert len(visited) == 1
++    assert [c["source"] for c in result["initialization_candidates"]] == ["equal_duration_offset_search"]
++
++
++def test_split_candidates_complete_real_refinement():
++    labels = np.tile(np.repeat([0, 1, 2], [6, 6, 12]), 2)
++    x = np.eye(3)[labels]
++    completed = []
++    original = fit._fit_from_initial_labels
++
++    def refine(*args, **kwargs):
++        result = original(*args, **kwargs)
++        if args[7]['source'] == 'two_phase_internal_split_seed':
++            completed.append(args[7]['split_parent_phase'])
++        return result
++
++    with patch.object(fit, '_fit_from_initial_labels', refine):
++        result = fit.em_fit(x, 24., 3, iterations=2)
++    assert completed == [0, 1]
++    assert result['segments'] == _segments_from_labels(result['labels'])
++
++
++def objective_for_returned_model(x, payload):
++    # Independent sum of the documented objective; no decoder utility calls.
++    total = float(np.sum(x * np.log(payload["probs"][payload["labels"]]) +
++                         (1 - x) * np.log(1 - payload["probs"][payload["labels"]])))
++    targets = payload["decoder_info"]["duration_targets_s"]
++    for a, b, z in payload["segments"][1:]:
++        target = max(2., targets[z])
++        total -= 2 * ((b - a - target) / max(4., .25 * target)) ** 2 + .25
++    return total
++
++
++@pytest.mark.xfail(strict=True, reason="score uses old templates but payload returns refitted templates")
++def test_refinement_score_describes_returned_model():
++    truth = np.tile(np.repeat([0, 1], [6, 14]), 3)
++    x = np.eye(2)[truth]
++    initial = np.tile(np.repeat([0, 1], 10), 3)
++    payload, _ = fit._fit_from_initial_labels(x, initial, 2, 20., None, 1., 1,
++                                              {"durations_s": [10., 10.]}, None, None)
++    assert payload["score"] == pytest.approx(objective_for_returned_model(x, payload))
++
++
++@pytest.mark.xfail(strict=True, reason="candidate_metrics mixes seed likelihood and penalized decoder score")
++def test_same_path_and_templates_have_same_k_selection_objective():
++    labels = np.tile(np.repeat([0, 1], 10), 2)
++    x = np.eye(2)[labels]
++    info = {"durations_s": [10., 10.]}
++    seed = fit._seed_labels_to_fit(labels, x, 2, 20., None, 1., info, None, None)
++    refined, _ = fit._fit_from_initial_labels(x, labels, 2, 20., None, 1., 1, info, None, None)
++    assert np.array_equal(seed["labels"], refined["labels"])
++    assert np.array_equal(seed["probs"], refined["probs"])
++    seed.update(k=2, score=seed["pointwise_loglik"])
++    refined["k"] = 2
++    assert fit.candidate_metrics(seed, x.shape)["approx_bic"] == pytest.approx(
++        fit.candidate_metrics(refined, x.shape)["approx_bic"])
++
++
++def captured_ensemble(shift):
++    captured = []
++    n, period = 200, 100.
++    original = fit._seed_labels_to_fit
++    onsets = [[(a + shift) % period for a in values] for values in ([1., 51.], [49., 99.])]
++
++    def make_seed(values):
++        a, b = sorted(values)
++        labels = (((np.arange(n) - a) % period) >= b - a).astype(int)
++        return labels, {"group_onsets_s": [a, b], "durations_s": [b-a, period-b+a]}
++
++    def capture(*args):
++        if args[6]["source"] == "release_entry_seed_ensemble":
++            captured.extend(args[6]["group_onsets_s"])
++        return original(*args)
++
++    with patch.object(fit, "initial_seed_from_streams", side_effect=[make_seed(v) for v in onsets]), patch.object(fit, "_seed_labels_to_fit", capture), patch.object(fit, "_fit_from_initial_labels", side_effect=RuntimeError("isolate seeds")):
++        fit.em_fit(np.zeros((n, 2)), period, 2, by_stream_global={}, entry_streams={})
++    return sorted((v-shift) % period for v in captured)
++
++
++@pytest.mark.xfail(strict=True, reason="sorted zip and linear mean are not circular-origin equivariant")
++def test_ensemble_invariant_to_common_time_origin():
++    assert captured_ensemble(0.) == pytest.approx(captured_ensemble(10.))
++
++
++@pytest.mark.xfail(strict=True, reason="ensemble unconditionally suppresses unrefined release and entry")
++def test_ensemble_cannot_discard_arbitrarily_better_release_fit():
++    labels = np.tile(np.repeat([0, 1], 5), 2)
++    seeds = [(labels, {"group_onsets_s": [0., 5.], "durations_s": [5., 5.]}),
++             (1-labels, {"group_onsets_s": [2., 7.], "durations_s": [5., 5.]})]
++
++    def quality_fixture(labels, x, k, period, streams, dt, info, grid, values):
++        ll = {"robust_release_seed": -2., "entry_seed": -4.,
++              "release_entry_seed_ensemble": -8., "equal_duration_offset_search": -9.}[info["source"]]
++        return dict(labels=labels, probs=np.full((2, 2), .5), segments=_segments_from_labels(labels),
++                    pointwise_loglik=ll, coherence=0., seed_info=info)
++
++    with patch.object(fit, "initial_seed_from_streams", side_effect=seeds), patch.object(fit, "_seed_labels_to_fit", quality_fixture), patch.object(fit, "_fit_from_initial_labels", side_effect=RuntimeError("isolate selection")):
++        result = fit.em_fit(np.zeros((20, 2)), 10., 2, by_stream_global={}, entry_streams={})
++    assert result["initialization"]["source"] == "robust_release_seed"
++
++
++@pytest.mark.xfail(strict=True, reason="distinct shared-movement combinations need not have exclusive streams")
++def test_distinct_shared_signatures_are_not_multiple_unsupported_phases():
++    labels = np.tile(np.repeat(np.arange(3), 10), 3)
++    # Three pairwise-distinct, perfectly observable signatures AB, AC, BC.
++    x = np.array([[1, 1, 0], [1, 0, 1], [0, 1, 1]])[labels]
++    probs = fit_bernoulli_templates(x, labels, 3)
++    result = fit._phase_support_metrics({"k": 3, "probs": probs})
++    assert result["supported_phase_count"] == 3
++
++
++@pytest.mark.xfail(strict=True, reason="argsort(argsort) gives unequal ranks to ties")
++def test_redundancy_rank_feature_invariant_to_stream_permutation():
++    a, b = np.array([1., 1., 0.]), np.array([1., 0., 1.])
++    permutation = [1, 0, 2]
++    assert fit._rank_correlation(a, b) == pytest.approx(fit._rank_correlation(a[permutation], b[permutation]))
++
++
++@pytest.mark.xfail(strict=True, reason="tied ranks change redundancy decision after mere column permutation")
++def test_redundancy_decision_invariant_on_binary_shared_occupancy():
++    labels = np.tile(np.repeat(np.arange(3), [40, 40, 80]), 3)
++    counts = np.array([[1, 1, 2, 2, 0], [1, 2, 1, 2, 0], [0, 0, 0, 0, 4]])
++    x = ((np.arange(len(labels)) % 5)[:, None] < counts[labels]).astype(float)
++
++    def model(z, k):
++        p = fit_bernoulli_templates(x, z, k)
++        return dict(k=k, labels=z, probs=p, segments=_segments_from_labels(z),
++                    pointwise_loglik=_pointwise_loglik(x, p, z))
++
++    f3, f2 = model(labels, 3), model((labels == 2).astype(int), 2)
++    results = []
++    for permutation in ([1, 3, 0, 2, 4], [0, 2, 1, 3, 4]):
++        results.append(fit.evaluate_phase_redundancy(
++            {**f3, 'probs': f3['probs'][:, permutation]},
++            {**f2, 'probs': f2['probs'][:, permutation]}, x[:, permutation], 160.))
++    assert all(r['supported_phase_count'] == 3 for r in results)
++    assert results[0]['detected'] == results[1]['detected']
++
++
++@pytest.mark.xfail(strict=True, reason="left-censored segment start is counted as a phase onset")
++def test_periodic_baseline_ignores_censored_start():
++    # Exact periodic path, window begins halfway through phase 0.
++    segments = [(0., 10., 0), (10., 30., 1), (30., 50., 0), (50., 70., 1), (70., 80., 0)]
++    _, centers = periodic_baseline_from_segments(segments, 40., 80.)
++    assert centers[0] == pytest.approx(30.)
++    assert centers[1] == pytest.approx(10.)
