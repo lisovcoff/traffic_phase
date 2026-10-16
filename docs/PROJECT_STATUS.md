@@ -1,5 +1,24 @@
 # Project status — 2D.1, 2026-10-16
 
+2026-10-16 bounded archive batch delivered: independent source/session jobs,
+one extraction/source, subprocess wall timeout, shared attempt/time/byte budgets,
+checkpointed partial results and self-contained HTML + downloadable ZIP.
+Request-body cap acts before multipart spooling, including chunked/misdeclared
+length requests; failed parsing closes temporary files.317 targeted checks pass
+(249 archive/API +68 state/query), launcher import passes. One unchanged-V9
+technical batch:2 JSON,3 synthetic sessions,40 tracks/events each,K2,period
+120.00208155391648s,16.7826s total. Not real recovery/accuracy evidence.
+Two UI-only saved replays after layout/query-metadata fixes; no additional fits.
+Final15 full browser states exact common Python contract. Initial15 query
+metadata discrepancies retained, no hidden deletion of failed checks. Actual
+selected schedule/period/events equal previous prediction; selection differences
+are runtime fields only. No core V9/decoder/selection/threshold/evaluator changes.
+See BOUNDED_ARCHIVE_BATCH_20261016.2C and protective contract remain accepted;
+2D.1 FAIL/default-off; real K3/2/3 vs truth3/2/2,raw19/34 unchanged. Independent
+calibration/validation, exact deviations and physical sections remain open.
+Input/output/time budgets are NOT a hard RAM cap or full deployment acceptance.
+Current deliverable is usable development archive processing; project not complete.
+
 2026-10-16 source/session isolation integrated end-to-end (ROADMAP8/9 partial).
 Multi-member archives require source choice before decompression; multi-session
 permission evidence requires session choice before fitting, shared with in-memory

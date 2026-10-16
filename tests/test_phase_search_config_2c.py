@@ -1,16 +1,18 @@
 import pytest
+import json
 from app.core.v9.fit import PhaseSearchConfig
 from app.core.v9 import model
 
 
 def test_public_records_and_path_forward_explicit_search_config(monkeypatch,tmp_path):
+    from tests.test_v9_source_scope import track
     config=PhaseSearchConfig(kmin=5,kmax=8,max_candidates=2,max_seconds=10.)
-    monkeypatch.setattr(model,'extract_timing_streams',lambda tracks:())
-    monkeypatch.setattr(model,'load_event_streams',lambda *args,**kwargs:())
-    monkeypatch.setattr(model,'_discover_bundle',lambda bundle,**kwargs:kwargs['phase_search_config'])
-    assert model.discover_records([{}],phase_search_config=config) is config
-    source=tmp_path/'source.json';source.write_text('[]')
-    assert model.discover_path(source,phase_search_config=config) is config
+    # Real lossless bundles are required by the accepted session-scope contract.
+    # Stub only fitting: the explicit config must reach it unchanged.
+    monkeypatch.setattr(model,'_discover_bundle',lambda bundle,**kwargs:{'config':kwargs['phase_search_config']})
+    assert model.discover_records([track()],phase_search_config=config)['config'] is config
+    source=tmp_path/'source.json';source.write_text(json.dumps([track()]))
+    assert model.discover_path(source,phase_search_config=config)['config'] is config
 
 
 def test_empty_search_has_structured_unknown_and_no_fabricated_k(monkeypatch):

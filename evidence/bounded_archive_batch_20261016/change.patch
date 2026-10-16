@@ -1,0 +1,1379 @@
+diff --git a/README.md b/README.md
+index de767eb..b756a7c 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,12 @@
+ # traffic_phase
+ 
++Local web launch: `START_WEB.cmd`, then http://127.0.0.1:8017/visualization.
++Automatic archive/session jobs: http://127.0.0.1:8017/visualization/batch.
++The batch page exports predictions, per-session HTML and a reproducible manifest;
++timeouts/unprocessed sessions stay UNKNOWN. [Budgets and verified scope](docs/BOUNDED_ARCHIVE_BATCH_20261016.md).
++This is a working development workflow, **not final accuracy acceptance**:
++local extensions remain 2D.1 FAIL; physical sections/lamps require independent evidence.
++
+ Development roadmap: [ROADMAP.md](ROADMAP.md). Manual review tool:
+ double-click `START_ANNOTATION.cmd` or run `py -3 -m scripts.run_annotation`;
+ open http://127.0.0.1:8011/annotation. [Instructions](docs/ANNOTATION_WORKBENCH.md).
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 7b07ee5..e610e49 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -1,5 +1,21 @@
+ # traffic_phase — план до готового продукта
+ 
++2026-10-16: [bounded batch JSON/ZIP→сеансы→HTML/ZIP готов](docs/BOUNDED_ARCHIVE_BATCH_20261016.md).
++Автоматически обрабатываются отдельные source/session views без общего archive K;
++один extraction на источник, отдельный subprocess с hard wall timeout, общие
++job/time/input/output budgets. API/CLI, отдельные predictions, UNKNOWN/partial и
++скачивание ZIP; streaming upload cap до multipart spooling.317 tests, один
++технический batch из3 сохранённых synthetic sessions за16.7826с, затем только
++UI replay. В screenshot найдено обрезание вложенного отчёта; исправлена высота.
++Полное сравнение state выявило старый query timestamp=start segment в HTML;
++исправлены только метаданные,15/15 финальных queries exact. K/period/schedule/
++event selection сохранены, runtime diagnostics различаются ожидаемо.
++Пункты8/9 продвинуты; полноценная точность/эксплуатационная приёмка не завершены.
++Без hard RAM cap, без independent hardware validation;2D.1 FAIL/main/default
++сохранены. Следующий критический вход — producer frame↔millis связь и отдельная
++validation session, затем заранее заданная calibration и frozen validation;
++не повтор уже непринятых synthetic/replay экспериментов.
++
+ 2026-10-16: [archive/session isolation доведён до HTML](docs/ARCHIVE_SESSION_ISOLATION_20261016.md).
+ Canonical V9 не объединяет разные ZIP JSON по умолчанию; metadata choices до
+ extraction, session choices до model fitting. Тот же guard у discover_records,
+diff --git a/app/api/archive_batch.py b/app/api/archive_batch.py
+new file mode 100644
+index 0000000..889cd46
+--- /dev/null
++++ b/app/api/archive_batch.py
+@@ -0,0 +1,91 @@
++"""Local web batch surface. One active batch per application process."""
++import errno
++from pathlib import Path
++import re
++from tempfile import TemporaryDirectory
++import threading
++import uuid
++import zipfile
++
++from fastapi import APIRouter, File, HTTPException, UploadFile
++from fastapi.responses import FileResponse, HTMLResponse
++from starlette.concurrency import run_in_threadpool
++
++from app.core.archive_batch import run_archive_batch, render_batch_html, FIT_FRAME_SCRIPT
++from app.core.upload_limits import copy_upload, UploadLimitExceeded
++from app.core.temporal_evidence import EvidenceUnavailable
++
++router = APIRouter(prefix='/visualization', tags=['archive batch'])
++BATCH_ROOT = Path(__file__).resolve().parents[2]/'logs/archive_batches'
++_batch_lock = threading.Lock()
++
++PAGE = '''<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
++<title>Traffic Phase — пакетный анализ</title><style>*{box-sizing:border-box}body{font-family:system-ui;background:#10151d;color:#edf2f7;padding:20px;margin:0;overflow-wrap:anywhere}main{max-width:1100px;margin:auto}p{line-height:1.5}input{max-width:100%}button{padding:10px;margin:10px 0}a{color:#9ccaff}iframe{width:100%;height:1000px;border:1px solid #555}</style>
++<main><a href="/visualization">Один сеанс и движения машин</a><h1>Анализ JSON или архива по сеансам</h1>
++<p>Каждый JSON и сеанс оцениваются отдельно. До 4 попыток, до 90 секунд на источник и 180 секунд на пакет.
++Остальные сеансы сохранят статус UNKNOWN с причиной. Загрузка до 512 МиБ; суммарный объём распаковки до 1 ГиБ, без извлечения ZIP на диск.</p>
++<p>Выход: K, период, движения и оценка логических фаз. Тип секций и физические лампы UNKNOWN; точная история продлений ещё не принята (2D.1 FAIL).</p>
++<form id="batch-form"><input type="file" id="batch-file" accept=".json,.zip" required aria-label="JSON или ZIP"><br><button id="batch-submit">Обработать сеансы</button></form>
++<p id="batch-status">Выберите файл.</p><a id="batch-download" hidden>Скачать predictions, отчёты и manifest</a><iframe id="batch-viewer" title="Результаты архива" hidden></iframe></main>
++<script>__FIT_FRAME_SCRIPT__
++const form=document.querySelector('#batch-form'),file=document.querySelector('#batch-file'),button=document.querySelector('#batch-submit'),status=document.querySelector('#batch-status'),viewer=document.querySelector('#batch-viewer'),download=document.querySelector('#batch-download');
++function clear(){viewer.hidden=true;viewer.srcdoc='';download.hidden=true;download.removeAttribute('href');}
++file.onchange=()=>{clear();status.textContent='Файл выбран. Запустите обработку.';};
++form.onsubmit=async e=>{e.preventDefault();if(!file.files.length)return;clear();button.disabled=true;file.disabled=true;status.textContent='Обработка… Лимит вычислений пакета 180 секунд; загрузка и отчёты учитываются отдельно.';
++try{const body=new FormData();body.append('file',file.files[0]);const response=await fetch('/visualization/batch',{method:'POST',body});const page=await response.text();if(!response.ok){let detail;try{detail=JSON.parse(page).detail;}catch{}throw Error(typeof detail==='string'?detail:JSON.stringify(detail||page));}
++fitFrame(viewer);viewer.srcdoc=page;viewer.hidden=false;const id=response.headers.get('X-Traffic-Phase-Batch-Id');download.href='/visualization/batch/'+encodeURIComponent(id)+'/download';download.hidden=false;status.textContent='Готово. Проверьте статусы сеансов: частичный результат не означает полного анализа архива.';
++}catch(e){status.textContent='Ошибка: '+e.message;}finally{button.disabled=false;file.disabled=false;}};</script></html>'''.replace('__FIT_FRAME_SCRIPT__', FIT_FRAME_SCRIPT)
++
++
++@router.get('/batch', response_class=HTMLResponse)
++def batch_page():
++    return PAGE
++
++
++def _build_batch(source, output):
++    manifest = run_archive_batch(source, output)
++    page = render_batch_html(manifest, output)
++    (output/'index.html').write_text(page, encoding='utf-8')
++    # ZIP contains only this run's generated artifacts; never the user's media.
++    with zipfile.ZipFile(output/'results.zip', 'w', compression=zipfile.ZIP_DEFLATED) as archive:
++        for path in sorted(output.rglob('*')):
++            if path.is_file() and path.name != 'results.zip':
++                archive.write(path, path.relative_to(output).as_posix())
++    return page
++
++
++@router.post('/batch', response_class=HTMLResponse)
++async def batch_analyze(file: UploadFile = File(...)):
++    if not file.filename or Path(file.filename).suffix.lower() not in ('.json', '.zip'):
++        raise HTTPException(400, 'Only JSON and ZIP inputs are supported')
++    if not _batch_lock.acquire(blocking=False):
++        raise HTTPException(429, 'BATCH_ALREADY_RUNNING; wait for the current batch')
++    try:
++        batch_id = uuid.uuid4().hex
++        with TemporaryDirectory(prefix='traffic_batch_') as temp:
++            source = Path(temp)/Path(file.filename).name
++            await file.seek(0)
++            with source.open('wb') as sink:
++                await run_in_threadpool(copy_upload, file.file, sink)
++            page = await run_in_threadpool(_build_batch, source, BATCH_ROOT/batch_id)
++        return HTMLResponse(page, headers={'X-Traffic-Phase-Batch-Id': batch_id})
++    except UploadLimitExceeded as exc:
++        raise HTTPException(413, str(exc)) from exc
++    except EvidenceUnavailable as exc:
++        raise HTTPException(422, exc.to_dict()) from exc
++    except (ValueError, zipfile.BadZipFile) as exc:
++        raise HTTPException(422, str(exc)) from exc
++    except OSError as exc:
++        raise HTTPException(507 if exc.errno == errno.ENOSPC else 422, str(exc)) from exc
++    finally:
++        _batch_lock.release()
++
++
++@router.get('/batch/{batch_id}/download')
++def download_batch(batch_id: str):
++    if not re.fullmatch(r'[0-9a-f]{32}', batch_id):
++        raise HTTPException(404, 'Unknown batch')
++    path = BATCH_ROOT/batch_id/'results.zip'
++    if not path.is_file():
++        raise HTTPException(404, 'Batch download unavailable')
++    return FileResponse(path, filename='traffic_phase_results.zip', media_type='application/zip')
+diff --git a/app/api/v9.py b/app/api/v9.py
+index 4338a1b..56633c1 100644
+--- a/app/api/v9.py
++++ b/app/api/v9.py
+@@ -6,7 +6,7 @@ from hashlib import sha256
+ from pathlib import Path
+ from tempfile import TemporaryDirectory
+ import json
+-import shutil
++import errno
+ import threading
+ import uuid
+ import zipfile
+@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
+ from app.core.v9.v9_discovery import OnlinePhaseTracker, discover_path
+ from app.core.v9.source_scope import ScopeChoiceRequired
+ from app.core.temporal_evidence import EvidenceUnavailable
++from app.core.upload_limits import copy_upload, UploadLimitExceeded
+ 
+ router = APIRouter(prefix="/api/v1/v9", tags=["v9"])
+ 
+@@ -263,11 +264,7 @@ async def v9_analyze(
+             target = root / Path(filename).name
+             await file.seek(0)
+             with target.open("wb") as sink:
+-                shutil.copyfileobj(
+-                    file.file,
+-                    sink,
+-                    length=1024 * 1024,
+-                )
++                copy_upload(file.file, sink)
+ 
+             result = discover_path(
+                 target,
+@@ -289,6 +286,8 @@ async def v9_analyze(
+             }
+             return result
+ 
++    except UploadLimitExceeded as exc:
++        raise HTTPException(status_code=413, detail=str(exc)) from exc
+     except ScopeChoiceRequired as exc:
+         raise HTTPException(status_code=409, detail=exc.to_dict()) from exc
+     except EvidenceUnavailable as exc:
+@@ -298,7 +297,9 @@ async def v9_analyze(
+             status_code=422,
+             detail="Invalid ZIP archive",
+         ) from exc
+-    except (ValueError, TypeError, OSError) as exc:
++    except OSError as exc:
++        raise HTTPException(status_code=507 if exc.errno == errno.ENOSPC else 422, detail=str(exc)) from exc
++    except (ValueError, TypeError) as exc:
+         raise HTTPException(
+             status_code=422,
+             detail=str(exc),
+diff --git a/app/api/visualization.py b/app/api/visualization.py
+index 568591a..7936b27 100644
+--- a/app/api/visualization.py
++++ b/app/api/visualization.py
+@@ -2,7 +2,6 @@ from __future__ import annotations
+ 
+ import json
+ import re
+-import shutil
+ import zipfile
+ import errno
+ from datetime import datetime, timezone
+@@ -22,6 +21,7 @@ from scripts.v9_spatial_visualizer import build_spatial_visualization
+ from app.core.v9.source_scope import ScopeChoiceRequired
+ from app.core.temporal_evidence import EvidenceUnavailable
+ from app.core.state_contract import prepare_logical_query
++from app.core.upload_limits import copy_upload, UploadLimitExceeded
+ 
+ router = APIRouter(prefix="/visualization", tags=["visualization"])
+ 
+@@ -254,6 +254,7 @@ button:disabled{opacity:.45;cursor:default}
+ пространственная реконструкция машин и светофоров.
+ </p>
+ <form id="form">
++<p><a href="/visualization/batch" style="color:#9ccaff">Обработать архив автоматически по отдельным сеансам</a></p>
+ <div class="toolbar">
+ <input id="file" name="file" type="file" accept=".json,.zip,application/json,application/zip" required>
+ <button class="primary" id="submit" type="submit">Запустить анализ</button>
+@@ -391,11 +392,7 @@ async def visualization_analyze(
+             source_path = Path(tmp) / Path(file.filename).name
+             await file.seek(0)
+             with source_path.open("wb") as sink:
+-                shutil.copyfileobj(
+-                    file.file,
+-                    sink,
+-                    length=1024 * 1024,
+-                )
++                copy_upload(file.file, sink)
+ 
+             built = build_spatial_visualization(
+                 source_path,
+@@ -467,6 +464,8 @@ async def visualization_analyze(
+                 },
+             )
+ 
++    except UploadLimitExceeded as exc:
++        raise HTTPException(status_code=413, detail=str(exc)) from exc
+     except ScopeChoiceRequired as exc:
+         raise HTTPException(status_code=409, detail=exc.to_dict()) from exc
+     except EvidenceUnavailable as exc:
+diff --git a/app/core/archive_batch.py b/app/core/archive_batch.py
+new file mode 100644
+index 0000000..10acafc
+--- /dev/null
++++ b/app/core/archive_batch.py
+@@ -0,0 +1,286 @@
++"""Sequential, process-isolated archive jobs. Never merge sources or sessions.
++
++Budgets bound wall time, input/output bytes and attempted sessions. They are NOT
++a hard resident-memory limit. An interrupted source can retain completed jobs.
++No annotations, new decoder, hyperparameter selection or physical-state claims.
++"""
++from dataclasses import asdict, dataclass
++import hashlib
++import html
++import json
++import math
++import os
++from pathlib import Path
++import subprocess
++import sys
++import time
++
++from app.core.v9.source_scope import choose_source, ScopeChoiceRequired
++
++ROOT = Path(__file__).resolve().parents[2]
++
++# Inline so exported HTML works offline. Size from natural body content, not
++# document.scrollHeight (which can feed the iframe viewport back into a loop).
++FIT_FRAME_SCRIPT = '''function fitFrame(frame){
++  if(frame._sizeObserver)frame._sizeObserver.disconnect();
++  frame.onload=()=>{
++    const doc=frame.contentDocument;
++    const resize=()=>{const style=doc.defaultView.getComputedStyle(doc.body);
++      const height=Math.ceil(doc.body.getBoundingClientRect().height+parseFloat(style.marginTop)+parseFloat(style.marginBottom)+4);
++      if(Math.abs(frame.clientHeight-height)>2)frame.style.height=height+'px';};
++    frame._sizeObserver=new ResizeObserver(resize);frame._sizeObserver.observe(doc.body);resize();
++  };
++}'''
++
++
++@dataclass(frozen=True)
++class BatchConfig:
++    dt: float = 1.0
++    max_jobs: int = 4
++    total_seconds: float = 180.0
++    source_seconds: float = 90.0
++    max_source_bytes: int = 512 * 1024 * 1024
++    max_total_source_bytes: int = 1024 * 1024 * 1024
++    max_output_bytes: int = 64 * 1024 * 1024
++
++    def __post_init__(self):
++        for name, value in asdict(self).items():
++            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
++                raise ValueError(f'invalid positive finite batch budget: {name}')
++        for name in ('max_jobs', 'max_source_bytes', 'max_total_source_bytes', 'max_output_bytes'):
++            if not isinstance(getattr(self, name), int):
++                raise ValueError(f'integer budget required: {name}')
++        if self.max_jobs > 512 or self.dt != 1.0:
++            raise ValueError('batch supports at most 512 jobs and the unchanged dt=1s configuration')
++        if self.max_output_bytes < 1024 * 1024:
++            raise ValueError('reserve at least 1 MiB for manifests and unavailable diagnostics')
++
++
++def sha256_file(path):
++    digest = hashlib.sha256()
++    with Path(path).open('rb') as stream:
++        for block in iter(lambda: stream.read(1024 * 1024), b''):
++            digest.update(block)
++    return digest.hexdigest()
++
++
++def write_json(path, value, *, max_bytes=1024 * 1024):
++    """Bound the serialized file as it is written; replace only our own artifact."""
++    path = Path(path)
++    temporary = path.with_suffix(path.suffix + '.tmp')
++    size = 0
++    try:
++        with temporary.open('wb') as stream:
++            for chunk in json.JSONEncoder(ensure_ascii=False, allow_nan=False, separators=(',', ':')).iterencode(value):
++                raw = chunk.encode('utf-8')
++                size += len(raw)
++                if size > max_bytes:
++                    raise ValueError('OUTPUT_BYTE_BUDGET_EXCEEDED')
++                stream.write(raw)
++        temporary.replace(path)
++    finally:
++        if temporary.exists():
++            temporary.unlink()
++
++
++def _unavailable(row, reason):
++    row.update(status='UNAVAILABLE', reason=reason, phase_count=None, estimated_state='UNKNOWN')
++
++
++def run_source_worker(request):
++    """Internal worker: one extraction, unchanged fitting on separate session views."""
++    import numpy as np
++    from app.core.temporal_evidence import EvidenceUnavailable
++    from app.core.v9.events import load_event_streams
++    from app.core.v9.model import _discover_bundle
++    from app.core.v9.source_scope import input_sessions, choose_session, attach_input_scope
++    from app.core.offline_product_report import render_product_html
++
++    np.random.seed(0)
++    config = BatchConfig(**request['config'])
++    output = Path(request['output'])
++    source = request['source_member']
++    checkpoint = output/'checkpoint.json'
++    started = time.monotonic()
++    state = dict(source_member=source, inventory_complete=False, jobs=[])
++    write_json(checkpoint, state)
++    try:
++        bundle = load_event_streams(Path(request['input']), source_member=source)
++        sessions = [s.metadata for s in input_sessions(bundle, source)]
++        state.update(inventory_complete=True, extraction_seconds=time.monotonic()-started)
++        state['jobs'] = [dict(session=s, status='PLANNED') for s in sessions]
++        write_json(checkpoint, state)
++        used = 0
++        for index, row in enumerate(state['jobs']):
++            if index >= request['remaining_jobs']:
++                _unavailable(row, 'JOB_COUNT_BUDGET')
++                continue
++            row.update(status='RUNNING', attempted=True)
++            write_json(checkpoint, state)
++            tick = time.monotonic()
++            try:
++                scoped, selected, choices = choose_session(bundle, source, row['session']['session_id'])
++                result = _discover_bundle(scoped, input_name=request['input'], dt=config.dt,
++                    marks_path=None, evidence_policy='permission_per_stream',
++                    source_files=[request['input']], experimental_local_history=False)
++                attach_input_scope(result, source, selected, choices, source_count=request['source_count'])
++                filename = f'session_{index+1:04d}'
++                predicted = output/(filename+'.json')
++                remaining = request['remaining_output_bytes'] - used
++                write_json(predicted, result, max_bytes=min(16*1024*1024, max(0, remaining-65536)))
++                used += predicted.stat().st_size
++                page = render_product_html(result).encode('utf-8')
++                if len(page) > min(8*1024*1024, request['remaining_output_bytes']-used-65536):
++                    raise ValueError('OUTPUT_BYTE_BUDGET_EXCEEDED')
++                report = output/(filename+'.html')
++                report.write_bytes(page)
++                used += len(page)
++                row.update(status='ESTIMATED', prediction=predicted.name, report=report.name,
++                           prediction_sha256=sha256_file(predicted), report_sha256=sha256_file(report),
++                           phase_count=result.get('schedule', {}).get('phase_count'),
++                           period_s=result.get('schedule', {}).get('period_s'),
++                           event_count=result.get('event_count'), trajectory_count=result.get('trajectory_count'),
++                           analysis_scope=result['input_scope']['analysis_scope'],
++                           physical_state='UNKNOWN', local_deviation_validation='FAIL_2D.1')
++            except EvidenceUnavailable as exc:
++                _unavailable(row, exc.reason_code)
++            except (ValueError, TypeError, KeyError, OSError, MemoryError) as exc:
++                _unavailable(row, f'{type(exc).__name__}: {str(exc)[:500]}')
++            row['runtime_s'] = round(time.monotonic()-tick, 4)
++            write_json(checkpoint, state)
++        write_json(checkpoint, state)
++    except EvidenceUnavailable as exc:
++        state['source_error'] = exc.to_dict()
++        write_json(checkpoint, state)
++    except (ValueError, TypeError, KeyError, OSError, MemoryError) as exc:
++        state['source_error'] = dict(reason=f'{type(exc).__name__}: {str(exc)[:500]}')
++        write_json(checkpoint, state)
++
++
++def _run_worker(request_file, timeout):
++    """Same subprocess isolation pattern as offline_benchmark; kill/wait on timeout."""
++    env = {**os.environ, 'PYTHONHASHSEED': '0', 'OMP_NUM_THREADS': '1',
++           'OPENBLAS_NUM_THREADS': '1', 'MKL_NUM_THREADS': '1'}
++    # Worker stdout/stderr are discarded rather than accumulated without a limit.
++    started = time.monotonic()
++    try:
++        completed = subprocess.run([sys.executable, '-m', 'scripts.archive_batch',
++                                    '_worker', str(request_file)], cwd=ROOT, env=env,
++                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
++                                   timeout=timeout)
++        return dict(status='EXITED', returncode=completed.returncode,
++                    runtime_s=time.monotonic()-started)
++    except subprocess.TimeoutExpired:
++        return dict(status='TIMEOUT', runtime_s=time.monotonic()-started)
++
++
++def run_archive_batch(path, output, *, config=BatchConfig(), _runner=None):
++    """Fresh output directory only. Source inventory is metadata-only, not a union."""
++    path, output = Path(path).resolve(), Path(output).resolve()
++    if not path.is_file() or path.suffix.lower() not in ('.json', '.zip'):
++        raise ValueError('batch requires one trajectory JSON or ZIP')
++    if path.stat().st_size > config.max_source_bytes:
++        raise ValueError('UPLOAD_BYTE_BUDGET_EXCEEDED')
++    started = time.monotonic()
++    try:
++        _, sources = choose_source(path, max_bytes=config.max_source_bytes)
++    except ScopeChoiceRequired as exc:
++        sources = exc.choices
++    output.mkdir(parents=True, exist_ok=False)
++    manifest = dict(schema='traffic-phase-batch-v1', input_name=path.name,
++        input_sha256=sha256_file(path), config=asdict(config), sources=sources,
++        code_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
++        code_dirty=bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT).strip()),
++        code_sha256_lf={str(p.relative_to(ROOT)).replace('\\', '/'): hashlib.sha256(
++            p.read_bytes().replace(b'\r\n', b'\n')).hexdigest()
++            for p in sorted([*ROOT.glob('app/**/*.py'), ROOT/'scripts/archive_batch.py'])},
++        model_config=dict(evidence_policy='permission_per_stream', seed=0,
++                          phase_search='unchanged_2C_default', experimental_local_history=False),
++        semantics='independent source/session estimates; NO global archive K or physical lamp accuracy',
++        resource_scope='hard worker wall timeout; byte/job budgets; NO hard RAM limit',
++        sources_processed=[], status='RUNNING')
++    write_json(output/'manifest.json', manifest)
++    attempted = 0
++    admitted_bytes = 0
++    runner = _runner or _run_worker
++    for index, source in enumerate(sources):
++        row = dict(source_member=source['source_member'], inventory_complete=False, jobs=[])
++        remaining_time = config.total_seconds - (time.monotonic()-started)
++        reason = ('JOB_COUNT_BUDGET' if attempted >= config.max_jobs else
++                  'TOTAL_TIME_BUDGET' if remaining_time <= 0 else
++                  'SOURCE_BYTE_BUDGET' if source['uncompressed_bytes'] > config.max_source_bytes else
++                  'TOTAL_SOURCE_BYTE_BUDGET' if admitted_bytes+source['uncompressed_bytes'] > config.max_total_source_bytes else None)
++        used = sum(p.stat().st_size for p in output.rglob('*') if p.is_file())
++        if used >= config.max_output_bytes-1024*1024:
++            reason = reason or 'OUTPUT_BYTE_BUDGET'
++        if reason:
++            row.update(status='UNAVAILABLE', reason=reason)
++        else:
++            admitted_bytes += source['uncompressed_bytes']
++            folder = output/f'source_{index+1:04d}'
++            folder.mkdir()
++            request = dict(input=str(path), output=str(folder), source_member=source['source_member'],
++                           source_count=len(sources), remaining_jobs=config.max_jobs-attempted,
++                           # Reserve room for the self-contained index (it embeds reports)
++                           # and manifests. Download ZIP is a separately bounded copy.
++                           remaining_output_bytes=(config.max_output_bytes-used-1024*1024)//2,
++                           config=asdict(config))
++            write_json(folder/'request.json', request)
++            process = runner(folder/'request.json', min(config.source_seconds, remaining_time))
++            if (folder/'checkpoint.json').is_file():
++                row.update(json.loads((folder/'checkpoint.json').read_text(encoding='utf-8')))
++            row['process'] = process
++            row['artifact_directory'] = folder.name
++            for job in row['jobs']:
++                attempted += int(job.get('attempted', False))
++                if job['status'] in ('RUNNING', 'PLANNED'):
++                    _unavailable(job, 'SOURCE_TIMEOUT' if process['status'] == 'TIMEOUT' else 'WORKER_INTERRUPTED')
++            row['status'] = ('ESTIMATED' if row['inventory_complete'] and row['jobs'] and
++                             all(j['status'] == 'ESTIMATED' for j in row['jobs']) else 'PARTIAL_OR_UNAVAILABLE')
++            if not row['inventory_complete']:
++                row['reason'] = ('SOURCE_TIMEOUT_BEFORE_SESSION_INVENTORY' if process['status'] == 'TIMEOUT' else
++                                 row.get('source_error', {}).get('reason', 'SESSION_INVENTORY_UNAVAILABLE'))
++        manifest['sources_processed'].append(row)
++        write_json(output/'manifest.json', manifest)
++    manifest.update(status=('COMPLETE_ESTIMATES' if all(s['status'] == 'ESTIMATED' for s in manifest['sources_processed'])
++                            else 'PARTIAL_OR_UNAVAILABLE'), attempted_jobs=attempted,
++                    runtime_s=round(time.monotonic()-started, 4),
++                    session_inventory_complete=all(s['inventory_complete'] for s in manifest['sources_processed']))
++    write_json(output/'manifest.json', manifest)
++    return manifest
++
++
++def render_batch_html(manifest, folder):
++    """Self-contained index, safe text labels, common-contract per-session reports."""
++    cards, reports = [], []
++    for source in manifest['sources_processed']:
++        label = html.escape(source['source_member'])
++        if not source['jobs']:
++            cards.append(f'<li><b>{label}</b> — UNKNOWN: {html.escape(source.get("reason", "UNAVAILABLE"))}; число сеансов неизвестно</li>')
++        for job in source['jobs']:
++            session = job['session']
++            text = f'{label} · сеанс {session["session_number"]}'
++            if job['status'] == 'ESTIMATED':
++                report = Path(folder)/source['artifact_directory']/job['report']
++                reports.append(report.read_text(encoding='utf-8'))
++                text += (f' · K={job["phase_count"]}, период {job["period_s"]:.3f} с · '
++                         f'{job["event_count"]} событий · {html.escape(job["analysis_scope"])} '
++                         f'<button type="button" data-report="{len(reports)-1}">Открыть результат</button>')
++            else:
++                text += ' — UNKNOWN: '+html.escape(job.get('reason', 'UNAVAILABLE'))
++            cards.append('<li>'+text+'</li>')
++    data = json.dumps(reports, ensure_ascii=False).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
++    page = ('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
++        '<title>Traffic Phase — архив</title><style>*{box-sizing:border-box}body{font-family:system-ui;background:#10151d;color:#edf2f7;margin:0;padding:20px;overflow-wrap:anywhere}'
++        'main{max-width:1100px;margin:auto}li{margin:14px 0}button{padding:8px;margin:5px}iframe{width:100%;height:850px;border:1px solid #555}p{line-height:1.5}</style>'
++        '<main><h1>Результаты по сеансам</h1><p>Статус: '+html.escape(manifest['status'])+
++        '. Архив не объединён в один цикл. Физические лампы и тип секций: UNKNOWN. Продления: 2D.1 FAIL.</p>'
++        '<p>Обработано попыток: '+str(manifest['attempted_jobs'])+'. Необработанные источники и timeout не означают отсутствие фаз. '
++        'Поддержка траекторий не является покрытием камеры. Длинный сеанс может быть представлен только выбранным окном.</p><ul>'+''.join(cards)+
++        '</ul><iframe id="batch-report" title="Результат сеанса" hidden></iframe></main><script>'+FIT_FRAME_SCRIPT+'const reports='+data+
++        ';document.querySelectorAll("[data-report]").forEach(b=>b.onclick=()=>{const f=document.querySelector("#batch-report");'
++        'fitFrame(f);f.srcdoc=reports[Number(b.dataset.report)];f.hidden=false;});</script></html>')
++    used = sum(p.stat().st_size for p in Path(folder).rglob('*') if p.is_file())
++    if len(page.encode('utf-8'))+used > manifest['config']['max_output_bytes']:
++        raise ValueError('OUTPUT_BYTE_BUDGET_EXCEEDED')
++    return page
+diff --git a/app/core/upload_limits.py b/app/core/upload_limits.py
+new file mode 100644
+index 0000000..580ee0b
+--- /dev/null
++++ b/app/core/upload_limits.py
+@@ -0,0 +1,60 @@
++"""Bound request bodies before multipart spooling, and files before a second copy."""
++from fastapi.responses import JSONResponse
++from starlette.exceptions import HTTPException
++
++MAX_UPLOAD_BYTES = 512 * 1024 * 1024
++MAX_REQUEST_BYTES = MAX_UPLOAD_BYTES + 1024 * 1024
++UPLOAD_PATHS = frozenset(('/api/v1/v9/analyze', '/visualization/analyze', '/visualization/batch'))
++
++
++class UploadLimitExceeded(HTTPException):
++    # FastAPI retains HTTPException during dependency/multipart parsing; a plain
++    # ValueError is converted into generic 400 before outer middleware can see it.
++    def __init__(self, reason):
++        super().__init__(status_code=413, detail=reason)
++
++    def __str__(self):
++        return str(self.detail)
++
++
++def copy_upload(source, sink, *, max_bytes=MAX_UPLOAD_BYTES):
++    size = 0
++    while chunk := source.read(min(1024 * 1024, max_bytes - size + 1)):
++        size += len(chunk)
++        if size > max_bytes:
++            raise UploadLimitExceeded('UPLOAD_BYTE_BUDGET_EXCEEDED')
++        sink.write(chunk)
++    return size
++
++
++class UploadLimitMiddleware:
++    def __init__(self, app, *, max_bytes=MAX_REQUEST_BYTES):
++        self.app, self.max_bytes = app, max_bytes
++
++    async def __call__(self, scope, receive, send):
++        if scope['type'] != 'http' or scope['method'] != 'POST' or scope['path'] not in UPLOAD_PATHS:
++            return await self.app(scope, receive, send)
++        headers = dict(scope.get('headers', []))
++        try:
++            declared = int(headers.get(b'content-length', b'0'))
++            if declared < 0:
++                raise ValueError
++        except ValueError:
++            return await JSONResponse({'detail': 'INVALID_CONTENT_LENGTH'}, 400)(scope, receive, send)
++        if declared > self.max_bytes:
++            return await JSONResponse({'detail': 'REQUEST_BYTE_BUDGET_EXCEEDED'}, 413)(scope, receive, send)
++        size = 0
++
++        async def bounded_receive():
++            nonlocal size
++            message = await receive()
++            if message['type'] == 'http.request':
++                size += len(message.get('body', b''))
++                if size > self.max_bytes:
++                    raise UploadLimitExceeded('REQUEST_BYTE_BUDGET_EXCEEDED')
++            return message
++
++        try:
++            await self.app(scope, bounded_receive, send)
++        except UploadLimitExceeded as exc:
++            await JSONResponse({'detail': str(exc)}, 413)(scope, receive, send)
+diff --git a/app/main.py b/app/main.py
+index 8281578..e7b78ef 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -6,6 +6,8 @@ from app.api.visualization import router as visualization_router
+ from app.api.realtime import router as realtime_router
+ from app.api.realtime_simulation import router as realtime_simulation_router
+ from app.api.annotation import router as annotation_router
++from app.core.upload_limits import UploadLimitMiddleware
++from app.api.archive_batch import router as archive_batch_router
+ 
+ app = FastAPI(
+     title="Traffic Phase Estimator",
+@@ -20,6 +22,8 @@ app.include_router(visualization_router)
+ app.include_router(realtime_router)
+ app.include_router(realtime_simulation_router)
+ app.include_router(annotation_router)
++app.include_router(archive_batch_router)
++app.add_middleware(UploadLimitMiddleware)
+ 
+ 
+ @app.get("/health")
+@@ -34,5 +38,6 @@ def root() -> dict[str, str]:
+         "version": "0.12.0",
+         "visualization": "/visualization",
+         "annotation": "/annotation",
++        "archive_batch": "/visualization/batch",
+         "v9": "/api/v1/v9/info",
+     }
+diff --git a/app/static/v9_offline_report.html b/app/static/v9_offline_report.html
+index 995447f..17d723e 100644
+--- a/app/static/v9_offline_report.html
++++ b/app/static/v9_offline_report.html
+@@ -36,10 +36,15 @@ let current=0, timer=null;
+ // These intervals/states were validated and evaluated by the shared Python
+ // query contract. Browser code only locates a half-open prepared interval.
+ function stateAt(t){
++  t=Number(t);
+   let lo=0, hi=PRODUCT.intervals.length;
+   while(lo<hi){const m=(lo+hi)>>1;if(PRODUCT.intervals[m].start<=t)lo=m+1;else hi=m;}
+   const row=PRODUCT.intervals[lo-1];
+-  return row && t>=row.start && t<row.end ? row.logical_phase : PRODUCT.fallback_logical_phase;
++  const prepared=row && t>=row.start && t<row.end ? row.logical_phase : PRODUCT.fallback_logical_phase;
++  // The prepared segment proves scope/state; its start is not the query time.
++  const support={...prepared.observation_support,timestamp_s:Number.isFinite(t)?t:null};
++  if(support.temporally_covered)support.query_position_s=t;
++  return {...prepared,observation_support:support};
+ }
+ function text(tag,value,cls){const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el;}
+ function render(){
+diff --git a/docs/BOUNDED_ARCHIVE_BATCH_20261016.md b/docs/BOUNDED_ARCHIVE_BATCH_20261016.md
+new file mode 100644
+index 0000000..1fbd0ed
+--- /dev/null
++++ b/docs/BOUNDED_ARCHIVE_BATCH_20261016.md
+@@ -0,0 +1,121 @@
++# Пакетная обработка архива и проверка результата
++
++Base: `519e6ea94610d12f5c814721d993ca02f2015b29`.
++Ветка: `feat/bounded-archive-batch-20261016`. Main сохранён:
++`a005a2521f62ce3b2c9f9d52f9f0d73913754e01`.
++
++Запуск: `START_WEB.cmd` → `http://127.0.0.1:8017/visualization/batch`.
++Для одного сеанса с движущимися машинами остаётся `/visualization`.
++Пакетный интерфейс показывает отдельные логические отчёты; пространственный
++viewer не переписан и автоматически в каждый пакетный отчёт не встраивается.
++
++CLI из корня репозитория:
++
++```powershell
++python -m scripts.archive_batch run input.zip --out batch_output --max-jobs 4 --total-seconds 180 --source-seconds 90
++```
++
++Каталог результата должен быть новым. На машине с заполненным системным диском
++TEMP/TMP задать локально на свободном диске; `START_WEB.cmd` уже делает это.
++Новые зависимости не установлены; `START_WEB.cmd --check` проходит.
++
++## Что реализовано
++
++ZIP directory inventory не распаковывает тела. Каждый JSON — отдельный source,
++подтверждённая идентичность перекрёстка не выдумывается. Worker один раз извлекает
++существующий temporal evidence, выделяет сеансы существующим правилом1800с и
++передаёт **те же** scoped bundles в `_discover_bundle` с marks=None, dt=1,
++permission_per_stream, experimental_local_history=False. HSMM/K/период/selector/
++mapping/thresholds не изменены. Независимое окно сеанса не становится новым
++сигнальным режимом. Длинный сеанс сохраняет старую representative-window логику,
++явно помеченную `REPRESENTATIVE_WINDOW_ONLY`, а не полную локальную историю.
++
++Каждый source выполняется последовательно в subprocess. Hard timeout убивает
++и дожидается worker; завершённые checkpoint jobs сохраняются. Running/planned
++при прерывании получают UNKNOWN с причиной; до окончания inventory число
++сеансов неизвестно. Нет общего K архива и скрытой подстановки другого сеанса.
++Один сеанс не используется для заполнения временных пробелов другого.
++
++По умолчанию:4 попытки сеансов,180с на пакет вычислений,90с на source включая
++import/extraction/все его сеансы; source не получает90с заново на каждый сеанс.
++Кооперативный60с K-search сохранён, hard timeout — отдельная внешняя граница.
++Загрузка до512МиБ, один распакованный JSON до512МиБ, сумма admitted JSON до1ГиБ.
++Артефакты до64МиБ с резервом на HTML/manifest, prediction до16МиБ, HTML payload
++до8МиБ. ZIP скачивания — дополнительная сжатая копия. Input metadata/git sealing,
++загрузка/HTML/упаковка и ожидание планировщика не обещаются уложиться в180с.
++**Hard RAM limit отсутствует.** Допуск размеров не является нагрузочным
++сертификатом для любых файлов такого размера. Исторические logs не удаляются;
++долговременное хранение/квоты и полноценная эксплуатационная приёмка открыты.
++
++HTTP body ограничен **до multipart parser/spooling**, с учётом реальных байтов
++при chunked/ложном Content-Length. Затем ограничен и файл при копировании.
++Переполнение413, нехватка диска507; multipart временные файлы закрываются при
++ошибке. Один активный batch на процесс приложения, конкурирующий запрос429;
++это локальный сервис, не распределённая очередь/глобальный admission controller.
++Синхронные single-session endpoints не превращены в новый job service.
++
++HTML использует общий product/query contract. Физические лампы/секции UNKNOWN,
++вероятность лампы отсутствует. Невыполненная задача не означает отсутствие фаз.
++Все predictions и hashes доступны в скачиваемом ZIP; исходное медиа не включается.
++Будущие manifests фиксируют commit, dirty flag и LF hashes исходников. Технический
++smoke был до commit: его точный base и code hashes — в pre-run freeze/sidecar;
++это не заявление, что родительский SHA уже содержал новый batch-код.
++
++## Проверки и самопроверка
++
++249 tests: archive/source scope/input/parser/events/API/export. Ещё68 tests:
++logical/physical contract, реальные V9 renderer queries, configured transitions,
++явный K config. Всего317, единственное предупреждение — существующая
++Starlette/httpx deprecation, зависимости ради него не заменялись.
++Полные команды: [commands.md](../evidence/bounded_archive_batch_20261016/commands.md),
++логи лежат рядом. Старый K-config stub возвращал tuple(), а не event bundle;
++заменён настоящим lossless fixture, mock оставлен только у fitting. Прокидывание
++самого PhaseSearchConfig проверяется по identity, K5–8 не фитились.
++
++Ровно один frozen technical browser batch на прежнем маленьком synthetic ZIP:
++2 JSON,3 сеанса,40 tracks/events каждый;3 вызова неизменного discovery.
++Все K2,period120.00208155391648с. Package wall16.7826с, HTTP ready16.996с;
++это elapsed time, не CPU profile и не измерение реальной точности.
++
++Найдены и исправлены:
++
++- На mobile фиксированная высота вложенного отчёта обрезала содержимое.
++  Высота теперь следует естественному body size; финальные390/348/306px
++  уровни iframe не имеют горизонтального переполнения. Screenshots просмотрены.
++- Browser `stateAt(10)` возвращал state с `timestamp_s` от начала сегмента.
++  Состояние/границы были верны, provenance запроса неверен; теперь копируется
++  prepared state и обновляются только timestamp/query_position. Усилен старый
++  тест с двух полей до полного JSON-normalized contract. Initial15 metadata
++  mismatches сохранены; final15 full states exact Python. JSON tuple/list
++  нормализуются только в сравнении, правила UNKNOWN/сегменты не меняются.
++- Plain ValueError из body guard FastAPI превращал в generic400. Новый actual
++  chunked multipart counterexample потребовал HTTPException413; проверено
++  закрытие spooled file до входа в handler. Большой файл не загружался.
++
++После единственного batch были **два UI-only replay** сохранённых predictions,
++без extraction/fitting. `download.zip` — исходный technical run;
++`layout_download.zip` — тот же набор prediction bytes с исправленными reports.
++Saved replay server — отдельный QA process, production не патчится.
++`verify_results.py` проверяет ZIP CRC, artifact hashes,15+15 browser queries,
++точное сохранение всех schedule/period и selected event extraction против
++предыдущего результата. Все selection diagnostics совпадают, кроме12 runtime
++полей. Исходные benchmark/config/core V9/uncertainty/mapping/evaluator Git-неизменны.
++Фазовые метки/большие JSON/архивы/real replay не использовались.
++
++## Готовность к цели
++
++Вход→несмешанные сеансы→существующая оценка→HTML/скачивание работает и проверен.
++Это продвижение шагов8/9 ROADMAP, не завершение проекта и не приёмка всех режимов РФ.
++2C и защитный контракт приняты. 2D.1 остаётся FAIL/default-off. Реальные прежние
++показатели K3/2/3 против truth3/2/2,raw19/34±2с не пересчитаны и не улучшены этим UI.
++Физическая конфигурация, точная локальная история и независимая validation открыты.
++
++Критический следующий вход уже определён, повторная разметка тех же траекторий
++его не заменяет: supplier camera-frame/PTS↔detections.millis связь с uncertainty
++([точный request](../evidence/frame_clock_intake_20261016/SUPPLIER_REQUEST.md)),
++затем отдельный сеанс JSON+независимые состояния сигналов того же перекрёстка,
++без overlap с известным development. Использовать существующий independent-review
++template, подтвердить mapping/геометрию там, где они нужны, источник prior/delay.
++До этого нельзя обоснованно принять точность локальной истории или секций.
++Дальше — заранее зафиксированный calibration experiment и frozen validation,
++без переноса exclusive synthetic assumptions или выбора Nominal10 по известным данным.
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index cbfb36f..3afc267 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,24 @@
+ # Project status — 2D.1, 2026-10-16
+ 
++2026-10-16 bounded archive batch delivered: independent source/session jobs,
++one extraction/source, subprocess wall timeout, shared attempt/time/byte budgets,
++checkpointed partial results and self-contained HTML + downloadable ZIP.
++Request-body cap acts before multipart spooling, including chunked/misdeclared
++length requests; failed parsing closes temporary files.317 targeted checks pass
++(249 archive/API +68 state/query), launcher import passes. One unchanged-V9
++technical batch:2 JSON,3 synthetic sessions,40 tracks/events each,K2,period
++120.00208155391648s,16.7826s total. Not real recovery/accuracy evidence.
++Two UI-only saved replays after layout/query-metadata fixes; no additional fits.
++Final15 full browser states exact common Python contract. Initial15 query
++metadata discrepancies retained, no hidden deletion of failed checks. Actual
++selected schedule/period/events equal previous prediction; selection differences
++are runtime fields only. No core V9/decoder/selection/threshold/evaluator changes.
++See BOUNDED_ARCHIVE_BATCH_20261016.2C and protective contract remain accepted;
++2D.1 FAIL/default-off; real K3/2/3 vs truth3/2/2,raw19/34 unchanged. Independent
++calibration/validation, exact deviations and physical sections remain open.
++Input/output/time budgets are NOT a hard RAM cap or full deployment acceptance.
++Current deliverable is usable development archive processing; project not complete.
++
+ 2026-10-16 source/session isolation integrated end-to-end (ROADMAP8/9 partial).
+ Multi-member archives require source choice before decompression; multi-session
+ permission evidence requires session choice before fitting, shared with in-memory
+diff --git a/scripts/archive_batch.py b/scripts/archive_batch.py
+new file mode 100644
+index 0000000..80dcc27
+--- /dev/null
++++ b/scripts/archive_batch.py
+@@ -0,0 +1,32 @@
++"""Bounded JSON/ZIP batch CLI; no annotation or experimental-history interface."""
++import argparse
++import json
++from pathlib import Path
++
++from app.core.archive_batch import BatchConfig, run_archive_batch, run_source_worker, render_batch_html
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    sub = parser.add_subparsers(dest='command', required=True)
++    worker = sub.add_parser('_worker', help=argparse.SUPPRESS)
++    worker.add_argument('request', type=Path)
++    run = sub.add_parser('run')
++    run.add_argument('source', type=Path)
++    run.add_argument('--out', type=Path, required=True)
++    run.add_argument('--max-jobs', type=int, default=4)
++    run.add_argument('--total-seconds', type=float, default=180)
++    run.add_argument('--source-seconds', type=float, default=90)
++    args = parser.parse_args()
++    if args.command == '_worker':
++        run_source_worker(json.loads(args.request.read_text(encoding='utf-8')))
++        return
++    config = BatchConfig(max_jobs=args.max_jobs, total_seconds=args.total_seconds, source_seconds=args.source_seconds)
++    manifest = run_archive_batch(args.source, args.out, config=config)
++    (args.out/'index.html').write_text(render_batch_html(manifest, args.out), encoding='utf-8')
++    print(json.dumps({'status': manifest['status'], 'attempted_jobs': manifest['attempted_jobs'],
++                      'report': str(args.out/'index.html')}, ensure_ascii=False))
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/scripts/qa_archive_batch.mjs b/scripts/qa_archive_batch.mjs
+new file mode 100644
+index 0000000..a6c5840
+--- /dev/null
++++ b/scripts/qa_archive_batch.mjs
+@@ -0,0 +1,61 @@
++// Local technical QA only. One batch of three pre-existing fixed synthetic
++// sessions, unchanged V9 defaults; not an accuracy/recovery experiment.
++import fs from 'node:fs/promises';
++import path from 'node:path';
++const out=path.resolve('evidence/bounded_archive_batch_20261016');
++const saved=process.argv.includes('--saved'),prefix=saved?'layout_':'';
++const tabs=await(await fetch('http://127.0.0.1:9241/json/list')).json();
++const socket=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);
++await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject;});
++let counter=0;const pending=new Map(),errors=[],responses=[];
++socket.onmessage=e=>{const r=JSON.parse(e.data);if(r.id){const p=pending.get(r.id);pending.delete(r.id);if(r.error)p.reject(Error(JSON.stringify(r.error)));else p.resolve(r.result);}
++else if(r.method==='Runtime.exceptionThrown')errors.push(r.params.exceptionDetails);
++else if(r.method==='Network.responseReceived'&&r.params.response.url.endsWith('/visualization/batch'))responses.push({status:r.params.response.status,headers:r.params.response.headers});};
++const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++counter;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
++async function evaluate(expression){const r=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;}
++async function until(expression,timeout=210000){const start=Date.now();while(Date.now()-start<timeout){const r=await evaluate(expression);if(r)return r;await new Promise(r=>setTimeout(r,200));}throw Error('QA timeout: '+expression);}
++async function screenshot(name){const r=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});await fs.writeFile(path.join(out,prefix+name),Buffer.from(r.data,'base64'));}
++const report={errors,responses,technical_only:true,real_replays:0,hyperparameter_search:false,saved_prediction_replay:saved,ordinary_batch_submissions:saved?0:1};
++try{
++ await send('Page.enable');await send('Runtime.enable');await send('Network.enable');
++ await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
++ await send('Page.navigate',{url:'http://127.0.0.1:8021/visualization/batch'});
++ await until("document.querySelector('#batch-file')&&document.readyState==='complete'");
++ const doc=await send('DOM.getDocument'),input=await send('DOM.querySelector',{nodeId:doc.root.nodeId,selector:'#batch-file'});
++ await send('DOM.setFileInputFiles',{nodeId:input.nodeId,files:[path.resolve('evidence/archive_session_isolation_20261016/two_sources.zip')]});
++ const started=Date.now();
++ await evaluate("document.querySelector('#batch-submit').click()");
++ const status=await until("(()=>{const s=document.querySelector('#batch-status').textContent;return s.startsWith('Готово')||s.startsWith('Ошибка')?s:false})()");
++ if(!status.startsWith('Готово'))throw Error(status);
++ report.upload_to_ready_s=(Date.now()-started)/1000;
++ await until("document.querySelector('#batch-viewer').contentDocument.querySelectorAll('[data-report]').length===3");
++ report.summary=await evaluate("document.querySelector('#batch-viewer').contentDocument.body.innerText");
++ report.session_reports=[];
++ for(let i=0;i<3;i++){
++  await evaluate(`document.querySelector('#batch-viewer').contentDocument.querySelectorAll('[data-report]')[${i}].click()`);
++  await until("document.querySelector('#batch-viewer').contentDocument.querySelector('#batch-report').contentDocument.querySelector('#phaseCount')?.textContent==='2'");
++  report.session_reports.push(await evaluate("(()=>{const w=document.querySelector('#batch-viewer').contentDocument.querySelector('#batch-report').contentWindow;return {K:w.document.querySelector('#phaseCount').textContent,scope:w.document.querySelector('#inputScope').textContent,period:w.document.querySelector('#period').textContent,lamp:w.document.querySelector('#lampState').textContent,queries:[-1,0,10,80,Number(w.document.querySelector('#slider').max)].map(t=>({t,state:w.stateAt(t)})),physical:w.eval('PRODUCT.physical_section')}})()"));
++ }
++ if(report.session_reports.some(r=>r.lamp!=='UNKNOWN'||r.K!=='2'||r.physical.calibrated_lamp_probability!==null))throw Error('Wrong query/physical semantics');
++ await fs.writeFile(path.join(out,prefix+'aggregate.html'),await evaluate("document.querySelector('#batch-viewer').contentDocument.documentElement.outerHTML"));
++ await screenshot('desktop.png');
++ report.desktop_overflow=await evaluate("document.documentElement.scrollWidth>document.documentElement.clientWidth");
++ await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
++ report.mobile_widths=await evaluate("(()=>{const a=document.documentElement,b=document.querySelector('#batch-viewer').contentDocument.documentElement,c=document.querySelector('#batch-viewer').contentDocument.querySelector('#batch-report').contentDocument.documentElement;return [a,b,c].map(d=>({client:d.clientWidth,scroll:d.scrollWidth}))})()");
++ if(saved){
++  await until("(()=>{const f=document.querySelector('#batch-viewer'),g=f.contentDocument.querySelector('#batch-report');return f.clientHeight>f.contentDocument.body.getBoundingClientRect().height&&g.clientHeight>g.contentDocument.body.getBoundingClientRect().height})()");
++  await evaluate("document.querySelector('#batch-viewer').contentDocument.querySelector('#batch-report').scrollIntoView({block:'start'})");
++  await new Promise(r=>setTimeout(r,300));
++ }
++ await screenshot('mobile.png');
++ if(report.desktop_overflow||report.mobile_widths.some(r=>r.scroll>r.client))throw Error('Horizontal overflow');
++ const download=await evaluate("(async()=>{const href=document.querySelector('#batch-download').href,r=await fetch(href),bytes=new Uint8Array(await r.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=20000)binary+=String.fromCharCode(...bytes.subarray(i,i+20000));return {href,status:r.status,base64:btoa(binary)}})()");
++ if(download.status!==200)throw Error('Download unavailable');
++ await fs.writeFile(path.join(out,prefix+'download.zip'),Buffer.from(download.base64,'base64'));
++ report.download={href:download.href,status:download.status,bytes:Buffer.from(download.base64,'base64').length};
++ await evaluate("document.querySelector('#batch-file').dispatchEvent(new Event('change',{bubbles:true}))");
++ report.stale_result_hidden=await evaluate("document.querySelector('#batch-viewer').hidden&&document.querySelector('#batch-viewer').srcdoc===''&&document.querySelector('#batch-download').hidden");
++ if(!report.stale_result_hidden||errors.length)throw Error('Stale result or browser errors');
++ report.status='PASS';console.log(JSON.stringify({status:report.status,runtime_s:report.upload_to_ready_s,reports:report.session_reports.length,download_bytes:report.download.bytes}));
++}catch(error){report.status='FAIL';report.failure=String(error.stack||error);throw error;}
++finally{await fs.writeFile(path.join(out,prefix+'browser_results.json'),JSON.stringify(report,null,2));await send('Browser.close').catch(()=>{});socket.close();}
+diff --git a/scripts/serve_saved_batch_qa.py b/scripts/serve_saved_batch_qa.py
+new file mode 100644
+index 0000000..2621bcb
+--- /dev/null
++++ b/scripts/serve_saved_batch_qa.py
+@@ -0,0 +1,53 @@
++"""Isolated UI QA: sealed batch predictions only, no extraction or fitting."""
++import json
++from pathlib import Path
++import zipfile
++
++import uvicorn
++from app.main import app
++from app.api import archive_batch as api
++from app.core.archive_batch import render_batch_html, sha256_file
++from app.core.offline_product_report import render_product_html
++
++
++def main():
++    root = Path(__file__).resolve().parents[1]
++    sealed = root/'evidence/bounded_archive_batch_20261016/download.zip'
++    freeze = json.loads((sealed.parent/'freeze.json').read_text(encoding='utf-8'))
++
++    def saved_only(source, output):
++        if sha256_file(source) != freeze['input_sha256']:
++            raise ValueError('QA_REPLAY_INPUT_DIFFERS_FROM_SEALED_BATCH')
++        output.mkdir(parents=True, exist_ok=False)
++        with zipfile.ZipFile(sealed) as archive:
++            for info in archive.infolist():
++                member = Path(info.filename)
++                if member.is_absolute() or '..' in member.parts or info.is_dir():
++                    raise ValueError('INVALID_QA_ARTIFACT_PATH')
++                target = output/member
++                target.parent.mkdir(parents=True, exist_ok=True)
++                target.write_bytes(archive.read(info))
++        manifest = json.loads((output/'manifest.json').read_text(encoding='utf-8'))
++        for source in manifest['sources_processed']:
++            for job in source['jobs']:
++                folder = output/source['artifact_directory']
++                value = json.loads((folder/job['prediction']).read_text(encoding='utf-8'))
++                report = folder/job['report']
++                report.write_text(render_product_html(value), encoding='utf-8')
++                job['report_sha256'] = sha256_file(report)
++        (output/'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
++        page = render_batch_html(manifest, output)
++        (output/'index.html').write_text(page, encoding='utf-8')
++        with zipfile.ZipFile(output/'results.zip', 'w', compression=zipfile.ZIP_DEFLATED) as zipped:
++            for path in sorted(output.rglob('*')):
++                if path.is_file() and path.name != 'results.zip':
++                    zipped.write(path, path.relative_to(output).as_posix())
++        print('[QA_SAVED_BATCH] no extraction or phase fitting', flush=True)
++        return page
++
++    api._build_batch = saved_only
++    uvicorn.run(app, host='127.0.0.1', port=8021)
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/tests/test_archive_batch.py b/tests/test_archive_batch.py
+new file mode 100644
+index 0000000..007792f
+--- /dev/null
++++ b/tests/test_archive_batch.py
+@@ -0,0 +1,350 @@
++import asyncio
++from copy import deepcopy
++from dataclasses import asdict
++from io import BytesIO
++import json
++from pathlib import Path
++import subprocess
++import sys
++import time
++import zipfile
++from types import SimpleNamespace
++
++import pytest
++from fastapi import HTTPException, UploadFile
++from fastapi.testclient import TestClient
++
++from app.core import archive_batch as batch
++from app.core.upload_limits import copy_upload, UploadLimitExceeded, UploadLimitMiddleware
++from app.api import archive_batch as api
++from app.main import app
++from tests.test_v9_source_scope import track, write_json, zip_bytes
++from tests.test_web_archive_contract import model as fixture_prediction
++
++
++def request(tmp_path, *, remaining_jobs=4, budget=1024*1024):
++    source = write_json(tmp_path/'input.json', [track(), track(2, start=86401000, origin='E', target='_W')])
++    output = tmp_path/'worker'
++    output.mkdir()
++    return dict(input=str(source), output=str(output), source_member=source.name, source_count=1,
++                remaining_jobs=remaining_jobs, remaining_output_bytes=budget, config=asdict(batch.BatchConfig()))
++
++
++def install_dummy_fitter(monkeypatch):
++    calls = []
++    from app.core.v9 import model
++
++    def fit(bundle, **kwargs):
++        assert kwargs['marks_path'] is None
++        assert kwargs['experimental_local_history'] is False
++        assert kwargs['evidence_policy'] == 'permission_per_stream'
++        events = bundle.temporal_events
++        assert max(e.timestamp_ms for e in events)-min(e.timestamp_ms for e in events) < 86400000
++        calls.append((bundle, kwargs))
++        value = fixture_prediction()
++        value.update(event_count=bundle[9], trajectory_count=bundle[8])
++        return value
++    monkeypatch.setattr(model, '_discover_bundle', fit)
++    return calls
++
++
++def test_worker_extracts_once_and_never_merges_sessions(monkeypatch, tmp_path):
++    calls = install_dummy_fitter(monkeypatch)
++    from app.core.v9 import events
++    original = events.load_event_streams
++    extractions = []
++
++    def extraction(*a, **kw):
++        extractions.append(kw)
++        return original(*a, **kw)
++    monkeypatch.setattr(events, 'load_event_streams', extraction)
++    req = request(tmp_path)
++    batch.run_source_worker(req)
++    state = json.loads((Path(req['output'])/'checkpoint.json').read_text())
++    assert len(extractions) == 1 and len(calls) == 2
++    assert state['inventory_complete']
++    assert [r['status'] for r in state['jobs']] == ['ESTIMATED']*2
++    for row in state['jobs']:
++        prediction = Path(req['output'])/row['prediction']
++        value = json.loads(prediction.read_text())
++        assert value['input_scope']['selected_session'] == row['session']
++        assert row['prediction_sha256'] == batch.sha256_file(prediction)
++        assert row['physical_state'] == 'UNKNOWN'
++
++
++def test_worker_job_limit_reports_all_known_unattempted_sessions(monkeypatch, tmp_path):
++    calls = install_dummy_fitter(monkeypatch)
++    req = request(tmp_path, remaining_jobs=1)
++    batch.run_source_worker(req)
++    state = json.loads((Path(req['output'])/'checkpoint.json').read_text())
++    assert len(calls) == 1
++    assert state['jobs'][1]['reason'] == 'JOB_COUNT_BUDGET'
++    assert state['jobs'][1]['phase_count'] is None
++    assert not state['jobs'][1].get('attempted')
++
++
++def test_all_sources_keep_namespace_and_per_session_artifacts(monkeypatch, tmp_path):
++    install_dummy_fitter(monkeypatch)
++    source = tmp_path/'two.zip'
++    source.write_bytes(zip_bytes([('a.json', [track()]), ('b.json', [track(), track(2, start=86401000)])]))
++    calls = []
++
++    def runner(path, timeout):
++        req = json.loads(path.read_text())
++        calls.append((req, timeout))
++        batch.run_source_worker(req)
++        return dict(status='EXITED', returncode=0)
++    out = tmp_path/'out'
++    result = batch.run_archive_batch(source, out, _runner=runner)
++    assert result['status'] == 'COMPLETE_ESTIMATES'
++    assert result['attempted_jobs'] == 3
++    assert [r['source_member'] for r in result['sources_processed']] == ['a.json', 'b.json']
++    assert [len(r['jobs']) for r in result['sources_processed']] == [1, 2]
++    assert all(0 < timeout <= 90 for _, timeout in calls)
++    assert result['input_sha256'] == batch.sha256_file(source)
++    page = batch.render_batch_html(result, out)
++    assert page.count('data-report=') == 3
++    assert 'GREEN' not in page  # fixture has no independently observed lamp state
++
++
++def test_source_timeout_retains_completed_and_marks_remaining_unknown(tmp_path):
++    source = write_json(tmp_path/'input.json', [track()])
++
++    def runner(path, timeout):
++        req = json.loads(path.read_text())
++        state = dict(inventory_complete=True, jobs=[dict(status='ESTIMATED', attempted=True),
++            dict(status='RUNNING', attempted=True), dict(status='PLANNED')])
++        batch.write_json(Path(req['output'])/'checkpoint.json', state)
++        return dict(status='TIMEOUT')
++    result = batch.run_archive_batch(source, tmp_path/'out', _runner=runner)
++    rows = result['sources_processed'][0]['jobs']
++    assert rows[0]['status'] == 'ESTIMATED'
++    assert all(r['reason'] == 'SOURCE_TIMEOUT' and r['phase_count'] is None for r in rows[1:])
++    assert result['attempted_jobs'] == 2 and result['status'] == 'PARTIAL_OR_UNAVAILABLE'
++
++
++def test_timeout_before_inventory_does_not_fabricate_session_count(tmp_path):
++    source = write_json(tmp_path/'input.json', [track()])
++    result = batch.run_archive_batch(source, tmp_path/'out', _runner=lambda *a: dict(status='TIMEOUT'))
++    assert not result['session_inventory_complete']
++    row = result['sources_processed'][0]
++    assert row['jobs'] == [] and row['reason'] == 'SOURCE_TIMEOUT_BEFORE_SESSION_INVENTORY'
++
++
++def test_total_decompression_budget_stops_before_opening_next_source(monkeypatch, tmp_path):
++    install_dummy_fitter(monkeypatch)
++    source = tmp_path/'two.zip'
++    source.write_bytes(zip_bytes([('a.json', [track()]), ('b.json', [track()])]))
++    _, choices = batch.choose_source(source, 'a.json')
++
++    def runner(path, timeout):
++        batch.run_source_worker(json.loads(path.read_text()))
++        return dict(status='EXITED', returncode=0)
++    config = batch.BatchConfig(max_total_source_bytes=choices[0]['uncompressed_bytes'])
++    result = batch.run_archive_batch(source, tmp_path/'out', config=config, _runner=runner)
++    assert result['sources_processed'][1]['reason'] == 'TOTAL_SOURCE_BYTE_BUDGET'
++
++
++def test_global_job_count_is_shared_between_sources(monkeypatch, tmp_path):
++    install_dummy_fitter(monkeypatch)
++    source = tmp_path/'two.zip'
++    source.write_bytes(zip_bytes([('a.json', [track()]), ('b.json', [track()])]))
++    calls = []
++
++    def runner(path, timeout):
++        calls.append(path)
++        batch.run_source_worker(json.loads(path.read_text()))
++        return dict(status='EXITED', returncode=0)
++    result = batch.run_archive_batch(source, tmp_path/'out', config=batch.BatchConfig(max_jobs=1), _runner=runner)
++    assert len(calls) == 1 and result['attempted_jobs'] == 1
++    assert result['sources_processed'][1]['reason'] == 'JOB_COUNT_BUDGET'
++
++
++def test_total_time_budget_stops_before_next_source(monkeypatch, tmp_path):
++    install_dummy_fitter(monkeypatch)
++    source = tmp_path/'two.zip'
++    source.write_bytes(zip_bytes([('a.json', [track()]), ('b.json', [track()])]))
++    clock = [0.0]
++    monkeypatch.setattr(batch, 'time', SimpleNamespace(monotonic=lambda: clock[0]))
++
++    def runner(path, timeout):
++        assert timeout == 1.0
++        batch.run_source_worker(json.loads(path.read_text()))
++        clock[0] = 2.0
++        return dict(status='EXITED', returncode=0)
++    result = batch.run_archive_batch(source, tmp_path/'out', config=batch.BatchConfig(total_seconds=1), _runner=runner)
++    assert result['sources_processed'][1]['reason'] == 'TOTAL_TIME_BUDGET'
++    assert result['attempted_jobs'] == 1 and result['status'] == 'PARTIAL_OR_UNAVAILABLE'
++
++
++def test_worker_crash_does_not_invent_session_or_k(tmp_path):
++    source = write_json(tmp_path/'input.json', [track()])
++    result = batch.run_archive_batch(source, tmp_path/'out', _runner=lambda *a: dict(status='EXITED', returncode=17))
++    row = result['sources_processed'][0]
++    assert row['jobs'] == [] and row['process']['returncode'] == 17
++    assert row['reason'] == 'SESSION_INVENTORY_UNAVAILABLE'
++
++
++def test_output_overflow_never_publishes_partial_prediction(tmp_path):
++    target = tmp_path/'prediction.json'
++    with pytest.raises(ValueError, match='OUTPUT_BYTE_BUDGET'):
++        batch.write_json(target, {'x': 'a'*1000}, max_bytes=50)
++    assert not target.exists() and not target.with_suffix('.json.tmp').exists()
++
++
++@pytest.mark.parametrize('config', [dict(max_jobs=0), dict(total_seconds=float('nan')),
++                                  dict(source_seconds=float('inf')), dict(max_jobs=True),
++                                  dict(max_jobs=1.5), dict(dt=2), dict(max_jobs=513)])
++def test_invalid_budgets_rejected(config):
++    with pytest.raises(ValueError):
++        batch.BatchConfig(**config)
++
++
++def test_preexisting_output_not_overwritten(tmp_path):
++    source = write_json(tmp_path/'input.json', [track()])
++    out = tmp_path/'out'
++    out.mkdir()
++    with pytest.raises(FileExistsError):
++        batch.run_archive_batch(source, out, _runner=lambda *a: pytest.fail('no worker'))
++
++
++def test_real_process_empty_input_abstains_without_fitting(tmp_path):
++    source = write_json(tmp_path/'input.json', [])
++    result = batch.run_archive_batch(source, tmp_path/'out', config=batch.BatchConfig(source_seconds=20, total_seconds=25))
++    row = result['sources_processed'][0]
++    assert row['process']['returncode'] == 0
++    assert row['source_error']['reason_code'] == 'NO_USABLE_DEMAND_EVIDENCE'
++    assert not row['inventory_complete'] and not row['jobs']
++
++
++def test_actual_subprocess_timeout_is_killed_and_waited(monkeypatch, tmp_path):
++    original = subprocess.run
++
++    def sleep_process(command, **kwargs):
++        return original([sys.executable, '-c', 'import time;time.sleep(30)'], **kwargs)
++    monkeypatch.setattr(batch.subprocess, 'run', sleep_process)
++    started = time.monotonic()
++    result = batch._run_worker(tmp_path/'unused.json', .1)
++    assert result['status'] == 'TIMEOUT' and time.monotonic()-started < 5
++
++
++@pytest.mark.parametrize('size,accepted', [(0, True), (16, True), (17, False)])
++def test_copy_byte_limit_exact_boundary(size, accepted):
++    sink = BytesIO()
++    if accepted:
++        assert copy_upload(BytesIO(b'x'*size), sink, max_bytes=16) == size
++    else:
++        with pytest.raises(UploadLimitExceeded):
++            copy_upload(BytesIO(b'x'*size), sink, max_bytes=16)
++    assert len(sink.getvalue()) <= 16
++
++
++@pytest.mark.parametrize('declared', [None, b'1', b'100'])
++def test_asgi_limit_checks_actual_bytes_before_endpoint(declared):
++    messages, entered = [], []
++    chunks = iter([dict(type='http.request', body=b'x'*8, more_body=True),
++                   dict(type='http.request', body=b'y'*8, more_body=False)])
++
++    async def receive():
++        return next(chunks)
++
++    async def inner(scope, receive, send):
++        entered.append(True)
++        await receive()
++        await receive()
++        pytest.fail('oversized request reached endpoint')
++
++    async def send(message):
++        messages.append(message)
++    scope = dict(type='http', method='POST', path='/visualization/batch',
++                 headers=[] if declared is None else [(b'content-length', declared)])
++    asyncio.run(UploadLimitMiddleware(inner, max_bytes=10)(scope, receive, send))
++    assert messages[0]['status'] == 413
++    assert bool(entered) == (declared != b'100')
++
++
++def test_chunked_multipart_overflow_closes_spooled_file_before_handler(monkeypatch):
++    from fastapi import FastAPI, File
++    import starlette.formparsers as formparsers
++    files, messages = [], []
++    original = formparsers.SpooledTemporaryFile
++
++    def spool(*args, **kwargs):
++        value = original(*args, **kwargs)
++        files.append(value)
++        return value
++    monkeypatch.setattr(formparsers, 'SpooledTemporaryFile', spool)
++    local = FastAPI()
++
++    @local.post('/visualization/batch')
++    async def handler(file: UploadFile = File(...)):
++        pytest.fail('request exceeded byte budget before handler')
++    body = (b'--test\r\nContent-Disposition: form-data; name="file"; filename="x.json"\r\n'
++            b'Content-Type: application/json\r\n\r\n'+b'x'*300+b'\r\n--test--\r\n')
++    chunks = iter(body[i:i+32] for i in range(0, len(body), 32))
++
++    async def receive():
++        chunk = next(chunks)
++        return dict(type='http.request', body=chunk, more_body=True)
++
++    async def send(message):
++        messages.append(message)
++    scope = dict(type='http', asgi={'version': '3.0'}, method='POST', path='/visualization/batch',
++                 raw_path=b'/visualization/batch', query_string=b'', root_path='', scheme='http',
++                 server=('test', 80), client=('test', 1), http_version='1.1',
++                 headers=[(b'content-type', b'multipart/form-data; boundary=test')])
++    asyncio.run(UploadLimitMiddleware(local, max_bytes=180)(scope, receive, send))
++    assert messages[0]['status'] == 413
++    assert files and all(file.closed for file in files)
++
++
++def test_batch_api_busy_bad_zip_and_input_contract(monkeypatch, tmp_path):
++    monkeypatch.setattr(api, 'BATCH_ROOT', tmp_path/'results')
++    with TestClient(app) as client:
++        api._batch_lock.acquire()
++        try:
++            response = client.post('/visualization/batch', files={'file': ('input.json', b'[]')})
++            assert response.status_code == 429
++        finally:
++            api._batch_lock.release()
++        assert client.post('/visualization/batch', files={'file': ('bad.zip', b'bad')}).status_code == 422
++        assert client.post('/visualization/batch', files={'file': ('marks.txt', b'[]')}).status_code == 400
++        assert client.get('/visualization/batch/not-an-id/download').status_code == 404
++
++
++def test_multipart_batch_download_is_limited_to_run_artifacts(monkeypatch, tmp_path):
++    install_dummy_fitter(monkeypatch)
++    monkeypatch.setattr(api, 'BATCH_ROOT', tmp_path/'results')
++    original = batch.run_archive_batch
++
++    def run(path, out):
++        def runner(request_path, timeout):
++            batch.run_source_worker(json.loads(request_path.read_text()))
++            return dict(status='EXITED', returncode=0)
++        return original(path, out, _runner=runner)
++    monkeypatch.setattr(api, 'run_archive_batch', run)
++    with TestClient(app) as client:
++        response = client.post('/visualization/batch', files={'file': ('input.json', json.dumps([track()]))})
++        assert response.status_code == 200 and 'UNKNOWN' in response.text
++        ident = response.headers['X-Traffic-Phase-Batch-Id']
++        archive = client.get(f'/visualization/batch/{ident}/download')
++        assert archive.status_code == 200
++        with zipfile.ZipFile(BytesIO(archive.content)) as zipped:
++            assert zipped.testzip() is None
++            assert 'manifest.json' in zipped.namelist() and 'index.html' in zipped.namelist()
++            assert all(not n.startswith(('/', '../')) for n in zipped.namelist())
++            assert 'input.json' not in zipped.namelist()
++
++
++def test_batch_html_source_labels_cannot_execute_script(monkeypatch, tmp_path):
++    install_dummy_fitter(monkeypatch)
++    source = tmp_path/'input.zip'
++    source.write_bytes(zip_bytes([('<img onerror=alert(1)>.json', [track()])]))
++
++    def runner(path, timeout):
++        batch.run_source_worker(json.loads(path.read_text()))
++        return dict(status='EXITED', returncode=0)
++    out = tmp_path/'out'
++    result = batch.run_archive_batch(source, out, _runner=runner)
++    page = batch.render_batch_html(result, out)
++    assert '<img onerror' not in page and '&lt;img onerror' in page
+diff --git a/tests/test_offline_product_html.py b/tests/test_offline_product_html.py
+index c10c05a..975fe1b 100644
+--- a/tests/test_offline_product_html.py
++++ b/tests/test_offline_product_html.py
+@@ -81,7 +81,7 @@ def test_javascript_queries_dom_and_controls_agree_with_common_contract():
+     data=result();page=visualizer.render_html(data)
+     script=re.search(r'<script>(.*?)</script>',page,re.S).group(1)
+     times=[-1,0,9.9,10,11,12,19.9,20,40];query=prepare_logical_query(data)
+-    expected=[{'state':query.at(t).estimated_state,'reason':query.at(t).abstention_reason} for t in times]
++    expected=json.loads(json.dumps([query.at(t).to_dict() for t in times]))
+     # Minimal DOM for JS/control tests, NOT a browser render.
+     harness=r'''
+ const vm=require('node:vm'),fs=require('node:fs');
+@@ -92,7 +92,7 @@ addEventListener(k,f){this.events[k]=f}}
+ const elements={};const doc={getElementById:id=>(elements[id]??=new El()),createElement:()=>new El()};
+ const context=vm.createContext({document:doc,setInterval:()=>1,clearInterval:()=>{}});
+ vm.runInContext(input.script,context);
+-const answers=input.times.map(t=>vm.runInContext(`(()=>{const s=stateAt(${t});return {state:s.estimated_state,reason:s.abstention_reason}})()`,context));
++const answers=input.times.map(t=>vm.runInContext(`stateAt(${t})`,context));
+ elements.timeInput.value='11';elements.seek.events.click();
+ if(!elements.phaseTitle.textContent.includes('UNKNOWN'))throw Error('gap not rendered');
+ if(elements.lampState.textContent!=='UNKNOWN')throw Error('fabricated physical state');
+diff --git a/tests/test_phase_search_config_2c.py b/tests/test_phase_search_config_2c.py
+index 3c85f80..d49dfd8 100644
+--- a/tests/test_phase_search_config_2c.py
++++ b/tests/test_phase_search_config_2c.py
+@@ -1,16 +1,18 @@
+ import pytest
++import json
+ from app.core.v9.fit import PhaseSearchConfig
+ from app.core.v9 import model
+ 
+ 
+ def test_public_records_and_path_forward_explicit_search_config(monkeypatch,tmp_path):
++    from tests.test_v9_source_scope import track
+     config=PhaseSearchConfig(kmin=5,kmax=8,max_candidates=2,max_seconds=10.)
+-    monkeypatch.setattr(model,'extract_timing_streams',lambda tracks:())
+-    monkeypatch.setattr(model,'load_event_streams',lambda *args,**kwargs:())
+-    monkeypatch.setattr(model,'_discover_bundle',lambda bundle,**kwargs:kwargs['phase_search_config'])
+-    assert model.discover_records([{}],phase_search_config=config) is config
+-    source=tmp_path/'source.json';source.write_text('[]')
+-    assert model.discover_path(source,phase_search_config=config) is config
++    # Real lossless bundles are required by the accepted session-scope contract.
++    # Stub only fitting: the explicit config must reach it unchanged.
++    monkeypatch.setattr(model,'_discover_bundle',lambda bundle,**kwargs:{'config':kwargs['phase_search_config']})
++    assert model.discover_records([track()],phase_search_config=config)['config'] is config
++    source=tmp_path/'source.json';source.write_text(json.dumps([track()]))
++    assert model.discover_path(source,phase_search_config=config)['config'] is config
+ 
+ 
+ def test_empty_search_has_structured_unknown_and_no_fabricated_k(monkeypatch):

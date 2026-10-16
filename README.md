@@ -1,5 +1,12 @@
 # traffic_phase
 
+Local web launch: `START_WEB.cmd`, then http://127.0.0.1:8017/visualization.
+Automatic archive/session jobs: http://127.0.0.1:8017/visualization/batch.
+The batch page exports predictions, per-session HTML and a reproducible manifest;
+timeouts/unprocessed sessions stay UNKNOWN. [Budgets and verified scope](docs/BOUNDED_ARCHIVE_BATCH_20261016.md).
+This is a working development workflow, **not final accuracy acceptance**:
+local extensions remain 2D.1 FAIL; physical sections/lamps require independent evidence.
+
 Development roadmap: [ROADMAP.md](ROADMAP.md). Manual review tool:
 double-click `START_ANNOTATION.cmd` or run `py -3 -m scripts.run_annotation`;
 open http://127.0.0.1:8011/annotation. [Instructions](docs/ANNOTATION_WORKBENCH.md).

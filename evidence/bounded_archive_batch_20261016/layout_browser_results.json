@@ -1,0 +1,550 @@
+{
+  "errors": [],
+  "responses": [
+    {
+      "status": 200,
+      "headers": {
+        "content-length": "3948",
+        "content-type": "text/html; charset=utf-8",
+        "date": "Fri, 16 Oct 2026 14:27:50 GMT",
+        "server": "uvicorn"
+      }
+    },
+    {
+      "status": 200,
+      "headers": {
+        "x-traffic-phase-batch-id": "2ec4696158a54845b03612c5f6b65a6b",
+        "content-length": "98547",
+        "date": "Fri, 16 Oct 2026 14:27:51 GMT",
+        "content-type": "text/html; charset=utf-8",
+        "server": "uvicorn"
+      }
+    }
+  ],
+  "technical_only": true,
+  "real_replays": 0,
+  "hyperparameter_search": false,
+  "saved_prediction_replay": true,
+  "ordinary_batch_submissions": 0,
+  "upload_to_ready_s": 0.636,
+  "summary": "Результаты по сеансам\n\nСтатус: COMPLETE_ESTIMATES. Архив не объединён в один цикл. Физические лампы и тип секций: UNKNOWN. Продления: 2D.1 FAIL.\n\nОбработано попыток: 3. Необработанные источники и timeout не означают отсутствие фаз. Поддержка траекторий не является покрытием камеры. Длинный сеанс может быть представлен только выбранным окном.\n\na.json · сеанс 1 · K=2, период 120.002 с · 40 событий · SELECTED_SESSION Открыть результат\nb.json · сеанс 1 · K=2, период 120.002 с · 40 событий · SELECTED_SESSION Открыть результат\nb.json · сеанс 2 · K=2, период 120.002 с · 40 событий · SELECTED_SESSION Открыть результат",
+  "session_reports": [
+    {
+      "K": "2",
+      "scope": "Источник: a.json · сеанс 1/1. Остальные источники и сеансы не анализировались.",
+      "period": "120.002 с",
+      "lamp": "UNKNOWN",
+      "queries": [
+        {
+          "t": -1,
+          "state": {
+            "estimated_state": "UNKNOWN",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": -1,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": false,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability"
+            },
+            "abstention_reason": "NO_TEMPORAL_COVERAGE",
+            "provenance": {
+              "schedule_anchor_ms": 1009000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 0,
+          "state": {
+            "estimated_state": "PHASE_B",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 0,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": true,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability",
+              "segment_interval_s": [
+                0,
+                13
+              ],
+              "segment_index": 0,
+              "phase_id": 1,
+              "query_position_s": 0
+            },
+            "abstention_reason": null,
+            "provenance": {
+              "schedule_anchor_ms": 1009000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 10,
+          "state": {
+            "estimated_state": "PHASE_B",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 10,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": true,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability",
+              "segment_interval_s": [
+                0,
+                13
+              ],
+              "segment_index": 0,
+              "phase_id": 1,
+              "query_position_s": 10
+            },
+            "abstention_reason": null,
+            "provenance": {
+              "schedule_anchor_ms": 1009000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 80,
+          "state": {
+            "estimated_state": "PHASE_B",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 80,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": true,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability",
+              "segment_interval_s": [
+                58,
+                133
+              ],
+              "segment_index": 2,
+              "phase_id": 1,
+              "query_position_s": 80
+            },
+            "abstention_reason": null,
+            "provenance": {
+              "schedule_anchor_ms": 1009000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 1157,
+          "state": {
+            "estimated_state": "UNKNOWN",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 1157,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": false,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability"
+            },
+            "abstention_reason": "NO_TEMPORAL_COVERAGE",
+            "provenance": {
+              "schedule_anchor_ms": 1009000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        }
+      ],
+      "physical": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "vehicle_phase_model",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      }
+    },
+    {
+      "K": "2",
+      "scope": "Источник: b.json · сеанс 1/2. Остальные источники и сеансы не анализировались.",
+      "period": "120.002 с",
+      "lamp": "UNKNOWN",
+      "queries": [
+        {
+          "t": -1,
+          "state": {
+            "estimated_state": "UNKNOWN",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": -1,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": false,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability"
+            },
+            "abstention_reason": "NO_TEMPORAL_COVERAGE",
+            "provenance": {
+              "schedule_anchor_ms": 1009000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 0,
+          "state": {
+            "estimated_state": "PHASE_B",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 0,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": true,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability",
+              "segment_interval_s": [
+                0,
+                13
+              ],
+              "segment_index": 0,
+              "phase_id": 1,
+              "query_position_s": 0
+            },
+            "abstention_reason": null,
+            "provenance": {
+              "schedule_anchor_ms": 1009000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 10,
+          "state": {
+            "estimated_state": "PHASE_B",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 10,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": true,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability",
+              "segment_interval_s": [
+                0,
+                13
+              ],
+              "segment_index": 0,
+              "phase_id": 1,
+              "query_position_s": 10
+            },
+            "abstention_reason": null,
+            "provenance": {
+              "schedule_anchor_ms": 1009000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 80,
+          "state": {
+            "estimated_state": "PHASE_B",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 80,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": true,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability",
+              "segment_interval_s": [
+                58,
+                133
+              ],
+              "segment_index": 2,
+              "phase_id": 1,
+              "query_position_s": 80
+            },
+            "abstention_reason": null,
+            "provenance": {
+              "schedule_anchor_ms": 1009000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 1157,
+          "state": {
+            "estimated_state": "UNKNOWN",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 1157,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": false,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability"
+            },
+            "abstention_reason": "NO_TEMPORAL_COVERAGE",
+            "provenance": {
+              "schedule_anchor_ms": 1009000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        }
+      ],
+      "physical": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "vehicle_phase_model",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      }
+    },
+    {
+      "K": "2",
+      "scope": "Источник: b.json · сеанс 2/2. Остальные источники и сеансы не анализировались.",
+      "period": "120.002 с",
+      "lamp": "UNKNOWN",
+      "queries": [
+        {
+          "t": -1,
+          "state": {
+            "estimated_state": "UNKNOWN",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": -1,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": false,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability"
+            },
+            "abstention_reason": "NO_TEMPORAL_COVERAGE",
+            "provenance": {
+              "schedule_anchor_ms": 87409000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 0,
+          "state": {
+            "estimated_state": "PHASE_B",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 0,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": true,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability",
+              "segment_interval_s": [
+                0,
+                13
+              ],
+              "segment_index": 0,
+              "phase_id": 1,
+              "query_position_s": 0
+            },
+            "abstention_reason": null,
+            "provenance": {
+              "schedule_anchor_ms": 87409000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 10,
+          "state": {
+            "estimated_state": "PHASE_B",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 10,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": true,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability",
+              "segment_interval_s": [
+                0,
+                13
+              ],
+              "segment_index": 0,
+              "phase_id": 1,
+              "query_position_s": 10
+            },
+            "abstention_reason": null,
+            "provenance": {
+              "schedule_anchor_ms": 87409000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 80,
+          "state": {
+            "estimated_state": "PHASE_B",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 80,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": true,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability",
+              "segment_interval_s": [
+                58,
+                133
+              ],
+              "segment_index": 2,
+              "phase_id": 1,
+              "query_position_s": 80
+            },
+            "abstention_reason": null,
+            "provenance": {
+              "schedule_anchor_ms": 87409000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        },
+        {
+          "t": 1157,
+          "state": {
+            "estimated_state": "UNKNOWN",
+            "level": "logical_phase",
+            "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+            "assumptions": [
+              "latent_phase_estimate_NOT_lamp_state"
+            ],
+            "observation_support": {
+              "timestamp_s": 1157,
+              "segment_source": "raw_hsmm_segments",
+              "temporally_covered": false,
+              "vehicle_demand_is_not_lamp_observation": true,
+              "local_vehicle_observation_support": "UNKNOWN",
+              "coverage_semantics": "model_history_NOT_local_observation_or_lamp_observability"
+            },
+            "abstention_reason": "NO_TEMPORAL_COVERAGE",
+            "provenance": {
+              "schedule_anchor_ms": 87409000
+            },
+            "mode": "reconstructed",
+            "calibrated_lamp_probability": null
+          }
+        }
+      ],
+      "physical": {
+        "estimated_state": "UNKNOWN",
+        "level": "physical_section",
+        "source": "vehicle_phase_model",
+        "assumptions": [],
+        "observation_support": {},
+        "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+        "provenance": {},
+        "mode": "reconstructed",
+        "calibrated_lamp_probability": null
+      }
+    }
+  ],
+  "desktop_overflow": false,
+  "mobile_widths": [
+    {
+      "client": 390,
+      "scroll": 390
+    },
+    {
+      "client": 348,
+      "scroll": 348
+    },
+    {
+      "client": 306,
+      "scroll": 306
+    }
+  ],
+  "download": {
+    "href": "http://127.0.0.1:8021/visualization/batch/2ec4696158a54845b03612c5f6b65a6b/download",
+    "status": 200,
+    "bytes": 55611
+  },
+  "stale_result_hidden": true,
+  "status": "PASS"
+}

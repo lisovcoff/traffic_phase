@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
 import zipfile
 import errno
 from datetime import datetime, timezone
@@ -22,6 +21,7 @@ from scripts.v9_spatial_visualizer import build_spatial_visualization
 from app.core.v9.source_scope import ScopeChoiceRequired
 from app.core.temporal_evidence import EvidenceUnavailable
 from app.core.state_contract import prepare_logical_query
+from app.core.upload_limits import copy_upload, UploadLimitExceeded
 
 router = APIRouter(prefix="/visualization", tags=["visualization"])
 
@@ -254,6 +254,7 @@ button:disabled{opacity:.45;cursor:default}
 пространственная реконструкция машин и светофоров.
 </p>
 <form id="form">
+<p><a href="/visualization/batch" style="color:#9ccaff">Обработать архив автоматически по отдельным сеансам</a></p>
 <div class="toolbar">
 <input id="file" name="file" type="file" accept=".json,.zip,application/json,application/zip" required>
 <button class="primary" id="submit" type="submit">Запустить анализ</button>
@@ -391,11 +392,7 @@ async def visualization_analyze(
             source_path = Path(tmp) / Path(file.filename).name
             await file.seek(0)
             with source_path.open("wb") as sink:
-                shutil.copyfileobj(
-                    file.file,
-                    sink,
-                    length=1024 * 1024,
-                )
+                copy_upload(file.file, sink)
 
             built = build_spatial_visualization(
                 source_path,
@@ -467,6 +464,8 @@ async def visualization_analyze(
                 },
             )
 
+    except UploadLimitExceeded as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
     except ScopeChoiceRequired as exc:
         raise HTTPException(status_code=409, detail=exc.to_dict()) from exc
     except EvidenceUnavailable as exc:

@@ -1,5 +1,21 @@
 # traffic_phase — план до готового продукта
 
+2026-10-16: [bounded batch JSON/ZIP→сеансы→HTML/ZIP готов](docs/BOUNDED_ARCHIVE_BATCH_20261016.md).
+Автоматически обрабатываются отдельные source/session views без общего archive K;
+один extraction на источник, отдельный subprocess с hard wall timeout, общие
+job/time/input/output budgets. API/CLI, отдельные predictions, UNKNOWN/partial и
+скачивание ZIP; streaming upload cap до multipart spooling.317 tests, один
+технический batch из3 сохранённых synthetic sessions за16.7826с, затем только
+UI replay. В screenshot найдено обрезание вложенного отчёта; исправлена высота.
+Полное сравнение state выявило старый query timestamp=start segment в HTML;
+исправлены только метаданные,15/15 финальных queries exact. K/period/schedule/
+event selection сохранены, runtime diagnostics различаются ожидаемо.
+Пункты8/9 продвинуты; полноценная точность/эксплуатационная приёмка не завершены.
+Без hard RAM cap, без independent hardware validation;2D.1 FAIL/main/default
+сохранены. Следующий критический вход — producer frame↔millis связь и отдельная
+validation session, затем заранее заданная calibration и frozen validation;
+не повтор уже непринятых synthetic/replay экспериментов.
+
 2026-10-16: [archive/session isolation доведён до HTML](docs/ARCHIVE_SESSION_ISOLATION_20261016.md).
 Canonical V9 не объединяет разные ZIP JSON по умолчанию; metadata choices до
 extraction, session choices до model fitting. Тот же guard у discover_records,

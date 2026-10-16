@@ -6,6 +6,8 @@ from app.api.visualization import router as visualization_router
 from app.api.realtime import router as realtime_router
 from app.api.realtime_simulation import router as realtime_simulation_router
 from app.api.annotation import router as annotation_router
+from app.core.upload_limits import UploadLimitMiddleware
+from app.api.archive_batch import router as archive_batch_router
 
 app = FastAPI(
     title="Traffic Phase Estimator",
@@ -20,6 +22,8 @@ app.include_router(visualization_router)
 app.include_router(realtime_router)
 app.include_router(realtime_simulation_router)
 app.include_router(annotation_router)
+app.include_router(archive_batch_router)
+app.add_middleware(UploadLimitMiddleware)
 
 
 @app.get("/health")
@@ -34,5 +38,6 @@ def root() -> dict[str, str]:
         "version": "0.12.0",
         "visualization": "/visualization",
         "annotation": "/annotation",
+        "archive_batch": "/visualization/batch",
         "v9": "/api/v1/v9/info",
     }

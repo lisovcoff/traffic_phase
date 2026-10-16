@@ -36,10 +36,15 @@ let current=0, timer=null;
 // These intervals/states were validated and evaluated by the shared Python
 // query contract. Browser code only locates a half-open prepared interval.
 function stateAt(t){
+  t=Number(t);
   let lo=0, hi=PRODUCT.intervals.length;
   while(lo<hi){const m=(lo+hi)>>1;if(PRODUCT.intervals[m].start<=t)lo=m+1;else hi=m;}
   const row=PRODUCT.intervals[lo-1];
-  return row && t>=row.start && t<row.end ? row.logical_phase : PRODUCT.fallback_logical_phase;
+  const prepared=row && t>=row.start && t<row.end ? row.logical_phase : PRODUCT.fallback_logical_phase;
+  // The prepared segment proves scope/state; its start is not the query time.
+  const support={...prepared.observation_support,timestamp_s:Number.isFinite(t)?t:null};
+  if(support.temporally_covered)support.query_position_s=t;
+  return {...prepared,observation_support:support};
 }
 function text(tag,value,cls){const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;return el;}
 function render(){

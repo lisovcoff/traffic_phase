@@ -6,7 +6,7 @@ from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import json
-import shutil
+import errno
 import threading
 import uuid
 import zipfile
@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from app.core.v9.v9_discovery import OnlinePhaseTracker, discover_path
 from app.core.v9.source_scope import ScopeChoiceRequired
 from app.core.temporal_evidence import EvidenceUnavailable
+from app.core.upload_limits import copy_upload, UploadLimitExceeded
 
 router = APIRouter(prefix="/api/v1/v9", tags=["v9"])
 
@@ -263,11 +264,7 @@ async def v9_analyze(
             target = root / Path(filename).name
             await file.seek(0)
             with target.open("wb") as sink:
-                shutil.copyfileobj(
-                    file.file,
-                    sink,
-                    length=1024 * 1024,
-                )
+                copy_upload(file.file, sink)
 
             result = discover_path(
                 target,
@@ -289,6 +286,8 @@ async def v9_analyze(
             }
             return result
 
+    except UploadLimitExceeded as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
     except ScopeChoiceRequired as exc:
         raise HTTPException(status_code=409, detail=exc.to_dict()) from exc
     except EvidenceUnavailable as exc:
@@ -298,7 +297,9 @@ async def v9_analyze(
             status_code=422,
             detail="Invalid ZIP archive",
         ) from exc
-    except (ValueError, TypeError, OSError) as exc:
+    except OSError as exc:
+        raise HTTPException(status_code=507 if exc.errno == errno.ENOSPC else 422, detail=str(exc)) from exc
+    except (ValueError, TypeError) as exc:
         raise HTTPException(
             status_code=422,
             detail=str(exc),

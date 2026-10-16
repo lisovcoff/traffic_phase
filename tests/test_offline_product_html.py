@@ -81,7 +81,7 @@ def test_javascript_queries_dom_and_controls_agree_with_common_contract():
     data=result();page=visualizer.render_html(data)
     script=re.search(r'<script>(.*?)</script>',page,re.S).group(1)
     times=[-1,0,9.9,10,11,12,19.9,20,40];query=prepare_logical_query(data)
-    expected=[{'state':query.at(t).estimated_state,'reason':query.at(t).abstention_reason} for t in times]
+    expected=json.loads(json.dumps([query.at(t).to_dict() for t in times]))
     # Minimal DOM for JS/control tests, NOT a browser render.
     harness=r'''
 const vm=require('node:vm'),fs=require('node:fs');
@@ -92,7 +92,7 @@ addEventListener(k,f){this.events[k]=f}}
 const elements={};const doc={getElementById:id=>(elements[id]??=new El()),createElement:()=>new El()};
 const context=vm.createContext({document:doc,setInterval:()=>1,clearInterval:()=>{}});
 vm.runInContext(input.script,context);
-const answers=input.times.map(t=>vm.runInContext(`(()=>{const s=stateAt(${t});return {state:s.estimated_state,reason:s.abstention_reason}})()`,context));
+const answers=input.times.map(t=>vm.runInContext(`stateAt(${t})`,context));
 elements.timeInput.value='11';elements.seek.events.click();
 if(!elements.phaseTitle.textContent.includes('UNKNOWN'))throw Error('gap not rendered');
 if(elements.lampState.textContent!=='UNKNOWN')throw Error('fabricated physical state');
