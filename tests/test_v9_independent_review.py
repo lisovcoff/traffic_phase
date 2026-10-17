@@ -1,6 +1,6 @@
 """Small independent counterexamples; no real annotations or fitted thresholds.
 
-Split visitation and coherent scores (D1-D3) are fixed. Strict xfails retain
+Split visitation, coherent scores and tied ranks (D1-D3,D7) are fixed. Strict xfails retain
 the other observed defects without silently treating them as regressions fixed.
 """
 from unittest.mock import patch
@@ -166,14 +166,12 @@ def test_distinct_shared_signatures_are_not_multiple_unsupported_phases():
     assert result["supported_phase_count"] == 3
 
 
-@pytest.mark.xfail(strict=True, reason="argsort(argsort) gives unequal ranks to ties")
 def test_redundancy_rank_feature_invariant_to_stream_permutation():
     a, b = np.array([1., 1., 0.]), np.array([1., 0., 1.])
     permutation = [1, 0, 2]
     assert fit._rank_correlation(a, b) == pytest.approx(fit._rank_correlation(a[permutation], b[permutation]))
 
 
-@pytest.mark.xfail(strict=True, reason="tied ranks change redundancy decision after mere column permutation")
 def test_redundancy_decision_invariant_on_binary_shared_occupancy():
     labels = np.tile(np.repeat(np.arange(3), [40, 40, 80]), 3)
     counts = np.array([[1, 1, 2, 2, 0], [1, 2, 1, 2, 0], [0, 0, 0, 0, 4]])

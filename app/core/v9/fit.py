@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
+from scipy.stats import rankdata
 
 from .primitives import (
     fit_bernoulli_templates,
@@ -636,14 +637,19 @@ def _duration_balance_by_pair(
 
 
 def _rank_correlation(a: np.ndarray, b: np.ndarray) -> float:
+    """Spearman correlation with average ranks for exact ties.
+
+    Equal occupancies must not acquire different ranks from movement column
+    order. The existing zero convention for short/constant vectors is retained.
+    """
     a = np.asarray(a, dtype=float)
     b = np.asarray(b, dtype=float)
     if a.size < 2 or b.size != a.size:
         return 0.0
     if np.std(a) <= 1e-12 or np.std(b) <= 1e-12:
         return 0.0
-    ra = np.argsort(np.argsort(a))
-    rb = np.argsort(np.argsort(b))
+    ra = rankdata(a, method='average')
+    rb = rankdata(b, method='average')
     return float(np.corrcoef(ra, rb)[0, 1])
 
 
