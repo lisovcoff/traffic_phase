@@ -1,5 +1,18 @@
 # Project status — 2D.1, 2026-10-17
 
+2026-10-17 D7 tied-rank defect fixed. Base b84e08b1d141e07da8e524080176c64f205233cc;
+code before comparison a57ae53f7b9e1f336ee0293a1425ac79264ee2a1. Only production
+function _rank_correlation changed to exact-tie average ranks; existing guards,
+thresholds and weights preserved.240 unique PASS,4 strict XFAIL(D4/D5/D6/D8),
+including independent oracle/all120 column permutations of full redundancy case.
+One exact unchanged control, then one frozen cached run3 with hashes before
+unchanged evaluator. Rank diagnostics changed, but all15 per-K fits/scores and
+selected histories exact. K3/2/3 vs3/2/2,raw19/34,baseline17/34 unchanged; no final
+regression or accuracy gain. Structural PASS, benefit FAIL_NO_GAIN; no tuning/
+timeouts. Main,2D.1 FAIL/default-off,physical UNKNOWN and independent calibration/
+validation limitations retained. See TIED_RANKS_RESULTS_20261017.md. Next isolated
+core task D6 joint shared signatures, not a recording6-specific merge rule.
+
 2026-10-17 D2+D3 coherent fit-score contract completed. Base
 e41c075d7c9cef7c6eb512cfadf7d29d435cafba; code/config before comparison
 787c9776e47675ab9dede456330b65850f0ef799. Returned refinement score now describes

@@ -1,0 +1,404 @@
+diff --git a/.gitattributes b/.gitattributes
+index 8b21009..90d87b4 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,5 +1,9 @@
+ tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
+ 
++evidence/tied_ranks_20261017/** -text -whitespace
++benchmarks/tied_ranks_20261017/** -text -whitespace
++docs/TIED_RANKS_PROTOCOL_20261017.md -text
++
+ evidence/score_contract_20261017/** -text -whitespace
+ benchmarks/score_contract_20261017/** -text -whitespace
+ docs/SCORE_CONTRACT_PROTOCOL_20261017.md -text
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 3072035..2744dab 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -1,5 +1,14 @@
+ # traffic_phase — план до готового продукта
+ 
++2026-10-17: [D7 tied ranks исправлен](docs/TIED_RANKS_RESULTS_20261017.md).
++Равным probabilities назначаются средние ранги; независимые feature/decision
++counterexamples и все120 перестановок full witness проходят.240 уникальных PASS,
++4 strict XFAIL(D4/D5/D6/D8). Единственный frozen cached run3 после code commit:
++rank diagnostics изменились, но K3/2/3/raw19/34/baseline17/34 и все15 fits exact.
++Structural PASS, benefit FAIL_NO_GAIN; tuning и timeout нет. Следующая отдельная
++задача D6 — поддержка joint shared signatures без требования exclusive stream.
++Main/2D.1 FAIL/default-off/UNKNOWN и independent validation ограничения сохранены.
++
+ 2026-10-17: [D2+D3 score contract исправлен](docs/SCORE_CONTRACT_RESULTS_20261017.md).
+ Score refinement относится к возвращённым params; K сравнивает единый data LL,
+ а decoder penalty маркирован отдельно.225 уникальных PASS,6 strict XFAIL для5
+diff --git a/app/core/v9/fit.py b/app/core/v9/fit.py
+index 3acb6ed..18a9bc5 100644
+--- a/app/core/v9/fit.py
++++ b/app/core/v9/fit.py
+@@ -9,6 +9,7 @@ from pathlib import Path
+ from typing import Dict, List, Optional, Sequence
+ import numpy as np
+ from scipy.ndimage import gaussian_filter1d
++from scipy.stats import rankdata
+ 
+ from .primitives import (
+     fit_bernoulli_templates,
+@@ -636,14 +637,19 @@ def _duration_balance_by_pair(
+ 
+ 
+ def _rank_correlation(a: np.ndarray, b: np.ndarray) -> float:
++    """Spearman correlation with average ranks for exact ties.
++
++    Equal occupancies must not acquire different ranks from movement column
++    order. The existing zero convention for short/constant vectors is retained.
++    """
+     a = np.asarray(a, dtype=float)
+     b = np.asarray(b, dtype=float)
+     if a.size < 2 or b.size != a.size:
+         return 0.0
+     if np.std(a) <= 1e-12 or np.std(b) <= 1e-12:
+         return 0.0
+-    ra = np.argsort(np.argsort(a))
+-    rb = np.argsort(np.argsort(b))
++    ra = rankdata(a, method='average')
++    rb = rankdata(b, method='average')
+     return float(np.corrcoef(ra, rb)[0, 1])
+ 
+ 
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index 9f499f8..62c4dd3 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,18 @@
+ # Project status — 2D.1, 2026-10-17
+ 
++2026-10-17 D7 tied-rank defect fixed. Base b84e08b1d141e07da8e524080176c64f205233cc;
++code before comparison a57ae53f7b9e1f336ee0293a1425ac79264ee2a1. Only production
++function _rank_correlation changed to exact-tie average ranks; existing guards,
++thresholds and weights preserved.240 unique PASS,4 strict XFAIL(D4/D5/D6/D8),
++including independent oracle/all120 column permutations of full redundancy case.
++One exact unchanged control, then one frozen cached run3 with hashes before
++unchanged evaluator. Rank diagnostics changed, but all15 per-K fits/scores and
++selected histories exact. K3/2/3 vs3/2/2,raw19/34,baseline17/34 unchanged; no final
++regression or accuracy gain. Structural PASS, benefit FAIL_NO_GAIN; no tuning/
++timeouts. Main,2D.1 FAIL/default-off,physical UNKNOWN and independent calibration/
++validation limitations retained. See TIED_RANKS_RESULTS_20261017.md. Next isolated
++core task D6 joint shared signatures, not a recording6-specific merge rule.
++
+ 2026-10-17 D2+D3 coherent fit-score contract completed. Base
+ e41c075d7c9cef7c6eb512cfadf7d29d435cafba; code/config before comparison
+ 787c9776e47675ab9dede456330b65850f0ef799. Returned refinement score now describes
+diff --git a/docs/TIED_RANKS_PROTOCOL_20261017.md b/docs/TIED_RANKS_PROTOCOL_20261017.md
+new file mode 100644
+index 0000000..b17d921
+--- /dev/null
++++ b/docs/TIED_RANKS_PROTOCOL_20261017.md
+@@ -0,0 +1,38 @@
++# D7: tied ranks in redundancy — preregistered scope, 2026-10-17
++
++Base b84e08b1d141e07da8e524080176c64f205233cc.
++Branch fix/tie-invariant-redundancy-20261017. Main unchanged.
++
++The existing _rank_correlation assigns different ranks to equal values using
++argsort(argsort), so a mere permutation of movement columns can change the
++3->2 redundancy decision. Independent review supplies two reproducing tests.
++Replace this ranking ONLY with average ranks for exact ties (standard Spearman
++definition), using existing scipy. Keep the existing small/constant-vector
++guards and all thresholds, weights, pair sorting and redundancy logic. No fuzzy
++tie threshold, new observation model, D6 support fix or score criterion change.
++
++Before development results: both original counterexamples must pass; compare
++the correlation against an independent counting-based rank oracle on fixed
++untied/tied/constant examples, check all6 permutations of the three-element
++counterexample and all120 column permutations of the supplied five-column full
++redundancy witness (no fitting). Preserve no-tie behavior, constant guard,
++no-input-mutation and existing handcrafted merge/distinct-phase tests. Structural
++invariance does not validate the heuristic merge policy or infer physical lamps.
++
++Use existing stage2c lossless event caches and last score_contract_20261017
++predictions as baseline. Freeze cache/selection/baseline/config/package/protocol
++hashes before any corrected development run. One unchanged recording19 control
++before production edits: schedule/K/period exact, diagnostic float atol1e-12
++rtol0 permitted only for portability. Stop on unexplained mismatch.
++
++After targeted tests, commit code/config before one cached run of3 files:
++dt1,seed0,default K2..6/max5/cooperative60s,hard worker90s,total maximum360s
++including control. Reuse inspected score-review inference worker and unchanged
++evaluator; workers have no annotations and local experimental reconstruction is
++off. Seal all predictions before one evaluator pass at +/-2s. No reruns/tuning.
++
++Report selected K, period, raw/baseline M/T/P, precision/recall, matched MAE/p95,
++nearest MAE, temporal coverage, runtime, candidates and timeouts. Retain rank
++features/merge decisions before/after and all regressions. A gain is not required
++to establish this code defect; no gain must be stated. These recordings are
++development, not holdout. 2D.1 FAIL/default-off and physical UNKNOWN remain.
+diff --git a/docs/TIED_RANKS_RESULTS_20261017.md b/docs/TIED_RANKS_RESULTS_20261017.md
+new file mode 100644
+index 0000000..551579c
+--- /dev/null
++++ b/docs/TIED_RANKS_RESULTS_20261017.md
+@@ -0,0 +1,74 @@
++# D7: исправлены ранги равных значений в redundancy
++
++Base: `b84e08b1d141e07da8e524080176c64f205233cc`.
++Ветка `fix/tie-invariant-redundancy-20261017`; code/config до сравнения:
++`a57ae53f7b9e1f336ee0293a1425ac79264ee2a1`.
++[Заранее заданный протокол](TIED_RANKS_PROTOCOL_20261017.md).
++
++В `app/core/v9/fit.py::_rank_correlation` двойной argsort назначал разные ранги
++одинаковым occupancy probabilities. Простая перестановка колонок меняла corr
++с -1 до -.5 и могла менять решение 3→2. Оба независимых теста до исправления FAIL.
++Теперь используются средние ранги для **точных** ties (`scipy.stats.rankdata`,
++существующая зависимость). Правильная корреляция в трёхэлементном примере -.5
++при всех6 перестановках. Fuzzy tolerance не вводилась; прежний std/short guard
++с нулевой convention, веса, пороги и весь остальной redundancy code сохранены.
++Единственная изменённая production-функция — `_rank_correlation`, плюс import.
++
++После исправления: **240 уникальных PASS**,4 strict XFAIL (D4,D5,D6,D8 остаются).
++Основная выборка235 PASS/4 XFAIL; отдельные5 PASS —3 затронутых discovery checks
++и2 handcrafted merge/distinct tests. Новый counting-based oracle независим от
++scipy/sorting. Проверены все120 перестановок полного пятиколоночного witness:
++decision/pair/features неизменны; no-ties parity, constants, exact-vs-near ties,
++input nonmutation. Только структурная корректность, не приёмка merge policy.
++Предупреждение Starlette/httpx прежнее; установки зависимостей нет.
++
++## Один frozen development run
++
++Unchanged native control записи19 до изменения production: schedule/K/period
++exact,6.547с. Затем один cached worker на каждый из3 файлов после code commit.
++Исходные большие JSON/ZIP не читались. Inputs/selection/anchors/config frozen;
++все output SHA зафиксированы до единственного unchanged evaluator pass (±2с).
++Все5 K2..6 рассмотрены на каждой записи, timeout нет; лимиты60с cooperative
++search,90с hard worker,360с control+3 maximum. Записи остаются development.
++
++**До = после во всех строках метрик:** M/T/P = matched/truth/predicted.
++
++| Запись/history | M/T/P | Precision / Recall | Matched MAE / p95, с | Nearest MAE, с | Coverage |
++|---|---:|---:|---:|---:|---:|
++|17 raw|15/17/18|83.33% /88.24%|.7093 /1.4852|1.1052|100%|
++|17 baseline|15/17/17|88.24% /88.24%|.7483 /1.7859|1.0859|100%|
++|19 raw|1/8/8|12.50% /12.50%|1.5460 /1.5460|4.7820|100%|
++|19 baseline|1/8/8|12.50% /12.50%|1.5995 /1.5995|3.9516|100%|
++|6 raw|3/9/15|20.00% /33.33%|1.4713 /1.7969|2.8059|100%|
++|6 baseline|1/9/15|6.67% /11.11%|1.4184 /1.4184|2.7519|100%|
++
++| Запись | K до→после / annotation K | Period error, с (неизм.) | Worker wall до→после, с |
++|---|---|---:|---:|
++|17|3→3 /3|.018187|16.879→15.685|
++|19|2→2 /2|.299500|7.433→6.645|
++|6|3→3 /2|.129248|16.968→14.924|
++
++Worker scope — cached discovery/import/validation/export, не raw ingestion
++и не CPU profile. Один прогон не доказывает ускорение. Все15 per-K fits/scores
++exact; периоды, selection и итоговые raw/baseline paths exact. Полные ranges,
++counts/reasons и метрики: `benchmarks/tied_ranks_20261017/comparison.json`.
++
++Rank features действительно изменились. У17 для пар[0,2]/[1,2]/[0,1]:
++-.366667/-.5/-.25 → -.130158/-.366070/-.075. Candidate pair[0,2] и detected=false
++сохранились. У6 [1,2]/[0,2]/[0,1]: .554545/-.790909/-.654545 →
++.689677/-.536585/-.441929; pair[1,2],detected=false также сохранились.
++У19 K2, redundancy не вызывается. Эти диагностические изменения не изменили
++окончательный K; вручную подбирать оставшиеся guards по записи6 нельзя.
++
++Итого raw19/34 truth,19/41 predicted (P46.34%,R55.88%); baseline17/34,17/40
++(P42.50%,R50%). Structural gate **PASS**, development benefit **FAIL_NO_GAIN**.
++Новых итоговых регрессий нет, улучшения точности тоже нет. Coverage отражает
++модельную историю, не наблюдаемость ламп. 2D.1 **FAIL/default-off**, physical
++UNKNOWN, main/state/query/period/selector/evaluator/historical artifacts сохранены.
++
++Commands/logs/readonly verifier/diff/seal/ZIP: `evidence/tied_ranks_20261017/`.
++Predictions отдельными файлами в `benchmarks/tied_ranks_20261017/predictions/`,
++ссылаются на исходные event caches по SHA без повторной упаковки26MB событий.
++Следующая отдельная задача — D6, support совместных shared-movement signatures;
++затем D4/D5 ensemble и D8 censored baseline. Независимая event/lamp calibration
++и отдельная validation открыты. Эти следующие правки здесь не реализованы.
+diff --git a/scripts/tied_rank_review.py b/scripts/tied_rank_review.py
+new file mode 100644
+index 0000000..f1450d4
+--- /dev/null
++++ b/scripts/tied_rank_review.py
+@@ -0,0 +1,81 @@
++"""One bounded D7 comparison, reusing the inspected annotation-free worker."""
++import argparse
++from dataclasses import asdict
++import importlib.metadata
++import json
++from pathlib import Path
++import subprocess
++
++from scripts import score_contract_review as previous
++from scripts.hsmm_recurrence_check import cached_bundle, save, sha
++
++ROOT=Path(__file__).resolve().parents[1]
++OUT=ROOT/'benchmarks/tied_ranks_20261017'
++SOURCE=ROOT/'benchmarks/stage2c_20261014/predictions'
++BASELINE=ROOT/'benchmarks/score_contract_20261017/predictions'
++BASE='b84e08b1d141e07da8e524080176c64f205233cc'
++PROTOCOL=ROOT/'docs/TIED_RANKS_PROTOCOL_20261017.md'
++
++
++def freeze():
++    from app.core.v9.fit import PhaseSearchConfig
++    OUT.mkdir(exist_ok=False)
++    inputs=[]
++    for source in sorted(SOURCE.glob('*_v9.json')):
++        _,bundle=cached_bundle(source)
++        inputs.append(dict(file=source.name,sha256=sha(source),baseline_sha256=sha(BASELINE/source.name),
++            selected_indices=bundle.diagnostics['selected_event_indices'],temporal_events=len(bundle.temporal_events)))
++    assert len(inputs)==3
++    save(OUT/'freeze.json',dict(base_sha=BASE,inputs=inputs,seed=0,dt=1.,
++        search_config=asdict(PhaseSearchConfig()),boundary_tolerance_s=2.,
++        max_control_runs=1,max_corrected_runs=3,worker_timeout_s=90,total_worker_allowance_s=360,
++        protocol_sha256=sha(PROTOCOL),control_raw_K_period_schedule='EXACT',control_float_atol=1e-12,
++        worker_module='scripts.score_contract_review',worker_sha256=sha(ROOT/'scripts/score_contract_review.py'),
++        package_versions={n:importlib.metadata.version(n) for n in ('numpy','scipy','scikit-learn','fastapi')},
++        source='lossless_event_cache_NOT_original_ingestion',local_2D1='FAIL_DEFAULT_OFF'))
++
++
++def control():
++    save(OUT/'control_started.json',dict(base_sha=BASE,fit_sha256=sha(ROOT/'app/core/v9/fit.py')))
++    frozen=json.loads((OUT/'freeze.json').read_text())
++    entry=next(r for r in frozen['inputs'] if r['file'].startswith('19_'))
++    assert sha(SOURCE/entry['file'])==entry['sha256']
++    row=previous.worker(SOURCE/entry['file'],OUT/'control.json')
++    if not row['reason']:
++        old=json.loads((BASELINE/entry['file']).read_text())
++        new=json.loads((OUT/'control.json').read_text())
++        row.update(schedule_exact=old['schedule']==new['schedule'],period_exact=old['period_inference']==new['period_inference'],
++            k_exact=old['schedule']['phase_count']==new['schedule']['phase_count'])
++    save(OUT/'control_check.json',row)
++    assert not row['reason'] and row['schedule_exact'] and row['period_exact'] and row['k_exact'], 'STOP_CONTROL_MISMATCH'
++    print(json.dumps(row))
++
++
++def run():
++    control=json.loads((OUT/'control_check.json').read_text())
++    assert not control['reason'] and all(control[k] for k in ('schedule_exact','period_exact','k_exact'))
++    frozen=json.loads((OUT/'freeze.json').read_text())
++    assert sha(PROTOCOL)==frozen['protocol_sha256']
++    assert sha(ROOT/'scripts/score_contract_review.py')==frozen['worker_sha256']
++    assert not subprocess.check_output(['git','diff','HEAD','--','app/core','scripts/tied_rank_review.py'],cwd=ROOT).strip()
++    save(OUT/'corrected_started.json',dict(code_sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
++        fit_sha256=sha(ROOT/'app/core/v9/fit.py')))
++    rows=[]
++    for entry in frozen['inputs']:
++        assert sha(SOURCE/entry['file'])==entry['sha256']
++        assert sha(BASELINE/entry['file'])==entry['baseline_sha256']
++        print('One corrected cached worker:',entry['file'],flush=True)
++        rows.append(previous.worker(SOURCE/entry['file'],OUT/'predictions'/entry['file']))
++    save(OUT/'predictions_sealed.json',rows)
++    print('All output hashes sealed before annotations')
++
++
++def evaluate():
++    previous.OUT,previous.SOURCE,previous.BASELINE=OUT,SOURCE,BASELINE
++    previous.evaluate()
++
++
++if __name__=='__main__':
++    parser=argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('command',choices=('freeze','control','run','evaluate'))
++    globals()[parser.parse_args().command]()
+diff --git a/tests/test_redundancy_tied_ranks.py b/tests/test_redundancy_tied_ranks.py
+new file mode 100644
+index 0000000..1988c74
+--- /dev/null
++++ b/tests/test_redundancy_tied_ranks.py
+@@ -0,0 +1,70 @@
++"""Fixed structural examples; no phase truth, fitting or threshold selection."""
++import itertools
++
++import numpy as np
++import pytest
++
++from app.core.v9 import fit
++from app.core.v9.decoder import _segments_from_labels
++from app.core.v9.primitives import fit_bernoulli_templates, _pointwise_loglik
++
++
++def independent_average_rank(values):
++    # Count-based oracle independent of scipy and sort implementation/order.
++    return np.array([sum(w<v for w in values)+(sum(w==v for w in values)+1)/2
++                     for v in values],dtype=float)
++
++
++@pytest.mark.parametrize('a,b',[
++    ([1.,1.,0.],[1.,0.,1.]),
++    ([0.,1.,1.],[0.,0.,1.]),
++    ([2.,4.,6.,8.],[8.,2.,6.,4.]),
++    ([0.,1.,1.+1e-13],[1.,0.,2.]),
++    ([.01,.01,.9,.9,.5],[.9,.5,.01,.9,.01]),
++])
++def test_rank_matches_independent_average_rank_oracle(a,b):
++    a,b=np.array(a),np.array(b)
++    a0,b0=a.copy(),b.copy()
++    expected=float(np.corrcoef(independent_average_rank(a),independent_average_rank(b))[0,1])
++    assert fit._rank_correlation(a,b)==pytest.approx(expected,abs=1e-12)
++    assert np.array_equal(a,a0) and np.array_equal(b,b0)
++    if len(np.unique(a))==len(a) and len(np.unique(b))==len(b):
++        old=np.corrcoef(np.argsort(np.argsort(a)),np.argsort(np.argsort(b)))[0,1]
++        assert fit._rank_correlation(a,b)==pytest.approx(old,abs=1e-12)
++
++
++@pytest.mark.parametrize('a,b',[( [],[] ),([1.],[2.]),([1.,1.,1.],[0.,1.,2.]),([0.,1.],[1.])])
++def test_small_constant_or_incompatible_vectors_keep_zero_convention(a,b):
++    assert fit._rank_correlation(np.array(a),np.array(b))==0.
++
++
++def test_exact_ties_are_invariant_under_all_six_permutations():
++    a,b=np.array([1.,1.,0.]),np.array([1.,0.,1.])
++    for perm in itertools.permutations(range(3)):
++        p=list(perm)
++        assert fit._rank_correlation(a[p],b[p])==pytest.approx(-.5,abs=1e-12)
++
++
++def test_full_redundancy_features_and_decision_under_all_120_column_permutations():
++    labels=np.tile(np.repeat(np.arange(3),[40,40,80]),3)
++    counts=np.array([[1,1,2,2,0],[1,2,1,2,0],[0,0,0,0,4]])
++    x=((np.arange(len(labels))%5)[:,None]<counts[labels]).astype(float)
++    def model(z,k):
++        p=fit_bernoulli_templates(x,z,k)
++        return dict(k=k,labels=z,probs=p,segments=_segments_from_labels(z),
++                    pointwise_loglik=_pointwise_loglik(x,p,z))
++    f3,f2=model(labels,3),model((labels==2).astype(int),2)
++    original=fit.evaluate_phase_redundancy(f3,f2,x,160.)
++    expected_pairs={tuple(p['pair']):p for p in original['pairs']}
++    for perm in itertools.permutations(range(5)):
++        p=list(perm)
++        actual=fit.evaluate_phase_redundancy({**f3,'probs':f3['probs'][:,p]},
++            {**f2,'probs':f2['probs'][:,p]},x[:,p],160.)
++        assert actual['detected']==original['detected']
++        assert actual['candidate_pair']==original['candidate_pair']
++        assert actual['supported_phase_count']==original['supported_phase_count']==3
++        for row in actual['pairs']:
++            expected=expected_pairs[tuple(row['pair'])]
++            for key in ('rank_correlation','pair_affinity','template_overlap','boundary_exchange_ratio',
++                        'boundary_strength_ratio','merge_loss_per_cycle'):
++                assert row[key]==pytest.approx(expected[key],abs=1e-12)
+diff --git a/tests/test_v9_independent_review.py b/tests/test_v9_independent_review.py
+index d73c3af..9fac0f0 100644
+--- a/tests/test_v9_independent_review.py
++++ b/tests/test_v9_independent_review.py
+@@ -1,6 +1,6 @@
+ """Small independent counterexamples; no real annotations or fitted thresholds.
+ 
+-Split visitation and coherent scores (D1-D3) are fixed. Strict xfails retain
++Split visitation, coherent scores and tied ranks (D1-D3,D7) are fixed. Strict xfails retain
+ the other observed defects without silently treating them as regressions fixed.
+ """
+ from unittest.mock import patch
+@@ -166,14 +166,12 @@ def test_distinct_shared_signatures_are_not_multiple_unsupported_phases():
+     assert result["supported_phase_count"] == 3
+ 
+ 
+-@pytest.mark.xfail(strict=True, reason="argsort(argsort) gives unequal ranks to ties")
+ def test_redundancy_rank_feature_invariant_to_stream_permutation():
+     a, b = np.array([1., 1., 0.]), np.array([1., 0., 1.])
+     permutation = [1, 0, 2]
+     assert fit._rank_correlation(a, b) == pytest.approx(fit._rank_correlation(a[permutation], b[permutation]))
+ 
+ 
+-@pytest.mark.xfail(strict=True, reason="tied ranks change redundancy decision after mere column permutation")
+ def test_redundancy_decision_invariant_on_binary_shared_occupancy():
+     labels = np.tile(np.repeat(np.arange(3), [40, 40, 80]), 3)
+     counts = np.array([[1, 1, 2, 2, 0], [1, 2, 1, 2, 0], [0, 0, 0, 0, 4]])

@@ -1,5 +1,14 @@
 # traffic_phase — план до готового продукта
 
+2026-10-17: [D7 tied ranks исправлен](docs/TIED_RANKS_RESULTS_20261017.md).
+Равным probabilities назначаются средние ранги; независимые feature/decision
+counterexamples и все120 перестановок full witness проходят.240 уникальных PASS,
+4 strict XFAIL(D4/D5/D6/D8). Единственный frozen cached run3 после code commit:
+rank diagnostics изменились, но K3/2/3/raw19/34/baseline17/34 и все15 fits exact.
+Structural PASS, benefit FAIL_NO_GAIN; tuning и timeout нет. Следующая отдельная
+задача D6 — поддержка joint shared signatures без требования exclusive stream.
+Main/2D.1 FAIL/default-off/UNKNOWN и independent validation ограничения сохранены.
+
 2026-10-17: [D2+D3 score contract исправлен](docs/SCORE_CONTRACT_RESULTS_20261017.md).
 Score refinement относится к возвращённым params; K сравнивает единый data LL,
 а decoder penalty маркирован отдельно.225 уникальных PASS,6 strict XFAIL для5
