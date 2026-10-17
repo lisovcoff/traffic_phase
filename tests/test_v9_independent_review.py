@@ -1,6 +1,6 @@
 """Small independent counterexamples; no real annotations or fitted thresholds.
 
-Only split-candidate visitation is fixed in this review. Strict xfails retain
+Split visitation and coherent scores (D1-D3) are fixed. Strict xfails retain
 the other observed defects without silently treating them as regressions fixed.
 """
 from unittest.mock import patch
@@ -90,7 +90,6 @@ def objective_for_returned_model(x, payload):
     return total
 
 
-@pytest.mark.xfail(strict=True, reason="score uses old templates but payload returns refitted templates")
 def test_refinement_score_describes_returned_model():
     truth = np.tile(np.repeat([0, 1], [6, 14]), 3)
     x = np.eye(2)[truth]
@@ -100,7 +99,6 @@ def test_refinement_score_describes_returned_model():
     assert payload["score"] == pytest.approx(objective_for_returned_model(x, payload))
 
 
-@pytest.mark.xfail(strict=True, reason="candidate_metrics mixes seed likelihood and penalized decoder score")
 def test_same_path_and_templates_have_same_k_selection_objective():
     labels = np.tile(np.repeat([0, 1], 10), 2)
     x = np.eye(2)[labels]

@@ -1,4 +1,8 @@
 tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
+
+evidence/score_contract_20261017/** -text -whitespace
+benchmarks/score_contract_20261017/** -text -whitespace
+docs/SCORE_CONTRACT_PROTOCOL_20261017.md -text
 evidence/review_intake_20261017/** -text -whitespace
 benchmarks/seed_flow_20261017/** -text -whitespace
 evidence/hsmm_recurrence_20261016/** -text -whitespace

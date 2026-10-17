@@ -33,7 +33,9 @@ def _seed_labels_to_fit(labels, x, k, period, by_stream, dt, seed_info, evidence
         'labels': np.asarray(labels, dtype=np.int16),
         'probs': probs,
         'segments': segments,
+        'data_loglik': float(point_ll),
         'pointwise_loglik': float(point_ll),
+        'penalized_objective': None,
         'coherence': float(coherence),
         'seed_info': seed_info,
     }
@@ -78,20 +80,33 @@ def _fit_from_initial_labels(
             evidence_values,
         )
         point_ll = _pointwise_loglik(x, new_probs, labels)
+        # The decoder evaluated this path with the *input* templates. Keep its
+        # duration/transition cost, but rescore the returned, refitted templates.
+        # This requires no second decode and preserves existing censoring rules.
+        input_point_ll = _pointwise_loglik(x, probs, labels)
+        returned_objective = float(score) + point_ll - input_point_ll
         payload = {
             'labels': labels,
             'probs': new_probs,
-            'score': float(score),
+            'score': float(returned_objective),
+            'score_semantics': 'returned_model_penalized_objective',
+            'penalized_objective': float(returned_objective),
+            'decoder_input_objective': float(score),
+            'decoder_input_data_loglik': float(input_point_ll),
             'segments': segments,
             'decoder_info': decoder_info,
             'pointwise_loglik': float(point_ll),
+            'data_loglik': float(point_ll),
             'coherence': float(coherence),
         }
         if best_refined is None or payload['score'] > best_refined['score']:
             best_refined = payload
         history.append(
             {
-                'loglik_with_duration_penalty': float(score),
+                'loglik_with_duration_penalty': float(returned_objective),
+                'decoder_input_objective': float(score),
+                'decoder_input_data_loglik': float(input_point_ll),
+                'data_loglik': float(point_ll),
                 'pointwise_loglik': float(point_ll),
                 'boundary_coherence': float(coherence),
             }
@@ -409,6 +424,8 @@ def em_fit(
                 'pointwise_loglik': float(
                     f.get('pointwise_loglik', 0.0)
                 ),
+                'data_loglik': float(f['pointwise_loglik']),
+                'penalized_objective': f.get('penalized_objective'),
                 'boundary_coherence': float(
                     f.get('coherence', 0.0)
                 ),
@@ -417,12 +434,13 @@ def em_fit(
         ],
         'labels': best['labels'],
         'probs': best['probs'],
-        'score': float(
-            best.get(
-                'score',
-                best.get('pointwise_loglik', 0.0),
-            )
-        ),
+        # Public score is now a uniform compatibility alias. Decoder penalties
+        # are diagnostics, never a source-dependent K-selection likelihood.
+        'score': float(best['pointwise_loglik']),
+        'score_semantics': 'data_loglik',
+        'data_loglik': float(best['pointwise_loglik']),
+        'penalized_objective': best.get('penalized_objective'),
+        'decoder_input_objective': best.get('decoder_input_objective'),
         'pointwise_loglik': float(
             best.get('pointwise_loglik', 0.0)
         ),
@@ -964,11 +982,20 @@ def evaluate_phase_redundancy(
     }
 
 def candidate_metrics(fit, x_shape):
+    """Compare the same data-likelihood definition for seed and refined paths.
+
+    pointwise_loglik is the historical alias; score-only fits are deliberately
+    rejected because their duration-penalty semantics cannot be inferred.
+    This approximate complete-path criterion is not marginal model evidence.
+    """
     n, s = x_shape
+    data_ll = float(fit['data_loglik'] if 'data_loglik' in fit else fit['pointwise_loglik'])
+    if not math.isfinite(data_ll):
+        raise ValueError('finite returned-model data_loglik required')
     p_count = fit['k'] * s
     effective_obs = max(2, n * s)
     bic = (
-        -2.0 * float(fit['score'])
+        -2.0 * data_ll
         + p_count * math.log(effective_obs)
     )
     seg_lengths = [
@@ -977,7 +1004,10 @@ def candidate_metrics(fit, x_shape):
     ]
     return {
         'k': int(fit['k']),
-        'objective': float(fit['score']),
+        'objective': data_ll,
+        'objective_semantics': 'returned_model_data_loglik',
+        'data_loglik': data_ll,
+        'penalized_objective': fit.get('penalized_objective'),
         'approx_bic': float(bic),
         'parameter_count': int(p_count),
         'segment_count': int(len(seg_lengths)),

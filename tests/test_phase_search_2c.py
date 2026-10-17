@@ -15,7 +15,9 @@ def protected_four(names=("N->S","S->N","E->W","W->E")):
 
 def fake_fit(x,period,k,**kwargs):
     labels=np.arange(len(x))%k
+    probs=np.eye(k,x.shape[1])*.9+.01
     return {"k":k,"score":-100.,"probs":np.eye(k,x.shape[1])*.9+.01,
+            "pointwise_loglik":_pointwise_loglik(x,probs,labels),
             "labels":labels,"segments":[(0.,float(len(x)),0)]}
 
 

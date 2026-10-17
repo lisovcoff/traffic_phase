@@ -1,0 +1,45 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_______________ test_refinement_score_describes_returned_model ________________
+
+    @pytest.mark.xfail(strict=True, reason="score uses old templates but payload returns refitted templates")
+    def test_refinement_score_describes_returned_model():
+        truth = np.tile(np.repeat([0, 1], [6, 14]), 3)
+        x = np.eye(2)[truth]
+        initial = np.tile(np.repeat([0, 1], 10), 3)
+        payload, _ = fit._fit_from_initial_labels(x, initial, 2, 20., None, 1., 1,
+                                                  {"durations_s": [10., 10.]}, None, None)
+>       assert payload["score"] == pytest.approx(objective_for_returned_model(x, payload))
+E       assert -31.199676759660846 == -13.192524235065875 � 1.3e-05
+E         
+E         comparison failed
+E         Obtained: -31.199676759660846
+E         Expected: -13.192524235065875 � 1.3e-05
+
+tests\test_v9_independent_review.py:100: AssertionError
+________ test_same_path_and_templates_have_same_k_selection_objective _________
+
+    @pytest.mark.xfail(strict=True, reason="candidate_metrics mixes seed likelihood and penalized decoder score")
+    def test_same_path_and_templates_have_same_k_selection_objective():
+        labels = np.tile(np.repeat([0, 1], 10), 2)
+        x = np.eye(2)[labels]
+        info = {"durations_s": [10., 10.]}
+        seed = fit._seed_labels_to_fit(labels, x, 2, 20., None, 1., info, None, None)
+        refined, _ = fit._fit_from_initial_labels(x, labels, 2, 20., None, 1., 1, info, None, None)
+        assert np.array_equal(seed["labels"], refined["labels"])
+        assert np.array_equal(seed["probs"], refined["probs"])
+        seed.update(k=2, score=seed["pointwise_loglik"])
+        refined["k"] = 2
+>       assert fit.candidate_metrics(seed, x.shape)["approx_bic"] == pytest.approx(
+            fit.candidate_metrics(refined, x.shape)["approx_bic"])
+E       assert 21.38371479134521 == 22.883714791345255 � 2.3e-05
+E         
+E         comparison failed
+E         Obtained: 21.38371479134521
+E         Expected: 22.883714791345255 � 2.3e-05
+
+tests\test_v9_independent_review.py:114: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_v9_independent_review.py::test_refinement_score_describes_returned_model
+FAILED tests/test_v9_independent_review.py::test_same_path_and_templates_have_same_k_selection_objective
+2 failed, 11 deselected in 14.30s

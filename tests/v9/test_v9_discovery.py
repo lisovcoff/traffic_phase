@@ -426,6 +426,7 @@ def test_v9_candidate_metrics_detect_unsupported_phase() -> None:
     fit = {
         "k": 3,
         "score": -100.0,
+        "pointwise_loglik": -100.0,  # Explicit data-LL stub, not decoder score.
         "segments": [
             (0.0, 50.0, 0),
             (50.0, 100.0, 1),
@@ -478,6 +479,7 @@ def test_v9_phase_selector_rejects_multiple_degenerate_extra_phases(monkeypatch)
         return {
             "k": k,
             "score": -100.0,
+            "pointwise_loglik": -100.0,
             "probs": probs,
             "segments": [
                 (0.0, 50.0, 0),
@@ -550,6 +552,7 @@ def test_v9_phase_selector_keeps_one_weak_phase_when_two_phases_have_support(
         return {
             "k": k,
             "score": score,
+            "pointwise_loglik": score,  # Stub models data LL, not a penalty.
             "probs": probs,
             "segments": segments,
             "decoder_info": {},
