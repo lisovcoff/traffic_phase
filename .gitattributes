@@ -1,5 +1,7 @@
 tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
 
+evidence/enthusiasts_video_20261017/** -text -whitespace
+
 evidence/review_closure_20261017/** -text -whitespace
 benchmarks/review_closure_20261017/** -text -whitespace
 docs/REVIEW_CLOSURE_PROTOCOL_20261017.md -text

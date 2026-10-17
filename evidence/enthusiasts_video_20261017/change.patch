@@ -1,0 +1,266 @@
+diff --git a/.gitattributes b/.gitattributes
+index f20e805..e351b7b 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,5 +1,7 @@
+ tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
+ 
++evidence/enthusiasts_video_20261017/** -text -whitespace
++
+ evidence/review_closure_20261017/** -text -whitespace
+ benchmarks/review_closure_20261017/** -text -whitespace
+ docs/REVIEW_CLOSURE_PROTOCOL_20261017.md -text
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 666a624..d179663 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -1,5 +1,14 @@
+ # traffic_phase — план до готового продукта
+ 
++2026-10-17: [новое5ч видео Энтузиастов проверено](docs/ENTHUSIASTS_VIDEO_INTAKE_20261017.md).
++200 native frames:4 независимых appearance brackets по66.7мс, без model predictions.
++FPS gaps33/67/100мс, не ground truth1мс. Камера05.10.2024, но6 prefixes JSON
++из архива05.10 имеют millis23.02.2025; Инфо.docx предупреждает об offline clocks.
++Paired evaluation UNAVAILABLE до независимой PTS↔detection/same-car связи;
++видео-reference доступен, другие heads не инвертируются из одной секции.64 tests,
++без fitting/replay/default changes. Следующий путь — независимая registration/
++clock проверка этого нового материала; не phase-based alignment или fixed lag.
++
+ 2026-10-17: [все8 подтверждённых Astra defects закрыты тестами](docs/REVIEW_CLOSURE_RESULTS_20261017.md).
+ Сейчас D4/D5/D6/D8 исправлены вместе: membership/circular matching с abstention,
+ общая quality selection, joint signatures без exclusive stream, censored baseline
+diff --git a/docs/ENTHUSIASTS_VIDEO_INTAKE_20261017.md b/docs/ENTHUSIASTS_VIDEO_INTAKE_20261017.md
+new file mode 100644
+index 0000000..35220e8
+--- /dev/null
++++ b/docs/ENTHUSIASTS_VIDEO_INTAKE_20261017.md
+@@ -0,0 +1,93 @@
++# Ленина—Энтузиастов: независимый video-reference
++
++Base `8c49850d1c73a311b7d19ad56b95ffd150216d65`, ветка
++`calibration/enthusiasts-video-intake-20261017`. Main/default/алгоритм не менялись.
++Новых fitting, replay, decoding модели фаз или parameter search: **0**.
++
++Источник: `C:/Users/sheld/Downloads/lenina_entuziastov.mp4`,6 792 283 598байт,
++2688×1520,H.264,18014.066667с (около5ч). Номинальное r_frame_rate30, среднее
++6757815/270211≈25.009 кадра/с. Time base1/90000с — единица хранения timestamp,
++не точность измерения. В первых2с50 кадров с соседними PTS gap33.33/66.67/100мс.
++Миллисекундная точность физического переключения **не подтверждается**.
++Exposure/LED scan/encoding latency неизвестны; кадры с пропусками не интерполируются.
++
++Видимый headE1 у левого нижнего перехода: native ROI[390,650,120,130].
++Дата/часы камеры визуально прочитаны на0/9000/18000с:
++05.10.2024 11:59:58 /14:29:58 /16:59:58. Приращения согласуются с media PTS
++в этих3 точках; это не сертификат UTC accuracy или JSON synchronization.
++Пользователь сообщил двухфазный режим, но один видимый head не подтверждает
++полный план/все подходы. Другую фазу/лампу не инвертируем из цветаE1: промежуточные
++состояния, все красные и другие секции требуют своих наблюдений.
++
++## Что действительно размечено
++
++Фиксированная сетка0..180с/10с, уточняющие кадры1с и61..79с/2с; затем четыре
++native windows[7,9),[68,70),[71,73),[108,110), по50 кадров. **200** кадров в
++уточнении, без truncation, максимум240 заранее выделенных. Полные PTS/PNG SHA/
++ffmpeg commands сохранены. Запрашиваемый108с даёт первый кадр108.1с — начало
++не заполнялось вымышленным кадром. Декодирование пяти часов целиком не выполнялось.
++
++Все4 contact sheets и увеличенные endpoint/mixed кадры просмотрены. Увеличение
++nearest-neighbour — только показ исходных пикселей, без восстановления деталей.
++Reference размечен Codex по видео, без предсказаний модели/фазовых меток. Второго
++независимого human review пока нет. Mixed frame между endpoint помечен UNKNOWN.
++
++| Изменение изображенияE1 | Последний старый / первый уверенный новый PTS, с | Ширина |
++|---|---|---:|
++|Красный+свечение средней линзы → зелёный|8.766667–8.833333|66.667мс|
++|Мигающий зелёный → свечение средней линзы (жёлтый)|69.733333–69.800000|66.667мс|
++|Средняя линза → красный|72.733333–72.800000|66.667мс|
++|Красный+средняя линза → зелёный, следующий цикл|108.766667–108.833333|66.667мс|
++
++Это **brackets изменения декодированного изображения**, не calibrated physical
++lamp-switch intervals. Не добавлять к ним epoch миллисекунды JSON. Около68с
++видны чередующиеся тёмные и зелёные кадры; отдельное потемнение не является RED.
++Начало красного в0с цензурировано; включение red+yellow внутри первой выбранной
++окрестности отдельно не датировано. Полной5-часовой truth ещё нет.
++
++Машинные файлы: `evidence/enthusiasts_video_20261017/video_appearance_reference.json`
++и `video_appearance_boundaries.csv`. Они намеренно не schema старых phase marks;
++json_evaluation_eligible=false, physical timing accuracy/probability=null,
++movement_mapping/вторая фаза UNKNOWN. Native crops и PTS даны отдельно.
++
++## Почему JSON ещё не сопоставлен
++
++В data найден архив с именем «Ленина-Энтузиастов05.10.24.zip». **Внутри6 JSON
++имеют имена6_2025_2_23_13..18.json**. Прочитан только первый целый record каждого
++entry, суммарно720896 uncompressed prefix bytes (не полные JSON). Их top-level
++millis и detection millis, если трактовать как Unix ms в UTC+5, дают23.02.2025;
++первый detection первого entry —13:52:47.177. Filename date не подтверждает
++соответствие видео, а эти timestamps не совпадают с изображённой датой.
++
++Из Инфо.docx сохранены только относящиеся к millis абзацы с SHA документа:
++top-level — время, когда ТС уехало; detection — время обнаружения; отдельно
++прямо указано, что при offline processing millis может не совпадать с реальным
++временем события. Это допускает другую шкалу, но **не устанавливает** конкретный
++offset/drift или тождество сеансов. Ранее сообщённое пользователем происхождение
++H1 timestamps «из часов камеры» не сертификат этого нового источника.
++
++Текущий статус paired JSON/video evaluation: **UNAVAILABLE_UNVERIFIED_CLOCK_LINK**.
++Не сопоставляли сигнальные циклы и не подгоняли offset по GREEN. Следующий нужный
++шаг — подтверждённая frame/PTS↔detection association от producer либо несколько
++однозначных same-car correspondences в разных частях записи, с проверкой drift/
++нелинейности. Для геометрии не переносился H1 transform другого перекрёстка.
++До этого нельзя измерять ошибку реконструкции JSON относительно этих4 transitions.
++Блокирована только совместная оценка; само видео пригодно для независимой разметки.
++
++## Проверка/происхождение
++
++**64 уникальных PASS**:63 checks по video/clock/calibration contracts, затем
++добавлен1 regression на неподдержанный time base (финальная собственная выборка12).
++Проверены integer/duplicate/nonmonotonic PTS, gaps без ложной1мс точности,
++отсутствие автоматической второй фазы/JSON timestamp, budgets и несовместимый
++source format. Native integration:4×50 кадров; исходные script commands сохранены.
++Существующие production и исторические predictions не менялись; 2D.1 FAIL,
++K3/2/3 и raw19/34 остаются историческими development результатами.
++
++Видео не хешировалось целиком: явно подписанный partial fingerprint3×1MiB
++(start/middle/end), размер/mtime. Все сохранённые PNG/PTS/reference имеют SHA.
++Полные native context frames оставлены в task-local `.web_runtime` с SHA;
++в evidence — native clock crops и lossy context JPEG только для иллюстрации.
++Reference цвета основан на lossless native crops, не JPEG. В evidence ZIP входят
++endpoint/mixed crops, clock crops, reference/manifest/логи; исходное видео и
++большие predictions не упакованы. Commands/readonly verify прилагаются.
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index 50b68ff..bc738ff 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,17 @@
+ # Project status — 2D.1, 2026-10-17
+ 
++2026-10-17 new independent video intake (base8c49850d1c73a311b7d19ad56b95ffd150216d65):
++lenina_entuziastov.mp4,5h,2688x1520.200 native frames/four appearance changes
++reviewed without predictions; conservative endpoint widths66.7ms, not calibrated
++lamp-switch accuracy. Source gaps33.3/66.7/100ms rule out a justified1ms claim.
++Camera overlay2024-10-05; six first-record prefixes of nominal05.10 ZIP have
++2025-02-23 Unix-ms interpretations. Supplied Инфо.docx explicitly warns about
++offline processing timestamps. Paired JSON/video metrics unavailable pending
++independent frame/detection association; no cycle/phase alignment.64 unique tests
++pass, default/main/inference/historical predictions unchanged;2D.1 FAIL retained.
++One visible head reference only; operator K2 claim/other-head states not promoted
++to independently observed truth. See ENTHUSIASTS_VIDEO_INTAKE_20261017.md.
++
+ 2026-10-17 confirmed review closure: D1-D8 now have passing counterexamples,
+ no remaining review XFAIL. Base c414c5ef486b145cb7605017fbeabee3e68237b0;
+ code before comparison9e987c804c1880b991f5298da27f71224778d8c8. D4/D5/D6/D8
+diff --git a/scripts/video_signal_brackets.py b/scripts/video_signal_brackets.py
+new file mode 100644
+index 0000000..bcc4cdd
+--- /dev/null
++++ b/scripts/video_signal_brackets.py
+@@ -0,0 +1,63 @@
++"""Bounded native-frame evidence. No phase fitting, clock alignment or lamp inference."""
++import argparse
++from fractions import Fraction
++import hashlib
++import json
++from pathlib import Path
++import re
++import subprocess
++
++
++def presentation_bracket(before, after, *, time_base='1/90000'):
++    """Bracket a reviewed IMAGE appearance, never calibrated physical switch time."""
++    a,b=before['pts_ticks'],after['pts_ticks']
++    if any(isinstance(v,bool) or not isinstance(v,int) for v in (a,b)) or a<0 or b<=a:
++        raise ValueError('strictly increasing integer PTS required')
++    base=Fraction(time_base)
++    if base<=0:raise ValueError('positive time base required')
++    return dict(video_presentation_bracket_s=[float(a*base),float(b*base)],
++        width_ms=float((b-a)*base*1000),before_file=before['file'],after_file=after['file'],
++        bracket_semantics='reviewed_decoded_appearance_NOT_calibrated_lamp_switch_interval',
++        json_boundary_timestamp_ms=None,physical_switch_timing_error_ms=None,
++        second_phase_state='UNKNOWN',calibrated_probability=None)
++
++
++def extract_window(video,out,start,end,max_frames=60):
++    if not 0<=start<end or end-start>2 or not 1<=max_frames<=60:
++        raise ValueError('at most2s/60 frames per window')
++    # This pilot's fixed ROI/time base must not silently label another source
++    # using incompatible geometry or timestamp units.
++    probe=subprocess.run(['ffprobe','-v','error','-select_streams','v:0','-show_entries',
++        'stream=width,height,time_base','-of','json',str(video)],capture_output=True,timeout=15,check=True)
++    streams=json.loads(probe.stdout)['streams']
++    if (len(streams)!=1 or streams[0]['width']!=2688 or streams[0]['height']!=1520 or
++            Fraction(streams[0]['time_base'])!=Fraction(1,90000)):
++        raise ValueError('this video pilot requires2688x1520/90000Hz; review a new ROI/time base first')
++    out.mkdir(parents=True,exist_ok=False)
++    cmd=['ffmpeg','-nostdin','-hide_banner','-loglevel','info','-copyts','-ss',str(start),
++        '-t',str(end-start),'-i',str(video),'-map','0:v:0','-vf',
++        f'crop=120:130:390:650,trim=start={start}:end={end},showinfo',
++        '-frames:v',str(max_frames),'-fps_mode','passthrough',str(out/'frame_%03d.png')]
++    done=subprocess.run(cmd,capture_output=True,timeout=30,check=True)
++    (out/'decode.log').write_bytes(done.stderr)
++    parsed=re.findall(rb'n:\s*(\d+)\s+pts:\s*(\d+)\s+pts_time:([\d.]+)',done.stderr)
++    files=sorted(out.glob('frame_*.png'))
++    if len(parsed)<len(files) or not files:raise ValueError('missing frame PTS')
++    frames=[dict(file=p.name,pts_ticks=int(row[1]),pts_s=float(Fraction(int(row[1]),90000)),
++        sha256=hashlib.sha256(p.read_bytes()).hexdigest()) for p,row in zip(files,parsed)]
++    if any(a['pts_ticks']>=b['pts_ticks'] for a,b in zip(frames,frames[1:])):
++        raise ValueError('nonmonotonic decoded frames')
++    result=dict(requested_window_s=[start,end],frames=frames,time_base='1/90000',
++        source_roi_xywh=[390,650,120,130],interpolated_frames=False,
++        truncated=len(files)>=max_frames,truth_from_model=False,command=cmd)
++    (out/'frames.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8',newline='\n')
++    print(json.dumps(dict(out=str(out),frames=len(frames),first_pts_s=frames[0]['pts_s'],
++        last_pts_s=frames[-1]['pts_s'],truncated=result['truncated'])))
++    return result
++
++
++if __name__=='__main__':
++    p=argparse.ArgumentParser(description=__doc__)
++    p.add_argument('--video',type=Path,required=True);p.add_argument('--out',type=Path,required=True)
++    p.add_argument('--start',type=float,required=True);p.add_argument('--end',type=float,required=True)
++    a=p.parse_args();extract_window(a.video,a.out,a.start,a.end)
+diff --git a/tests/test_video_signal_brackets.py b/tests/test_video_signal_brackets.py
+new file mode 100644
+index 0000000..54b939e
+--- /dev/null
++++ b/tests/test_video_signal_brackets.py
+@@ -0,0 +1,39 @@
++import pytest
++from scripts.video_signal_brackets import presentation_bracket,extract_window
++
++
++def test_pts_granularity_is_not_switch_accuracy_and_does_not_invert_other_phase():
++    out=presentation_bracket({'pts_ticks':9000,'file':'old.png'},{'pts_ticks':12000,'file':'new.png'})
++    assert out['video_presentation_bracket_s']==pytest.approx([.1,.1333333333333])
++    assert out['width_ms']==pytest.approx(1000/30)
++    assert out['json_boundary_timestamp_ms'] is None
++    assert out['physical_switch_timing_error_ms'] is None
++    assert out['second_phase_state']=='UNKNOWN' and out['calibrated_probability'] is None
++
++
++@pytest.mark.parametrize('a,b',[(0,0),(2,1),(-1,1),(True,2),(0,1.5)])
++def test_invalid_or_duplicate_pts_rejected(a,b):
++    with pytest.raises(ValueError):presentation_bracket({'pts_ticks':a,'file':'a'},{'pts_ticks':b,'file':'b'})
++
++
++def test_missing_frames_produce_wider_bracket_not_millisecond_precision():
++    assert presentation_bracket({'pts_ticks':0,'file':'a'},{'pts_ticks':9000,'file':'b'})['width_ms']==100.
++
++
++@pytest.mark.parametrize('start,end,limit',[(0,3,60),(-1,1,60),(1,1,60),(0,1,61)])
++def test_budget_rejected_before_video_access(tmp_path,start,end,limit):
++    with pytest.raises(ValueError):extract_window(tmp_path/'absent.mp4',tmp_path/'out',start,end,limit)
++    assert not (tmp_path/'out').exists()
++
++
++def test_incompatible_time_base_is_rejected_before_frame_extraction(monkeypatch,tmp_path):
++    from types import SimpleNamespace
++    from scripts import video_signal_brackets as tool
++    calls=[]
++    def probe(cmd,**kwargs):
++        calls.append(cmd[0])
++        return SimpleNamespace(stdout=b'{"streams":[{"width":2688,"height":1520,"time_base":"1/1000"}]}')
++    monkeypatch.setattr(tool.subprocess,'run',probe)
++    with pytest.raises(ValueError,match='time base'):
++        extract_window(tmp_path/'input.mp4',tmp_path/'out',0,1)
++    assert calls==['ffprobe'] and not (tmp_path/'out').exists()

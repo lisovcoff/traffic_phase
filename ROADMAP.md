@@ -1,5 +1,14 @@
 # traffic_phase — план до готового продукта
 
+2026-10-17: [новое5ч видео Энтузиастов проверено](docs/ENTHUSIASTS_VIDEO_INTAKE_20261017.md).
+200 native frames:4 независимых appearance brackets по66.7мс, без model predictions.
+FPS gaps33/67/100мс, не ground truth1мс. Камера05.10.2024, но6 prefixes JSON
+из архива05.10 имеют millis23.02.2025; Инфо.docx предупреждает об offline clocks.
+Paired evaluation UNAVAILABLE до независимой PTS↔detection/same-car связи;
+видео-reference доступен, другие heads не инвертируются из одной секции.64 tests,
+без fitting/replay/default changes. Следующий путь — независимая registration/
+clock проверка этого нового материала; не phase-based alignment или fixed lag.
+
 2026-10-17: [все8 подтверждённых Astra defects закрыты тестами](docs/REVIEW_CLOSURE_RESULTS_20261017.md).
 Сейчас D4/D5/D6/D8 исправлены вместе: membership/circular matching с abstention,
 общая quality selection, joint signatures без exclusive stream, censored baseline

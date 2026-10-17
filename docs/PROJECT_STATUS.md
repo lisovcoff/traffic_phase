@@ -1,5 +1,17 @@
 # Project status — 2D.1, 2026-10-17
 
+2026-10-17 new independent video intake (base8c49850d1c73a311b7d19ad56b95ffd150216d65):
+lenina_entuziastov.mp4,5h,2688x1520.200 native frames/four appearance changes
+reviewed without predictions; conservative endpoint widths66.7ms, not calibrated
+lamp-switch accuracy. Source gaps33.3/66.7/100ms rule out a justified1ms claim.
+Camera overlay2024-10-05; six first-record prefixes of nominal05.10 ZIP have
+2025-02-23 Unix-ms interpretations. Supplied Инфо.docx explicitly warns about
+offline processing timestamps. Paired JSON/video metrics unavailable pending
+independent frame/detection association; no cycle/phase alignment.64 unique tests
+pass, default/main/inference/historical predictions unchanged;2D.1 FAIL retained.
+One visible head reference only; operator K2 claim/other-head states not promoted
+to independently observed truth. See ENTHUSIASTS_VIDEO_INTAKE_20261017.md.
+
 2026-10-17 confirmed review closure: D1-D8 now have passing counterexamples,
 no remaining review XFAIL. Base c414c5ef486b145cb7605017fbeabee3e68237b0;
 code before comparison9e987c804c1880b991f5298da27f71224778d8c8. D4/D5/D6/D8
