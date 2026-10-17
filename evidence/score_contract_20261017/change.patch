@@ -1,0 +1,740 @@
+diff --git a/.gitattributes b/.gitattributes
+index 0cbb6d8..8b21009 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -1,4 +1,8 @@
+ tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
++
++evidence/score_contract_20261017/** -text -whitespace
++benchmarks/score_contract_20261017/** -text -whitespace
++docs/SCORE_CONTRACT_PROTOCOL_20261017.md -text
+ evidence/review_intake_20261017/** -text -whitespace
+ benchmarks/seed_flow_20261017/** -text -whitespace
+ evidence/hsmm_recurrence_20261016/** -text -whitespace
+diff --git a/ROADMAP.md b/ROADMAP.md
+index 6af65b1..3072035 100644
+--- a/ROADMAP.md
++++ b/ROADMAP.md
+@@ -1,5 +1,15 @@
+ # traffic_phase — план до готового продукта
+ 
++2026-10-17: [D2+D3 score contract исправлен](docs/SCORE_CONTRACT_RESULTS_20261017.md).
++Score refinement относится к возвращённым params; K сравнивает единый data LL,
++а decoder penalty маркирован отдельно.225 уникальных PASS,6 strict XFAIL для5
++оставшихся D4-D8. Exact unchanged control; один frozen cached run3: все15
++candidate labels/probs и итоговые raw/baseline histories exact, K3/2/3,
++raw19/34,baseline17/34. Structural PASS, benefit FAIL_NO_GAIN, без tuning.
++Следующий шаг D7 tie-invariant redundancy, затем D6 joint shared signatures;
++не новый UI или повтор calibration одних машин.2D.1 FAIL/default-off сохранён,
++независимая observation/lamp validation открыта; main не изменён.
++
+ 2026-10-17: [оба внешних ревью проверены локально](docs/REVIEW_RESPONSE_20261017.md).
+ Astra:8 дефектов воспроизведены; D1(потеря K3 split-seeds) исправлен единственным
+ переносом существующего блока.208 PASS,8 strict XFAIL для7 открытых дефектов.
+diff --git a/app/core/v9/fit.py b/app/core/v9/fit.py
+index 264122b..3acb6ed 100644
+--- a/app/core/v9/fit.py
++++ b/app/core/v9/fit.py
+@@ -33,7 +33,9 @@ def _seed_labels_to_fit(labels, x, k, period, by_stream, dt, seed_info, evidence
+         'labels': np.asarray(labels, dtype=np.int16),
+         'probs': probs,
+         'segments': segments,
++        'data_loglik': float(point_ll),
+         'pointwise_loglik': float(point_ll),
++        'penalized_objective': None,
+         'coherence': float(coherence),
+         'seed_info': seed_info,
+     }
+@@ -78,20 +80,33 @@ def _fit_from_initial_labels(
+             evidence_values,
+         )
+         point_ll = _pointwise_loglik(x, new_probs, labels)
++        # The decoder evaluated this path with the *input* templates. Keep its
++        # duration/transition cost, but rescore the returned, refitted templates.
++        # This requires no second decode and preserves existing censoring rules.
++        input_point_ll = _pointwise_loglik(x, probs, labels)
++        returned_objective = float(score) + point_ll - input_point_ll
+         payload = {
+             'labels': labels,
+             'probs': new_probs,
+-            'score': float(score),
++            'score': float(returned_objective),
++            'score_semantics': 'returned_model_penalized_objective',
++            'penalized_objective': float(returned_objective),
++            'decoder_input_objective': float(score),
++            'decoder_input_data_loglik': float(input_point_ll),
+             'segments': segments,
+             'decoder_info': decoder_info,
+             'pointwise_loglik': float(point_ll),
++            'data_loglik': float(point_ll),
+             'coherence': float(coherence),
+         }
+         if best_refined is None or payload['score'] > best_refined['score']:
+             best_refined = payload
+         history.append(
+             {
+-                'loglik_with_duration_penalty': float(score),
++                'loglik_with_duration_penalty': float(returned_objective),
++                'decoder_input_objective': float(score),
++                'decoder_input_data_loglik': float(input_point_ll),
++                'data_loglik': float(point_ll),
+                 'pointwise_loglik': float(point_ll),
+                 'boundary_coherence': float(coherence),
+             }
+@@ -409,6 +424,8 @@ def em_fit(
+                 'pointwise_loglik': float(
+                     f.get('pointwise_loglik', 0.0)
+                 ),
++                'data_loglik': float(f['pointwise_loglik']),
++                'penalized_objective': f.get('penalized_objective'),
+                 'boundary_coherence': float(
+                     f.get('coherence', 0.0)
+                 ),
+@@ -417,12 +434,13 @@ def em_fit(
+         ],
+         'labels': best['labels'],
+         'probs': best['probs'],
+-        'score': float(
+-            best.get(
+-                'score',
+-                best.get('pointwise_loglik', 0.0),
+-            )
+-        ),
++        # Public score is now a uniform compatibility alias. Decoder penalties
++        # are diagnostics, never a source-dependent K-selection likelihood.
++        'score': float(best['pointwise_loglik']),
++        'score_semantics': 'data_loglik',
++        'data_loglik': float(best['pointwise_loglik']),
++        'penalized_objective': best.get('penalized_objective'),
++        'decoder_input_objective': best.get('decoder_input_objective'),
+         'pointwise_loglik': float(
+             best.get('pointwise_loglik', 0.0)
+         ),
+@@ -964,11 +982,20 @@ def evaluate_phase_redundancy(
+     }
+ 
+ def candidate_metrics(fit, x_shape):
++    """Compare the same data-likelihood definition for seed and refined paths.
++
++    pointwise_loglik is the historical alias; score-only fits are deliberately
++    rejected because their duration-penalty semantics cannot be inferred.
++    This approximate complete-path criterion is not marginal model evidence.
++    """
+     n, s = x_shape
++    data_ll = float(fit['data_loglik'] if 'data_loglik' in fit else fit['pointwise_loglik'])
++    if not math.isfinite(data_ll):
++        raise ValueError('finite returned-model data_loglik required')
+     p_count = fit['k'] * s
+     effective_obs = max(2, n * s)
+     bic = (
+-        -2.0 * float(fit['score'])
++        -2.0 * data_ll
+         + p_count * math.log(effective_obs)
+     )
+     seg_lengths = [
+@@ -977,7 +1004,10 @@ def candidate_metrics(fit, x_shape):
+     ]
+     return {
+         'k': int(fit['k']),
+-        'objective': float(fit['score']),
++        'objective': data_ll,
++        'objective_semantics': 'returned_model_data_loglik',
++        'data_loglik': data_ll,
++        'penalized_objective': fit.get('penalized_objective'),
+         'approx_bic': float(bic),
+         'parameter_count': int(p_count),
+         'segment_count': int(len(seg_lengths)),
+diff --git a/docs/PROJECT_STATUS.md b/docs/PROJECT_STATUS.md
+index 145f56e..9f499f8 100644
+--- a/docs/PROJECT_STATUS.md
++++ b/docs/PROJECT_STATUS.md
+@@ -1,5 +1,21 @@
+ # Project status — 2D.1, 2026-10-17
+ 
++2026-10-17 D2+D3 coherent fit-score contract completed. Base
++e41c075d7c9cef7c6eb512cfadf7d29d435cafba; code/config before comparison
++787c9776e47675ab9dede456330b65850f0ef799. Returned refinement score now describes
++returned templates/labels, best iteration uses that objective. Public fit.score
++and candidate objective use uniform data_loglik; decode penalties remain separate.
++This explicitly changes approximate K criterion basis, retaining complexity,
++support/redundancy/seed selection rules.225 unique PASS,6 strict XFAIL (D4-D8).
++Exact native unchanged control followed by one frozen three-cache development
++run; all15 candidate labels/probs and final raw/baseline paths unchanged.
++K3/2/3 vs3/2/2,raw19/34,baseline17/34; no real gain or new final-history regression.
++Structural PASS; benefit FAIL_NO_GAIN. Full score traces/predictions sealed before
++one unchanged evaluator pass. No timeout/post-result tuning.2D.1 FAIL/default-off,
++physical UNKNOWN, main/protected code/artifacts unchanged. See
++SCORE_CONTRACT_RESULTS_20261017.md. Next isolated core step D7 tied-rank redundancy,
++then D6 shared signatures; independent event/lamp validation remains open.
++
+ 2026-10-17 external review intake verified against b7675c70bf191a20454fe974baa18cc161f01856.
+ Both originals/patch/ZIP preserved with raw hashes. Astra source hashes match;
+ local --runxfail reproduces all8 reported defects (12 FAIL,1 PASS test cases).
+diff --git a/docs/SCORE_CONTRACT_PROTOCOL_20261017.md b/docs/SCORE_CONTRACT_PROTOCOL_20261017.md
+new file mode 100644
+index 0000000..92c61ed
+--- /dev/null
++++ b/docs/SCORE_CONTRACT_PROTOCOL_20261017.md
+@@ -0,0 +1,58 @@
++# Coherent fit score — frozen protocol, 2026-10-17
++
++Base: e41c075d7c9cef7c6eb512cfadf7d29d435cafba.
++Branch: fix/coherent-fit-score-20261017. Main stays unchanged.
++
++Scope is external-review D2+D3 only, not a new decoder or observation model.
++The existing Bernoulli occupancy model is retained without asserting calibrated
++physical-signal likelihood. No real labels are inference inputs.
++
++Before corrected development results, define the contract:
++
++* `data_loglik` equals the Bernoulli sum for the returned labels AND probabilities;
++  `pointwise_loglik` remains its compatibility alias.
++* Private refinement `score` is the penalized objective for those SAME parameters.
++  Correct it by decoder_input_score + new_data_loglik - decoder_input_data_loglik.
++  Durations/transitions and first-segment censoring are unchanged. Choose the
++  best refinement snapshot by this corrected objective; retain the old decoder
++  input objective separately. No additional decode is performed for rescoring.
++* Public `em_fit.score` becomes an explicitly labelled alias of `data_loglik`,
++  for both seed and refined fits. `penalized_objective` is separate, null for
++  unrefined seeds; no artificial duration prior is imposed on those seed paths.
++* K candidate objective is always returned-model data likelihood, never the
++  mixed old `score`. Approximate BIC is -2*data_loglik + K*S*log(max(2,N*S)).
++  This changes the score BASIS of the existing approximate criterion explicitly.
++  It is not exact marginal evidence, calibrated confidence or a lamp probability.
++  Keep the existing complexity coefficient, per-cycle penalty, support gate,
++  3->2 redundancy, initialization quality/coherence and ensemble preference.
++  A legacy fit with only `pointwise_loglik` remains accepted; a score-only fit
++  must be rejected rather than guessing its semantics.
++
++Acceptance before real comparison: independent D2/D3 counterexamples pass;
++same returned path/params has same K objective regardless of initializer;
++corrected snapshot equals an independent objective sum at dt=.5/1/2 and K2/K3;
++best-iterate selection uses corrected scores even when stale scores rank the
++iterations differently. No redundant decode, no mutation of saved inputs.
++Existing structural K4/budget, decoder oracle and query/UNKNOWN checks pass.
++Remaining strict xfails stay visible; do not repair D4-D8 in this task.
++
++Use only three immutable stage2c lossless event caches (not large trajectories),
++exact event/selection/anchor equality checked by existing cached_bundle.
++Baseline is the last D1 native prediction set, benchmarks/seed_flow_20261017.
++Freeze file/config/package/protocol hashes first. One unchanged native control
++on recording19 must reproduce its schedule/K/period before code edits. Stop on
++unexplained mismatch. Control diagnostic floats permit atol1e-12, rtol0;
++raw segments and K are exact. This is not evaluator boundary tolerance.
++
++After tests, commit code/config BEFORE one corrected cached run of three files.
++dt=1, seed=0, K2..6, 5 candidates, cooperative60s; hard worker90s, total control
++plus corrected wall allowance360s. No new hyperparameter search or retries.
++All output hashes sealed before original phase annotations are opened by a
++single unchanged evaluator pass, tolerance +/-2s. Report raw/baseline separately:
++K, period error, matched/truth/predicted counts, precision/recall, matched MAE/p95,
++nearest MAE, coverage, runtime/candidate count and timeouts. All three are
++development data. Benefit is measured, not required to justify proven defects;
++report FAIL_NO_GAIN/regressions without post-result parameter changes.
++
++2D.1 stays FAIL/default-off. Physical states UNKNOWN. No UI/mapping/offset/
++event selection/period inference/evaluator changes. Keep historical artifacts.
+diff --git a/docs/SCORE_CONTRACT_RESULTS_20261017.md b/docs/SCORE_CONTRACT_RESULTS_20261017.md
+new file mode 100644
+index 0000000..b245c78
+--- /dev/null
++++ b/docs/SCORE_CONTRACT_RESULTS_20261017.md
+@@ -0,0 +1,98 @@
++# Согласованный score модели — D2+D3, 2026-10-17
++
++Base: `e41c075d7c9cef7c6eb512cfadf7d29d435cafba`.
++Ветка: `fix/coherent-fit-score-20261017`.
++Code/config до нового прогона: `787c9776e47675ab9dede456330b65850f0ef799`.
++Main: `a005a2521f62ce3b2c9f9d52f9f0d73913754e01`, без изменений.
++[Протокол](SCORE_CONTRACT_PROTOCOL_20261017.md) зафиксирован до сравнения.
++
++В `app/core/v9/fit.py` исправлены два воспроизведённых дефекта:
++
++* D2: decoder score относился к входным шаблонам, payload возвращал новые.
++  Теперь score пересчитан для возвращённых labels/probs, без второго decoding;
++  лучшая итерация выбирается по согласованному penalized objective. Исходный
++  `decoder_input_objective` сохранён отдельно. Независимый пример до исправления:
++  -31.1996767597 вместо фактического -13.1925242351.
++* D3: seed и refined сравнивались по разным определениям score. Теперь публичный
++  `em_fit.score` всегда alias `data_loglik`/`pointwise_loglik`; штрафной objective
++  отдельный, null для seed. `candidate_metrics.objective` всегда data likelihood.
++  Для одного path/probs прежние BIC21.3837147913/22.8837147913 стали одинаковыми
++  21.3837147913. Score-only models отвергаются; исторический pointwise alias допустим.
++
++Это явное изменение основы приблизительного K-критерия, а не простое имя поля.
++Число параметров K*S, log(N*S), recurrent penalty5/cycle, support eligibility,
++redundancy и seed/coherence/ensemble selection rules сохранены. Это не marginal
++likelihood, calibrated confidence или вероятность лампы. Модель occupancy и её
++ограничения не исправлялись этим заданием. Внутренний refinement.score остаётся
++штрафным и явно маркирован; публичный score — data LL. Потребителям старых
++diagnostic scores нужно учитывать эту смену семантики.
++
++Проверки: до исправления оба независимых counterexamples FAIL. После — 222 PASS
++и 6 strict XFAIL в основной выборке, ещё3 PASS в затронутых discovery callers:
++**225 уникальных PASS**,6 известных XFAIL для5 оставшихся дефектов D4-D8.
++Проверены независимые суммы при K2/K3, dt=.5/1/2, обратный порядок stale/corrected
++итераций, отсутствие дополнительного decode/мутации входов, uniform criterion,
++K4 recovery/renaming, бюджет, lossless cache, запрет labels в worker, state/query
++UNKNOWN и существующие потребители. Один прежний Starlette/httpx deprecation
++warning; зависимости не устанавливались. Старых ожиданий цветов не меняли.
++
++## Единственное development-сравнение
++
++Нативный unchanged control записи19 до правок: schedule/K/period **exact**,
++6.702с. Затем один worker на каждый из трёх сохранённых event caches. Три output
++SHA зафиксированы до доступа evaluator к annotations. Сам evaluator/±2с не менялись.
++Исходные JSON/ZIP не читались, event selection/anchors exact. Эти3 записи —
++development, не независимый holdout.
++
++Во всех строках ниже метрики **до = после**. M/T/P = matched/truth/predicted;
++MAE/p95 относятся только к matched, nearest MAE — отдельная diagnostic метрика.
++
++| Запись / history | M/T/P | Precision | Recall | Matched MAE / p95, с | Nearest MAE, с | Temporal coverage |
++|---|---:|---:|---:|---:|---:|---:|
++|17 raw|15/17/18|83.33%|88.24%|0.7093 / 1.4852|1.1052|100%|
++|17 baseline|15/17/17|88.24%|88.24%|0.7483 / 1.7859|1.0859|100%|
++|19 raw|1/8/8|12.50%|12.50%|1.5460 / 1.5460|4.7820|100%|
++|19 baseline|1/8/8|12.50%|12.50%|1.5995 / 1.5995|3.9516|100%|
++|6 raw|3/9/15|20.00%|33.33%|1.4713 / 1.7969|2.8059|100%|
++|6 baseline|1/9/15|6.67%|11.11%|1.4184 / 1.4184|2.7519|100%|
++
++| Запись | K до→после / annotation K | Ошибка периода, с (неизм.) | Candidates | Worker wall до→после, с |
++|---|---|---:|---|---:|
++|17|3→3 /3|0.018187|K2..6,5/5|17.428→16.879|
++|19|2→2 /2|0.299500|K2..6,5/5|7.086→7.433|
++|6|3→3 /2|0.129248|K2..6,5/5|16.324→16.968|
++
++Runtime включает cached canonical discovery/import/validation/export; это не
++профиль и не сравнение скорости raw ingestion. Число запусков не позволяет
++утверждать ускорение/замедление. Все поиски complete, timeout нет. Бюджеты:
++60с cooperative K search,90с hard worker,360с control+3 workers maximum.
++
++Суммарно raw19/34 truth и19/41 predicted (P46.34%,R55.88%); baseline17/34 и17/40
++(P42.50%,R50%). Нет улучшения и нет новых регрессий в итоговых histories.
++Все15 K-specific fitted labels/probs exact относительно D1. Изменённые scores
++не поменяли победителей: например запись19 K2/K3 criterion4145.993/4202.058 →
++4117.329/4160.560; запись6 K2/K3 7714.699/7676.898 →7665.556/7575.006.
++Более широкий margin в пользу неверного K3 записи6 **не является confidence**.
++У записи17 eligible K2/K3 выбраны seed paths, их data LL criterion не изменился.
++Неподдержанные кандидаты сохранены с причиной eligibility; serialized null
++selection score соответствует прежнему infinity, а не отсутствующему fit.
++
++Structural gate **PASS**; development benefit **FAIL_NO_GAIN**. Подгонки после
++результатов нет. Temporal coverage — покрытие модельной истории, не наблюдение
++камерой/лампами. Physical states UNKNOWN; 2D.1 **FAIL/default-off** сохранён.
++
++## Проверяемые материалы и следующий шаг
++
++Полные counts/ranges/reasons и metrics: `benchmarks/score_contract_20261017/comparison.json`.
++Predictions доступны отдельными файлами там же в `predictions/`; temporal events
++не дублируются, указаны SHA исходных lossless caches. Logs/commands/readonly
++verifier/diff/manifest и компактный ZIP: `evidence/score_contract_20261017/`.
++Verifier проверяет неизменность protected code, old artifacts, period/selection,
++main, output hashes и все score identities, не вызывает inference/evaluator.
++
++Следующий отдельный алгоритмический шаг — D7: корректные одинаковые ranks для
++ties в 3→2 redundancy с независимым тестом перестановки колонок; затем D6:
++совместные shared-movement signatures. D4/D5 ensemble и D8 censored baseline
++тоже открыты. Ни одна из этих правок не сделана скрыто в текущем сравнении.
++Независимая event/lamp calibration и validation остаются необходимы для приёмки
++точности продукта; исправление D2+D3 само по себе её не подтверждает.
+diff --git a/scripts/score_contract_review.py b/scripts/score_contract_review.py
+new file mode 100644
+index 0000000..958fae1
+--- /dev/null
++++ b/scripts/score_contract_review.py
+@@ -0,0 +1,194 @@
++"""One native coherent-score comparison. Inference takes no annotations."""
++import argparse
++from dataclasses import asdict
++import importlib.metadata
++import json
++import math
++import os
++from pathlib import Path
++import subprocess
++import sys
++import time
++
++from scripts.hsmm_recurrence_check import cached_bundle, sha, save
++
++ROOT = Path(__file__).resolve().parents[1]
++OUT = ROOT/'benchmarks/score_contract_20261017'
++SOURCE = ROOT/'benchmarks/stage2c_20261014/predictions'
++BASELINE = ROOT/'benchmarks/seed_flow_20261017/predictions'
++BASE = 'e41c075d7c9cef7c6eb512cfadf7d29d435cafba'
++
++
++def numerically_equal(a, b):
++    if isinstance(a, dict) and isinstance(b, dict):
++        return a.keys() == b.keys() and all(numerically_equal(a[k], b[k]) for k in a)
++    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
++        return len(a) == len(b) and all(numerically_equal(x, y) for x, y in zip(a, b))
++    if type(a) is float and type(b) is float:
++        return math.isfinite(a) and math.isfinite(b) and abs(a-b) <= 1e-12
++    return type(a) is type(b) and a == b
++
++
++def infer(source, output):
++    import hashlib
++    import numpy as np
++    from app.core.v9 import fit
++    from app.core.v9.model import _discover_bundle
++    np.random.seed(0)
++    pred, bundle = cached_bundle(source)
++    fits, refinements = [], []
++    original_fit, original_refine = fit.em_fit, fit._fit_from_initial_labels
++
++    def identity(result):
++        return dict(labels_sha256=hashlib.sha256(result['labels'].tobytes()).hexdigest(),
++                    probs_sha256=hashlib.sha256(result['probs'].tobytes()).hexdigest())
++
++    def trace_refine(*args, **kwargs):
++        result, history = original_refine(*args, **kwargs)
++        refinements.append(dict(k=args[2], source=args[7].get('source'),
++            parent=args[7].get('split_parent_phase'), score=result['score'],
++            pointwise_loglik=result['pointwise_loglik'], penalized_objective=result.get('penalized_objective'),
++            decoder_input_objective=result.get('decoder_input_objective'), history=history, **identity(result)))
++        return result, history
++
++    def trace_fit(*args, **kwargs):
++        result = original_fit(*args, **kwargs)
++        fits.append({**{key: result[key] for key in ('k', 'initialization', 'initialization_candidates',
++            'score', 'pointwise_loglik', 'model_quality')},
++            **{key:result.get(key) for key in ('data_loglik','score_semantics','penalized_objective','decoder_input_objective')}, **identity(result)})
++        return result
++
++    fit.em_fit, fit._fit_from_initial_labels = trace_fit, trace_refine
++    started = time.monotonic()
++    try:
++        result = _discover_bundle(bundle, input_name=pred['input'], dt=1., marks_path=None,
++            evidence_policy='permission_per_stream', source_files=pred['archive']['source_files'],
++            experimental_local_history=False)
++    finally:
++        fit.em_fit, fit._fit_from_initial_labels = original_fit, original_refine
++    result['event_extraction'].pop('temporal_events')
++    result['event_extraction']['temporal_events_ref'] = dict(file=source.relative_to(ROOT).as_posix(), sha256=sha(source))
++    result['score_contract_trace'] = dict(fits=fits, refinements=refinements,
++        annotations_used=False, cached_runtime_s=time.monotonic()-started)
++    save(output, result)
++
++
++def worker(source, target):
++    started = time.monotonic()
++    env = {**os.environ, 'PYTHONHASHSEED':'0', 'OMP_NUM_THREADS':'1',
++           'OPENBLAS_NUM_THREADS':'1', 'MKL_NUM_THREADS':'1'}
++    try:
++        done = subprocess.run([sys.executable, '-m', 'scripts.score_contract_review', 'infer',
++            str(source), str(target)], cwd=ROOT, env=env, capture_output=True, text=True, timeout=90)
++        reason = None if done.returncode == 0 else done.stderr[-3000:]
++    except subprocess.TimeoutExpired:
++        reason = 'WORKER_TIMEOUT_90S'
++    return dict(file=source.name, runtime_s=time.monotonic()-started, reason=reason,
++                prediction_sha256=sha(target) if target.exists() else None)
++
++
++def freeze():
++    from app.core.v9.fit import PhaseSearchConfig
++    OUT.mkdir(exist_ok=False)
++    inputs = []
++    for source in sorted(SOURCE.glob('*_v9.json')):
++        _, bundle = cached_bundle(source)
++        inputs.append(dict(file=source.name, sha256=sha(source), baseline_sha256=sha(BASELINE/source.name),
++            temporal_events=len(bundle.temporal_events), selected_indices=bundle.diagnostics['selected_event_indices']))
++    assert len(inputs) == 3
++    save(OUT/'freeze.json', dict(base_sha=BASE, inputs=inputs, seed=0, dt=1.,
++        search_config=asdict(PhaseSearchConfig()), max_control_runs=1, max_corrected_runs=3,
++        worker_timeout_s=90, total_worker_allowance_s=360, boundary_tolerance_s=2.,
++        control_float_atol=1e-12, control_float_rtol=0, control_raw_segments_and_K='EXACT',
++        package_versions={n:importlib.metadata.version(n) for n in ('numpy','scipy','scikit-learn','fastapi')},
++        protocol_sha256=sha(ROOT/'docs/SCORE_CONTRACT_PROTOCOL_20261017.md'),
++        local_2D1='FAIL_DEFAULT_OFF', source='lossless_event_cache_NOT_original_ingestion'))
++
++
++def control():
++    save(OUT/'control_started.json', dict(fit_sha256=sha(ROOT/'app/core/v9/fit.py')))
++    entry = next(e for e in json.loads((OUT/'freeze.json').read_text())['inputs'] if e['file'].startswith('19_'))
++    assert sha(SOURCE/entry['file']) == entry['sha256']
++    row = worker(SOURCE/entry['file'], OUT/'control.json')
++    if row['reason'] is None:
++        old = json.loads((BASELINE/entry['file']).read_text(encoding='utf-8'))
++        new = json.loads((OUT/'control.json').read_text(encoding='utf-8'))
++        row.update(raw_exact=old['schedule']['raw_hsmm_segments'] == new['schedule']['raw_hsmm_segments'],
++            k_exact=old['schedule']['phase_count'] == new['schedule']['phase_count'],
++            schedule_exact=old['schedule'] == new['schedule'], period_exact=old['period_inference'] == new['period_inference'],
++            schedule_numerical_parity=numerically_equal(old['schedule'], new['schedule']),
++            period_numerical_parity=numerically_equal(old['period_inference'], new['period_inference']))
++    save(OUT/'control_check.json', row)
++    assert not row['reason'] and all(row[k] for k in ('raw_exact','k_exact','schedule_numerical_parity','period_numerical_parity')), 'STOP_UNEXPLAINED_NATIVE_CONTROL_MISMATCH'
++    print(json.dumps(row))
++
++
++def run():
++    check = json.loads((OUT/'control_check.json').read_text())
++    assert not check['reason'] and all(check[k] for k in ('raw_exact','k_exact','schedule_numerical_parity','period_numerical_parity'))
++    frozen = json.loads((OUT/'freeze.json').read_text())
++    assert not subprocess.check_output(['git','diff','HEAD','--','app/core','scripts/score_contract_review.py'],cwd=ROOT).strip(), 'COMMIT_CODE_BEFORE_RUN'
++    assert sha(ROOT/'docs/SCORE_CONTRACT_PROTOCOL_20261017.md') == frozen['protocol_sha256']
++    save(OUT/'corrected_started.json', dict(code_sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
++                                         fit_sha256=sha(ROOT/'app/core/v9/fit.py')))
++    rows = []
++    for entry in frozen['inputs']:
++        assert sha(SOURCE/entry['file']) == entry['sha256']
++        assert sha(BASELINE/entry['file']) == entry['baseline_sha256']
++        print('One corrected cached worker:', entry['file'], flush=True)
++        rows.append(worker(SOURCE/entry['file'], OUT/'predictions'/entry['file']))
++    save(OUT/'predictions_sealed.json', rows)
++    print('All prediction hashes sealed before annotation access')
++
++
++def evaluate():
++    from app.core.offline_benchmark import evaluate_prediction, validate_annotation
++    ledger = json.loads((OUT/'predictions_sealed.json').read_text())
++    previous_run = json.loads((BASELINE.parent/'comparison.json').read_text(encoding='utf-8'))
++    previous_metrics = {r['source']:r['after'] for r in previous_run['rows']}
++    original_metrics = json.loads((SOURCE.parent/'baseline_metrics.json').read_text(encoding='utf-8'))
++    annotations = {r['source_name']:r['annotation_sha256'] for r in original_metrics['rows']}
++    comparison = []
++    for entry in ledger:
++        name = entry['file'].replace('_v9.json','.json')
++        old = json.loads((BASELINE/entry['file']).read_text(encoding='utf-8'))
++        row = dict(source=name, worker=entry, before=previous_metrics[name],
++                   runtime_scope='cached discovery; not original trajectory ingestion',
++                   phase_count_before=old['schedule']['phase_count'])
++        if entry['reason']:
++            row.update(status='unavailable', reason=entry['reason'])
++        else:
++            target = OUT/'predictions'/entry['file']
++            assert sha(target) == entry['prediction_sha256']
++            marks = next(p for p in (ROOT.parent/'data').glob('*/'+name+'_manual_marks.json')
++                         if sha(p) == annotations[name])
++            annotation = validate_annotation(json.loads(marks.read_text(encoding='utf-8')))
++            assert annotation['valid']
++            prediction = json.loads(target.read_text(encoding='utf-8'))
++            row.update(status='evaluated', annotation_sha256=sha(marks),
++                after=evaluate_prediction(prediction,annotation,tolerance_s=2.),
++                phase_count_after=prediction['schedule']['phase_count'],
++                period_exact=old['period_inference']==prediction['period_inference'],
++                raw_exact=old['schedule']['raw_hsmm_segments']==prediction['schedule']['raw_hsmm_segments'],
++                baseline_exact=old['schedule']['baseline_segments']==prediction['schedule']['baseline_segments'])
++            assert sha(target) == entry['prediction_sha256']
++        comparison.append(row)
++    save(OUT/'comparison.json',dict(rows=comparison,split='development_NOT_holdout',
++        tolerance_s=2., observation_model_unchanged=True, physical_lamp_accuracy='UNKNOWN',
++        overall_2D1_gate='FAIL',no_post_result_tuning=True))
++    print('Single unchanged evaluator pass completed; no post-result tuning')
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('command', choices=('freeze','control','infer','run','evaluate'))
++    parser.add_argument('paths', nargs='*', type=Path)
++    args = parser.parse_args()
++    if args.command == 'infer':
++        infer(*args.paths)
++    else:
++        globals()[args.command]()
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/tests/test_fit_score_contract.py b/tests/test_fit_score_contract.py
+new file mode 100644
+index 0000000..7571322
+--- /dev/null
++++ b/tests/test_fit_score_contract.py
+@@ -0,0 +1,90 @@
++"""Independent score sums, snapshot consistency and source-independent criteria."""
++from unittest.mock import patch
++
++import numpy as np
++import pytest
++
++from app.core.v9 import fit
++from app.core.v9.decoder import _segments_from_labels
++
++
++def data_sum(x, probs, labels):
++    p = probs[labels]
++    return float(np.sum(x*np.log(p)+(1-x)*np.log(1-p)))
++
++
++def objective_sum(x, payload):
++    value = data_sum(x, payload['probs'], payload['labels'])
++    for a, b, z in payload['segments'][1:]:
++        target = max(2., payload['decoder_info']['duration_targets_s'][z])
++        value -= 2*((b-a-target)/max(4., .25*target))**2+.25
++    return value
++
++
++@pytest.mark.parametrize('dt', [.5, 1., 2.])
++@pytest.mark.parametrize('k', [2, 3])
++def test_refined_snapshot_equals_independent_sum_without_extra_decode(dt, k):
++    truth = np.tile(np.repeat(np.arange(k), [6]+[14]*(k-1)), 3)
++    x = np.eye(k)[truth]
++    period = (6+14*(k-1))*dt
++    initial = fit.phase_labels_for_time(len(x), dt, period, k, 0.)
++    x0, initial0 = x.copy(), initial.copy()
++    with patch.object(fit, 'decode_cyclic_hsmm', wraps=fit.decode_cyclic_hsmm) as decoder:
++        payload, history = fit._fit_from_initial_labels(
++            x, initial, k, period, None, dt, 2,
++            {'durations_s':[period/k]*k}, None, None)
++    assert decoder.call_count == len(history) <= 2
++    assert payload['score'] == pytest.approx(objective_sum(x, payload), abs=1e-9)
++    assert payload['data_loglik'] == payload['pointwise_loglik'] == data_sum(x, payload['probs'], payload['labels'])
++    assert payload['penalized_objective'] == payload['score']
++    assert payload['score'] == max(h['loglik_with_duration_penalty'] for h in history)
++    assert payload['segments'] == _segments_from_labels(payload['labels'], dt)
++    assert np.array_equal(x, x0) and np.array_equal(initial, initial0)
++
++
++def test_best_iteration_uses_returned_parameters_not_stale_decoder_ranking():
++    labels = np.tile(np.repeat([0, 1], 10), 2).astype(np.int16)
++    x = np.eye(2)[labels]
++    templates = [np.array([[p,1-p],[1-p,p]]) for p in (.99,.6,.9)]
++    # Controlled M-step snapshots reverse the stale decoder ranking. The fake
++    # decoder still returns the exact objective for its input parameters/path.
++    def decode(x, probs, period, k, **kwargs):
++        return labels.copy(), data_sum(x, probs, labels)-.75, _segments_from_labels(labels), {
++            'duration_targets_s':[10.,10.]}
++    with patch.object(fit,'fit_bernoulli_templates',side_effect=templates), patch.object(fit,'decode_cyclic_hsmm',side_effect=decode):
++        payload, history = fit._fit_from_initial_labels(
++            x, labels, 2, 20., None, 1., 2, {'durations_s':[10.,10.]}, None, None)
++    assert history[0]['decoder_input_objective'] > history[1]['decoder_input_objective']
++    assert history[0]['loglik_with_duration_penalty'] < history[1]['loglik_with_duration_penalty']
++    assert np.array_equal(payload['probs'],templates[2])
++    assert payload['score'] == pytest.approx(objective_sum(x,payload))
++
++
++@pytest.mark.parametrize('refine', [False, True])
++def test_public_score_is_data_likelihood_with_penalty_separate(refine):
++    x = np.eye(2)[np.tile(np.repeat([0,1],10),3)]
++    context = (patch.object(fit,'_fit_quality',side_effect=lambda f,*a: 1. if 'score' in f else 0.)
++               if refine else patch.object(fit,'_fit_from_initial_labels',side_effect=RuntimeError('seed only')))
++    with context:
++        result = fit.em_fit(x,20.,2,iterations=1)
++    assert result['score_semantics'] == 'data_loglik'
++    assert result['score'] == result['data_loglik'] == result['pointwise_loglik'] == data_sum(x,result['probs'],result['labels'])
++    assert (result['penalized_objective'] is not None) == refine
++    assert (result['decoder_input_objective'] is not None) == refine
++
++
++def test_candidate_does_not_guess_a_score_only_models_likelihood():
++    with pytest.raises(KeyError, match='pointwise_loglik'):
++        fit.candidate_metrics({'k':2,'score':-3.},(20,2))
++
++
++def test_candidate_criterion_ignores_decoder_penalty_and_keeps_complexity_formula():
++    model = dict(k=2, data_loglik=-12., pointwise_loglik=-12.,score=-999.,
++                 probs=np.eye(2)*.8+.1,segments=[(0.,10.,0),(10.,20.,1)])
++    first = fit.candidate_metrics(model,(20,2))
++    second = fit.candidate_metrics({**model,'score':-1234.,'penalized_objective':-555.},(20,2))
++    assert first['objective'] == second['objective'] == -12.
++    assert first['approx_bic'] == second['approx_bic'] == pytest.approx(24+4*np.log(40))
++    assert first['objective_semantics'] == 'returned_model_data_loglik'
++    legacy = {k:v for k,v in model.items() if k!='data_loglik'}
++    assert fit.candidate_metrics(legacy,(20,2))['approx_bic'] == first['approx_bic']
+diff --git a/tests/test_phase_search_2c.py b/tests/test_phase_search_2c.py
+index 78146a9..60aa622 100644
+--- a/tests/test_phase_search_2c.py
++++ b/tests/test_phase_search_2c.py
+@@ -15,7 +15,9 @@ def protected_four(names=("N->S","S->N","E->W","W->E")):
+ 
+ def fake_fit(x,period,k,**kwargs):
+     labels=np.arange(len(x))%k
++    probs=np.eye(k,x.shape[1])*.9+.01
+     return {"k":k,"score":-100.,"probs":np.eye(k,x.shape[1])*.9+.01,
++            "pointwise_loglik":_pointwise_loglik(x,probs,labels),
+             "labels":labels,"segments":[(0.,float(len(x)),0)]}
+ 
+ 
+diff --git a/tests/test_score_review_runner.py b/tests/test_score_review_runner.py
+new file mode 100644
+index 0000000..3bc0d5f
+--- /dev/null
++++ b/tests/test_score_review_runner.py
+@@ -0,0 +1,28 @@
++"""The new comparison worker preserves annotation-free canonical inference."""
++from pathlib import Path
++
++from scripts import score_contract_review as runner
++
++
++def test_infer_cannot_access_phase_annotation_and_forwards_unchanged_bundle(monkeypatch,tmp_path):
++    from app.core.v9 import model
++    monkeypatch.setattr(runner,'ROOT',tmp_path)
++    source=tmp_path/'source_v9.json'
++    source.write_bytes(b'opaque cache; restoration independently tested')
++    bundle=object()
++    pred={'input':'source','archive':{'source_files':['source.json']}}
++    monkeypatch.setattr(runner,'cached_bundle',lambda p:(pred,bundle))
++    seen=[]
++    def discovery(value,**kwargs):
++        assert value is bundle
++        assert kwargs['marks_path'] is None
++        assert kwargs['experimental_local_history'] is False
++        assert kwargs['evidence_policy']=='permission_per_stream'
++        seen.append(kwargs)
++        return {'event_extraction':{'temporal_events':[]}}
++    monkeypatch.setattr(model,'_discover_bundle',discovery)
++    monkeypatch.setattr(Path,'read_text',lambda *a,**k: (_ for _ in ()).throw(AssertionError('ANNOTATIONS_NOT_AVAILABLE_TO_INFER')))
++    target=tmp_path/'out.json'
++    runner.infer(source,target)
++    assert len(seen)==1
++    assert target.exists()
+diff --git a/tests/test_v9_independent_review.py b/tests/test_v9_independent_review.py
+index 6082aea..d73c3af 100644
+--- a/tests/test_v9_independent_review.py
++++ b/tests/test_v9_independent_review.py
+@@ -1,6 +1,6 @@
+ """Small independent counterexamples; no real annotations or fitted thresholds.
+ 
+-Only split-candidate visitation is fixed in this review. Strict xfails retain
++Split visitation and coherent scores (D1-D3) are fixed. Strict xfails retain
+ the other observed defects without silently treating them as regressions fixed.
+ """
+ from unittest.mock import patch
+@@ -90,7 +90,6 @@ def objective_for_returned_model(x, payload):
+     return total
+ 
+ 
+-@pytest.mark.xfail(strict=True, reason="score uses old templates but payload returns refitted templates")
+ def test_refinement_score_describes_returned_model():
+     truth = np.tile(np.repeat([0, 1], [6, 14]), 3)
+     x = np.eye(2)[truth]
+@@ -100,7 +99,6 @@ def test_refinement_score_describes_returned_model():
+     assert payload["score"] == pytest.approx(objective_for_returned_model(x, payload))
+ 
+ 
+-@pytest.mark.xfail(strict=True, reason="candidate_metrics mixes seed likelihood and penalized decoder score")
+ def test_same_path_and_templates_have_same_k_selection_objective():
+     labels = np.tile(np.repeat([0, 1], 10), 2)
+     x = np.eye(2)[labels]
+diff --git a/tests/v9/test_v9_discovery.py b/tests/v9/test_v9_discovery.py
+index 84bda43..6366a3c 100644
+--- a/tests/v9/test_v9_discovery.py
++++ b/tests/v9/test_v9_discovery.py
+@@ -426,6 +426,7 @@ def test_v9_candidate_metrics_detect_unsupported_phase() -> None:
+     fit = {
+         "k": 3,
+         "score": -100.0,
++        "pointwise_loglik": -100.0,  # Explicit data-LL stub, not decoder score.
+         "segments": [
+             (0.0, 50.0, 0),
+             (50.0, 100.0, 1),
+@@ -478,6 +479,7 @@ def test_v9_phase_selector_rejects_multiple_degenerate_extra_phases(monkeypatch)
+         return {
+             "k": k,
+             "score": -100.0,
++            "pointwise_loglik": -100.0,
+             "probs": probs,
+             "segments": [
+                 (0.0, 50.0, 0),
+@@ -550,6 +552,7 @@ def test_v9_phase_selector_keeps_one_weak_phase_when_two_phases_have_support(
+         return {
+             "k": k,
+             "score": score,
++            "pointwise_loglik": score,  # Stub models data LL, not a penalty.
+             "probs": probs,
+             "segments": segments,
+             "decoder_info": {},

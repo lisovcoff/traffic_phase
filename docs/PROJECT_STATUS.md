@@ -1,5 +1,21 @@
 # Project status — 2D.1, 2026-10-17
 
+2026-10-17 D2+D3 coherent fit-score contract completed. Base
+e41c075d7c9cef7c6eb512cfadf7d29d435cafba; code/config before comparison
+787c9776e47675ab9dede456330b65850f0ef799. Returned refinement score now describes
+returned templates/labels, best iteration uses that objective. Public fit.score
+and candidate objective use uniform data_loglik; decode penalties remain separate.
+This explicitly changes approximate K criterion basis, retaining complexity,
+support/redundancy/seed selection rules.225 unique PASS,6 strict XFAIL (D4-D8).
+Exact native unchanged control followed by one frozen three-cache development
+run; all15 candidate labels/probs and final raw/baseline paths unchanged.
+K3/2/3 vs3/2/2,raw19/34,baseline17/34; no real gain or new final-history regression.
+Structural PASS; benefit FAIL_NO_GAIN. Full score traces/predictions sealed before
+one unchanged evaluator pass. No timeout/post-result tuning.2D.1 FAIL/default-off,
+physical UNKNOWN, main/protected code/artifacts unchanged. See
+SCORE_CONTRACT_RESULTS_20261017.md. Next isolated core step D7 tied-rank redundancy,
+then D6 shared signatures; independent event/lamp validation remains open.
+
 2026-10-17 external review intake verified against b7675c70bf191a20454fe974baa18cc161f01856.
 Both originals/patch/ZIP preserved with raw hashes. Astra source hashes match;
 local --runxfail reproduces all8 reported defects (12 FAIL,1 PASS test cases).

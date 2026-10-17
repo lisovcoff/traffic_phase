@@ -1,5 +1,15 @@
 # traffic_phase — план до готового продукта
 
+2026-10-17: [D2+D3 score contract исправлен](docs/SCORE_CONTRACT_RESULTS_20261017.md).
+Score refinement относится к возвращённым params; K сравнивает единый data LL,
+а decoder penalty маркирован отдельно.225 уникальных PASS,6 strict XFAIL для5
+оставшихся D4-D8. Exact unchanged control; один frozen cached run3: все15
+candidate labels/probs и итоговые raw/baseline histories exact, K3/2/3,
+raw19/34,baseline17/34. Structural PASS, benefit FAIL_NO_GAIN, без tuning.
+Следующий шаг D7 tie-invariant redundancy, затем D6 joint shared signatures;
+не новый UI или повтор calibration одних машин.2D.1 FAIL/default-off сохранён,
+независимая observation/lamp validation открыта; main не изменён.
+
 2026-10-17: [оба внешних ревью проверены локально](docs/REVIEW_RESPONSE_20261017.md).
 Astra:8 дефектов воспроизведены; D1(потеря K3 split-seeds) исправлен единственным
 переносом существующего блока.208 PASS,8 strict XFAIL для7 открытых дефектов.
