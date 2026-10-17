@@ -1,0 +1,18 @@
+{
+  "reason": "Initial joint fits from two same-direction tracks had low training error but failed two distinct-direction cars and crossed the observed-road horizon. Those models remain rejected.",
+  "scope": "Separate development static geometry from clock; prior control cars become explicitly development calibration, never reported as new independent validation.",
+  "geometry_training_ids": [7, 12, 14, 19],
+  "source_stationary_window_relative_s": [12, 13],
+  "video_stationary_context_requested_s": 24,
+  "geometry_method": "single linear homography from four candidate stationary vehicle features; no time parameter, no iterative refit",
+  "new_validation_ids": [36, 116],
+  "new_native_review_times_s": [32, 36, 40, 56, 60, 64],
+  "clock_training_track": 19,
+  "clock_training_contexts_s": [13, 15, 17],
+  "clock_method": "closest-point time on frozen projected observed trajectory; retain ambiguity/gaps; test unit-rate offset consistency, no assumed global clock",
+  "validation_pixel_allowance": 50,
+  "max_additional_geometry_solves": 1,
+  "max_additional_clock_optimizer_calls": 0,
+  "forbidden": ["lamp/phase alignment", "refitting geometry from new validation cars", "promoting failed earlier model"],
+  "context_note": "Previously viewed scenes are development evidence; different vehicle IDs are control observations, not a separate validation session."
+}

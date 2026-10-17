@@ -52,6 +52,60 @@ def project(points, homography, size=(2688,1520)):
     return mapped[:,:2]/mapped[:,2,None]*np.asarray(size)
 
 
+def inspect_registration_support(model, records):
+    """Reject a projective horizon crossing the supplied observed-road support.
+
+    A small training residual (even with a full-rank Jacobian) cannot validate
+    extrapolation to other approaches. A plane visible in both image views must
+    keep one homogeneous-denominator sign across its connected support. Opposite
+    signs at observed points imply a zero inside their convex hull, including
+    when every individually projected point happens to be finite.
+
+    This checks only the supplied coordinate support, not vehicle identity,
+    coplanarity, camera synchronization, pixel accuracy, or unobserved regions.
+    It must be called with the broader intended road scope before using a local
+    fit elsewhere. It never makes a clock transform production-usable.
+    """
+    h = np.asarray(model['homography'], dtype=float)
+    if h.shape != (3, 3) or not np.isfinite(h).all() or np.linalg.matrix_rank(h) != 3:
+        raise ValueError('INVALID_REGISTRATION_HOMOGRAPHY')
+    row_norm = float(np.linalg.norm(h[2]))
+    if row_norm == 0:
+        raise ValueError('INVALID_REGISTRATION_HOMOGRAPHY')
+    # Homographies are defined up to any nonzero scale, including a sign flip.
+    denominator_row = h[2] / row_norm
+    points = []
+    track_ids = []
+    for record in records:
+        for detection in record.get('detections', []):
+            x, y = detection.get('centroid_x'), detection.get('centroid_y')
+            if (isinstance(x, bool) or isinstance(y, bool)
+                    or not isinstance(x, (int, float)) or not isinstance(y, (int, float))
+                    or not math.isfinite(x) or not math.isfinite(y)):
+                raise ValueError('INVALID_REGISTRATION_SUPPORT_POINT')
+            points.append((x, y, 1.0))
+            track_ids.append(record.get('id'))
+    result = dict(schema='registration-support-check-v1', observed_points=len(points),
+                  support_scope='convex hull of supplied observed image features only',
+                  accepted_json_video_clock_transform=None, production_usable=False,
+                  scientific_validation='NOT_CERTIFIED', refit=False)
+    if not points:
+        return dict(result, status='UNAVAILABLE_NO_OBSERVED_ROAD_SUPPORT',
+                    geometry_usable_on_supplied_support=False)
+    values = np.asarray(points) @ denominator_row
+    low, high = float(np.min(values)), float(np.max(values))
+    tolerance = 1e-10
+    crosses = low <= tolerance and high >= -tolerance
+    witnesses = [dict(track_id=track_ids[i], point=list(points[i][:2]),
+                      normalized_denominator=float(values[i]))
+                 for i in (int(np.argmin(values)), int(np.argmax(values)))]
+    return dict(result,
+                status=('REJECTED_ROAD_HORIZON_CROSSING' if crosses
+                        else 'GEOMETRY_FINITE_ON_SUPPLIED_SUPPORT_ONLY'),
+                geometry_usable_on_supplied_support=not crosses,
+                normalized_denominator_extent=[low, high], witnesses=witnesses)
+
+
 def predict(track_map, observations, h, delta_s, origin_ms):
     # Subtract the epoch before floating-point clock arithmetic. A ~1e-8s
     # numerical derivative disappears when added to a ~1e12ms absolute time.

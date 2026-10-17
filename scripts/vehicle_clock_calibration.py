@@ -9,7 +9,9 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-from app.experimental.vehicle_clock_alignment import fit_training, score_heldout, conditional_clock_set
+from app.experimental.vehicle_clock_alignment import (
+    fit_training, score_heldout, conditional_clock_set, inspect_registration_support,
+)
 
 
 def main():
@@ -32,19 +34,38 @@ def main():
         result=fit_training(selected,points,training_ids=plan['training_tracks'],
             heldout_id=plan['validation_track'],
             origin_ms=int(datetime.fromisoformat('2025-02-27T09:59:55+05:00').timestamp()*1000))
+        # Inspect every supplied source approach, not just the selected training
+        # tracks. This uses unlabeled coordinate support, never validation pixel
+        # annotations, and does not refit the model.
+        support=inspect_registration_support(result,records)
+        result['registration_support']=support
+        if not support['geometry_usable_on_supplied_support']:
+            result['status']=support['status']
     else:
         if a.model is None:raise ValueError('SEALED_TRAINING_MODEL_REQUIRED')
         model=json.loads(a.model.read_text(encoding='utf-8'))
         selected=[r for r in records if r['id']==model['heldout_id']]
         if len(selected)!=1:raise ValueError('UNIQUE_HELDOUT_TRACK_REQUIRED')
-        result=score_heldout(model,selected[0],points)
-        result['conditional_clock_set']=conditional_clock_set(model,selected[0],points,50)
+        support=inspect_registration_support(model,records)
+        if not support['geometry_usable_on_supplied_support']:
+            # Do not compute a clock set from a geometry already contradicted by
+            # its intended road scope, even when all training residuals were tiny.
+            result=dict(status=support['status'],sync_certified=False,
+                        accepted_json_video_clock_transform=None,
+                        calibrated_sync_uncertainty_ms=None,production_usable=False,
+                        scoring_performed=False,refit=False)
+        else:
+            result=score_heldout(model,selected[0],points)
+            result['conditional_clock_set']=conditional_clock_set(model,selected[0],points,50)
+            result['scoring_performed']=True
+        result['registration_support']=support
         result['training_model_sha256']=hashlib.sha256(a.model.read_bytes()).hexdigest()
     result.update(source_sample_sha256=hashlib.sha256(raw).hexdigest(),
         points_sha256=hashlib.sha256(a.points.read_bytes()).hexdigest(),
         plan_sha256=hashlib.sha256(a.plan.read_bytes()).hexdigest())
     a.out.write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
-    print(json.dumps({'saved':str(a.out),'sync_certified':False}))
+    print(json.dumps({'saved':str(a.out),'sync_certified':False,
+                      'registration_status':result['registration_support']['status']}))
 
 
 if __name__=='__main__':main()

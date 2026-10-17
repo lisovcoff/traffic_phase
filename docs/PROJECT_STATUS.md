@@ -1,5 +1,19 @@
 # Project status — 2D.1, 2026-10-18
 
+2026-10-18 bounded car registration attempted:18 new native contexts, one joint
+fit plus one documented annotation-correction repeat before control scoring.
+Corrected training max3.595px/rank9 did not generalize: distinct candidate cars
+fail50px gate by large margins; no accepted clock transform. Static development
+alternatives also rejected; failures and explicit budget deviations retained.
+Added observed-road homogeneous-support guard to experimental calibration API/CLI:
+a horizon inside supplied source support now blocks scoring/clock-set evaluation,
+including when sampled projections are individually finite.53 tests PASS and
+one real CLI refusal on all39215 detections. No phase fit/replay, production
+core/default/main or historical artifact changes;2D.1 FAIL retained. See
+ENTHUSIASTS_CAR_REGISTRATION_20261018.md. Need independent spatially diverse
+source/image anchors and coordinate/preprocessing definitions; low train error
+alone cannot certify registration or timing.
+
 2026-10-18 Enthusiasts source identity established from complete supplier DOCX:
 archive05.10 explicitly links public video; local MP4 full SHA256 and MD5 match
 that6,792,283,598-byte resource. Prior date mismatch remains an offline-clock

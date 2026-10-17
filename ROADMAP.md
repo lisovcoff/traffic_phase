@@ -1,5 +1,13 @@
 # traffic_phase — план до готового продукта
 
+2026-10-18: [car-registration гипотеза проверена и отвергнута](docs/ENTHUSIASTS_CAR_REGISTRATION_20261018.md).
+Train3.6px/full rank не прошёл distinct-car controls; проекция пересекает road
+horizon. Experimental calibration CLI теперь проверяет весь supplied road scope
+и отказывает до clock-set/scoring.53 tests PASS; отрицательные fits/annotation
+correction сохранены. Clock transforms0, phase replay0,2D.1 FAIL/default-off.
+Нужны однозначные пространственно разнесённые anchors и coordinate semantics;
+не переносить локальную train accuracy на другие подходы или lamp timing.
+
 2026-10-18: [происхождение видео Энтузиастов подтверждено](docs/ENTHUSIASTS_VEHICLE_LINK_20261018.md).
 Полный Инфо.docx прямо связывает архив05.10 с public video; полный SHA256/MD5
 локального6.79GB MP4 совпали с supplier-linked resource. Это закрывает source

@@ -1,0 +1,19 @@
+{
+  "reason": "Source track6 follows track2 in the same W-to-E lane. Initial manual association selected the white box SUV in the neighboring lane. Native crops show the following vehicle in track2's lane is the blue sedan.",
+  "correction_basis": "source lane ordering and independently viewed native frames; no heldout points have been annotated or scored",
+  "preserved_initial_model": "candidate_model.json",
+  "preserved_initial_points": "training_points.json",
+  "corrected_track": 6,
+  "corrected_bbox_crop_xyxy_by_requested_s": {
+    "13": [650, 300, 780, 368],
+    "13.5": [715, 320, 850, 405],
+    "14": [796, 355, 950, 438],
+    "15": [1030, 452, 1240, 566]
+  },
+  "crop_origin_px": [100, 450],
+  "max_additional_fit_calls": 1,
+  "heldout_ids_unchanged": [7, 19],
+  "gates_unchanged": true,
+  "initial_fit_usable": false,
+  "initial_budget_deviation": "One documented annotation-correction repeat before independent scoring; original one-fit budget exceeded, not silently treated as a single run."
+}

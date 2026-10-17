@@ -1,0 +1,19 @@
+{
+  "purpose": "Preserve read-only exploratory checks of the failed stationary development correspondences; no new validation data or clock solve.",
+  "budget_deviation": "Original static_geometry_plan allowed one linear solve. Two additional development-only alternatives were inspected after rejection. All remain unaccepted, no gates changed.",
+  "affine_least_squares": {
+    "matrix_row_vector_form": [[0.5752891617592342, 1.2987052731394828], [-0.08123857531846371, 0.4144236977531926], [0.2730223617715196, -0.5236833427184078]],
+    "training_errors_px": [17.01558716430766, 50.743504358989185, 6.818484438077648, 40.546401632758425],
+    "gate_30px": false,
+    "accepted": false
+  },
+  "swap_identity_12_14_homography": {
+    "homography": [[-0.9763615671327736, 0.07401406587027959, 0.5996937942960352], [-0.7156789008716431, 0.027636555015299734, 0.446335849056521], [-1.6278897128523504, 0.1292323691353619, 1.0]],
+    "observed_road_denominator_extent": [-0.4980104366288707, 1.087047193382359],
+    "road_horizon_crossing": true,
+    "accepted": false
+  },
+  "total_clock_optimizer_calls": 2,
+  "total_static_linear_solutions_including_original": 3,
+  "accepted_clock_transform": null
+}
