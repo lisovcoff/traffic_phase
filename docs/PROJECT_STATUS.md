@@ -1,5 +1,21 @@
 # Project status — 2D.1, 2026-10-17
 
+2026-10-17 confirmed review closure: D1-D8 now have passing counterexamples,
+no remaining review XFAIL. Base c414c5ef486b145cb7605017fbeabee3e68237b0;
+code before comparison9e987c804c1880b991f5298da27f71224778d8c8. D4/D5/D6/D8
+fixed together with unknown matching/baseline diagnostics, shared signatures
+and common source quality.291 unique PASS; two stale assertions corrected to
+existing identity/session contracts, original18 PASS/2 FAIL log retained.
+One exact control and one frozen cached run3, predictions sealed before unchanged
+evaluator. All15 per-K labels/probs/quality and raw histories exact: K3/2/3 vs3/2/2,
+raw19/34,baseline17/34. D8 changes baseline reference;17 matched MAE improves
+.7483→.7198 but19 nearest MAE regresses3.9516→4.3177. No tuning/retries/timeouts.
+Structural closure PASS; development benefit NOT_MET/MIXED, product NOT_READY.
+2D.1 FAIL/default-off,physical UNKNOWN,main/evaluator/selector/period/experimental
+code and historical artifacts preserved. See REVIEW_CLOSURE_RESULTS_20261017.md.
+Next: independently checked method-specific observation/delay/demand model and
+calibration/validation, then actual local history; not more fixed-lag heuristics.
+
 2026-10-17 D7 tied-rank defect fixed. Base b84e08b1d141e07da8e524080176c64f205233cc;
 code before comparison a57ae53f7b9e1f336ee0293a1425ac79264ee2a1. Only production
 function _rank_correlation changed to exact-tie average ranks; existing guards,

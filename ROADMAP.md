@@ -1,5 +1,17 @@
 # traffic_phase — план до готового продукта
 
+2026-10-17: [все8 подтверждённых Astra defects закрыты тестами](docs/REVIEW_CLOSURE_RESULTS_20261017.md).
+Сейчас D4/D5/D6/D8 исправлены вместе: membership/circular matching с abstention,
+общая quality selection, joint signatures без exclusive stream, censored baseline
+без raw/zero fallback.291 уникальный PASS, review XFAIL0;2 stale tests исправлены
+по прежним контрактам, исходные FAIL сохранены. Один frozen cached run3 после
+code commit: raw19/34 и K3/2/3 exact, baseline17/34, у19 nearest MAE3.9516→4.3177
+регрессирует, у17 matched MAE .7483→.7198. Тюнинга нет. Качественный gate NOT_READY,
+2D.1 FAIL/default-off и UNKNOWN сохранены. Следующий критический алгоритмический
+шаг — проверенная method-specific observation model/delay/demand и независимая
+calibration/validation, затем local history. Не обещать идеальность и не заменять
+отсутствующие наблюдения GREEN/RED или fixed−2с. Main/исторические artifacts intact.
+
 2026-10-17: [D7 tied ranks исправлен](docs/TIED_RANKS_RESULTS_20261017.md).
 Равным probabilities назначаются средние ранги; независимые feature/decision
 counterexamples и все120 перестановок full witness проходят.240 уникальных PASS,
