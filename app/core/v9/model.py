@@ -710,10 +710,11 @@ def _discover_from_stream_views(
         tuple(float(value) for value in segment)
         for segment in fit["segments"]
     ]
-    baseline_segments, phase_centers = periodic_baseline_from_segments(
+    baseline_segments, phase_centers, baseline_diagnostics = periodic_baseline_from_segments(
         raw_segments,
         period,
         end_s,
+        phase_count=int(selected_k), return_diagnostics=True,
     )
     baseline_durations = _phase_duration_targets_from_baseline(
         baseline_segments,
@@ -887,7 +888,9 @@ def _discover_from_stream_views(
                 for z, value in enumerate(
                     baseline_durations
                 )
+                if value > 0
             },
+            "baseline_reconstruction": baseline_diagnostics,
             "baseline_segments": [
                 [float(a), float(b), int(z)]
                 for a, b, z in baseline_segments

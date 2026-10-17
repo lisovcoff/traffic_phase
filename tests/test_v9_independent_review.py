@@ -1,7 +1,6 @@
 """Small independent counterexamples; no real annotations or fitted thresholds.
 
-Split visitation, coherent scores and tied ranks (D1-D3,D7) are fixed. Strict xfails retain
-the other observed defects without silently treating them as regressions fixed.
+All eight review mechanisms have explicit regression tests; none uses real labels.
 """
 from unittest.mock import patch
 
@@ -120,9 +119,11 @@ def captured_ensemble(shift):
     onsets = [[(a + shift) % period for a in values] for values in ([1., 51.], [49., 99.])]
 
     def make_seed(values):
-        a, b = sorted(values)
+        paired = sorted((v, 'm'+str(i)) for i, v in enumerate(values))
+        a, b = [v for v, _ in paired]
         labels = (((np.arange(n) - a) % period) >= b - a).astype(int)
-        return labels, {"group_onsets_s": [a, b], "durations_s": [b-a, period-b+a]}
+        return labels, {"group_onsets_s": [a, b], "durations_s": [b-a, period-b+a],
+                        "group_streams": [[name] for _, name in paired]}
 
     def capture(*args):
         if args[6]["source"] == "release_entry_seed_ensemble":
@@ -131,19 +132,18 @@ def captured_ensemble(shift):
 
     with patch.object(fit, "initial_seed_from_streams", side_effect=[make_seed(v) for v in onsets]), patch.object(fit, "_seed_labels_to_fit", capture), patch.object(fit, "_fit_from_initial_labels", side_effect=RuntimeError("isolate seeds")):
         fit.em_fit(np.zeros((n, 2)), period, 2, by_stream_global={}, entry_streams={})
+    assert len(captured) == 2  # Do not pass vacuously by omitting all ensembles.
     return sorted((v-shift) % period for v in captured)
 
 
-@pytest.mark.xfail(strict=True, reason="sorted zip and linear mean are not circular-origin equivariant")
 def test_ensemble_invariant_to_common_time_origin():
     assert captured_ensemble(0.) == pytest.approx(captured_ensemble(10.))
 
 
-@pytest.mark.xfail(strict=True, reason="ensemble unconditionally suppresses unrefined release and entry")
 def test_ensemble_cannot_discard_arbitrarily_better_release_fit():
     labels = np.tile(np.repeat([0, 1], 5), 2)
-    seeds = [(labels, {"group_onsets_s": [0., 5.], "durations_s": [5., 5.]}),
-             (1-labels, {"group_onsets_s": [2., 7.], "durations_s": [5., 5.]})]
+    seeds = [(labels, {"group_onsets_s": [0., 5.], "durations_s": [5., 5.],"group_streams":[['a'],['b']]}),
+             (1-labels, {"group_onsets_s": [2., 7.], "durations_s": [5., 5.],"group_streams":[['a'],['b']]})]
 
     def quality_fixture(labels, x, k, period, streams, dt, info, grid, values):
         ll = {"robust_release_seed": -2., "entry_seed": -4.,
@@ -154,9 +154,9 @@ def test_ensemble_cannot_discard_arbitrarily_better_release_fit():
     with patch.object(fit, "initial_seed_from_streams", side_effect=seeds), patch.object(fit, "_seed_labels_to_fit", quality_fixture), patch.object(fit, "_fit_from_initial_labels", side_effect=RuntimeError("isolate selection")):
         result = fit.em_fit(np.zeros((20, 2)), 10., 2, by_stream_global={}, entry_streams={})
     assert result["initialization"]["source"] == "robust_release_seed"
+    assert any(c['source']=='release_entry_seed_ensemble' for c in result['initialization_candidates'])
 
 
-@pytest.mark.xfail(strict=True, reason="distinct shared-movement combinations need not have exclusive streams")
 def test_distinct_shared_signatures_are_not_multiple_unsupported_phases():
     labels = np.tile(np.repeat(np.arange(3), 10), 3)
     # Three pairwise-distinct, perfectly observable signatures AB, AC, BC.
@@ -192,7 +192,6 @@ def test_redundancy_decision_invariant_on_binary_shared_occupancy():
     assert results[0]['detected'] == results[1]['detected']
 
 
-@pytest.mark.xfail(strict=True, reason="left-censored segment start is counted as a phase onset")
 def test_periodic_baseline_ignores_censored_start():
     # Exact periodic path, window begins halfway through phase 0.
     segments = [(0., 10., 0), (10., 30., 1), (30., 50., 0), (50., 70., 1), (70., 80., 0)]

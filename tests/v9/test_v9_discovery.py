@@ -188,9 +188,11 @@ def test_v9_direction_agnostic_stream_names():
         name.startswith("PHASE_")
         for name in result["schedule"]["phase_names"]
     )
-    payload = json.dumps(result)
-    assert "NS" not in payload
-    assert "EW" not in payload
+    # Diagnostic words such as UNSUPPORTED contain "NS"; inspect identities,
+    # not arbitrary substrings of the entire serialized diagnostic document.
+    expected_streams = {stream.upper() for _, streams in phases for stream in streams}
+    assert {row['stream'] for row in result['schedule']['stream_activity_by_phase']} == expected_streams
+    assert result['phase_model_selection']['topology_prior']['canonical_four_leg_cap_applied'] is False
 
 
 def test_v9_accepts_repository_normalized_records():
@@ -398,24 +400,26 @@ def test_v9_detects_local_regime_on_long_input():
         (40.0, ["A->B", "B->A"]),
         (60.0, ["C->D", "D->C"]),
     ]
-    tracks_120 = _tracks(phases, cycles=40)
-    # Build a second regime with a different period and append it after a gap.
-    tracks_100 = _tracks(
+    tracks_first = _tracks(phases, cycles=40)
+    # Two periods in ONE continuous capture. A7200s gap intentionally requires
+    # session choice under the accepted source-isolation contract, not pooling.
+    tracks_second = _tracks(
         [
             (45.0, ["A->B", "B->A"]),
             (75.0, ["C->D", "D->C"]),
         ],
         cycles=40,
     )
-    shift_ms = max(t["millis"] for t in tracks_120) + 7200 * 1000
+    shift_ms = max(t["millis"] for t in tracks_first) + 2000
+    rebase_delta = shift_ms - min(t["millis"] for t in tracks_second)
     rebased = []
-    for track in tracks_100:
+    for track in tracks_second:
         item = json.loads(json.dumps(track))
-        item["millis"] += shift_ms - min(t["millis"] for t in tracks_100)
+        item["millis"] += rebase_delta
         for detection in item["detections"]:
-            detection["millis"] += shift_ms - min(t["millis"] for t in tracks_100)
+            detection["millis"] += rebase_delta
         rebased.append(item)
-    result = discover_records(tracks_120 + rebased)
+    result = discover_records(tracks_first + rebased)
     assert result["regime_detection"]["method"] == "hourly_local_period_consensus"
     assert result["regime_detection"]["selected_window_event_count"] > 0
 

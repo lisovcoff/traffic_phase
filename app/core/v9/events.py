@@ -8,6 +8,7 @@ from contextlib import closing, nullcontext
 from array import array
 from collections import Counter, defaultdict
 from pathlib import Path
+from numbers import Real
 from typing import Dict, List, Optional, Sequence
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
@@ -724,6 +725,8 @@ def _circular_center(values, period):
     if values.size == 0:
         return None
     ang = 2.0 * np.pi * (values % period) / period
+    if float(np.hypot(np.mean(np.sin(ang)), np.mean(np.cos(ang)))) <= 8*np.finfo(float).eps:
+        return None  # Antipodal/uniform samples have no unique circular mean.
     return float(
         math.atan2(
             float(np.mean(np.sin(ang))),
@@ -734,22 +737,55 @@ def _circular_center(values, period):
         / (2.0 * np.pi)
     )
 
-def periodic_baseline_from_segments(segments, period, end_s):
-    if not segments or period <= 0:
-        return [], {}
-    k = max(int(z) for _, _, z in segments) + 1
+def periodic_baseline_from_segments(segments, period, end_s, *, phase_count=None, return_diagnostics=False):
+    """Periodic reference from observed contiguous transitions, never window edges.
+
+    Missing onsets yield no baseline; do not substitute raw paths/zero centers.
+    Two-item legacy API retained, optional diagnostics used by canonical model.
+    """
+    diagnostic = {'status': 'unavailable', 'reason': None,
+        'source': 'contiguous_observed_phase_changes', 'first_segment_left_censored': True,
+        'semantics': 'periodic_reference_NOT_actual_history_or_lamp_switch'}
+    centers = {}
+    def finish(baseline, reason):
+        diagnostic.update(status='available' if reason is None else 'unavailable', reason=reason)
+        return (baseline, centers, diagnostic) if return_diagnostics else (baseline, centers)
+    if (not segments or any(isinstance(v, bool) or not isinstance(v, Real) or not math.isfinite(v) or v <= 0
+                            for v in (period, end_s))):
+        return finish([], 'NO_VALID_HISTORY_OR_PERIOD')
+    rows = []
+    for row in segments:
+        if not isinstance(row, (list, tuple)) or len(row) != 3:
+            return finish([], 'INVALID_PHASE_HISTORY')
+        a, b, z = row
+        if (any(isinstance(v, bool) or not isinstance(v, Real) or not math.isfinite(v) for v in (a, b, z)) or
+                a < 0 or b <= a or int(z) != z or z < 0 or
+                (rows and a < rows[-1][1])):
+            return finish([], 'INVALID_PHASE_HISTORY')
+        rows.append((float(a), float(b), int(z)))
+    k = phase_count if phase_count is not None else max(z for _, _, z in rows)+1
+    if isinstance(k, bool) or not isinstance(k, int) or k <= 0 or any(z >= k for _, _, z in rows):
+        return finish([], 'INVALID_PHASE_COUNT')
+    onsets = {z: [] for z in range(k)}
+    for left, right in zip(rows, rows[1:]):
+        if left[1] == right[0] and left[2] != right[2] and right[0] < end_s:
+            onsets[right[2]].append(right[0])
+    diagnostic['onset_counts_by_phase'] = {str(z): len(v) for z, v in onsets.items()}
     centers = {}
     for z in range(k):
         c = _circular_center(
-            [float(a) % period for a, _, zz in segments if int(zz) == z],
+            onsets[z],
             period,
         )
         if c is not None:
             centers[z] = c
     if len(centers) != k:
-        return list(segments), {z: 0.0 for z in range(k)}
+        diagnostic['missing_or_undefined_onset_phases'] = [z for z in range(k) if z not in centers]
+        return finish([], 'MISSING_OR_AMBIGUOUS_PHASE_ONSETS')
 
     starts = sorted((float(c), int(z)) for z, c in centers.items())
+    if len({c for c, _ in starts}) != k:
+        return finish([], 'COINCIDENT_PHASE_ONSETS')
     points = []
     for cycle in range(-1, int(math.ceil(end_s / period)) + 1):
         points.extend((cycle * period + off, z) for off, z in starts)
@@ -763,7 +799,7 @@ def periodic_baseline_from_segments(segments, period, end_s):
         aa, bb = max(0.0, a), min(float(end_s), b)
         if aa < bb:
             baseline.append((aa, bb, z))
-    return baseline, centers
+    return finish(baseline, None)
 
 def _phase_duration_targets_from_baseline(baseline, k):
     durations = [[] for _ in range(k)]

@@ -238,5 +238,6 @@ def initial_seed_from_streams(by_stream: Dict[str, List[float]], period: float, 
         'group_onsets_s': [float(x) for x in onsets],
         'durations_s': [float(x) for x in gaps],
         'group_sizes': [int(len(g[2])) for g in groups],
+        'group_streams': [list(g[2]) for g in groups],
         'onset_strengths': [float(g[1]) for g in groups],
     }

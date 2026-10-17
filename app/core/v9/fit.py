@@ -6,10 +6,12 @@ import json
 import itertools
 from collections import defaultdict
 from pathlib import Path
+from numbers import Real
 from typing import Dict, List, Optional, Sequence
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
 from scipy.stats import rankdata
+from scipy.optimize import linear_sum_assignment
 
 from .primitives import (
     fit_bernoulli_templates,
@@ -99,6 +101,7 @@ def _fit_from_initial_labels(
             'pointwise_loglik': float(point_ll),
             'data_loglik': float(point_ll),
             'coherence': float(coherence),
+            'seed_info': seed_info,
         }
         if best_refined is None or payload['score'] > best_refined['score']:
             best_refined = payload
@@ -126,6 +129,71 @@ def _fit_quality(fit, x_shape, evidence_weight: float=0.05):
         fit.get('pointwise_loglik', fit.get('score', 0.0))
     ) / max(1, n * s)
     return norm_ll + evidence_weight * float(fit.get('coherence', 0.0))
+
+
+def _fuse_seed_views(release_info, entry_info, period):
+    """Match observed stream groups before averaging their cyclic onsets.
+
+    Unique maximum shared-membership assignment is required. Times do not break
+    identity ties; ambiguous identity/order/antipodes omit this optional seed.
+    """
+    diagnostic = {'status': 'unavailable', 'method': 'unique_membership_circular_midpoint'}
+    def unavailable(reason):
+        return None, {**diagnostic, 'reason': reason}
+    ri, ei = release_info.get('group_onsets_s', []), entry_info.get('group_onsets_s', [])
+    rg, eg = release_info.get('group_streams'), entry_info.get('group_streams')
+    if not all(isinstance(v, (list, tuple)) for v in (ri, ei, rg, eg)):
+        return unavailable('MISSING_GROUP_MEMBERSHIP')
+    k = len(ri)
+    if not rg or not eg or not k or len(ei) != k or len(rg) != k or len(eg) != k:
+        return unavailable('MISSING_GROUP_MEMBERSHIP')
+    if isinstance(period, bool) or not isinstance(period, Real) or not math.isfinite(period) or period <= 0:
+        return unavailable('INVALID_PERIOD')
+    if any(isinstance(v, bool) or not isinstance(v, Real) or not math.isfinite(v) or not 0 <= v < period for v in [*ri, *ei]):
+        return unavailable('INVALID_GROUP_ONSETS')
+    if any(b <= a for values in (ri, ei) for a, b in zip(values, values[1:])):
+        return unavailable('UNSORTED_OR_DUPLICATE_GROUP_ONSETS')
+    if any(not isinstance(group, (list, tuple)) or not group or
+           not all(isinstance(s, str) and s for s in group) for group in [*rg, *eg]):
+        return unavailable('INVALID_GROUP_MEMBERSHIP')
+    weights = np.array([[len(set(a) & set(b)) for b in eg] for a in rg], dtype=int)
+    rows, cols = linear_sum_assignment(-weights)
+    optimum = int(weights[rows, cols].sum())
+    if np.any(weights[rows, cols] == 0):
+        return unavailable('NO_SHARED_MOVEMENT_FOR_MATCH')
+    # If ANY edge of the optimum can be replaced at equal score, identity is
+    # ambiguous. K additional polynomial assignments, not K! enumeration.
+    for row, col in zip(rows, cols):
+        alternative = weights.copy()
+        alternative[row, col] = -int(weights.sum())-1
+        ar, ac = linear_sum_assignment(-alternative)
+        if int(alternative[ar, ac].sum()) == optimum:
+            return unavailable('AMBIGUOUS_GROUP_ASSIGNMENT')
+    if k > 1 and any((int(cols[(i+1) % k])-int(cols[i])) % k != 1 for i in range(k)):
+        return unavailable('CYCLIC_ORDER_DISAGREEMENT')
+    pairs = []
+    numerical_tol = 8*np.finfo(float).eps*max(1., period)
+    for row, col in zip(rows, cols):
+        a, b = float(ri[row]), float(ei[col])
+        delta = (b-a+period/2) % period-period/2
+        if abs(abs(delta)-period/2) <= numerical_tol:
+            return unavailable('ANTIPODAL_ONSETS')
+        pairs.append({'onset_s': float((a+delta/2) % period),
+            'release_group_index': int(row), 'entry_group_index': int(col),
+            'release_onset_s': a, 'entry_onset_s': b,
+            'shared_streams': sorted(set(rg[row]) & set(eg[col])),
+            'group_streams': sorted(set(rg[row]) | set(eg[col]))})
+    pairs.sort(key=lambda p: p['onset_s'])
+    onsets = [p['onset_s'] for p in pairs]
+    gaps = [(onsets[(i+1) % k]-a) % period for i, a in enumerate(onsets)] if k > 1 else [period]
+    if min(gaps) < max(3., .03*period):
+        return unavailable('INSUFFICIENT_ONSET_SPACING')
+    info = {'method': 'release_entry_seed_ensemble', 'group_onsets_s': onsets,
+        'durations_s': gaps, 'group_streams': [p['group_streams'] for p in pairs],
+        'source_views': ['robust_release_events', 'input_zone_entry_events'],
+        'release_onsets_s': [float(v) for v in ri], 'entry_onsets_s': [float(v) for v in ei],
+        'group_matching': pairs, 'fusion_semantics': 'initialization_heuristic_NOT_signal_switch'}
+    return info, {**diagnostic, 'status': 'available', 'reason': None, 'matches': pairs}
 
 def em_fit(
     x: np.ndarray,
@@ -171,51 +239,15 @@ def em_fit(
                 ('entry_seed', entry_seed[0], entry_seed[1])
             )
 
+    ensemble_diagnostic = {'status': 'unavailable', 'reason': 'MISSING_SEED_VIEW'}
     if release_seed is not None and entry_seed is not None:
-        ri = release_seed[1].get('group_onsets_s', [])
-        ei = entry_seed[1].get('group_onsets_s', [])
-        if len(ri) == k and len(ei) == k:
-            fused_onsets = sorted(
-                [
-                    float((float(a) + float(b)) * 0.5) % float(period)
-                    for a, b in zip(ri, ei)
-                ]
-            )
-            gaps = []
-            for i, a in enumerate(fused_onsets):
-                b = fused_onsets[(i + 1) % k]
-                if i == k - 1:
-                    b += period
-                gaps.append(float(b - a))
-            if min(gaps) >= max(3.0, 0.03 * period):
-                tt = np.arange(len(x), dtype=float) * dt
-                fused_labels = np.zeros(
-                    len(x),
-                    dtype=np.int16,
-                )
-                for i, a in enumerate(fused_onsets):
-                    b = fused_onsets[(i + 1) % k]
-                    if i == k - 1:
-                        b += period
-                    fused_labels[(tt - a) % period < (b - a)] = i
-                fused_info = {
-                    'method': 'release_entry_seed_ensemble',
-                    'group_onsets_s': fused_onsets,
-                    'durations_s': gaps,
-                    'source_views': [
-                        'robust_release_events',
-                        'input_zone_entry_events',
-                    ],
-                    'release_onsets_s': [float(v) for v in ri],
-                    'entry_onsets_s': [float(v) for v in ei],
-                }
-                seed_candidates.append(
-                    (
-                        'release_entry_seed_ensemble',
-                        fused_labels,
-                        fused_info,
-                    )
-                )
+        fused_info, ensemble_diagnostic = _fuse_seed_views(release_seed[1], entry_seed[1], period)
+        if fused_info is not None:
+            tt = np.arange(len(x), dtype=float)*dt
+            fused_labels = np.zeros(len(x), dtype=np.int16)
+            for phase, (onset, duration) in enumerate(zip(fused_info['group_onsets_s'], fused_info['durations_s'])):
+                fused_labels[(tt-onset) % period < duration] = phase
+            seed_candidates.append(('release_entry_seed_ensemble', fused_labels, fused_info))
 
     try:
         offset = initial_offset_search(
@@ -382,33 +414,9 @@ def em_fit(
     if not fitted:
         raise RuntimeError('could not initialize V9')
 
-    ensemble = [
-        f
-        for f in fitted
-        if f.get('source') == 'release_entry_seed_ensemble'
-    ]
-    if ensemble:
-        best = max(
-            ensemble,
-            key=lambda f: f['model_quality'],
-        )
-        for f in fitted:
-            if f.get('source') in {
-                'release_entry_seed_ensemble',
-                'robust_release_seed',
-                'entry_seed',
-            }:
-                continue
-            if (
-                f.get('model_quality', -float('inf'))
-                > best.get('model_quality', -float('inf')) + 0.002
-            ):
-                best = f
-    else:
-        best = max(
-            fitted,
-            key=lambda f: f['model_quality'],
-        )
+    # Same declared quality for every source. max keeps the first retained
+    # candidate on exact ties; an ensemble cannot suppress a better pure view.
+    best = max(fitted, key=lambda f: f['model_quality'])
 
     return {
         'k': int(k),
@@ -416,9 +424,14 @@ def em_fit(
             'seed_info',
             {'method': best.get('source')},
         ),
+        'initialization_diagnostics': {
+            'ensemble': ensemble_diagnostic,
+            'selection_rule': 'max_model_quality_all_sources_first_retained_on_exact_tie',
+        },
         'initialization_candidates': [
             {
                 'source': f.get('source'),
+                'selected': f is best,
                 'model_quality': float(
                     f.get('model_quality', -float('inf'))
                 ),
@@ -473,56 +486,53 @@ def _phase_support_metrics(
     activity_threshold: float = 0.08,
     selectivity_ratio: float = 1.15,
 ):
-    """Measure whether each fitted phase has distinct transport evidence.
+    """Heuristic JOINT fitted-signature separability, not lamp observability.
 
-    This is intentionally topology-agnostic: it uses only the fitted
-    Bernoulli phase signatures. A phase with no stream that is both active
-    and selective relative to the other phases is not independently
-    identifiable and is treated as degenerate for phase-count selection.
+    Shared streams are allowed: a different coordinate may distinguish each
+    competitor. Symmetric contrast is conditional on the occupancy model;
+    an inactive coordinate is not a physical RED/demand observation.
     """
     probs = np.asarray(fit.get("probs"), dtype=float)
-    if probs.ndim != 2:
+    if probs.ndim != 2 or not np.all(np.isfinite(probs)) or np.any((probs < 0) | (probs > 1)):
         return {
             "supported_phase_count": 0,
             "unsupported_phase_count": int(fit.get("k", 0)),
             "phase_support_by_phase": {},
             "phase_contrast_by_phase": {},
+            "phase_support_semantics": "INVALID_FITTED_SIGNATURES",
         }
-
     k = int(probs.shape[0])
-    support_by_phase = {}
-    contrast_by_phase = {}
+    support_by_phase, contrast_by_phase, exclusive_by_phase, witnesses = {}, {}, {}, {}
     for phase in range(k):
         current = probs[phase]
-        if k > 1:
-            others = np.delete(probs, phase, axis=0)
-            strongest_other = np.max(others, axis=0)
-            contrast = np.maximum(current - np.mean(others, axis=0), 0.0)
-        else:
-            strongest_other = np.zeros_like(current)
-            contrast = np.zeros_like(current)
-
-        supported = (
-            (current >= float(activity_threshold))
-            & (
-                current
-                >= float(selectivity_ratio)
-                * np.maximum(strongest_other, 0.001)
-            )
-        )
-        support_by_phase[str(phase)] = int(np.sum(supported))
-        contrast_by_phase[str(phase)] = float(
-            np.max(contrast) if contrast.size else 0.0
-        )
-
-    supported_phase_count = sum(
-        value > 0 for value in support_by_phase.values()
-    )
+        others = np.delete(probs, phase, axis=0)
+        strongest_other = np.max(others, axis=0) if len(others) else np.zeros_like(current)
+        contrast = np.maximum(current-np.mean(others, axis=0), 0.) if len(others) else np.zeros_like(current)
+        exclusive = (current >= activity_threshold) & (current >= selectivity_ratio*np.maximum(strongest_other,.001))
+        exclusive_by_phase[str(phase)] = int(np.sum(exclusive))
+        active = bool(np.any(current >= activity_threshold))
+        pairwise = {}
+        for other in range(k):
+            if other == phase:
+                continue
+            competitor = probs[other]
+            distinguishing = ((current >= activity_threshold) & (current >= selectivity_ratio*np.maximum(competitor,.001))) | (
+                (competitor >= activity_threshold) & (competitor >= selectivity_ratio*np.maximum(current,.001)))
+            pairwise[str(other)] = [int(i) for i in np.flatnonzero(distinguishing)]
+        separated = active and all(pairwise.values())
+        coordinates = set(i for values in pairwise.values() for i in values)
+        support_by_phase[str(phase)] = (len(coordinates) if k > 1 else int(np.sum(current >= activity_threshold))) if separated else 0
+        contrast_by_phase[str(phase)] = float(np.max(contrast)) if contrast.size else 0.
+        witnesses[str(phase)] = pairwise
+    supported_phase_count = sum(v > 0 for v in support_by_phase.values())
     return {
         "supported_phase_count": int(supported_phase_count),
-        "unsupported_phase_count": int(k - supported_phase_count),
+        "unsupported_phase_count": int(k-supported_phase_count),
         "phase_support_by_phase": support_by_phase,
         "phase_contrast_by_phase": contrast_by_phase,
+        "exclusive_stream_support_by_phase": exclusive_by_phase,
+        "pairwise_signature_witness_columns": witnesses,
+        "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
     }
 
 
@@ -1012,6 +1022,7 @@ def candidate_metrics(fit, x_shape):
         'k': int(fit['k']),
         'objective': data_ll,
         'objective_semantics': 'returned_model_data_loglik',
+        'initialization_diagnostics': fit.get('initialization_diagnostics', {}),
         'data_loglik': data_ll,
         'penalized_objective': fit.get('penalized_objective'),
         'approx_bic': float(bic),
