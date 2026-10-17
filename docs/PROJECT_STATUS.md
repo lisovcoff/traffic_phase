@@ -1,4 +1,17 @@
-# Project status — 2D.1, 2026-10-17
+# Project status — 2D.1, 2026-10-18
+
+2026-10-18 Enthusiasts source identity established from complete supplier DOCX:
+archive05.10 explicitly links public video; local MP4 full SHA256 and MD5 match
+that6,792,283,598-byte resource. Prior date mismatch remains an offline-clock
+issue, no longer merely filename-based source provenance. One small member
+13,542,804B/245tracks/39,215detections scanned with CRC/SHA;38 new native/coarse
+contexts inspected. Three E-to-W bus candidates remain provisional; supplier
+recommends car due detection error. No accepted car/same-exposure anchors, no
+clock fit, no drift or paired accuracy claim. Existing-schema empty frame-link
+template/check and concrete local supplier request retained. Need producer frame
+links or denser independent car/geometry review with withheld vehicles; source
+origin need not be asked again. Main/default/inference/historical predictions
+unchanged;2D.1 FAIL retained. See ENTHUSIASTS_VEHICLE_LINK_20261018.md.
 
 2026-10-17 new independent video intake (base8c49850d1c73a311b7d19ad56b95ffd150216d65):
 lenina_entuziastov.mp4,5h,2688x1520.200 native frames/four appearance changes

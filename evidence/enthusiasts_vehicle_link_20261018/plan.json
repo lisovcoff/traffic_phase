@@ -1,0 +1,25 @@
+{
+  "base_commit": "504103d8b3729287294c83a139c251fe5cf17ccf",
+  "scope": "bounded independent vehicle/image correspondence feasibility; no phase alignment or inference",
+  "source_manifest": "evidence/enthusiasts_video_20261017/source.json",
+  "new_archive_entry_full_scan": "6_2025_2_23_13.json",
+  "max_full_entry_bytes": 16777216,
+  "max_additional_prefix_bytes_per_entry": 1048576,
+  "max_new_video_context_frames": 48,
+  "max_new_video_refinement_frames": 48,
+  "max_total_decode_wall_seconds": 240,
+  "max_decode_wall_seconds_per_command": 20,
+  "max_new_output_bytes": 134217728,
+  "sequence": [
+    "Inventory and summarize first whole small entry; inspect raw image-coordinate geometry and distinctive classes without consulting predictions.",
+    "Compare trajectory/image geometry before identity or clock claims; inspect a bounded coarse selection of context frames if needed.",
+    "Only if defensible identities emerge, reserve different vehicles/times for a frozen independent consistency check before estimating clock stability.",
+    "If correspondences cannot be established, retain unmatched observations and state precisely why clock/paired metrics remain unavailable."
+  ],
+  "clock_estimation_eligibility": "multiple unambiguous same-car or same-exposure correspondences; geometric/identity ambiguities explicitly excluded",
+  "drift_validation": "requires independent supported correspondences at separated times; no drift extrapolation from a short local match",
+  "forbidden_inputs": ["phase predictions", "lamp-color alignment", "fixed assumed lag", "H1 transform from other intersection"],
+  "production_changes": false,
+  "phase_fitting_runs": 0,
+  "independent_human_review": false
+}

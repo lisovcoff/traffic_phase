@@ -1,5 +1,15 @@
 # traffic_phase — план до готового продукта
 
+2026-10-18: [происхождение видео Энтузиастов подтверждено](docs/ENTHUSIASTS_VEHICLE_LINK_20261018.md).
+Полный Инфо.docx прямо связывает архив05.10 с public video; полный SHA256/MD5
+локального6.79GB MP4 совпали с supplier-linked resource. Это закрывает source
+provenance, несмотря на offline millis2025 против camera2024; clock link не закрыт.
+Один малый JSON entry:245tracks/39215detections,38 новых video contexts, три bus
+candidates остаются provisional (поставщик рекомендует car). Принятых anchors0,
+clock fit0, paired metrics UNAVAILABLE. Следующий вход — same-exposure/PTS links
+либо плотный independent car matching с контрольными машинами; не phase alignment.
+Main/default/исторические результаты и2D.1 FAIL сохранены.
+
 2026-10-17: [новое5ч видео Энтузиастов проверено](docs/ENTHUSIASTS_VIDEO_INTAKE_20261017.md).
 200 native frames:4 независимых appearance brackets по66.7мс, без model predictions.
 FPS gaps33/67/100мс, не ground truth1мс. Камера05.10.2024, но6 prefixes JSON

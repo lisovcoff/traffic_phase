@@ -1,0 +1,146 @@
+{
+    "source":  "D:\\Code\\PythonProjects\\traffic_phase\\data\\Инфо.docx",
+    "source_sha256":  "42559893c377a63f1ffcbabc32cda9510d82e16ad1008f8c5468c3e6db49f71c",
+    "paragraphs":  [
+                       {
+                           "paragraph_index":  0,
+                           "text":  "Траектория – информация о ТС со всеми его обнаружениями на видео. Траектории ТС хранятся в json файлах в виде списка в формате:"
+                       },
+                       {
+                           "paragraph_index":  1,
+                           "text":  "id – идентификатор ТС;"
+                       },
+                       {
+                           "paragraph_index":  2,
+                           "text":  "millis – время в миллисекундах, когда ТС уехало с перекрестка;"
+                       },
+                       {
+                           "paragraph_index":  3,
+                           "text":  "zone_in – итоговая зона въезда;"
+                       },
+                       {
+                           "paragraph_index":  4,
+                           "text":  "zone_out – итоговая зона выезда;"
+                       },
+                       {
+                           "paragraph_index":  5,
+                           "text":  "category_name – итоговая категория ТС;"
+                       },
+                       {
+                           "paragraph_index":  6,
+                           "text":  "detections – список обнаружений:"
+                       },
+                       {
+                           "paragraph_index":  7,
+                           "text":  "millis – время обнаружения;"
+                       },
+                       {
+                           "paragraph_index":  8,
+                           "text":  "lat – широта центроида ТС;"
+                       },
+                       {
+                           "paragraph_index":  9,
+                           "text":  "lng – долгота центроида ТС."
+                       },
+                       {
+                           "paragraph_index":  10,
+                           "text":  "Там есть и другие параметры, если понадобятся, типа скорости, времени простоя и движения, координат рамки на изображении, но этих должно хватить."
+                       },
+                       {
+                           "paragraph_index":  11,
+                           "text":  "millis можно использовать для сортировки. Некоторые ДТП обрабатывались по видео не в реальном времени, поэтому millis может не совпадать с реальным временем события."
+                       },
+                       {
+                           "paragraph_index":  12,
+                           "text":  "zone_in и zone_out можно использовать для группировки ТС по направлениям движения."
+                       },
+                       {
+                           "paragraph_index":  13,
+                           "text":  ""
+                       },
+                       {
+                           "paragraph_index":  14,
+                           "text":  "Пример названия зон по сторонам света"
+                       },
+                       {
+                           "paragraph_index":  15,
+                           "text":  "На всех перекрестках с 4 направлениями и двусторонним движением зоны называются одинаково по сторонам света. Зоны выезда начинаются с нижнего подчеркивания."
+                       },
+                       {
+                           "paragraph_index":  16,
+                           "text":  "Из category_name можно использовать только ‘car’, так как их больше всего, у них меньше погрешность обнаружения."
+                       },
+                       {
+                           "paragraph_index":  17,
+                           "text":  "Информация по файлам:"
+                       },
+                       {
+                           "paragraph_index":  18,
+                           "text":  "Ленина-Энтузиастов 10.02.25-17.02.25.zip – архив с траекториями в рабочие дни днем. В это время аномалий не было замечено, поэтому можно использовать как эталон для сравнения. Но все равно могут быть разовые отклонения, которые нужно отсеивать за счет большого количества траекторий."
+                       },
+                       {
+                           "paragraph_index":  19,
+                           "text":  "Ленина-Энтузиастов 05.10.24.zip – архив с траекториями во время ДТП. Запись видео с ДТП https://disk.yandex.ru/i/NwMsnq7xcOIn0A"
+                       },
+                       {
+                           "paragraph_index":  20,
+                           "text":  "Чичерина-40 Лет Победы 12.04.24.zip–архив с траекториями без аномалии для эталона."
+                       },
+                       {
+                           "paragraph_index":  21,
+                           "text":  "Чичерина-40 Лет Победы 19.04.24.zip–архив с траекториями с перекрытием одной полосы.Запись видеоhttps://disk.yandex.ru/i/8fCZzHDXV1X-xA"
+                       },
+                       {
+                           "paragraph_index":  22,
+                           "text":  "Ленина-Энгельса 05.02.25-07.02.25.zip–архив с траекториями без аномалии для эталона."
+                       },
+                       {
+                           "paragraph_index":  23,
+                           "text":  "Ленина-Энгельса 18.02.25.zip–архив с траекториями с ДТП.Запись видеоhttps://disk.yandex.ru/i/jc82gqPGXfF0Cw"
+                       },
+                       {
+                           "paragraph_index":  24,
+                           "text":  "Ленина-Свердловский 11.02.25-19.02.25.zip–архив с траекториями без аномалии для эталона."
+                       },
+                       {
+                           "paragraph_index":  25,
+                           "text":  "Ленина-Свердловский 27.02.25.zip–архив с траекториями с ДТП.Запись видеоhttps://disk.yandex.ru/i/jpmYYfRUK5nm3g"
+                       },
+                       {
+                           "paragraph_index":  26,
+                           "text":  ""
+                       },
+                       {
+                           "paragraph_index":  27,
+                           "text":  ""
+                       }
+                   ],
+    "external_links":  [
+                           {
+                               "Id":  "rId10",
+                               "Target":  "https://disk.yandex.ru/i/NwMsnq7xcOIn0A",
+                               "Type":  "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
+                           },
+                           {
+                               "Id":  "rId11",
+                               "Target":  "https://disk.yandex.ru/i/8fCZzHDXV1X-xA",
+                               "Type":  "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
+                           },
+                           {
+                               "Id":  "rId12",
+                               "Target":  "https://disk.yandex.ru/i/jc82gqPGXfF0Cw",
+                               "Type":  "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
+                           },
+                           {
+                               "Id":  "rId13",
+                               "Target":  "https://disk.yandex.ru/i/jpmYYfRUK5nm3g",
+                               "Type":  "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
+                           }
+                       ],
+    "embedded_image":  {
+                           "file":  "supplier_media/image1.jpg",
+                           "meaning":  "Example compass-zone naming at another intersection; not geometry for Enthusiasts",
+                           "sha256":  "2fcaea420a5f09dfcbddffe993ce12299aee7dc7735793c79614016a79d69fcc"
+                       },
+    "docx_edited":  false
+}

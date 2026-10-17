@@ -1,0 +1,127 @@
+{
+  "candidates": [
+    {
+      "source_entry": "6_2025_2_23_13.json",
+      "source_track_id": 652,
+      "source_raw_record_canonical_sha256": "061e0471f8ca8d61ca38652cf189f5cffbe47ee7d10eb86d068f35be43994dcd",
+      "category": "bus",
+      "source_movement": [
+        "E",
+        "_W"
+      ],
+      "source_detection_extent_ms": [
+        1740300938077,
+        1740300968082
+      ],
+      "source_extent_relative_to_first_entry_detection_s": [
+        297.083,
+        327.088
+      ],
+      "video_episode_description": "green full-size bus E-to-W",
+      "video_review_requested_context_s": [
+        300,
+        310,
+        330,
+        360
+      ],
+      "association_status": "PROVISIONAL_NOT_ADMITTED",
+      "identity_independently_verified": false,
+      "use_for_calibration": false,
+      "use_for_validation": false,
+      "json_to_video_offset_s": null,
+      "limitations": [
+        "class/route/order are insufficient for certified identity",
+        "source appearance crop/frame ID/PTS unavailable",
+        "coarse samples do not establish continuous vehicle identity",
+        "supplier recommends car category due detection error"
+      ]
+    },
+    {
+      "source_entry": "6_2025_2_23_13.json",
+      "source_track_id": 441,
+      "source_raw_record_canonical_sha256": "15c5c1aa61f5f01f1860a117a3651750a7731996555acf12d2f3918664b9173d",
+      "category": "bus",
+      "source_movement": [
+        "E",
+        "_W"
+      ],
+      "source_detection_extent_ms": [
+        1740300846777,
+        1740300893677
+      ],
+      "source_extent_relative_to_first_entry_detection_s": [
+        205.783,
+        252.683
+      ],
+      "video_episode_description": "red trolleybus E-to-W; another red trolleybus also visible at250s",
+      "video_review_requested_context_s": [
+        220,
+        230,
+        240,
+        250
+      ],
+      "association_status": "PROVISIONAL_NOT_ADMITTED",
+      "identity_independently_verified": false,
+      "use_for_calibration": false,
+      "use_for_validation": false,
+      "json_to_video_offset_s": null,
+      "limitations": [
+        "class/route/order are insufficient for certified identity",
+        "source appearance crop/frame ID/PTS unavailable",
+        "coarse samples do not establish continuous vehicle identity",
+        "supplier recommends car category due detection error"
+      ]
+    },
+    {
+      "source_entry": "6_2025_2_23_13.json",
+      "source_track_id": 258,
+      "source_raw_record_canonical_sha256": "73a0354cdddbc1fb5745e3eb1e1c3fa6aae31aff32bd519e9fec002f97f5ed73",
+      "category": "bus",
+      "source_movement": [
+        "E",
+        "_W"
+      ],
+      "source_detection_extent_ms": [
+        1740300738246,
+        1740300769914
+      ],
+      "source_extent_relative_to_first_entry_detection_s": [
+        97.252,
+        128.92
+      ],
+      "video_episode_description": "green full-size bus E-to-W",
+      "video_review_requested_context_s": [
+        90,
+        100,
+        110,
+        120,
+        130,
+        150
+      ],
+      "association_status": "PROVISIONAL_NOT_ADMITTED",
+      "identity_independently_verified": false,
+      "use_for_calibration": false,
+      "use_for_validation": false,
+      "json_to_video_offset_s": null,
+      "limitations": [
+        "class/route/order are insufficient for certified identity",
+        "source appearance crop/frame ID/PTS unavailable",
+        "coarse samples do not establish continuous vehicle identity",
+        "supplier recommends car category due detection error"
+      ]
+    }
+  ],
+  "accepted_associations": [],
+  "review_basis": "manual image context and raw vehicle metadata; no signal/phase matching",
+  "source_pair_status": "SUPPLIER_LINKED_MEDIA_HASH_VERIFIED",
+  "clock_status": "UNAVAILABLE_UNVERIFIED_CLOCK_LINK",
+  "confirmed_car_associations": 0,
+  "clock_image_fit_calls": 0,
+  "accepted_clock_transform": null,
+  "calibrated_sync_uncertainty_ms": null,
+  "drift_estimate": null,
+  "paired_metric_denominator": 0,
+  "phase_fitting_runs": 0,
+  "independent_second_reviewer": false,
+  "nonconclusion": "No claim that the source pair is incompatible or that denser manual association is impossible."
+}
