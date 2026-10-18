@@ -1,5 +1,22 @@
 # Project status — 2D.1, 2026-10-18
 
+Latest explicit request: DIRECT_VIDEO_TRUTH_RESULTS_20261018.md. Both supplied
+MP4s found. Fresh native bottom-left clocks: Sverdlovsky27.02.2025 09:59:55 at
+PTS0; Enthusiasts05.10.2024 11:59:58 atPTS0. All9 ZIP JSONs fully streamed:
+21,721 records/4,551,882 detections, CRC/SHA inventory retained. Enthusiasts
+export date23.02.2025 and4h40m13s span differ from5h14s video; source association
+is known but clock/coverage not. Video-only labels sealed independently of
+predictions:12 Sverd main-green onsets,10 clear red onsets plus2 unresolved;
+12 Enthusiasts green appearances,4 dim/alias cases flagged. No inferred unseen
+head truth. Conditional N-main apparent bias fit first window: green3.897667s,
+red4.939333s; on second window6/6 greens and5/5 clear reds within0.5s of image
+brackets after correction, WITHOUT camera/JSON sync uncertainty. Green one wide
+2.467s bracket retained. These are conditional combined timing offsets, not
+physical lamp precision or production calibration. Clock/head confirmation is
+still needed; user asked for cardinal orientation. Production unchanged.
+Local-file comparison HTML verified with actual MP4 in isolated Edge: crop,
+old/corrected states, seek and mobile PASS;50 clock/video checks PASS. Main intact.
+
 Latest user-authorized rewrite: LEARNED_PHASE_RESULTS_20261018.md. Independent
 automatic count models failed and stay separate. New calibrated model uses
 first-half operator marks; second-half same-session holdout improves7/13 to11/13

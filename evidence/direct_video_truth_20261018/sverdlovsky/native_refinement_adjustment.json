@@ -1,0 +1,12 @@
+{
+  "reason": "Validation proposal4 starts after green countdown is already visible. LED dark frames are not a new onset. Capture earlier native window based on video-only previous red and countdown.",
+  "old_path": "validation_native/green_04",
+  "new_path": "validation_native_recheck/green_04",
+  "range_s": [
+    3118.5,
+    3120.5
+  ],
+  "additional_native_frames_max": 70,
+  "model_predictions_consulted": false,
+  "budget_deviation": "one additional 2s window for an unresolved observation"
+}

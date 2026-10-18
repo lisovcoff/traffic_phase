@@ -1,0 +1,129 @@
+{
+  "site": "sverdlovsky",
+  "source_frames": ".web_runtime/direct_video_truth_20261018/sverdlovsky/calibration",
+  "rule": "green>=8px and red<20px; red>=20px and green<20px; 2/3 next frames; UNKNOWN does not change last color",
+  "candidates": [
+    {
+      "kind": "green",
+      "coarse_interval_s": [
+        919.0,
+        919.5
+      ],
+      "row_index": 39,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    },
+    {
+      "kind": "red",
+      "coarse_interval_s": [
+        969.5,
+        970.0
+      ],
+      "row_index": 140,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    },
+    {
+      "kind": "green",
+      "coarse_interval_s": [
+        1019.0,
+        1019.5
+      ],
+      "row_index": 239,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    },
+    {
+      "kind": "red",
+      "coarse_interval_s": [
+        1069.5,
+        1070.0
+      ],
+      "row_index": 340,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    },
+    {
+      "kind": "green",
+      "coarse_interval_s": [
+        1120.6,
+        1121.1
+      ],
+      "row_index": 442,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    },
+    {
+      "kind": "red",
+      "coarse_interval_s": [
+        1169.6,
+        1170.1
+      ],
+      "row_index": 540,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    },
+    {
+      "kind": "green",
+      "coarse_interval_s": [
+        1218.7333333333333,
+        1219.2333333333333
+      ],
+      "row_index": 638,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    },
+    {
+      "kind": "red",
+      "coarse_interval_s": [
+        1269.9,
+        1270.4
+      ],
+      "row_index": 740,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    },
+    {
+      "kind": "green",
+      "coarse_interval_s": [
+        1318.5333333333333,
+        1319.0333333333333
+      ],
+      "row_index": 837,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    },
+    {
+      "kind": "red",
+      "coarse_interval_s": [
+        1369.9333333333334,
+        1370.4333333333334
+      ],
+      "row_index": 939,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    },
+    {
+      "kind": "green",
+      "coarse_interval_s": [
+        1418.9666666666667,
+        1419.4666666666667
+      ],
+      "row_index": 1037,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    },
+    {
+      "kind": "red",
+      "coarse_interval_s": [
+        1469.6,
+        1470.1
+      ],
+      "row_index": 1138,
+      "requires_native_refinement": true,
+      "requires_visual_review": true
+    }
+  ],
+  "video_only": true,
+  "reviewed_truth": false
+}

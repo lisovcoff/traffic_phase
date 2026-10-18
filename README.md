@@ -1,5 +1,11 @@
 # traffic_phase
 
+Direct video check: [clock readouts, native frames and conditional delay](docs/DIRECT_VIDEO_TRUTH_RESULTS_20261018.md).
+Open `evidence/direct_video_truth_20261018/visible_head_comparison.html` and select
+the Sverdlovsky MP4 to compare the visible head and before/after timing proposals.
+No server/upload needed. These proposals remain separate from the app pending
+independent JSON/video clock and cardinal-head confirmation.
+
 2026-10-18: [new calibrated model and real-data results](docs/LEARNED_PHASE_RESULTS_20261018.md).
 Run `START_WEB.cmd`, then open http://127.0.0.1:8017/visualization/learned.
 Choose the intersection and upload JSON/ZIP; prediction needs no annotation file.

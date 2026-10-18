@@ -1,0 +1,189 @@
+{
+  "source_prediction_sha256": "dce3a8db3b81dc5011aaf374e88ae4d0fbf196d7e7dc203c95800c1bb3172887",
+  "truth_sha256": {
+    "green": "3c56310e5ba7fd6ca2f47da090388983009fc867cd5c21a1f6afcde48f2910f6",
+    "red": "73923de4b2289a2edcb29c7698a830e4f8b124fc4aebc236cee9875fbdbbd33a"
+  },
+  "fitting_scope_video_pts_s": [
+    900,
+    1500
+  ],
+  "test_scope_video_pts_s": [
+    2700,
+    3300
+  ],
+  "candidates": {
+    "green": {
+      "bias_s": 3.8976666666666233,
+      "calibration_pairs": [
+        {
+          "index": 0,
+          "predicted_s": 922.906,
+          "truth_s": [
+            918.7333333333333,
+            919.0666666666667
+          ],
+          "signed_error_s": 4.005999999999858,
+          "error_interval_s": [
+            3.8393333333332293,
+            4.172666666666601
+          ]
+        },
+        {
+          "index": 1,
+          "predicted_s": 1022.906,
+          "truth_s": [
+            1019.0,
+            1019.0333333333333
+          ],
+          "signed_error_s": 3.8893333333332976,
+          "error_interval_s": [
+            3.872666666666646,
+            3.905999999999949
+          ]
+        },
+        {
+          "index": 2,
+          "predicted_s": 1122.906,
+          "truth_s": [
+            1119.0,
+            1119.0333333333333
+          ],
+          "signed_error_s": 3.8893333333332976,
+          "error_interval_s": [
+            3.872666666666646,
+            3.905999999999949
+          ]
+        },
+        {
+          "index": 3,
+          "predicted_s": 1222.906,
+          "truth_s": [
+            1218.9666666666667,
+            1219.0
+          ],
+          "signed_error_s": 3.9226666666666006,
+          "error_interval_s": [
+            3.905999999999949,
+            3.939333333333252
+          ]
+        },
+        {
+          "index": 4,
+          "predicted_s": 1322.906,
+          "truth_s": [
+            1319.0,
+            1319.0333333333333
+          ],
+          "signed_error_s": 3.8893333333332976,
+          "error_interval_s": [
+            3.872666666666646,
+            3.905999999999949
+          ]
+        },
+        {
+          "index": 5,
+          "predicted_s": 1422.906,
+          "truth_s": [
+            1418.9666666666667,
+            1419.0333333333333
+          ],
+          "signed_error_s": 3.905999999999949,
+          "error_interval_s": [
+            3.872666666666646,
+            3.939333333333252
+          ]
+        }
+      ],
+      "median_absolute_deviation_s": 0.008333333333325754,
+      "fitting_rule": "median signed midpoint error on calibration window only",
+      "production_enabled": false,
+      "clock_mapping_verified": false,
+      "interpretation": "combined apparent model bias and assumed video/JSON clock offset; not isolated physical algorithm latency"
+    },
+    "red": {
+      "bias_s": 4.939333333333252,
+      "calibration_pairs": [
+        {
+          "index": 0,
+          "predicted_s": 974.906,
+          "truth_s": [
+            969.9333333333333,
+            969.9666666666667
+          ],
+          "signed_error_s": 4.955999999999904,
+          "error_interval_s": [
+            4.939333333333252,
+            4.972666666666669
+          ]
+        },
+        {
+          "index": 1,
+          "predicted_s": 1074.906,
+          "truth_s": [
+            1069.9333333333334,
+            1069.9666666666667
+          ],
+          "signed_error_s": 4.955999999999904,
+          "error_interval_s": [
+            4.939333333333252,
+            4.972666666666555
+          ]
+        },
+        {
+          "index": 2,
+          "predicted_s": 1174.906,
+          "truth_s": [
+            1169.9333333333334,
+            1170.0
+          ],
+          "signed_error_s": 4.939333333333252,
+          "error_interval_s": [
+            4.905999999999949,
+            4.972666666666555
+          ]
+        },
+        {
+          "index": 4,
+          "predicted_s": 1374.906,
+          "truth_s": [
+            1369.9666666666667,
+            1370.0
+          ],
+          "signed_error_s": 4.922666666666601,
+          "error_interval_s": [
+            4.905999999999949,
+            4.939333333333252
+          ]
+        },
+        {
+          "index": 5,
+          "predicted_s": 1474.906,
+          "truth_s": [
+            1469.9333333333334,
+            1470.0
+          ],
+          "signed_error_s": 4.939333333333252,
+          "error_interval_s": [
+            4.905999999999949,
+            4.972666666666555
+          ]
+        }
+      ],
+      "median_absolute_deviation_s": 0.01666666666665151,
+      "fitting_rule": "median signed midpoint error on calibration window only",
+      "production_enabled": false,
+      "clock_mapping_verified": false,
+      "interpretation": "combined apparent model bias and assumed video/JSON clock offset; not isolated physical algorithm latency"
+    }
+  },
+  "nominal_video_epoch_ms": 1740632395000.0,
+  "assumptions": [
+    "visible H1 corresponds to N main based on previous local movement review",
+    "JSON clock equals camera overlay epoch plus media PTS; NOT independently verified",
+    "constant onset-specific bias transfers across this recording"
+  ],
+  "prior_diagnostics": "Baseline green and red test-window errors were printed before candidate serialization; no test-dependent fitting rule or parameter change.",
+  "production_enabled": false,
+  "physical_lamp_accuracy_proven": false
+}
