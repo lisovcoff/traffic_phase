@@ -1,5 +1,12 @@
 # traffic_phase
 
+2026-10-19: [independent four-car clock check and N-main calibration](docs/CARDINAL_CLOCK_LINK_RESULTS_20261019.md).
+Open `evidence/cardinal_clock_link_20261018/visible_head_comparison.html`, select
+the Sverdlovsky MP4 and compare before/after. Supported JSON clock delta1.254s;
+source-time green/red corrections2.644/3.685s. Main-only export, separate from
+production profiles. Enthusiasts clock remains unresolved; concrete car review:
+`evidence/cardinal_clock_link_20261018/enthusiasts_identity_review/index.html`.
+
 Direct video check: [clock readouts, native frames and conditional delay](docs/DIRECT_VIDEO_TRUTH_RESULTS_20261018.md).
 Open `evidence/direct_video_truth_20261018/visible_head_comparison.html` and select
 the Sverdlovsky MP4 to compare the visible head and before/after timing proposals.

@@ -1,0 +1,361 @@
+{
+  "results": {
+    "green": {
+      "before": {
+        "truth_onsets": 6,
+        "predicted_onsets": 6,
+        "paired_onsets": 6,
+        "missed_truth": 0,
+        "unpaired_predictions": 0,
+        "mean_signed_midpoint_error_s": 2.4660508726751686,
+        "mean_absolute_midpoint_error_s": 2.4660508726751686,
+        "mean_distance_to_truth_bracket_s": 2.2077175393418806,
+        "within_0_5s_of_bracket": 1,
+        "within_2s_of_bracket": 1,
+        "pairs": [
+          {
+            "index": 0,
+            "predicted_s": 2721.6521619837863,
+            "truth_s": [
+              2719.0,
+              2719.1
+            ],
+            "signed_error_s": 2.602161983786118,
+            "error_interval_s": [
+              2.552161983786391,
+              2.6521619837863
+            ]
+          },
+          {
+            "index": 1,
+            "predicted_s": 2821.6521619837863,
+            "truth_s": [
+              2818.9666666666667,
+              2819.0666666666666
+            ],
+            "signed_error_s": 2.635495317119876,
+            "error_interval_s": [
+              2.585495317119694,
+              2.685495317119603
+            ]
+          },
+          {
+            "index": 2,
+            "predicted_s": 2921.6521619837863,
+            "truth_s": [
+              2918.8333333333335,
+              2919.1
+            ],
+            "signed_error_s": 2.685495317119603,
+            "error_interval_s": [
+              2.552161983786391,
+              2.818828650452815
+            ]
+          },
+          {
+            "index": 3,
+            "predicted_s": 3021.6521619837863,
+            "truth_s": [
+              3019.0,
+              3019.0666666666666
+            ],
+            "signed_error_s": 2.618828650452997,
+            "error_interval_s": [
+              2.585495317119694,
+              2.6521619837863
+            ]
+          },
+          {
+            "index": 4,
+            "predicted_s": 3121.6521619837863,
+            "truth_s": [
+              3118.8,
+              3121.266666666667
+            ],
+            "signed_error_s": 1.6188286504525422,
+            "error_interval_s": [
+              0.3854953171194211,
+              2.852161983786118
+            ]
+          },
+          {
+            "index": 5,
+            "predicted_s": 3221.6521619837863,
+            "truth_s": [
+              3218.9666666666667,
+              3219.0666666666666
+            ],
+            "signed_error_s": 2.635495317119876,
+            "error_interval_s": [
+              2.585495317119694,
+              2.685495317119603
+            ]
+          }
+        ],
+        "physical_clock_uncertainty_included": false
+      },
+      "after": {
+        "truth_onsets": 6,
+        "predicted_onsets": 6,
+        "paired_onsets": 6,
+        "missed_truth": 0,
+        "unpaired_predictions": 0,
+        "mean_signed_midpoint_error_s": -0.1777777777774645,
+        "mean_absolute_midpoint_error_s": 0.19166666666645446,
+        "mean_distance_to_truth_bracket_s": 0.0,
+        "within_0_5s_of_bracket": 6,
+        "within_2s_of_bracket": 6,
+        "pairs": [
+          {
+            "index": 0,
+            "predicted_s": 2719.0083333333337,
+            "truth_s": [
+              2719.0,
+              2719.1
+            ],
+            "signed_error_s": -0.041666666666515084,
+            "error_interval_s": [
+              -0.09166666666624224,
+              0.008333333333666815
+            ]
+          },
+          {
+            "index": 1,
+            "predicted_s": 2819.0083333333337,
+            "truth_s": [
+              2818.9666666666667,
+              2819.0666666666666
+            ],
+            "signed_error_s": -0.00833333333275732,
+            "error_interval_s": [
+              -0.05833333333293922,
+              0.04166666666696983
+            ]
+          },
+          {
+            "index": 2,
+            "predicted_s": 2919.0083333333337,
+            "truth_s": [
+              2918.8333333333335,
+              2919.1
+            ],
+            "signed_error_s": 0.04166666666696983,
+            "error_interval_s": [
+              -0.09166666666624224,
+              0.1750000000001819
+            ]
+          },
+          {
+            "index": 3,
+            "predicted_s": 3019.0083333333337,
+            "truth_s": [
+              3019.0,
+              3019.0666666666666
+            ],
+            "signed_error_s": -0.024999999999636202,
+            "error_interval_s": [
+              -0.05833333333293922,
+              0.008333333333666815
+            ]
+          },
+          {
+            "index": 4,
+            "predicted_s": 3119.0083333333337,
+            "truth_s": [
+              3118.8,
+              3121.266666666667
+            ],
+            "signed_error_s": -1.025000000000091,
+            "error_interval_s": [
+              -2.258333333333212,
+              0.20833333333348492
+            ]
+          },
+          {
+            "index": 5,
+            "predicted_s": 3219.0083333333337,
+            "truth_s": [
+              3218.9666666666667,
+              3219.0666666666666
+            ],
+            "signed_error_s": -0.00833333333275732,
+            "error_interval_s": [
+              -0.05833333333293922,
+              0.04166666666696983
+            ]
+          }
+        ],
+        "physical_clock_uncertainty_included": false
+      },
+      "unresolved_cycles": 0
+    },
+    "red": {
+      "before": {
+        "truth_onsets": 5,
+        "predicted_onsets": 6,
+        "paired_onsets": 5,
+        "missed_truth": 0,
+        "unpaired_predictions": 1,
+        "mean_signed_midpoint_error_s": 3.632161983786318,
+        "mean_absolute_midpoint_error_s": 3.632161983786318,
+        "mean_distance_to_truth_bracket_s": 3.6121619837863364,
+        "within_0_5s_of_bracket": 0,
+        "within_2s_of_bracket": 0,
+        "pairs": [
+          {
+            "index": 0,
+            "predicted_s": 2773.6521619837863,
+            "truth_s": [
+              2770.0,
+              2770.0333333333333
+            ],
+            "signed_error_s": 3.635495317119876,
+            "error_interval_s": [
+              3.618828650452997,
+              3.6521619837863
+            ]
+          },
+          {
+            "index": 1,
+            "predicted_s": 2873.6521619837863,
+            "truth_s": [
+              2870.0,
+              2870.0333333333333
+            ],
+            "signed_error_s": 3.635495317119876,
+            "error_interval_s": [
+              3.618828650452997,
+              3.6521619837863
+            ]
+          },
+          {
+            "index": 2,
+            "predicted_s": 2973.6521619837863,
+            "truth_s": [
+              2969.9666666666667,
+              2970.0
+            ],
+            "signed_error_s": 3.668828650452724,
+            "error_interval_s": [
+              3.6521619837863,
+              3.685495317119603
+            ]
+          },
+          {
+            "index": 3,
+            "predicted_s": 3073.6521619837863,
+            "truth_s": [
+              3070.0333333333333,
+              3070.0666666666666
+            ],
+            "signed_error_s": 3.602161983786118,
+            "error_interval_s": [
+              3.585495317119694,
+              3.618828650452997
+            ]
+          },
+          {
+            "index": 4,
+            "predicted_s": 3173.6521619837863,
+            "truth_s": [
+              3170.0,
+              3170.0666666666666
+            ],
+            "signed_error_s": 3.618828650452997,
+            "error_interval_s": [
+              3.585495317119694,
+              3.6521619837863
+            ]
+          }
+        ],
+        "physical_clock_uncertainty_included": false
+      },
+      "after": {
+        "truth_onsets": 5,
+        "predicted_onsets": 6,
+        "paired_onsets": 5,
+        "missed_truth": 0,
+        "unpaired_predictions": 1,
+        "mean_signed_midpoint_error_s": -0.05333333333328483,
+        "mean_absolute_midpoint_error_s": 0.05333333333328483,
+        "mean_distance_to_truth_bracket_s": 0.03333333333330302,
+        "within_0_5s_of_bracket": 5,
+        "within_2s_of_bracket": 5,
+        "pairs": [
+          {
+            "index": 0,
+            "predicted_s": 2769.9666666666667,
+            "truth_s": [
+              2770.0,
+              2770.0333333333333
+            ],
+            "signed_error_s": -0.04999999999972715,
+            "error_interval_s": [
+              -0.06666666666660603,
+              -0.03333333333330302
+            ]
+          },
+          {
+            "index": 1,
+            "predicted_s": 2869.9666666666667,
+            "truth_s": [
+              2870.0,
+              2870.0333333333333
+            ],
+            "signed_error_s": -0.04999999999972715,
+            "error_interval_s": [
+              -0.06666666666660603,
+              -0.03333333333330302
+            ]
+          },
+          {
+            "index": 2,
+            "predicted_s": 2969.9666666666667,
+            "truth_s": [
+              2969.9666666666667,
+              2970.0
+            ],
+            "signed_error_s": -0.016666666666878882,
+            "error_interval_s": [
+              -0.03333333333330302,
+              0.0
+            ]
+          },
+          {
+            "index": 3,
+            "predicted_s": 3069.9666666666667,
+            "truth_s": [
+              3070.0333333333333,
+              3070.0666666666666
+            ],
+            "signed_error_s": -0.08333333333348492,
+            "error_interval_s": [
+              -0.09999999999990905,
+              -0.06666666666660603
+            ]
+          },
+          {
+            "index": 4,
+            "predicted_s": 3169.9666666666667,
+            "truth_s": [
+              3170.0,
+              3170.0666666666666
+            ],
+            "signed_error_s": -0.06666666666660603,
+            "error_interval_s": [
+              -0.09999999999990905,
+              -0.03333333333330302
+            ]
+          }
+        ],
+        "physical_clock_uncertainty_included": false
+      },
+      "unresolved_cycles": 1
+    }
+  },
+  "clock_support": "four fresh moving cars; fixed H and delta; no phase-based alignment",
+  "clock_uncertainty_in_scalar_metrics": false,
+  "conditional_envelope_in_mapped_truth": true,
+  "physical_precision_claimed": false,
+  "unpaired_red": "unresolved video cycle, not an established false positive"
+}

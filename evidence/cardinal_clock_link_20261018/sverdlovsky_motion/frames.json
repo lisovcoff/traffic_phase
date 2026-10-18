@@ -1,0 +1,156 @@
+{
+  "cases": [
+    {
+      "track_id_hypothesis": 9917625,
+      "roi_xywh": [
+        1720,
+        700,
+        560,
+        350
+      ],
+      "frames": [
+        {
+          "file": "sverdlovsky_motion/900/frame_01.png",
+          "pts_s": 899.5,
+          "pts_ticks": 80955000,
+          "sha256": "d830bd3a412c31e243e45931e235fb6b194fc7c9e62f715f2b8e4b356c529269"
+        },
+        {
+          "file": "sverdlovsky_motion/900/frame_02.png",
+          "pts_s": 900.0,
+          "pts_ticks": 81000000,
+          "sha256": "ac00d95958b980ca47f5b957fe88a4b626fef0916bb05725de4aa8a0e48db046"
+        },
+        {
+          "file": "sverdlovsky_motion/900/frame_03.png",
+          "pts_s": 900.5,
+          "pts_ticks": 81045000,
+          "sha256": "d596651bf1ccca7b1994044e3df0d4e3efb6a8cbff268a7f8b503c8e75ec9b7a"
+        }
+      ],
+      "command": [
+        "ffmpeg",
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel",
+        "info",
+        "-copyts",
+        "-ss",
+        "899.5",
+        "-t",
+        "1.1",
+        "-i",
+        "C:\\Users\\sheld\\Downloads\\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4",
+        "-vf",
+        "crop=560:350:1720:700,trim=start=899.5:end=900.6,select='isnan(prev_selected_t)+gte(t-prev_selected_t,0.5)',showinfo",
+        "-frames:v",
+        "3",
+        "-fps_mode",
+        "passthrough",
+        "D:\\Code\\PythonProjects\\traffic_phase\\audit_checkout\\evidence\\cardinal_clock_link_20261018\\sverdlovsky_motion\\900\\frame_%02d.png"
+      ]
+    },
+    {
+      "track_id_hypothesis": 9919993,
+      "roi_xywh": [
+        1640,
+        650,
+        560,
+        350
+      ],
+      "frames": [
+        {
+          "file": "sverdlovsky_motion/1800/frame_01.png",
+          "pts_s": 1799.5,
+          "pts_ticks": 161955000,
+          "sha256": "4d9c90ebe59c2b3acd1b38347f7b85124440906c005a53dc4ba4cb1754c88d62"
+        },
+        {
+          "file": "sverdlovsky_motion/1800/frame_02.png",
+          "pts_s": 1800.0,
+          "pts_ticks": 162000000,
+          "sha256": "bc4e12a81c49d9c5af8249baa254b30b7f1d1dd18a671b5dcabe95856307dc8b"
+        },
+        {
+          "file": "sverdlovsky_motion/1800/frame_03.png",
+          "pts_s": 1800.5,
+          "pts_ticks": 162045000,
+          "sha256": "f415275cb167604c6deca18d57c494e78bcaccfd8a5dec21773a48a3b53afddc"
+        }
+      ],
+      "command": [
+        "ffmpeg",
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel",
+        "info",
+        "-copyts",
+        "-ss",
+        "1799.5",
+        "-t",
+        "1.1",
+        "-i",
+        "C:\\Users\\sheld\\Downloads\\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4",
+        "-vf",
+        "crop=560:350:1640:650,trim=start=1799.5:end=1800.6,select='isnan(prev_selected_t)+gte(t-prev_selected_t,0.5)',showinfo",
+        "-frames:v",
+        "3",
+        "-fps_mode",
+        "passthrough",
+        "D:\\Code\\PythonProjects\\traffic_phase\\audit_checkout\\evidence\\cardinal_clock_link_20261018\\sverdlovsky_motion\\1800\\frame_%02d.png"
+      ]
+    },
+    {
+      "track_id_hypothesis": 9922632,
+      "roi_xywh": [
+        1330,
+        550,
+        560,
+        350
+      ],
+      "frames": [
+        {
+          "file": "sverdlovsky_motion/2700/frame_01.png",
+          "pts_s": 2699.5,
+          "pts_ticks": 242955000,
+          "sha256": "4d7fec2a3126d1d9ec0402d06243ff51a9db4a68b3df4ea183a0cbc2d14d15e8"
+        },
+        {
+          "file": "sverdlovsky_motion/2700/frame_02.png",
+          "pts_s": 2700.0333333333333,
+          "pts_ticks": 243003000,
+          "sha256": "b1dfaf299842043ba8c50006d49edc2c463a17dba9a95b8aed84b87490e59c65"
+        },
+        {
+          "file": "sverdlovsky_motion/2700/frame_03.png",
+          "pts_s": 2700.5333333333333,
+          "pts_ticks": 243048000,
+          "sha256": "cc692754635d2f0c5be2b86f5d515439b4cb7cb80f339061562fdcaec4dcb500"
+        }
+      ],
+      "command": [
+        "ffmpeg",
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel",
+        "info",
+        "-copyts",
+        "-ss",
+        "2699.5",
+        "-t",
+        "1.1",
+        "-i",
+        "C:\\Users\\sheld\\Downloads\\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4",
+        "-vf",
+        "crop=560:350:1330:550,trim=start=2699.5:end=2700.6,select='isnan(prev_selected_t)+gte(t-prev_selected_t,0.5)',showinfo",
+        "-frames:v",
+        "3",
+        "-fps_mode",
+        "passthrough",
+        "D:\\Code\\PythonProjects\\traffic_phase\\audit_checkout\\evidence\\cardinal_clock_link_20261018\\sverdlovsky_motion\\2700\\frame_%02d.png"
+      ]
+    }
+  ],
+  "clock_refit": false,
+  "identities_not_yet_confirmed": true
+}

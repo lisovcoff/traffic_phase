@@ -1,0 +1,41 @@
+{
+  "candidates": {
+    "green": {
+      "bias_s": 2.6438286504528,
+      "conditional_bias_range_s": [
+        2.5291599401961093,
+        2.7707648009143213
+      ],
+      "rule": "Same frozen calibration-only median rule, converted to independently supported JSON clock. No refit or new test optimization.",
+      "population": "this session and visible N main only",
+      "production_enabled": false
+    },
+    "red": {
+      "bias_s": 3.685495317119429,
+      "conditional_bias_range_s": [
+        3.570826606862738,
+        3.81243146758095
+      ],
+      "rule": "Same frozen calibration-only median rule, converted to independently supported JSON clock. No refit or new test optimization.",
+      "population": "this session and visible N main only",
+      "production_enabled": false
+    }
+  },
+  "source_prediction_sha256": "dce3a8db3b81dc5011aaf374e88ae4d0fbf196d7e7dc203c95800c1bb3172887",
+  "previous_calibration_sha256": "7e814b9b82697bbd220889a4cbe99f8321265208814a787ef60a42b43c4d1c50",
+  "clock_delta_s": 1.253838016213823,
+  "clock_bounds_semantics": "conditional on fixed geometry, manual identity/feature and50px allowance; not an absolute hardware-clock certificate",
+  "calibration_video_pts_s": [
+    900,
+    1500
+  ],
+  "validation_video_pts_s": [
+    2700,
+    3300
+  ],
+  "validation_previously_inspected": true,
+  "independent_new_holdout_claimed": false,
+  "complete_phase_plan_calibrated": false,
+  "observed_lamps_not_replaced": true,
+  "production_enabled": false
+}

@@ -1,0 +1,47 @@
+{
+  "track_id_hypothesis": 9924578,
+  "roi_xywh": [
+    1810,
+    660,
+    560,
+    350
+  ],
+  "frames": [
+    {
+      "file": "sverdlovsky_late_control/motion/frame_01.png",
+      "pts_s": 3299.5,
+      "sha256": "9d90ba64354a17753f7b3b28c1c380a4da0858d153ba7248b8f6b0759bfb2d9c"
+    },
+    {
+      "file": "sverdlovsky_late_control/motion/frame_02.png",
+      "pts_s": 3300.0,
+      "sha256": "9c84a9a5338fe07cdbefe14cd61f87b83d5d006940d9e3ad22ff16292193c8a1"
+    },
+    {
+      "file": "sverdlovsky_late_control/motion/frame_03.png",
+      "pts_s": 3300.5,
+      "sha256": "ff8b5f4b68f342fa54932b3c5f4ac6e8d5baa4e1892d7732a522dfca8923dc96"
+    }
+  ],
+  "command": [
+    "ffmpeg",
+    "-nostdin",
+    "-hide_banner",
+    "-loglevel",
+    "info",
+    "-copyts",
+    "-ss",
+    "3299.5",
+    "-t",
+    "1.1",
+    "-i",
+    "C:\\Users\\sheld\\Downloads\\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4",
+    "-vf",
+    "crop=560:350:1810:660,trim=start=3299.5:end=3300.6,select='isnan(prev_selected_t)+gte(t-prev_selected_t,0.5)',showinfo",
+    "-frames:v",
+    "3",
+    "-fps_mode",
+    "passthrough",
+    "D:\\Code\\PythonProjects\\traffic_phase\\audit_checkout\\evidence\\cardinal_clock_link_20261018\\sverdlovsky_late_control\\motion\\frame_%02d.png"
+  ]
+}

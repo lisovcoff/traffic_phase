@@ -15,6 +15,19 @@ benchmarks/learned_profile_20261018/** -text -whitespace
 benchmarks/learned_clock_fixed_20261018/** -text -whitespace
 evidence/learned*_20261018/** -text -whitespace
 evidence/direct_video_truth_20261018/** -text -whitespace
+evidence/cardinal_clock_link_20261018/** -text -whitespace
+scripts/cardinal_clock_link.py -text
+scripts/build_cardinal_clock_review.py -text
+scripts/collect_sverdlovsky_vehicle_motion.py -text
+scripts/score_sverdlovsky_frozen_clock.py -text
+scripts/collect_late_clock_control.py -text
+scripts/score_late_clock_control.py -text
+scripts/build_clock_aware_video_review.py -text
+scripts/qa_clock_aware_video_review.py -text
+scripts/build_enthusiasts_identity_review.py -text
+scripts/verify_cardinal_clock_link.py -text
+app/experimental/video_clock_mapping.py -text
+tests/test_video_clock_mapping.py -text
 config/learned_profiles/*.json -text
 evidence/count*_20261018*/** -text -whitespace
 

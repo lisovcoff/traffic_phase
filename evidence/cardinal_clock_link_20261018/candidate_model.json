@@ -1,0 +1,261 @@
+{
+  "schema": "vehicle-clock-diagnostic-v1",
+  "origin_ms": 1740300628994,
+  "homography": [
+    [
+      1.5220037444713972,
+      -1.6738995708694908,
+      0.39230368207189403
+    ],
+    [
+      0.9452393073682069,
+      -1.3126686362766582,
+      0.5477772987533519
+    ],
+    [
+      1.4840581974503348,
+      -2.2310489456280194,
+      1.0
+    ]
+  ],
+  "delta_s": 0.40900005355337565,
+  "declared_delta_bounds_s": [
+    -5,
+    5
+  ],
+  "common_observed_delta_bounds_s": [
+    -1.0,
+    0.5190000000000001
+  ],
+  "training_ids": [
+    2,
+    6,
+    7
+  ],
+  "heldout_id": 36,
+  "training_image_points": [
+    {
+      "track_id": 2,
+      "actual_media_pts_s": 13.0,
+      "bbox_native_px": [
+        765,
+        826,
+        944,
+        957
+      ],
+      "image_point_px": [
+        854.5,
+        924.25
+      ],
+      "source_native_file": ".web_runtime\\enthusiasts_car_registration_20261018\\fine_13.png",
+      "source_native_sha256": "796f6f1b1546b8dd9766b5cb3f0c29bf8dea3743bf1d5e963f95e6a4ee883b82",
+      "identity": "PROVISIONAL_SEQUENCE_CANDIDATE"
+    },
+    {
+      "track_id": 2,
+      "actual_media_pts_s": 13.5,
+      "bbox_native_px": [
+        895,
+        890,
+        1098,
+        1040
+      ],
+      "image_point_px": [
+        996.5,
+        1002.5
+      ],
+      "source_native_file": ".web_runtime\\enthusiasts_car_registration_20261018\\fine_13_5.png",
+      "source_native_sha256": "dcfc6febcf7407900e66f2df88fda16404025153080379367b8d36ebb2f1f721",
+      "identity": "PROVISIONAL_SEQUENCE_CANDIDATE"
+    },
+    {
+      "track_id": 6,
+      "actual_media_pts_s": 13.0,
+      "bbox_native_px": [
+        750,
+        750,
+        880,
+        818
+      ],
+      "image_point_px": [
+        815.0,
+        801.0
+      ],
+      "source_native_file": ".web_runtime\\enthusiasts_car_registration_20261018\\fine_13.png",
+      "source_native_sha256": "796f6f1b1546b8dd9766b5cb3f0c29bf8dea3743bf1d5e963f95e6a4ee883b82",
+      "identity": "PROVISIONAL_SEQUENCE_CANDIDATE"
+    },
+    {
+      "track_id": 6,
+      "actual_media_pts_s": 13.5,
+      "bbox_native_px": [
+        815,
+        770,
+        950,
+        855
+      ],
+      "image_point_px": [
+        882.5,
+        833.75
+      ],
+      "source_native_file": ".web_runtime\\enthusiasts_car_registration_20261018\\fine_13_5.png",
+      "source_native_sha256": "dcfc6febcf7407900e66f2df88fda16404025153080379367b8d36ebb2f1f721",
+      "identity": "PROVISIONAL_SEQUENCE_CANDIDATE"
+    },
+    {
+      "track_id": 6,
+      "actual_media_pts_s": 14.0,
+      "bbox_native_px": [
+        896,
+        805,
+        1050,
+        888
+      ],
+      "image_point_px": [
+        973.0,
+        867.25
+      ],
+      "source_native_file": ".web_runtime\\enthusiasts_car_registration_20261018\\00014.png",
+      "source_native_sha256": "ff3d05e2f88cb3d1fa3de877dca142495c183ca524b592a8247fd0b59f2af754",
+      "identity": "PROVISIONAL_SEQUENCE_CANDIDATE"
+    },
+    {
+      "track_id": 6,
+      "actual_media_pts_s": 15.0,
+      "bbox_native_px": [
+        1130,
+        902,
+        1340,
+        1016
+      ],
+      "image_point_px": [
+        1235.0,
+        987.5
+      ],
+      "source_native_file": ".web_runtime\\enthusiasts_car_registration_20261018\\fine_15.png",
+      "source_native_sha256": "d4551d4dcd62a58f03a46196d22b385fc72610e2ef3401d4e93a6744966f3ef6",
+      "identity": "PROVISIONAL_SEQUENCE_CANDIDATE"
+    },
+    {
+      "track_id": 7,
+      "actual_media_pts_s": 13.0,
+      "bbox_native_px": [
+        1985,
+        882,
+        2097,
+        977
+      ],
+      "image_point_px": [
+        2041.0,
+        953.25
+      ],
+      "native_sha256": "796f6f1b1546b8dd9766b5cb3f0c29bf8dea3743bf1d5e963f95e6a4ee883b82",
+      "source_native_file": ".web_runtime\\enthusiasts_car_registration_20261018\\fine_13.png",
+      "identity_status": "independently annotated candidate car sequence; not producer-certified"
+    },
+    {
+      "track_id": 7,
+      "actual_media_pts_s": 15.0,
+      "bbox_native_px": [
+        1745,
+        843,
+        1915,
+        932
+      ],
+      "image_point_px": [
+        1830.0,
+        909.75
+      ],
+      "native_sha256": "d4551d4dcd62a58f03a46196d22b385fc72610e2ef3401d4e93a6744966f3ef6",
+      "source_native_file": ".web_runtime\\enthusiasts_car_registration_20261018\\fine_15.png",
+      "identity_status": "independently annotated candidate car sequence; not producer-certified"
+    },
+    {
+      "track_id": 7,
+      "actual_media_pts_s": 17.0,
+      "bbox_native_px": [
+        1673,
+        835,
+        1840,
+        922
+      ],
+      "image_point_px": [
+        1756.5,
+        900.25
+      ],
+      "native_sha256": "14db670c4e3f20c5ec5cca8b06339ede78a9cb49595a4a5cadc63f914d3ccced",
+      "source_native_file": ".web_runtime\\enthusiasts_car_registration_20261018\\fine_17.png",
+      "identity_status": "independently annotated candidate car sequence; not producer-certified"
+    },
+    {
+      "track_id": 7,
+      "actual_media_pts_s": 24.0,
+      "bbox_native_px": [
+        1610,
+        825,
+        1790,
+        918
+      ],
+      "image_point_px": [
+        1700.0,
+        894.75
+      ],
+      "native_sha256": "10d3a2c91397f888a8540312924d3019fbec118cab250d71c84cd98c964f8be0",
+      "source_native_file": ".web_runtime\\enthusiasts_car_registration_20261018\\00024.png",
+      "identity_status": "independently annotated candidate car sequence; not producer-certified"
+    },
+    {
+      "track_id": 7,
+      "actual_media_pts_s": 28.0,
+      "bbox_native_px": [
+        1585,
+        824,
+        1755,
+        915
+      ],
+      "image_point_px": [
+        1670.0,
+        892.25
+      ],
+      "native_sha256": "1c017c2e9967c23c6e2a57104607b42aae82bdc69141ee50058071386999f110",
+      "source_native_file": ".web_runtime\\enthusiasts_car_registration_20261018\\00028.png",
+      "identity_status": "independently annotated candidate car sequence; not producer-certified"
+    }
+  ],
+  "training_errors_px": [
+    13.031987364096336,
+    19.098526514126025,
+    54.904661041175736,
+    20.073160671155506,
+    27.81107217067087,
+    110.31582317492617,
+    133.47887177346146,
+    37.93137449458814,
+    62.41664095823687,
+    78.99959025484344,
+    39.66081538620417
+  ],
+  "training_max_error_px": 133.47887177346146,
+  "training_rmse_px": 65.96157804365083,
+  "scaled_jacobian_singular_values": [
+    2.335715349575858,
+    1.7535252347181765,
+    0.6049778434203879,
+    0.23618143373681147,
+    0.15056230966680473,
+    0.12421587012123753,
+    0.09232481762511509,
+    0.034232130932994,
+    0.002982292880248081
+  ],
+  "jacobian_rank": 9,
+  "optimizer_success": true,
+  "optimizer_message": "`ftol` termination condition is satisfied.",
+  "limit_active": false,
+  "nfev": 37,
+  "runtime_s": 1.2660000000032596,
+  "calibrated_sync_uncertainty_ms": null,
+  "sync_certified": false,
+  "phase_labels_used": false,
+  "production_usable": false
+}

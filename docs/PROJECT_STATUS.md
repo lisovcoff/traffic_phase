@@ -1,4 +1,22 @@
-# Project status — 2D.1, 2026-10-18
+# Project status — 2D.1, 2026-10-19
+
+Latest update: CARDINAL_CLOCK_LINK_RESULTS_20261019.md. User corrects the
+Sverdlovsky arrow to N->E both in video and JSON; earlier relative turn reply
+superseded, no global E/W swap. Enthusiasts visible head serves E, main E/W
+synchronized per user (W not independently observed). Four fresh moving cars
+at15/30/45/55min support unchanged Sverdlovsky H/delta1.253838s, errors max
+10.59/13.32/33.89/18.59px under declared50px gate. Zero delta fails. Conditional
+intersection1.126902..1.368507s is fixed-geometry/identity/localization allowance,
+not physical device/exposure calibration; no drift fit. Export22 video labels
+to JSON time with both fixed-clock brackets and conditional envelopes. Convert
+the SAME calibration-only onset biases to source time: green2.643829/red3.685495s.
+Previously inspected temporal test retains6/6 green and5/5 clear red within0.5s
+of image brackets; not a new independent holdout. Main-only corrected onset
+export and local-MP4 comparison verified in Edge;57 tests PASS. Core phase model,
+profiles and old evidence unchanged. Enthusiasts one wider geometry fit rejected
+(max133.48px/horizon crossing), no clock accepted. Concrete provisional identity
+review prepared; user asked to review candidate7 movement. No further fit while
+this association remains unresolved. Main/2D.1 remain intact/default-off.
 
 Latest explicit request: DIRECT_VIDEO_TRUTH_RESULTS_20261018.md. Both supplied
 MP4s found. Fresh native bottom-left clocks: Sverdlovsky27.02.2025 09:59:55 at

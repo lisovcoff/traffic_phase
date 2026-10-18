@@ -1,0 +1,100 @@
+{
+  "status": "PASS",
+  "comparisons": {
+    "0.0": {
+      "errors_px": [
+        244.6669325482834,
+        281.34991005167706,
+        308.25687033471667
+      ],
+      "max_error_px": 308.25687033471667,
+      "predicted_px": [
+        [
+          1769.3290763841444,
+          779.0844094056861
+        ],
+        [
+          1850.0179190489912,
+          802.8083072854249
+        ],
+        [
+          1940.6411864951124,
+          828.6079636060889
+        ]
+      ]
+    },
+    "1.253838016213823": {
+      "errors_px": [
+        13.594148559028747,
+        18.590406705910627,
+        5.483265760722729
+      ],
+      "max_error_px": 18.590406705910627,
+      "predicted_px": [
+        [
+          1991.9169973068733,
+          843.5503752206058
+        ],
+        [
+          2102.6047852668185,
+          875.2136807940234
+        ],
+        [
+          2234.76045566781,
+          913.0668353988269
+        ]
+      ]
+    }
+  },
+  "conditional_clock": {
+    "delta_sets_s": [
+      [
+        1.1258240084239333,
+        1.4302029869591024
+      ]
+    ],
+    "per_observation_sets_s": [
+      [
+        [
+          1.0925593617707818,
+          1.5382112771194443
+        ]
+      ],
+      [
+        [
+          1.1258240084239333,
+          1.5126442298796974
+        ]
+      ],
+      [
+        [
+          1.0861130454845807,
+          1.4302029869591024
+        ]
+      ]
+    ],
+    "frozen_candidate_in_set": true,
+    "localization_allowance_px": 50,
+    "homography_frozen": true,
+    "refit": false,
+    "semantics": "conditional feasible set only; supplied pixel allowance; excludes geometry/identity/shutter/clock uncertainty",
+    "calibrated_sync_uncertainty_ms": null
+  },
+  "all_four_car_conditional_delta_intersection_s": [
+    [
+      1.126901865752302,
+      1.368506726470514
+    ]
+  ],
+  "fixed_delta_s": 1.253838016213823,
+  "model_sha256": "3d16051aa68b2621db0f988dea6ac589419c8eeec83bca00d1a49ba6f4b1c4d2",
+  "clock_refit": false,
+  "geometry_refit": false,
+  "late_control_pts_s": [
+    3299.5,
+    3300.0,
+    3300.5
+  ],
+  "bounds_semantics": "conditional on fixed geometry, manual identity/feature and50px allowance; not an absolute hardware-clock certificate",
+  "production_enabled": false
+}
