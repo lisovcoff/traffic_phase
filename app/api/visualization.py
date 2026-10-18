@@ -115,6 +115,10 @@ def _write_visualization_logs(
             }
         )
 
+    estimate = result.get('estimated_signals') or {}
+    if estimate:
+        (run_dir/'estimated_signal_history.json').write_text(json.dumps(estimate,ensure_ascii=False,indent=2),encoding='utf-8')
+    confirmed_topology = estimate.get('topology',{}) if estimate.get('hardware_confirmed') else {}
     query = prepare_logical_query(result)
     anchor = result.get("schedule_base_timestamp_ms")
     display_base = result.get("recording_start_timestamp_ms")
@@ -163,7 +167,8 @@ def _write_visualization_logs(
             }
             logical = query.at(t-history_offset if history_offset is not None else -1)
             row.update(phase=logical.estimated_state, logical_phase=logical.to_dict(),
-                       active_movements=[], heads={a:{"main":"UNKNOWN","arrows":{}} for a in ("N","S","E","W")},
+                       active_movements=[], heads={a:{"main":"UNKNOWN","arrows":{
+                           m:"UNKNOWN" for m in confirmed_topology.get(a,{}).get('arrows',[])}} for a in ("N","S","E","W")},
                        source="common_state_contract", mode="reconstructed",
                        calibrated_lamp_probability=None, cycle_position_s=None,
                        source_phase=logical.observation_support.get("phase_id"),
@@ -200,15 +205,17 @@ def _write_visualization_logs(
         "physical_enabled": bool(physical_plan.get("enabled")),
         "physical_reason": physical_plan.get("reason"),
         "mapping": physical_plan.get("mapping", {}),
+        "estimated_operating_phase_count": estimate.get('operating_phase_count'),
+        "hardware_confirmed_by_operator": estimate.get('hardware_confirmed',False),
         "stages": stages,
-        "files": [
+        "files": ([
             "request.json",
             "v9_result.json",
             "physical_signal_plan_v10.json",
             "signal_timeline_0.1s.jsonl",
             "viewer.html",
             "manifest.json",
-        ],
+        ] + (['estimated_signal_history.json'] if estimate else [])),
     }
     (run_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
@@ -257,15 +264,21 @@ button:disabled{opacity:.45;cursor:default}
 <div class="toolbar">
 <input id="file" name="file" type="file" accept=".json,.zip,application/json,application/zip" required>
 <button class="primary" id="submit" type="submit">Запустить анализ</button>
+<label>Схема перекрёстка <select id="intersection-profile" aria-label="Схема перекрёстка">
+<option value="auto">По имени файла</option>
+<option value="lenina_sverdlovsky">Ленина — Свердловский: допсекции N/E</option>
+<option value="none">Без заданной схемы</option>
+</select></label>
 </div>
 <div id="source-choice" hidden><label>JSON в архиве <select id="source-member" aria-label="JSON в архиве"></select></label></div>
 <div id="session-choice" hidden><label>Сеанс наблюдений <select id="session-id" aria-label="Сеанс наблюдений"></select></label></div>
 </form>
 <div id="status" class="status muted">Выберите JSON или ZIP-архив.</div>
 <div class="note muted">
-По умолчанию цветом показана оценка движений текущей фазы.
-Переключатель «Отображение» внутри результата открывает вид «Физические лампы»;
-неподтверждённые лампы и секции в нём остаются UNKNOWN.
+По умолчанию показана оценка сигналов по модели, если построено соответствие фаз.
+Для Ленина — Свердловского используется заданная схема: N/E с допсекциями,
+W/S без допсекций. Переключатель «Отображение» отделяет оценку от наблюдения ламп,
+которое без независимых данных остаётся UNKNOWN.
 </div>
 </section>
 <iframe id="viewer" title="V10 visualization"></iframe>
@@ -278,6 +291,8 @@ const status=document.getElementById("status");
 const viewer=document.getElementById("viewer");
 const sourceSelect=document.getElementById("source-member");
 const sessionSelect=document.getElementById("session-id");
+const profileSelect=document.getElementById("intersection-profile");
+profileSelect.addEventListener("change",()=>{clearResult();status.textContent="Схема изменена. Запустите анализ.";});
 let chosenSource="",chosenSession="";
 function clearResult(){viewer.style.display="none";viewer.srcdoc="";}
 file.addEventListener("change",()=>{
@@ -313,12 +328,13 @@ form.addEventListener("submit",async function(event){
   event.preventDefault();
   if(!file.files.length)return;
   submit.disabled=true;
-  file.disabled=true;sourceSelect.disabled=true;sessionSelect.disabled=true;
+  file.disabled=true;sourceSelect.disabled=true;sessionSelect.disabled=true;profileSelect.disabled=true;
   status.textContent="V10 анализирует архив…";
   viewer.style.display="none";
   try{
     const body=new FormData();
     body.append("file",file.files[0]);
+    body.append("intersection_profile",profileSelect.value);
     if(chosenSource)body.append("source_member",chosenSource);
     if(chosenSession)body.append("session_id",chosenSession);
     const response=await fetch("/visualization/analyze",{method:"POST",body});
@@ -336,7 +352,7 @@ form.addEventListener("submit",async function(event){
     status.textContent="Ошибка: "+String(error.message||error);
   }finally{
     submit.disabled=false;
-    file.disabled=false;sourceSelect.disabled=false;sessionSelect.disabled=false;
+    file.disabled=false;sourceSelect.disabled=false;sessionSelect.disabled=false;profileSelect.disabled=false;
   }
 });
 </script>
@@ -368,6 +384,7 @@ async def visualization_analyze(
     ),
     source_member: str | None = Form(default=None),
     session_id: str | None = Form(default=None),
+    intersection_profile: str = Form(default='auto'),
 ) -> HTMLResponse:
     if not file.filename:
         raise HTTPException(status_code=400, detail="Filename is required")
@@ -401,7 +418,9 @@ async def visualization_analyze(
                 activity_threshold=activity_threshold_value,
                 **{k: v for k, v in {
                     'source_member': getattr(source_member, 'default', source_member),
-                    'session_id': getattr(session_id, 'default', session_id)}.items() if v is not None},
+                    'session_id': getattr(session_id, 'default', session_id),
+                    'intersection_profile': (getattr(intersection_profile,'default',intersection_profile)
+                        if getattr(intersection_profile,'default',intersection_profile)!='auto' else None)}.items() if v is not None},
             )
             html = built["html"]
             result = built["result"]

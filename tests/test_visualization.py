@@ -16,8 +16,8 @@ def test_visualization_page_is_the_unified_v10_entrypoint():
     assert "/visualization/analyze" in html
     assert 'accept=".json,.zip' in html
     assert "оценка фаз и движений" in html
-    assert "По умолчанию цветом показана оценка движений" in html
-    assert "Физические лампы" in html and "UNKNOWN" in html
+    assert "По умолчанию показана оценка сигналов" in html
+    assert "допсекциями" in html and "UNKNOWN" in html
 
 
 def test_visualization_analyze_uses_canonical_spatial_builder(monkeypatch, tmp_path):

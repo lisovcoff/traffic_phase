@@ -13,6 +13,7 @@ from app.core.v10.semantic_mapping import (
     normalized_segments,
 )
 from app.core.offline_product_report import build_report_payload
+from app.core.v10.estimated_signals import build_estimated_signals
 from app.core.v9.events import load_tracks
 from app.core.v9.signal_renderer import (
     DEFAULT_ACTIVITY_THRESHOLD,
@@ -92,6 +93,7 @@ input[type=range]{width:100%}
 <strong id="timeLabel">—</strong>
 <label>Отображение
 <select id="displayMode" aria-label="Режим отображения">
+<option value="signals">Сигналы по модели</option>
 <option value="model" selected>Движения по фазам — оценка</option>
 <option value="physical">Физические лампы</option>
 </select></label>
@@ -158,6 +160,7 @@ input[type=range]{width:100%}
 const RESULT = __RESULT__;
 const RECONSTRUCTED = __RECONSTRUCTED__;
 const PRODUCT = __PRODUCT__;
+const ESTIMATED_SIGNALS = __ESTIMATED_SIGNALS__;
 const HISTORY_OFFSET_S = __HISTORY_OFFSET__;
 const SIGNAL_MODEL = __SIGNAL_MODEL__;
 const PROJECTION = __PROJECTION__;
@@ -189,7 +192,7 @@ const APPROACH_LABELS = {N:"Север",S:"Юг",E:"Восток",W:"Запад"
 // A head always controls its incoming approach; only supported dedicated turn
 // movements are rendered as additional physical sections.
 const HEAD_SECTIONS = RECONSTRUCTED ? {} : (PHYSICAL.enabled ? PHYSICAL.topology : PHYSICAL_TOPOLOGY);
-const ACTIVE_APPROACHES = PHYSICAL.enabled
+const ACTIVE_APPROACHES = PHYSICAL.enabled || ESTIMATED_SIGNALS.hardware_confirmed
   ? APPROACHES
   : (
       PROJECTION && PROJECTION.anchors &&
@@ -295,6 +298,21 @@ function probability(movement,phase){
 }
 
 function modelView(){return RECONSTRUCTED && $("displayMode").value==="model";}
+function estimatedView(){return RECONSTRUCTED && ESTIMATED_SIGNALS.available && $("displayMode").value==="signals";}
+
+function estimatedSnapshot(t){
+  const rows=ESTIMATED_SIGNALS.segments||[],u=HISTORY_OFFSET_S===null?NaN:Number(t)-HISTORY_OFFSET_S;
+  let lo=0,hi=rows.length;
+  while(lo<hi){const mid=(lo+hi)>>1;if(rows[mid][0]<=u)lo=mid+1;else hi=mid;}
+  const row=rows[lo-1];
+  if(!row || !(u>=row[0] && u<row[1])){
+    const heads={};
+    for(const [approach,head] of Object.entries(ESTIMATED_SIGNALS.topology||{}))heads[approach]={main:{state:"UNKNOWN"},arrows:head.arrows.map(m=>({movement:m,state:"UNKNOWN"}))};
+    return {phase:null,phaseName:"UNKNOWN",heads:heads,cyclePosition:u};
+  }
+  const state=ESTIMATED_SIGNALS.states[row[2]];
+  return {phase:row[2],phaseName:state.name,heads:state.heads,cyclePosition:u};
+}
 
 function phaseMovements(phase){
   // These are fitted event signatures, not traffic permissions or lamp states.
@@ -471,7 +489,8 @@ function signalSnapshot(t){
   if(RECONSTRUCTED){
     const seg=phaseAt(t), logical=seg?seg.logical:PRODUCT.fallback_logical_phase, heads={};
     for(const approach of ACTIVE_APPROACHES){heads[approach]={main:{state:PRODUCT.physical_section.estimated_state,
-      probability:null,source:"COMMON_STATE_CONTRACT"},arrows:[]};}
+      probability:null,source:"COMMON_STATE_CONTRACT"},arrows:ESTIMATED_SIGNALS.hardware_confirmed?
+        (ESTIMATED_SIGNALS.topology[approach]?.arrows||[]).map(m=>({movement:m,state:"UNKNOWN"})):[]};}
     return {phase:seg?seg.phase:null,phaseName:logical.estimated_state,
       cyclePosition:HISTORY_OFFSET_S===null?0:Number(t)-HISTORY_OFFSET_S,heads:heads,
       abstention_reason:HISTORY_OFFSET_S===null?"UNKNOWN_SCHEDULE_TIMEBASE":logical.abstention_reason};
@@ -653,7 +672,7 @@ function anomalyAt(t){
 
 function renderSignalList(snapshot){
   const holder=$("signalList");holder.innerHTML="";
-  $("signalTitle").textContent=modelView()?"Движения текущей фазы":"Состояние светофоров";
+  $("signalTitle").textContent=estimatedView()?"Оценка сигналов":modelView()?"Движения текущей фазы":"Состояние светофоров";
   $("modelLegend").hidden=!modelView();$("physicalLegend").hidden=modelView();
   if(modelView()){
     const movements=phaseMovements(snapshot.phase);
@@ -682,7 +701,7 @@ function renderSignalList(snapshot){
     const arrowText=head.arrows.map(function(item){
       return "доп. "+item.movement+" "+item.state;
     }).join(" · ");
-    right.textContent=(RECONSTRUCTED?"Секции не установлены; состояние ":"основной ")+head.main.state+(RECONSTRUCTED||PHYSICAL.enabled?"":" · activity score="+Number(head.main.probability||0).toFixed(3))+(arrowText?" · "+arrowText:"");
+    right.textContent=(estimatedView()?"Основной ":RECONSTRUCTED?"Секции не установлены; состояние ":"основной ")+head.main.state+(RECONSTRUCTED||PHYSICAL.enabled?"":" · activity score="+Number(head.main.probability||0).toFixed(3))+(arrowText?" · "+arrowText:"");
     right.style.color=head.main.state==="UNKNOWN"?"var(--muted)":head.main.state==="GREEN"?"var(--green)":head.main.state==="YELLOW"?"var(--yellow)":head.main.state==="RED_YELLOW"?"var(--orange)":"var(--red)";
     row.append(left,right);holder.appendChild(row);
   }
@@ -690,7 +709,7 @@ function renderSignalList(snapshot){
 
 function renderPhases(){
   const holder=$("phaseList");holder.innerHTML="";
-  const rows=PHYSICAL.enabled
+  const rows=estimatedView()?ESTIMATED_SIGNALS.segments:PHYSICAL.enabled
     ? (PHYSICAL.stages || [])
     : (RECONSTRUCTED ? SIGNAL_MODEL.segments : (RESULT.schedule && RESULT.schedule.baseline_segments || []));
   const seen={};
@@ -701,7 +720,7 @@ function renderPhases(){
     seen[key]=true;
     const card=document.createElement("div");card.className="phase-card";card.dataset.phase=String(phase);
     const name=document.createElement("strong");
-    name.textContent=PHYSICAL.enabled
+    name.textContent=estimatedView()?ESTIMATED_SIGNALS.states[phase].name:PHYSICAL.enabled
       ? String(phase)
       : ((SIGNAL_MODEL.phase_names||[])[phase] || ("PHASE_"+String.fromCharCode(65+phase)));
     const duration=document.createElement("span");
@@ -714,7 +733,7 @@ function renderPhases(){
 
 function renderPhaseTimeline(){
   const holder=$("phaseTimeline");holder.innerHTML="";
-  const rows=PHYSICAL.enabled
+  const rows=estimatedView()?ESTIMATED_SIGNALS.segments:PHYSICAL.enabled
     ? (PHYSICAL.stages || [])
     : (RECONSTRUCTED ? SIGNAL_MODEL.segments : (RESULT.schedule && RESULT.schedule.baseline_segments || []));
   for(const row of rows){
@@ -728,7 +747,7 @@ function renderPhaseTimeline(){
       : RECORDING_DURATION;
     element.style.left=(100*start/timelineDuration)+"%";
     element.style.width=Math.max(0.08,100*(end-start)/timelineDuration)+"%";
-    const label=PHYSICAL.enabled
+    const label=estimatedView()?ESTIMATED_SIGNALS.states[phase].name:PHYSICAL.enabled
       ? String(phase)
       : ((SIGNAL_MODEL.phase_names||[])[phase]||phase);
     element.title="Фаза "+label+" · "+start.toFixed(1)+"–"+end.toFixed(1)+" s";
@@ -748,8 +767,9 @@ window.addEventListener("resize",resizeCanvas);
 
 function render(){
   tGlobal=currentTime;
-  const snapshot=signalSnapshot(currentTime);
-  const movements=phaseMovements(snapshot.phase);
+  const observed=signalSnapshot(currentTime);
+  const snapshot=estimatedView()?estimatedSnapshot(currentTime):observed;
+  const movements=phaseMovements(observed.phase);
   const vehicles=activeVehicles(currentTime);
 
   const debugHeads={};
@@ -773,7 +793,11 @@ function render(){
     current_time_s:Number(currentTime.toFixed(3)),
     cycle_position_s:Number((snapshot.cyclePosition||0).toFixed(3)),
     phase:String(snapshot.phaseName||"UNKNOWN"),
-    display_mode:modelView()?"MODEL_PHASE_ACTIVITY":"PHYSICAL_LAMPS",
+    display_mode:estimatedView()?"ESTIMATED_SIGNALS":modelView()?"MODEL_PHASE_ACTIVITY":"PHYSICAL_LAMPS",
+    topology_source:ESTIMATED_SIGNALS.topology_source||null,
+    hardware_confirmed:Boolean(ESTIMATED_SIGNALS.hardware_confirmed),
+    observed_physical_state:"UNKNOWN",
+    latent_phase:observed.phaseName,
     model_movements:movements,
     active_movements:stage ? (stage.active_movements||[]) : [],
     heads:debugHeads,
@@ -809,12 +833,12 @@ function render(){
   $("vehicles").textContent=String(vehicles.length);
   $("timeLabel").textContent=new Date(DISPLAY_BASE_MS+currentTime*1000).toLocaleString()+" · T+"+currentTime.toFixed(1)+" s";
   $("anomaly").textContent=anomaly?"⚠ "+anomaly.type+" · "+Number(anomaly.delta_s).toFixed(1)+" s":"Нет";
-  $("sceneBadge").textContent=(modelView()?"Оценка движений · фаза "+$("phase").textContent+" · ":RECONSTRUCTED ? "Логическая история; лампы UNKNOWN · " : PHYSICAL.enabled
+  $("sceneBadge").textContent=(estimatedView()?"Оценка сигналов · "+snapshot.phaseName+" · ":modelView()?"Оценка движений · фаза "+$("phase").textContent+" · ":RECONSTRUCTED ? "Логическая история; лампы UNKNOWN · " : PHYSICAL.enabled
     ? "V10 · физический план · "
     : "V10 OFF · "+String(PHYSICAL.reason || "physical plan unavailable")+" · ")
     +"N ↑ · S ↓ · W ← · E → · "+vehicles.length+" машин";
   $("sceneBadge").className="scene-badge"+(anomaly?" warning":"");
-  $("semanticText").textContent=modelView()?"Цвет сравнивает характеристику движения в текущей фазе с его максимумом по фазам. Зелёный — не ниже 70% максимума, серый — ниже, жёлтый — фазы не различаются. Это оценка состава фазы, а не разрешение проезда. "+(snapshot.abstention_reason?"Фаза недоступна: "+snapshot.abstention_reason:""):RECONSTRUCTED ? "Логическая фаза по общей истории; физические лампы и секции UNKNOWN. Отсутствие движения не доказывает RED. Причина UNKNOWN: "+String(snapshot.abstention_reason||"аппаратные состояния не наблюдались") : PHYSICAL.enabled
+  $("semanticText").textContent=estimatedView()?(ESTIMATED_SIGNALS.hardware_confirmed?"Схема: "+ESTIMATED_SIGNALS.profile_name+", задана пользователем. ":"Схема сигналов — гипотеза алгоритма. ")+"Цвета и время переключений оценены по траекториям. Погашенная допсекция обозначена OFF. Жёлтые интервалы не определяются. Наблюдение ламп: UNKNOWN.":modelView()?"Цвет сравнивает характеристику движения в текущей фазе с его максимумом по фазам. Зелёный — не ниже 70% максимума, серый — ниже, жёлтый — фазы не различаются. Это оценка состава фазы, а не разрешение проезда. "+(snapshot.abstention_reason?"Фаза недоступна: "+snapshot.abstention_reason:""):RECONSTRUCTED ? "Логическая фаза по общей истории; физические лампы и секции UNKNOWN. Отсутствие движения не доказывает RED. Причина UNKNOWN: "+String(snapshot.abstention_reason||"аппаратные состояния не наблюдались") : PHYSICAL.enabled
     ? "зелёный/красный — по V10 physical phase mapping и заданному плану сигналов. Жёлтый и красный+жёлтый — модельные переходы."
     : "V10 physical plan ОТКЛЮЧЁН: "+String(PHYSICAL.reason || "причина не передана")+". Сейчас отображается fallback V9, а не физические головы.";
   renderSignalList(snapshot);
@@ -848,11 +872,13 @@ $("pause").addEventListener("click",stop);
 $("reset").addEventListener("click",function(){stop();setCurrentTime(0)});
 $("slider").addEventListener("input",function(e){setCurrentTime(e.target.value)});
 $("speed").addEventListener("change",function(){if(timer)play()});
-$("displayMode").addEventListener("change",render);
+$("displayMode").addEventListener("change",function(){renderPhases();renderPhaseTimeline();render();});
 
 async function init(){
   try{
     if(!RECONSTRUCTED){$("displayMode").value="physical";$("displayMode").disabled=true;}
+    else if(ESTIMATED_SIGNALS.available){$("displayMode").value="signals";}
+    else {$("displayMode").querySelector('option[value="signals"]').disabled=true;}
     TRACKS=await unpackData();
     $("trajectoryCount").textContent=String(RESULT.trajectory_count||0);
     $("eventCount").textContent=String(RESULT.event_count||0);
@@ -1141,10 +1167,11 @@ def _physical_visual_model(
 def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
                 red_yellow_duration_seconds=2.0,activity_threshold=0.05,
                 physical_plan=None,time_offset_s=None,display_duration_s=None,
-                display_base_timestamp_ms=None,mode="reconstructed"):
+                display_base_timestamp_ms=None,mode="reconstructed",intersection_profile="auto"):
     if mode not in {"reconstructed","configured","simulated"}:raise ValueError("invalid report mode")
     signal_model=build_signal_model(result,activity_threshold=activity_threshold,mode=mode)
     product=build_report_payload(result)
+    estimated=result.get('estimated_signals') or build_estimated_signals(result,profile_id=intersection_profile)
 
     physical=_physical_visual_model(result,physical_plan)
     if time_offset_s is not None:
@@ -1160,6 +1187,7 @@ def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
     history_offset=(float(anchor)-float(display_base))/1000 if anchor is not None and display_base is not None else None
     page=PAGE.replace("__RESULT__",_safe_json(result))
     page=page.replace("__PRODUCT__",_safe_json(product))
+    page=page.replace("__ESTIMATED_SIGNALS__",_safe_json(estimated))
     page=page.replace("__RECONSTRUCTED__",_safe_json(mode=="reconstructed"))
     page=page.replace("__HISTORY_OFFSET__",_safe_json(history_offset))
     page=page.replace("__SIGNAL_MODEL__",_safe_json(signal_model))
@@ -1182,6 +1210,7 @@ def build_spatial_visualization(
     physical_plan_path: Path | None = None,
     source_member: str | None = None,
     session_id: str | None = None,
+    intersection_profile: str = "auto",
 ) -> dict[str, Any]:
     """Build the canonical spatial HTML used by both CLI and Uvicorn."""
     input_path = Path(input_path)
@@ -1263,6 +1292,7 @@ def build_spatial_visualization(
         else result.get("physical_signal_plan")
     )
     projection = build_spatial_projection(tracks)
+    result['estimated_signals']=build_estimated_signals(result,profile_id=intersection_profile,input_name=input_path.name)
     analysis_base_ms = float(result["analysis_base_timestamp_ms"])
     time_offset_s = (analysis_base_ms - display_base_ms) / 1000.0
     compact = compact_trajectories(

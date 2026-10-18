@@ -1,0 +1,20 @@
+{
+  "lenina_sverdlovsky": {
+    "name": "Ленина — Свердловский",
+    "source": "user_confirmed_2026-10-18; operator_review_17_2025_2_12_7",
+    "hardware_confirmed": true,
+    "filename_tokens": ["свердлов"],
+    "known_source_names": ["17_2025_2_19_10.json", "17_2025_2_12_7.json", "17_2025_2_27_10.json"],
+    "topology": {
+      "N": {"main": "N->S", "arrows": ["N->E"]},
+      "S": {"main": "S->N", "arrows": []},
+      "E": {"main": "E->W", "arrows": ["E->N"]},
+      "W": {"main": "W->E", "arrows": []}
+    },
+    "groups": [
+      {"name": "EW", "green_movements": ["E->W", "W->E"]},
+      {"name": "N_E_ARROW", "green_movements": ["N->S", "N->E", "E->N"]},
+      {"name": "NS", "green_movements": ["N->S", "S->N"]}
+    ]
+  }
+}
