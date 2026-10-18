@@ -492,6 +492,10 @@ def _calibrate_phase_anchor(
             "final_anchor_s": float(initial_anchor_s),
         }
 
+    # Baseline rows can begin with any phase and repeat across many cycles.
+    # A row's ordinal is not its phase identity (especially at censored edges).
+    phase_ids = np.asarray([int(row[2]) for row in baseline_segments], dtype=int)
+
     stream_arrays = []
     for index, stream in enumerate(stream_names):
         values = np.asarray(phase_evidence.get(stream, ()), dtype=float)
@@ -513,16 +517,17 @@ def _calibrate_phase_anchor(
         total = 0.0
         for index, values in stream_arrays:
             positions = np.mod(values - anchor, float(period))
-            phase_index = np.searchsorted(
+            segment_index = np.searchsorted(
                 starts,
                 positions,
                 side="right",
             ) - 1
-            phase_index = np.clip(
-                phase_index,
+            segment_index = np.clip(
+                segment_index,
                 0,
-                probs.shape[0] - 1,
+                len(phase_ids) - 1,
             )
+            phase_index = phase_ids[segment_index]
             probabilities = np.clip(
                 probs[phase_index, index],
                 0.005,

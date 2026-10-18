@@ -1,5 +1,22 @@
 # traffic_phase — план до готового продукта
 
+2026-10-18: подготовлен [комплект для сдачи](docs/DELIVERY_20261018.md).
+Исправлена зависимость временной привязки длинных записей от нумерации фаз;
+четыре независимых FAIL до исправления, PASS после. Устранены конфликт сбора
+pytest и отсутствие scripts в Dockerfile; исторические code seals проверяются
+по сохранённым точным Git blobs, без изменения прежних результатов. Есть
+Windows installer, фиксированные версии проверенного Python 3.12 окружения,
+синтетический HTML с40 траекториями и проверка HTTP/пакетного скачивания.
+В clean Python3.12 исправлен низкий resolution таймера бюджета выборки
+(perf_counter, отказ на deadline); сохранены исходный FAIL и независимые тесты.
+Финальный полный прогон clean Python3.12:1325 PASS,0 FAIL; smoke/compile/launcher
+и обязательная legacy Lenina regression PASS. Контейнер не запускался без daemon.
+Это доставка приложения, не итоговая приёмка точности: raw19/34, baseline17/34,
+новый операторский набор0/11, K3/2/3 против3/2/2; нового real replay нет.
+2D.1 FAIL/default-off, physical UNKNOWN, main и исторические artifacts сохранены.
+Следующий критический шаг качества — observation/delay/demand и независимая
+оценка; регистрацию программы для ЭВМ не путать с ARM или доказательством точности.
+
 2026-10-18: [car-registration гипотеза проверена и отвергнута](docs/ENTHUSIASTS_CAR_REGISTRATION_20261018.md).
 Train3.6px/full rank не прошёл distinct-car controls; проекция пересекает road
 horizon. Experimental calibration CLI теперь проверяет весь supplied road scope

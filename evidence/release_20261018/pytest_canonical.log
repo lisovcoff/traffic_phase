@@ -1,0 +1,102 @@
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 16%]
+........................................................................ [ 21%]
+......F................................................................. [ 27%]
+........................................................................ [ 32%]
+........................................................................ [ 38%]
+........................................................................ [ 43%]
+........................................................................ [ 49%]
+........................................................................ [ 54%]
+.............................................F....F..................... [ 60%]
+........................................................................ [ 65%]
+........................................................................ [ 70%]
+........................................................................ [ 76%]
+........................................................................ [ 81%]
+........................................................................ [ 87%]
+........................................................................ [ 92%]
+........................................................................ [ 98%]
+.......................                                                  [100%]
+================================== FAILURES ===================================
+___ test_public_discovery_defaults_are_disabled_and_forward_explicit_choice ___
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002370D8AB610>
+tmp_path = WindowsPath('C:/Users/sheld/AppData/Local/Temp/pytest-of-sheld/pytest-76/test_public_discovery_defaults0')
+
+    def test_public_discovery_defaults_are_disabled_and_forward_explicit_choice(monkeypatch,tmp_path):
+        monkeypatch.setattr(model,'extract_timing_streams',lambda tracks:())
+        monkeypatch.setattr(model,'load_event_streams',lambda *a,**k:())
+        monkeypatch.setattr(model,'_discover_bundle',lambda bundle,**kwargs:kwargs['experimental_local_history'])
+>       assert model.discover_records([{}]) is False
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_history_optin_2d1.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app\core\v9\model.py:967: in discover_records
+    scoped, selected, sessions = choose_session(bundle, 'records', session_id)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app\core\v9\source_scope.py:121: in choose_session
+    sessions = input_sessions(bundle, source_member)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+bundle = (), source_member = 'records'
+
+    def input_sessions(bundle, source_member):
+        # Reuse the existing project gap; it is not a fitted traffic-light threshold.
+        from app.core.reconstruction import DEFAULT_SESSION_GAP_SECONDS
+        gap_ms = DEFAULT_SESSION_GAP_SECONDS * 1000
+        tracks = {}
+>       for event in bundle.temporal_events:
+                     ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'tuple' object has no attribute 'temporal_events'
+
+app\core\v9\source_scope.py:85: AttributeError
+___________________ test_frozen_code_and_input_hashes_match ___________________
+
+    def test_frozen_code_and_input_hashes_match():
+        seal=load(OUT/'code_config_seal.json')
+        portable=load(OUT/'source_content_seal.json')['files']
+        for name,digest in seal['files_sha256'].items():
+            raw=(ROOT/name).read_bytes()
+            if name in portable:
+                assert portable[name]['original_run_byte_sha256']==digest
+>               assert hashlib.sha256(raw.replace(b'\r\n',b'\n')).hexdigest()==portable[name]['canonical_lf_sha256']
+E               AssertionError: assert '3a5512d87726...64fdf65a596c2' == 'd2a33182851a...e817648ad2a9d'
+E                 
+E                 - d2a33182851a8bc336d3da981cf8a857d482c3c848fc6a13e9de817648ad2a9d
+E                 + 3a5512d87726864d2b15a236a374c0e28e9cfbc14af0ae0becc64fdf65a596c2
+
+tests\test_restart_localization_artifacts.py:23: AssertionError
+_________ test_frozen_algorithms_and_plan_not_tuned_after_validation __________
+
+    def test_frozen_algorithms_and_plan_not_tuned_after_validation():
+        plan=load('plan.json')
+        assert sha('plan.json')==(OUT/'plan.sha256').read_text().strip()
+        for name,digest in plan['frozen_code_canonical_lf_sha256'].items():
+            raw=(ROOT/name).read_bytes().replace(b'\r\n',b'\n')
+>           assert hashlib.sha256(raw).hexdigest()==digest
+E           AssertionError: assert '3a5512d87726...64fdf65a596c2' == 'd2a33182851a...e817648ad2a9d'
+E             
+E             - d2a33182851a8bc336d3da981cf8a857d482c3c848fc6a13e9de817648ad2a9d
+E             + 3a5512d87726864d2b15a236a374c0e28e9cfbc14af0ae0becc64fdf65a596c2
+
+tests\test_restart_temporal_validation_artifacts.py:35: AssertionError
+============================== warnings summary ===============================
+C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1
+  C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_phase_discovery.py::test_discovers_exactly_two_opposing_phase_states
+tests/test_phase_discovery.py::test_single_cycle_delay_outlier_does_not_create_extra_phase
+tests/test_phase_discovery.py::test_phase_intervals_cover_cycle_without_overlap
+tests/test_phase_discovery.py::test_does_not_hardcode_only_one_phase
+  D:\Code\PythonProjects\traffic_phase\audit_checkout\app\core\phase_discovery.py:184: RuntimeWarning: All-NaN slice encountered
+    return np.nanmedian(values, axis=0)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_history_optin_2d1.py::test_public_discovery_defaults_are_disabled_and_forward_explicit_choice
+FAILED tests/test_restart_localization_artifacts.py::test_frozen_code_and_input_hashes_match
+FAILED tests/test_restart_temporal_validation_artifacts.py::test_frozen_algorithms_and_plan_not_tuned_after_validation
+3 failed, 1316 passed, 5 warnings in 252.84s (0:04:12)

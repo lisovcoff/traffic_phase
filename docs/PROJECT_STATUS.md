@@ -1,5 +1,27 @@
 # Project status — 2D.1, 2026-10-18
 
+2026-10-18 delivery preparation: see DELIVERY_20261018.md. Corrected long-record
+anchor scoring to use baseline phase IDs rather than segment ordinals; four
+independent counterexamples fail before and pass after, with existing offset
+test retained. Canonical pytest collection now excludes archived review copies;
+stale public opt-in double corrected to actual session/mapping contracts. Two
+historical seals now verify seven exact recorded Git blobs saved in a new
+snapshot, leaving original plans, hashes and negative outputs unchanged.
+Docker copies the required scripts module; isolated app/scripts import and
+health/viewer/batch GETs pass, but Docker daemon is unavailable. HTTP synthetic
+JSON upload, HTML generation, batch and download pass;40 tracks render in the
+included synthetic demo. Clean Windows Python3.12 dependencies and installer
+prepared with a version lock. No real phase replay or measured accuracy gain.
+Clean3.12 additionally exposed a coarse Windows monotonic-clock budget defect;
+raw sampling now uses high-resolution perf_counter and refuses exact deadlines,
+with deterministic before-fail/after-pass tests and failed/interrupted logs kept.
+Final clean Python3.12 full suite1325 PASS/0 FAIL; compile, launcher, synthetic
+e2e and required legacy Lenina regression PASS. Existing Python3.14 full suite
+1323 PASS before sampling-clock fix, then all10 sampling checks PASS after it.
+Raw19/34, baseline17/34, separate operator0/11 and K3/2/3 vs3/2/2 retained.
+Main intact;2D.1 FAIL/default-off and physical UNKNOWN retained. Registration
+for a program for computers is the user's intended meaning; ARM is not required.
+
 2026-10-18 bounded car registration attempted:18 new native contexts, one joint
 fit plus one documented annotation-correction repeat before control scoring.
 Corrected training max3.595px/rank9 did not generalize: distinct candidate cars

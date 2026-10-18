@@ -1,0 +1,77 @@
+{
+  "base_commit": "6dbd097",
+  "main_unchanged": "a005a2521f62ce3b2c9f9d52f9f0d73913754e01",
+  "tests": {
+    "existing_python314": {
+      "passed": 1323,
+      "log": "pytest_final.log",
+      "scope": "before subsequent sampling-clock fix"
+    },
+    "clean_python312": {
+      "passed": 1325,
+      "log": "pytest_clean312_final.log",
+      "scope": "final code"
+    }
+  },
+  "sampling_clock_fix": {
+    "independent_before_failed": 2,
+    "final_targeted_passed": 10,
+    "intermediate_full_run": "stopped after known repeated clock failure; partial log retained"
+  },
+  "anchor_counterexamples": {
+    "before_failed": 4,
+    "after_passed": 4,
+    "existing_offset_test_passed": true
+  },
+  "e2e": "PASS",
+  "lenina_ci_regression": "PASS_legacy_regression_not_lamp_accuracy",
+  "compile": "PASS",
+  "launcher": "PASS",
+  "http_upload_html_batch_download": "PASS",
+  "synthetic_rendered_trajectories": 40,
+  "container_layout": "PASS_app_scripts_isolation",
+  "docker_runtime": "UNAVAILABLE_DAEMON_NOT_RUNNING",
+  "real_phase_replays": 0,
+  "accuracy_acceptance": "NOT_READY",
+  "local_history_2d1": "FAIL_DEFAULT_OFF",
+  "files": {
+    "accuracy_summary.json": "677b45d0b7e0040481c1b481e92d75acbde0bc58a75aa0a3cda6e1b5c394ad03",
+    "anchor_after.log": "63508c5b2a39a6f7ed5ced027d886e936576ff17806525a5863c15f00efb0ed8",
+    "anchor_before.log": "796c8203b05f6ccfdc037fcb09249a0b3d34a062cad254d2d194bcb9cfe90274",
+    "compile_clean312.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "compile_clock_fix.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "container_layout.log": "3570a21cd1db7e2ad32ce47f97f3a28824395f928ddfa5d7dede86594ba95bef",
+    "container_layout_retry.log": "0c451c85a78f7ebb691d65d413610f943f8879e41b14657863e68c35d381e4ad",
+    "deadline_after.log": "766e3813e0d53e7ccf45a2ecb95ba35355cf369145cec49ebfa34d4ff94b4721",
+    "deadline_before.log": "2737c520853b4db116a3ee3d888eaf397f7a892a6bd3c2161366588cc1eac1d7",
+    "deadline_highres.log": "ef4010febd2c6d6c397f6943d7843d0e890df53df77e0edf06d1d1f3827d8a98",
+    "deadline_highres314.log": "cb5a733ab19a6025a26ee806d142c928977bdd95f37118914e5ba374fb4000e3",
+    "e2e_clean312.log": "3ef8b20ca7203021591d5610cd437f6b1c53be7d18a8e36184c41144452d1713",
+    "e2e_smoke.log": "3ef8b20ca7203021591d5610cd437f6b1c53be7d18a8e36184c41144452d1713",
+    "environment_py312.json": "26390f67ae774ec0705fc8bf700e78699e1e70b56198ca4540b8234fcc0cb027",
+    "fixes_targeted.log": "427fad1b1a270c9bb5c76afc456a22c5ea3d47f965135cfd6f1ed7d0cb1a73de",
+    "historical_sources/app/core/temporal_evidence.py": "fd050a0022aca14ec123fcaf155864641b7ef9076478a3506d60499afc9d3f92",
+    "historical_sources/app/core/v9/events.py": "d2a33182851a8bc336d3da981cf8a857d482c3c848fc6a13e9de817648ad2a9d",
+    "historical_sources/app/core/v9/vehicle_evidence.py": "28022ecb3045ae51a92c1bd0ab42916866307522995946cc3f9ea83fec6242c3",
+    "historical_sources/app/experimental/restart_localization.py": "d6212a57a2882fc566e1129a70692cfef72afa39534cfb5b687fbd01b69f7a80",
+    "historical_sources/scripts/check_restart_localization.py": "3be5b9630f95a3683a4fa896b6f5a09bf684e07139f9d5a806b73ee470c78209",
+    "historical_sources/tests/restart_localization_cases.py": "514f9b0be70b30a8ef3fd9ea588c195c64ea8996e9ab19845e9cb4322e1f13ac",
+    "historical_sources/tests/test_restart_localization.py": "dd74ba27ac8c8fc428be3d622250a37e1a6ed5a741e561ff25a0d31852f3f201",
+    "historical_sources.json": "976112a880842f6599d79c40761f5f724a783979dbbe4745b7fffa26d01ff5f6",
+    "install312.log": "742d87d98124493a6892934024013aa6a6641eaa9e8f2e8af4be0885df893299",
+    "launcher_clean312.log": "88498abe8f48519de0a7d6b246f9aad370603f1577a6646af4fd4fc7aacbb9df",
+    "lenina_clean312.log": "24239859aeca9ea34a558d5afc32db269d96034486fe5d8c3d96759b8b65d67e",
+    "pytest_canonical.log": "58ca43e34fd076e395135f59452e99ba95762596e5f4af71fa82a6be2a717e0c",
+    "pytest_clean312.log": "52a4f2657264c2c084e8c10a003431f9dee23a1a15a6a6bcdc5ed4158a045b87",
+    "pytest_clean312_after.log": "d83ebe8425a569b822a6c514a40577dc4faf9249e12cf6b610d654a9bc18fe8a",
+    "pytest_clean312_final.log": "d4bcd4e9f2d85e3b93ae6f377cf4ad5aedd4cbf5d58d075264249f03626697e0",
+    "pytest_final.log": "4c5a4d0bdda6a3fc6bec487d1b7a17183890111f6ecc956ed70084d43be723e0",
+    "pytest_full.log": "acefcec8b00955a18ee54cd17aa98c9f8c2ebac5204d04a0261980d1e4dbc723",
+    "spatial_demo_check.log": "039d9d1a9332750468e5af2bd32ded44ad4550f2bf1f6e17803359ba8b333ca1",
+    "synthetic_spatial_demo.html": "1f6a0575bc385c2d381ce913d4affcf8b92d30bc488d5a2b83c282ef326f56e9",
+    "synthetic_spatial_demo.json": "52f810935118acb158b41416c091f6b060fee99ca890b27e341cf56db89bf52e",
+    "verify.py": "925f36592e829a573e38d4eda674ab1b06b94a0786695b33be102dfc0564d801",
+    "web_check.log": "88a6d68c033897fbf9b0997fe02ea040fae07a0c27c674b695388cf9edf54b65",
+    "web_check_retry.log": "c474e60bf175f2308e558dd1e7578d7f0fda89657592b0f3d8ed086d37b93424"
+  }
+}

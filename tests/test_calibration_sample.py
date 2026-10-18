@@ -46,3 +46,28 @@ def test_duplicate_ids_preserved_for_explicit_review_not_silently_collapsed():
     chosen,r,_=run([track(1,[11000]),track(1,[15000])])
     assert len(chosen)==2
     assert r['lineage'][0]['canonical_raw_record_sha256']!=r['lineage'][1]['canonical_raw_record_sha256']
+
+
+def test_reader_refuses_io_at_exact_deadline(monkeypatch):
+    from app.core import calibration_sample as module
+    monkeypatch.setattr(module.time, 'perf_counter', lambda: 100.)
+    stream = BytesIO(b'[]')
+    reader = module.BudgetReader(stream, max_bytes=100, deadline=100.)
+    with pytest.raises(ValueError, match='INPUT_TIME_BUDGET_EXCEEDED'):
+        reader.read(10)
+    assert stream.tell() == 0
+
+
+def test_complete_scan_at_exact_deadline_does_not_publish_sample(monkeypatch):
+    from app.core import calibration_sample as module
+    clock = [0.]
+    monkeypatch.setattr(module.time, 'perf_counter', lambda: clock[0])
+    class FinishAtDeadline(BytesIO):
+        def read(self, size):
+            data = super().read(size)
+            if not data:
+                clock[0] = 1.
+            return data
+    stream = FinishAtDeadline(json.dumps([track(1, [11000])]).encode())
+    with pytest.raises(ValueError, match='INPUT_TIME_BUDGET_EXCEEDED'):
+        module.select_raw_window(stream, 10000, 20000, max_seconds=1.)

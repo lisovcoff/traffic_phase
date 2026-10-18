@@ -16,10 +16,14 @@ def load(path):
 def test_frozen_code_and_input_hashes_match():
     seal=load(OUT/'code_config_seal.json')
     portable=load(OUT/'source_content_seal.json')['files']
+    snapshots=load(ROOT/'evidence/release_20261018/historical_sources.json')['files']
     for name,digest in seal['files_sha256'].items():
-        raw=(ROOT/name).read_bytes()
+        # Verify the experiment's exact recorded source, rather than requiring
+        # future production fixes to retain the 2026-10-15 implementation forever.
+        raw=(ROOT/snapshots[name]['snapshot'] if name in snapshots else ROOT/name).read_bytes()
         if name in portable:
             assert portable[name]['original_run_byte_sha256']==digest
+            assert snapshots[name]['git_blob_sha1']==portable[name]['git_blob_sha1']
             assert hashlib.sha256(raw.replace(b'\r\n',b'\n')).hexdigest()==portable[name]['canonical_lf_sha256']
         else:
             assert hashlib.sha256(raw).hexdigest()==digest

@@ -1,0 +1,40 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+__________________ test_reader_refuses_io_at_exact_deadline ___________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000029ED1344080>
+
+    def test_reader_refuses_io_at_exact_deadline(monkeypatch):
+        from app.core import calibration_sample as module
+        monkeypatch.setattr(module.time, 'monotonic', lambda: 100.)
+        stream = BytesIO(b'[]')
+        reader = module.BudgetReader(stream, max_bytes=100, deadline=100.)
+>       with pytest.raises(ValueError, match='INPUT_TIME_BUDGET_EXCEEDED'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests\test_calibration_sample.py:56: Failed
+________ test_complete_scan_at_exact_deadline_does_not_publish_sample _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000029EADBCC5C0>
+
+    def test_complete_scan_at_exact_deadline_does_not_publish_sample(monkeypatch):
+        from app.core import calibration_sample as module
+        clock = [0.]
+        monkeypatch.setattr(module.time, 'monotonic', lambda: clock[0])
+        class FinishAtDeadline(BytesIO):
+            def read(self, size):
+                data = super().read(size)
+                if not data:
+                    clock[0] = 1.
+                return data
+        stream = FinishAtDeadline(json.dumps([track(1, [11000])]).encode())
+>       with pytest.raises(ValueError, match='INPUT_TIME_BUDGET_EXCEEDED'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests\test_calibration_sample.py:72: Failed
+=========================== short test summary info ===========================
+FAILED tests/test_calibration_sample.py::test_reader_refuses_io_at_exact_deadline
+FAILED tests/test_calibration_sample.py::test_complete_scan_at_exact_deadline_does_not_publish_sample
+2 failed in 2.72s

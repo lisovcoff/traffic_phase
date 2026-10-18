@@ -57,13 +57,17 @@ def test_actual_discovery_call_site_runs_local_decoder_only_on_optin(monkeypatch
 
 
 def test_public_discovery_defaults_are_disabled_and_forward_explicit_choice(monkeypatch,tmp_path):
-    monkeypatch.setattr(model,'extract_timing_streams',lambda tracks:())
-    monkeypatch.setattr(model,'load_event_streams',lambda *a,**k:())
-    monkeypatch.setattr(model,'_discover_bundle',lambda bundle,**kwargs:kwargs['experimental_local_history'])
-    assert model.discover_records([{}]) is False
-    assert model.discover_records([{}],experimental_local_history=True) is True
-    source=tmp_path/'source.json';source.write_text('[]')
-    assert model.discover_path(source) is False
+    import json
+    from tests.test_v9_source_scope import track
+    # Keep real extraction/session selection: public discovery now attaches scope
+    # to a result mapping, so the old tuple/bool doubles violated its contract.
+    monkeypatch.setattr(model,'_discover_bundle',lambda bundle,**kwargs:
+                        {'experimental_local_history':kwargs['experimental_local_history']})
+    assert model.discover_records([track()])['experimental_local_history'] is False
+    assert model.discover_records([track()],experimental_local_history=True)['experimental_local_history'] is True
+    source=tmp_path/'source.json';source.write_text(json.dumps([track()]),encoding='utf-8')
+    assert model.discover_path(source)['experimental_local_history'] is False
+    assert model.discover_path(source,experimental_local_history=True)['experimental_local_history'] is True
 
 
 @pytest.mark.parametrize('value',['false',1,None])

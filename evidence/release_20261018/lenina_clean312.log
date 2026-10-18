@@ -1,0 +1,39 @@
+Three-state kinematic prototype: schema=3, selected=100s, EW=46s, N+arrow=24s, NS=30s
+Output: lenina_ci_three_state_cycle.json
+Lenina regression: T=100s, EW=46s, N+arrow=24s, NS=30s
+Manual boundary diagnostics:
+  EW: MAE=10.87s max=45.64s
+  N_ARROW: MAE=11.97s max=36.64s
+  NS: MAE=11.97s max=44.36s
+Stage 1/2 manual validation: origin=1740632390182, cycle=100.00s, marks=39
+  support_window=0.0s: exact=0/39 supported=0 NS=0/14 N_ARROW=0/12 EW=0/13
+  support_window=2.0s: exact=11/39 supported=6 NS=2/14 N_ARROW=5/12 EW=4/13
+  support_window=3.0s: exact=19/39 supported=6 NS=4/14 N_ARROW=7/12 EW=8/13
+  support_window=4.0s: exact=26/39 supported=6 NS=6/14 N_ARROW=11/12 EW=9/13
+  support_window=5.0s: exact=31/39 supported=6 NS=9/14 N_ARROW=11/12 EW=11/13
+  support_window=5.5s: exact=34/39 supported=6 NS=12/14 N_ARROW=11/12 EW=11/13
+  Stage 2 supported movements @5.5s: E->_N, E->_W, N->_E, N->_S, S->_N, W->_E
+  Stage 2 signatures @5.5s:
+    E->_E: cycles=1 active_cycles=1 intervals=[(3.0, 15.0)]
+    E->_N: cycles=6 active_cycles=6 intervals=[(24.0, 45.0)]
+    E->_W: cycles=13 active_cycles=13 intervals=[(72.0, 22.0)]
+    N->_E: cycles=10 active_cycles=9 intervals=[(23.0, 45.0)]
+    N->_S: cycles=12 active_cycles=12 intervals=[(23.0, 77.0)]
+    S->_E: cycles=3 active_cycles=2 intervals=[(48.0, 59.0), (70.0, 76.0)]
+    S->_N: cycles=13 active_cycles=12 intervals=[(42.0, 77.0)]
+    W->_E: cycles=12 active_cycles=11 intervals=[(98.0, 9.0), (77.0, 97.0)]
+    W->_S: cycles=7 active_cycles=4 intervals=[(81.0, 93.0)]
+  Stage 2 mismatches @5.5s:
+    NS +35s phase=99.64 pred=('E->_W', 'W->_E') expected=('N->_S', 'S->_N')
+    EW +55s phase=19.64 pred=('E->_W',) expected=('E->_W', 'W->_E')
+    N_ARROW +92s phase=56.64 pred=('N->_S', 'S->_N') expected=('E->_N', 'N->_E', 'N->_S')
+    NS +122s phase=86.64 pred=('E->_W', 'W->_E') expected=('N->_S', 'S->_N')
+    EW +412s phase=76.64 pred=('E->_W', 'N->_S', 'S->_N') expected=('E->_W', 'W->_E')
+  support_window=6.0s: exact=31/39 supported=6 NS=11/14 N_ARROW=11/12 EW=9/13
+  support_window=7.0s: exact=29/39 supported=6 NS=10/14 N_ARROW=11/12 EW=8/13
+Lenina candidate diagnostics:
+  T=78s joint=0.2723 phase=0.2896 periodicity=0.1743 EW=30 N+arrow=16 NS=32
+  T=80s joint=0.2209 phase=0.2305 periodicity=0.1666 EW=39 N+arrow=21 NS=20
+  T=95s joint=0.4180 phase=0.4632 periodicity=0.1614 EW=47 N+arrow=31 NS=17
+  T=100s joint=0.9022 phase=0.9630 periodicity=0.5577 EW=46 N+arrow=24 NS=30
+Lenina regression: PASS

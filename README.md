@@ -1,5 +1,9 @@
 # traffic_phase
 
+Delivery candidate, 2026-10-18: [launch, verification and measured accuracy](docs/DELIVERY_20261018.md).
+Windows/Python 3.12: `INSTALL.cmd`, then `START_WEB.cmd`.
+The tested dependency versions are in `requirements-tested-py312.txt`.
+
 Local web launch: `START_WEB.cmd`, then http://127.0.0.1:8017/visualization.
 Automatic archive/session jobs: http://127.0.0.1:8017/visualization/batch.
 The batch page exports predictions, per-session HTML and a reproducible manifest;

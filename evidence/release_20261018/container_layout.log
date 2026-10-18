@@ -1,0 +1,15 @@
+py :   File "<string>", line 1
+строка:2 знак:66
++ ... TECODE='1'; py -3 -c "import pathlib,shutil,subprocess,sys; target=pa ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  File "<string>", line 1:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    import pathlib,shutil,subprocess,sys; target=pathlib.Path('.web_runtime/release_20261018/container_layout').resolve
+(); target.mkdir(exist_ok=False); [shutil.copytree(name,target/name,ignore=shutil.ignore_patterns('__pycache__','*.pyc'
+)) for name in ('app','scripts')]; result=subprocess.run([sys.executable,'-c','from app.main import app; from fastapi.t
+estclient import TestClient; c=TestClient(app); assert c.get(" /health\).json()=={\status\:\ok\};
+                                                                                                                       
+                                                                                                                       
+                                                                              ^
+SyntaxError: unterminated string literal (detected at line 1)

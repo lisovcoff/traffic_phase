@@ -30,8 +30,10 @@ def test_all_new_cohort_ids_disjoint_from_prior_review_and_each_other():
 def test_frozen_algorithms_and_plan_not_tuned_after_validation():
     plan=load('plan.json')
     assert sha('plan.json')==(OUT/'plan.sha256').read_text().strip()
+    snapshots=json.loads((ROOT/'evidence/release_20261018/historical_sources.json').read_text(encoding='utf8'))['files']
     for name,digest in plan['frozen_code_canonical_lf_sha256'].items():
-        raw=(ROOT/name).read_bytes().replace(b'\r\n',b'\n')
+        # Saved negative validation belongs to the frozen historical sources.
+        raw=(ROOT/snapshots[name]['snapshot'] if name in snapshots else ROOT/name).read_bytes().replace(b'\r\n',b'\n')
         assert hashlib.sha256(raw).hexdigest()==digest
     assert load('scan_manifest.json')['complete_entry_sha256']==plan['archive']['complete_entry_sha256']
 

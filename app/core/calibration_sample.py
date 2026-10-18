@@ -20,7 +20,7 @@ class BudgetReader:
         self.bytes_read=0;self.sha=hashlib.sha256();self.eof=False
 
     def read(self,n):
-        if time.monotonic()>self.deadline: raise ValueError('INPUT_TIME_BUDGET_EXCEEDED')
+        if time.perf_counter()>=self.deadline: raise ValueError('INPUT_TIME_BUDGET_EXCEEDED')
         if self.bytes_read>=self.max_bytes: raise ValueError('INPUT_BYTE_BUDGET_EXCEEDED')
         raw=self.stream.read(min(n,self.max_bytes-self.bytes_read))
         self.bytes_read+=len(raw);self.sha.update(raw)
@@ -36,7 +36,9 @@ def select_raw_window(stream,start_ms,end_ms,*,max_input_bytes=300*1024*1024,
         raise ValueError('positive resource limits required')
     if not isinstance(max_seconds,(int,float)) or isinstance(max_seconds,bool) or not math.isfinite(max_seconds) or max_seconds<=0:
         raise ValueError('positive time limit required')
-    started=time.monotonic();deadline=started+max_seconds
+    # Python 3.12 on Windows uses a coarse (~15.6 ms) monotonic clock.
+    # perf_counter uses the high-resolution monotonic clock for short budgets.
+    started=time.perf_counter();deadline=started+max_seconds
     reader=BudgetReader(stream,max_bytes=max_input_bytes,deadline=deadline)
     selected=[];lineage=[];stats=Counter();size=2
     for source_index,track in enumerate(_iter_json_records(reader)):
@@ -57,7 +59,7 @@ def select_raw_window(stream,start_ms,end_ms,*,max_input_bytes=300*1024*1024,
             'full_track_range_ms':[min(times),max(times)],'detections_in_requested_window':len(inside),
             'track_copied_whole':True,'entry_endpoint_censoring_not_modified':True})
     if not reader.eof:raise ValueError('COMPLETE_INPUT_SCAN_REQUIRED')
-    if time.monotonic()>deadline:raise ValueError('INPUT_TIME_BUDGET_EXCEEDED')
+    if time.perf_counter()>=deadline:raise ValueError('INPUT_TIME_BUDGET_EXCEEDED')
     if not selected:raise ValueError('NO_TRACKS_OBSERVED_IN_REQUESTED_WINDOW')
     times=[d['millis'] for r in selected for d in r['detections'] if isinstance(d,dict) and valid_ms(d.get('millis'))]
     origin=min(times)
@@ -66,7 +68,7 @@ def select_raw_window(stream,start_ms,end_ms,*,max_input_bytes=300*1024*1024,
         'complete_entry_scanned':True,'selected_tracks':len(selected),'lineage':lineage,'stats':dict(stats),
         'sample_detection_extent_ms':[origin,max(times)],
         'recommended_preview_start_s':(start_ms-origin)/1000,'recommended_preview_duration_s':(end_ms-start_ms)/1000,
-        'runtime_s':time.monotonic()-started,'inference_runs':0,
+        'runtime_s':time.perf_counter()-started,'inference_runs':0,
         'scope':'whole raw tracks with at least one actual detection inside window; no gap bridging, sorting or synthetic boundaries',
         'units':{'millis':'ms per input contract','coordinates':'UNKNOWN','speed':'UNKNOWN','durations':'supplier semantics unverified'},
         'geometry':'UNKNOWN; no stop-line inferred from zones'}
