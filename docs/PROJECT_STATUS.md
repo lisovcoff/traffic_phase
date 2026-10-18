@@ -1,5 +1,14 @@
 # Project status — 2D.1, 2026-10-19
 
+User follow-up resolved the candidate7 maneuver: E->_E, waiting for W->_E.
+Preserved in evidence/enthusiasts_turn_clock_20261019/. Nine new native crops
+show waiting at28/29s and visible turn resumption at30s, completed around34/35s.
+This supports the candidate maneuver; does not certify identity or clock. No
+new fit after failed geometry. One waiting car cannot label E as RED. Review
+report and raw source speed samples retained; next clock control needs another
+independently matched car at a distant video/source time. No pending maneuver
+question remains. Cardinal review below is preserved chronological history.
+
 Latest update: CARDINAL_CLOCK_LINK_RESULTS_20261019.md. User corrects the
 Sverdlovsky arrow to N->E both in video and JSON; earlier relative turn reply
 superseded, no global E/W swap. Enthusiasts visible head serves E, main E/W

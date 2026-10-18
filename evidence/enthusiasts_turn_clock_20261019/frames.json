@@ -1,0 +1,79 @@
+{
+  "rows": [
+    {
+      "file": "frame_01.png",
+      "pts_s": 28.0,
+      "pts_ticks": 2520000,
+      "sha256": "3b770b32e1d25dbe628e0f19a527706267f69a2f36d43fa5ebb409a5da173f2c"
+    },
+    {
+      "file": "frame_02.png",
+      "pts_s": 29.0,
+      "pts_ticks": 2610000,
+      "sha256": "844c84e229d6e48ddc16f596db5094b61d8458eb52095813a67d867d7ad6770c"
+    },
+    {
+      "file": "frame_03.png",
+      "pts_s": 30.0,
+      "pts_ticks": 2700000,
+      "sha256": "3e8d74c4039a3b7591d9038f3a0fe73ef302f739ddc3f7ffec9e86db984c6246"
+    },
+    {
+      "file": "frame_04.png",
+      "pts_s": 31.0,
+      "pts_ticks": 2790000,
+      "sha256": "e788d462bdc65fbf751a68f7ca3e2389072d52dc02acb948c1bc787c88d1b29f"
+    },
+    {
+      "file": "frame_05.png",
+      "pts_s": 32.0,
+      "pts_ticks": 2880000,
+      "sha256": "2f24e709cde47f88a656e022e41890be5c0c148d4646f36444313252d44735ca"
+    },
+    {
+      "file": "frame_06.png",
+      "pts_s": 33.0,
+      "pts_ticks": 2970000,
+      "sha256": "8368871771c7393ce8accca01875ce4d921fe8cb16ece4cf301a44718a1d1db2"
+    },
+    {
+      "file": "frame_07.png",
+      "pts_s": 34.0,
+      "pts_ticks": 3060000,
+      "sha256": "cf8e6a4570cc7983d919091b0e9a358591d7dfde2b4e3422d1be5bd4e08f2741"
+    },
+    {
+      "file": "frame_08.png",
+      "pts_s": 35.0,
+      "pts_ticks": 3150000,
+      "sha256": "f149003e0f51e1a19002c549315720b25d8ff388824678c133940a057b1971fe"
+    },
+    {
+      "file": "frame_09.png",
+      "pts_s": 36.0,
+      "pts_ticks": 3240000,
+      "sha256": "7d2f1d950a4d40a54a1f1da696849c3c6b51a0e0d92f6b27f5b39bee6a467477"
+    }
+  ],
+  "command": [
+    "ffmpeg",
+    "-nostdin",
+    "-hide_banner",
+    "-loglevel",
+    "info",
+    "-copyts",
+    "-ss",
+    "28",
+    "-t",
+    "8.2",
+    "-i",
+    "C:\\Users\\sheld\\Downloads\\lenina_entuziastov.mp4",
+    "-vf",
+    "crop=1050:650:1450:700,trim=start=28:end=36.2,select='isnan(prev_selected_t)+gte(t-prev_selected_t,1)',showinfo",
+    "-frames:v",
+    "9",
+    "-fps_mode",
+    "passthrough",
+    "D:\\Code\\PythonProjects\\traffic_phase\\audit_checkout\\evidence\\enthusiasts_turn_clock_20261019\\frame_%02d.png"
+  ]
+}

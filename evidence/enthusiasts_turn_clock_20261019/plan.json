@@ -1,0 +1,26 @@
+{
+  "user_reply_verbatim": "она хочет повернуть на _E но ждет поток w=>_E чтобы завершить маневр",
+  "user_followup_verbatim": "E→_E",
+  "interpretation": "User confirms the marked video car maneuver, consistent with raw ID7. Identity/time correspondence still empirical.",
+  "native_pts_request_s": [
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36
+  ],
+  "roi_xywh": [
+    1450,
+    700,
+    1050,
+    650
+  ],
+  "native_frame_budget": 9,
+  "new_fits": 0,
+  "signal_predictions_used": false,
+  "purpose": "Inspect waiting/resumption of the proposed same car, independently of traffic lights; do not accept a clock from one maneuver."
+}
