@@ -1,5 +1,13 @@
 # Project status — 2D.1, 2026-10-18
 
+2026-10-18 user-requested independent Gemini review package: see
+GEMINI_REVIEW_BRIEF_20261018.md and scripts/build_gemini_review.py. Archive
+budget10,000,000 bytes, full source app/scripts/tests (large fixtures excluded),
+three complete extracted event caches/predictions, unchanged labels/operator
+reviews and explicitly clipped raw inspection excerpts. Portable manifest
+verification and saved-score reproduction included. Packaging only: no fitting,
+no algorithm change and no improvement claim. Existing failures stay visible.
+
 2026-10-18 explicit user-authorized manual-marks replay and signal correction:
 see MANUAL_MARKS_VALIDATION_20261018.md. Confirmed Sverdlovsky hardware is four
 main heads, N/E arrows only, no W/S arrows. Added an explicit known-site profile,
