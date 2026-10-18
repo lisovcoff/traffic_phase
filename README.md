@@ -1,5 +1,8 @@
 # traffic_phase
 
+2026-10-18: [spatial view now shows colored phase/movement estimates](docs/MODEL_PHASE_VIEW_20261018.md).
+Use the display selector to inspect physical lamps separately; unverified lamps stay UNKNOWN.
+
 Delivery candidate, 2026-10-18: [launch, verification and measured accuracy](docs/DELIVERY_20261018.md).
 Windows/Python 3.12: `INSTALL.cmd`, then `START_WEB.cmd`.
 The tested dependency versions are in `requirements-tested-py312.txt`.

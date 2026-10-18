@@ -250,8 +250,7 @@ button:disabled{opacity:.45;cursor:default}
 <section class="panel">
 <h1>V10 — Traffic Phase</h1>
 <p class="muted">
-Единый офлайн-анализ: JSON/ZIP → V9 discovery → V10 физическая семантика →
-пространственная реконструкция машин и светофоров.
+Анализ JSON/ZIP → оценка фаз и движений → интерактивная схема и временная шкала.
 </p>
 <form id="form">
 <p><a href="/visualization/batch" style="color:#9ccaff">Обработать архив автоматически по отдельным сеансам</a></p>
@@ -264,9 +263,9 @@ button:disabled{opacity:.45;cursor:default}
 </form>
 <div id="status" class="status muted">Выберите JSON или ZIP-архив.</div>
 <div class="note muted">
-Результат строится сервером: логические фазы и движения автомобилей.
-Физические лампы, тип светофора и дополнительные секции остаются UNKNOWN,
-если они не подтверждены независимыми данными. Продления ещё не прошли приёмку.
+По умолчанию цветом показана оценка движений текущей фазы.
+Переключатель «Отображение» внутри результата открывает вид «Физические лампы»;
+неподтверждённые лампы и секции в нём остаются UNKNOWN.
 </div>
 </section>
 <iframe id="viewer" title="V10 visualization"></iframe>
@@ -331,7 +330,7 @@ form.addEventListener("submit",async function(event){
     }
     viewer.srcdoc=html;
     viewer.style.display="block";
-    status.textContent="Готово. V10 визуализация построена.";
+    status.textContent="Готово. Визуализация фаз и движений построена.";
     viewer.scrollIntoView({behavior:"smooth",block:"start"});
   }catch(error){
     status.textContent="Ошибка: "+String(error.message||error);

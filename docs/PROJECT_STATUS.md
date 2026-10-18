@@ -1,5 +1,14 @@
 # Project status — 2D.1, 2026-10-18
 
+2026-10-18 spatial display fix: MODEL_PHASE_VIEW_20261018.md. Default view now
+colors per-movement fitted characteristics for the selected logical phase,
+instead of showing only unknown physical lamps. Separate physical view retains
+UNKNOWN and unchanged common query/export semantics. Existing real user output
+and synthetic output rerendered with source bytes preserved and no phase fits.
+73 targeted tests PASS, isolated Edge desktop/mobile control/render QA PASS for
+both cases. Relative display normalization is not a permission classifier or
+accuracy gain. Main, historical artifacts and2D.1 FAIL/default-off preserved.
+
 2026-10-18 delivery preparation: see DELIVERY_20261018.md. Corrected long-record
 anchor scoring to use baseline phase IDs rather than segment ordinals; four
 independent counterexamples fail before and pass after, with existing offset

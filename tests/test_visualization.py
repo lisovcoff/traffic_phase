@@ -15,8 +15,9 @@ def test_visualization_page_is_the_unified_v10_entrypoint():
     assert "V10 — Traffic Phase" in html
     assert "/visualization/analyze" in html
     assert 'accept=".json,.zip' in html
-    assert "V9 discovery" in html
-    assert "V10 физическая семантика" in html
+    assert "оценка фаз и движений" in html
+    assert "По умолчанию цветом показана оценка движений" in html
+    assert "Физические лампы" in html and "UNKNOWN" in html
 
 
 def test_visualization_analyze_uses_canonical_spatial_builder(monkeypatch, tmp_path):

@@ -57,7 +57,10 @@ input[type=range]{width:100%}
 .side h3{font-size:15px;margin-bottom:8px}
 .phase-card{display:flex;justify-content:space-between;gap:8px;padding:9px;background:var(--panel2);border-radius:9px;margin-top:7px}
 .phase-card strong{font-size:13px}.phase-card span{color:var(--muted);font-size:11px}
+.movement-card{display:block}.movement-row{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:12px}
+.movement-row span{color:inherit}.phase-card.current{outline:2px solid var(--green)}
 .legend{display:grid;gap:7px;color:var(--muted);font-size:11px}
+.legend[hidden]{display:none}
 .legend-row{display:flex;align-items:center;gap:8px}
 .dot{width:12px;height:12px;border-radius:50%}
 .dot.green{background:var(--green)}.dot.yellow{background:var(--yellow)}.dot.red{background:var(--red)}.dot.car{background:var(--blue)}
@@ -87,6 +90,11 @@ input[type=range]{width:100%}
 <option value="20">x20</option><option value="100">x100</option>
 </select></label>
 <strong id="timeLabel">—</strong>
+<label>Отображение
+<select id="displayMode" aria-label="Режим отображения">
+<option value="model" selected>Движения по фазам — оценка</option>
+<option value="physical">Физические лампы</option>
+</select></label>
 </section>
 
 <section class="panel">
@@ -111,7 +119,7 @@ input[type=range]{width:100%}
 </div>
 
 <aside class="panel side">
-<h3>Состояние светофоров</h3>
+<h3 id="signalTitle">Движения текущей фазы</h3>
 <div id="signalList"></div>
 
 <div class="panel notice">
@@ -122,7 +130,14 @@ input[type=range]{width:100%}
 <div id="phaseList"></div>
 
 <h3 style="margin-top:14px">Легенда</h3>
-<div class="legend">
+<div class="legend" id="modelLegend">
+<div class="legend-row"><span class="dot green"></span> Движение характерно для фазы</div>
+<div class="legend-row"><span class="dot" style="background:#697586"></span> Движение нехарактерно для фазы</div>
+<div class="legend-row"><span class="dot yellow"></span> Характеристика одинакова во всех фазах</div>
+<div class="legend-row">? — нет оценки фазы или характеристики движения</div>
+<div class="legend-row"><span class="dot car"></span> Точка транспорта из JSON</div>
+</div>
+<div class="legend" id="physicalLegend" hidden>
 <div class="legend-row"><span class="dot green"></span> Зелёный</div>
 <div class="legend-row"><span class="dot yellow"></span> Жёлтый</div>
 <div class="legend-row"><span class="dot red"></span> Красный</div>
@@ -277,6 +292,49 @@ function adjacentPhase(index,direction){
 function probability(movement,phase){
   const map=(SIGNAL_MODEL.activity||{})[movement]||{};
   return Number(map[String(phase)] == null ? (map[phase] || 0) : map[String(phase)]);
+}
+
+function modelView(){return RECONSTRUCTED && $("displayMode").value==="model";}
+
+function phaseMovements(phase){
+  // These are fitted event signatures, not traffic permissions or lamp states.
+  const output={};
+  for(const approach of ACTIVE_APPROACHES){
+    output[approach]=Object.entries(SIGNAL_MODEL.activity||{}).filter(function(pair){
+      return pair[0].split("->",1)[0].trim()===approach;
+    }).map(function(pair){
+      const movement=pair[0],scores=pair[1]||{},raw=phase===null?null:scores[String(phase)];
+      const score=typeof raw==="number" && Number.isFinite(raw)?raw:null;
+      const values=Object.values(scores).filter(function(v){return typeof v==="number" && Number.isFinite(v);});
+      const peak=values.length?Math.max(...values):0;
+      const nonselective=values.length===(SIGNAL_MODEL.phase_names||[]).length &&
+        values.every(function(v){return Math.abs(v-peak)<=1e-12;});
+      return {movement:movement,score:score,
+        state:score===null || peak<=0?"UNAVAILABLE":
+          nonselective?"NONSELECTIVE":score/peak>=0.70?"ACTIVE":"INACTIVE"};
+    });
+  }
+  return output;
+}
+
+function activityColor(state){return state==="ACTIVE"?"#49d17d":state==="NONSELECTIVE"?"#f2cc5c":"#697586";}
+
+function drawMovementIndicator(ctx,x,y,movements,approach,w,h){
+  const px=x*w,py=y*h,rows=Math.max(1,movements.length);
+  const bodyW=76*canvasScale,bodyH=(27+rows*20)*canvasScale;
+  const left=px-bodyW/2,top=py-bodyH/2;
+  ctx.fillStyle="#101820";ctx.strokeStyle="#697586";ctx.lineWidth=canvasScale;
+  ctx.beginPath();ctx.roundRect(left,top,bodyW,bodyH,7*canvasScale);ctx.fill();ctx.stroke();
+  ctx.fillStyle="#edf2f7";ctx.font="700 "+(11*canvasScale)+"px system-ui";
+  ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(approach+" · фаза",px,top+13*canvasScale);
+  const entries=movements.length?movements:[{movement:"",state:"UNAVAILABLE"}];
+  entries.forEach(function(item,index){
+    const yy=top+(34+index*20)*canvasScale;
+    ctx.fillStyle=activityColor(item.state);ctx.beginPath();ctx.arc(left+13*canvasScale,yy,4*canvasScale,0,Math.PI*2);ctx.fill();
+    ctx.textAlign="left";ctx.font="600 "+(11*canvasScale)+"px system-ui";
+    const target=item.movement.split("->")[1]||"—";
+    ctx.fillText(item.state==="UNAVAILABLE"?"? "+target:"→ "+target,left+24*canvasScale,yy);
+  });
 }
 
 function physicalSectionState(section,previousSection,nextSection,distanceFromStart,distanceToEnd){
@@ -595,6 +653,27 @@ function anomalyAt(t){
 
 function renderSignalList(snapshot){
   const holder=$("signalList");holder.innerHTML="";
+  $("signalTitle").textContent=modelView()?"Движения текущей фазы":"Состояние светофоров";
+  $("modelLegend").hidden=!modelView();$("physicalLegend").hidden=modelView();
+  if(modelView()){
+    const movements=phaseMovements(snapshot.phase);
+    for(const approach of ACTIVE_APPROACHES){
+      const card=document.createElement("div");card.className="phase-card movement-card";
+      const title=document.createElement("strong");title.textContent=APPROACH_LABELS[approach];card.appendChild(title);
+      for(const item of movements[approach]){
+        const row=document.createElement("div");row.className="movement-row";
+        const label=document.createElement("span");label.textContent=item.movement.replace("->"," → ");
+        const value=document.createElement("span");
+        value.textContent=item.state==="ACTIVE"?"● Характерно":item.state==="INACTIVE"?"○ Нехарактерно":item.state==="NONSELECTIVE"?"● Все фазы одинаковы":"Нет оценки";
+        value.style.color=activityColor(item.state);
+        row.title="Характеристика событий в фазе: "+(item.score===null?"нет данных":item.score.toFixed(3))+". Зелёный: не ниже 70% максимума этого движения по фазам. Это не вероятность зелёного сигнала.";
+        row.append(label,value);card.appendChild(row);
+      }
+      if(!movements[approach].length){const empty=document.createElement("p");empty.textContent="Нет характеристики движений";card.appendChild(empty);}
+      holder.appendChild(card);
+    }
+    return;
+  }
   for(const approach of ACTIVE_APPROACHES){
     const head=snapshot.heads[approach] || {main:{state:"UNKNOWN",probability:0},arrows:[]};
     const row=document.createElement("div");row.className="phase-card";
@@ -620,7 +699,7 @@ function renderPhases(){
     const key=String(phase);
     if(seen[key])continue;
     seen[key]=true;
-    const card=document.createElement("div");card.className="phase-card";
+    const card=document.createElement("div");card.className="phase-card";card.dataset.phase=String(phase);
     const name=document.createElement("strong");
     name.textContent=PHYSICAL.enabled
       ? String(phase)
@@ -670,6 +749,7 @@ window.addEventListener("resize",resizeCanvas);
 function render(){
   tGlobal=currentTime;
   const snapshot=signalSnapshot(currentTime);
+  const movements=phaseMovements(snapshot.phase);
   const vehicles=activeVehicles(currentTime);
 
   const debugHeads={};
@@ -693,6 +773,8 @@ function render(){
     current_time_s:Number(currentTime.toFixed(3)),
     cycle_position_s:Number((snapshot.cyclePosition||0).toFixed(3)),
     phase:String(snapshot.phaseName||"UNKNOWN"),
+    display_mode:modelView()?"MODEL_PHASE_ACTIVITY":"PHYSICAL_LAMPS",
+    model_movements:movements,
     active_movements:stage ? (stage.active_movements||[]) : [],
     heads:debugHeads,
     active_vehicle_count:vehicles.length,
@@ -716,21 +798,23 @@ function render(){
   for(const vehicle of vehicles)drawVehicle(ctx,vehicle,canvas.width,canvas.height);
   for(const approach of ACTIVE_APPROACHES){
     const head=snapshot.heads[approach] || {main:{state:"UNKNOWN"},arrows:[]};
-    drawLight(ctx,LIGHT_POS[approach].x,LIGHT_POS[approach].y,head,approach,canvas.width,canvas.height);
+    if(modelView())drawMovementIndicator(ctx,LIGHT_POS[approach].x,LIGHT_POS[approach].y,movements[approach],approach,canvas.width,canvas.height);
+    else drawLight(ctx,LIGHT_POS[approach].x,LIGHT_POS[approach].y,head,approach,canvas.width,canvas.height);
   }
 
   const anomaly=anomalyAt(currentTime);
   $("phase").textContent=snapshot.phaseName==="UNKNOWN"?"UNKNOWN":snapshot.phaseName.replace(/^PHASE_/,"");
+  for(const card of $("phaseList").children)card.classList.toggle("current",card.dataset.phase===String(snapshot.phase));
   $("cycle").textContent=Number(snapshot.cyclePosition||0).toFixed(2)+" s";
   $("vehicles").textContent=String(vehicles.length);
   $("timeLabel").textContent=new Date(DISPLAY_BASE_MS+currentTime*1000).toLocaleString()+" · T+"+currentTime.toFixed(1)+" s";
   $("anomaly").textContent=anomaly?"⚠ "+anomaly.type+" · "+Number(anomaly.delta_s).toFixed(1)+" s":"Нет";
-  $("sceneBadge").textContent=(RECONSTRUCTED ? "Логическая история; лампы UNKNOWN · " : PHYSICAL.enabled
+  $("sceneBadge").textContent=(modelView()?"Оценка движений · фаза "+$("phase").textContent+" · ":RECONSTRUCTED ? "Логическая история; лампы UNKNOWN · " : PHYSICAL.enabled
     ? "V10 · физический план · "
     : "V10 OFF · "+String(PHYSICAL.reason || "physical plan unavailable")+" · ")
     +"N ↑ · S ↓ · W ← · E → · "+vehicles.length+" машин";
   $("sceneBadge").className="scene-badge"+(anomaly?" warning":"");
-  $("semanticText").textContent=RECONSTRUCTED ? "Логическая фаза по общей истории; физические лампы и секции UNKNOWN. Отсутствие движения не доказывает RED. Причина UNKNOWN: "+String(snapshot.abstention_reason||"аппаратные состояния не наблюдались") : PHYSICAL.enabled
+  $("semanticText").textContent=modelView()?"Цвет сравнивает характеристику движения в текущей фазе с его максимумом по фазам. Зелёный — не ниже 70% максимума, серый — ниже, жёлтый — фазы не различаются. Это оценка состава фазы, а не разрешение проезда. "+(snapshot.abstention_reason?"Фаза недоступна: "+snapshot.abstention_reason:""):RECONSTRUCTED ? "Логическая фаза по общей истории; физические лампы и секции UNKNOWN. Отсутствие движения не доказывает RED. Причина UNKNOWN: "+String(snapshot.abstention_reason||"аппаратные состояния не наблюдались") : PHYSICAL.enabled
     ? "зелёный/красный — по V10 physical phase mapping и заданному плану сигналов. Жёлтый и красный+жёлтый — модельные переходы."
     : "V10 physical plan ОТКЛЮЧЁН: "+String(PHYSICAL.reason || "причина не передана")+". Сейчас отображается fallback V9, а не физические головы.";
   renderSignalList(snapshot);
@@ -764,9 +848,11 @@ $("pause").addEventListener("click",stop);
 $("reset").addEventListener("click",function(){stop();setCurrentTime(0)});
 $("slider").addEventListener("input",function(e){setCurrentTime(e.target.value)});
 $("speed").addEventListener("change",function(){if(timer)play()});
+$("displayMode").addEventListener("change",render);
 
 async function init(){
   try{
+    if(!RECONSTRUCTED){$("displayMode").value="physical";$("displayMode").disabled=true;}
     TRACKS=await unpackData();
     $("trajectoryCount").textContent=String(RESULT.trajectory_count||0);
     $("eventCount").textContent=String(RESULT.event_count||0);
