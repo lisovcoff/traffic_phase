@@ -1,0 +1,28 @@
+Raw count archive ������-������������ 27.02.25.zip
+.web_runtime/release_20261018/venv312/Scripts/python.exe : Exception in thread Thread-1 (_readerthread):
+строка:2 знак:1
++ .web_runtime/release_20261018/venv312/Scripts/python.exe -m scripts.c ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Exception in th..._readerthread)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Traceback (most recent call last):
+  File "C:\Users\sheld\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "C:\Users\sheld\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\sheld\AppData\Local\Programs\Python\Python312\Lib\subprocess.py", line 1599, in _readerthread
+    buffer.append(fh.read())
+                  ^^^^^^^^^
+  File "<frozen codecs>", line 322, in decode
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xcb in position 76: invalid continuation byte
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\scripts\count_archive_check.py", line 37, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\scripts\count_archive_check.py", line 29, in main
+    output=proc.stdout[-5000:]
+           ~~~~~~~~~~~^^^^^^^^
+TypeError: 'NoneType' object is not subscriptable

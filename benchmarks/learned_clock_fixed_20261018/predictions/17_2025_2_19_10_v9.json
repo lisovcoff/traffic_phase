@@ -1,0 +1,143 @@
+{
+  "algorithm": "Learned cyclic traffic profile; operator-calibrated",
+  "recording_start_timestamp_ms": 1739941737112.0,
+  "analysis_base_timestamp_ms": 1739941737112.0,
+  "schedule_base_timestamp_ms": 1739941737112.0,
+  "recording_duration_s": 298.968,
+  "event_count": 279,
+  "phase_model_selection": {
+    "selected_phase_count": 3,
+    "conditional_on_training_labels": true
+  },
+  "schedule": {
+    "model": "learned_cyclic_traffic_profile",
+    "phase_count": 3,
+    "phase_names": [
+      "PHASE_A",
+      "PHASE_B",
+      "PHASE_C"
+    ],
+    "period_s": 99.84281321021679,
+    "raw_hsmm_segments": [
+      [
+        0.0,
+        31.0,
+        1
+      ],
+      [
+        31.0,
+        79.0,
+        2
+      ],
+      [
+        79.0,
+        100.0,
+        0
+      ],
+      [
+        100.0,
+        131.0,
+        1
+      ],
+      [
+        131.0,
+        179.0,
+        2
+      ],
+      [
+        179.0,
+        200.0,
+        0
+      ],
+      [
+        200.0,
+        231.0,
+        1
+      ],
+      [
+        231.0,
+        279.0,
+        2
+      ],
+      [
+        279.0,
+        298.968,
+        0
+      ]
+    ],
+    "baseline_segments": [
+      [
+        0.0,
+        31.0,
+        1
+      ],
+      [
+        31.0,
+        79.0,
+        2
+      ],
+      [
+        79.0,
+        100.0,
+        0
+      ],
+      [
+        100.0,
+        131.0,
+        1
+      ],
+      [
+        131.0,
+        179.0,
+        2
+      ],
+      [
+        179.0,
+        200.0,
+        0
+      ],
+      [
+        200.0,
+        231.0,
+        1
+      ],
+      [
+        231.0,
+        279.0,
+        2
+      ],
+      [
+        279.0,
+        298.968,
+        0
+      ]
+    ]
+  },
+  "learned_phase": {
+    "model_schema": "learned-traffic-phase-v1",
+    "training_range_ms": [
+      1739941438144,
+      1739941737112.0
+    ],
+    "phase_grid_bins": 100,
+    "baseline_segments_semantics": "local prediction alias; no separate periodic baseline",
+    "phase_labels": [
+      "C",
+      "A",
+      "B"
+    ],
+    "test_marks_received": false,
+    "phase_count_source": "training_labels_NOT_automatic_discovery",
+    "physical_lamps_observed": false,
+    "operator_reaction_uncertainty_s": [
+      0,
+      3
+    ],
+    "trained_model_sha256": "3e2e638567f82e1319b524a993084999cc90b3523bc412e3e60cda58d6828220"
+  },
+  "physical_signal_plan": {
+    "enabled": false,
+    "reason": "no independent physical lamp evidence"
+  },
+  "input": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\17_2025_2_19_10.json"
+}

@@ -1,5 +1,15 @@
 # traffic_phase
 
+2026-10-18: [new calibrated model and real-data results](docs/LEARNED_PHASE_RESULTS_20261018.md).
+Run `START_WEB.cmd`, then open http://127.0.0.1:8017/visualization/learned.
+Choose the intersection and upload JSON/ZIP; prediction needs no annotation file.
+Restart an already running server to load this route. Three frozen intersection
+models are included. On the chronological second-half holdout, timing matches
+improve from7/13 to11/13 in ±2s (11/15 predicted boundaries match).
+Training uses first-half operator marks and supplies the number of phases;
+this is same-session validation, not automatic phase discovery or lamp truth.
+Open `evidence/learned_release_20261018/summary.html` for results and ready viewers.
+
 2026-10-18: [five post-review algorithm checks and duration correction](docs/ALGORITHM_CHECK_RESULTS_20261018.md).
 K2 refinement now supports the same duration flexibility as K3 (verified20/80-cycle
 counterexample). Real timing scores remain15/17,1/8,3/9; four other candidates

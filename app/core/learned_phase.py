@@ -3,6 +3,7 @@ from collections import defaultdict
 import math
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
+from bisect import bisect_right
 
 
 def observations(events):
@@ -55,9 +56,29 @@ def fit_profile(events,training_marks,*,base_ms,period_s,train_start_ms,train_en
         prediction_uses_test_marks=False,transductive_period_from_unlabelled_recording=True)
 
 
+def training_movement_activity(events,marks,*,start_ms,end_ms):
+    """Auxiliary display signatures from the same training half, never test labels."""
+    marks=sorted(marks,key=lambda m:m['timestamp_ms'])
+    times=[m['timestamp_ms'] for m in marks]
+    exposure=defaultdict(float);counts=defaultdict(lambda:defaultdict(float))
+    for i,mark in enumerate(marks):
+        a=max(start_ms,mark['timestamp_ms'])
+        b=min(end_ms,marks[i+1]['timestamp_ms'] if i+1<len(marks) else end_ms)
+        exposure[mark['kind']]+=max(0.,(b-a)/1000)
+    for timestamp,channel,weight in observations([e for e in events if start_ms<=e.timestamp_ms<end_ms]):
+        index=bisect_right(times,timestamp)-1
+        if index>=0:counts[marks[index]['kind']][channel[0]]+=weight
+    return {label:{movement:float(1-np.exp(-count/max(1.,exposure[label])))
+        for movement,count in streams.items()} for label,streams in counts.items()}
+
+
 def predict_profile(events,model,*,start_ms,end_ms,period_s=None):
     """Prediction accepts observations/model/window; never manual test labels."""
-    period=float(period_s or model['period_s']);m=100
+    period=float(period_s if period_s is not None else model['period_s'])
+    if not math.isfinite(period) or period<=0:raise ValueError('positive finite period required')
+    # One hidden grid step represents approximately one real second. A fixed
+    # 100-state MAP clock would advance one step/s even for a 120-second cycle.
+    m=max(4,int(round(period)))
     channels={tuple(c):j for j,c in enumerate(model['channels'])}
     n=int(math.ceil((end_ms-start_ms)/1000))
     if not 0<n<=10_800:raise ValueError('bounded positive prediction window required')
@@ -67,7 +88,11 @@ def predict_profile(events,model,*,start_ms,end_ms,period_s=None):
         if start_ms<=time<end_ms and channel in channels:
             i=int((time-start_ms)/1000);x[i,channels[channel]]+=weight;used+=1
     if not used:raise ValueError('no supported prediction observations')
-    emission=x@np.log(np.maximum(np.asarray(model['profile']),1e-15)).T
+    trained=np.asarray(model['profile'])
+    profile=np.column_stack([np.interp(np.arange(m)*100/m,np.arange(100),trained[:,j],period=100)
+                             for j in range(trained.shape[1])])
+    profile/=profile.sum(axis=0,keepdims=True)
+    emission=x@np.log(np.maximum(profile,1e-15)).T
     expected=m/period;steps=np.arange(int(math.ceil(expected))+3)
     penalties=.5*((steps-expected)/.5)**2
     positions=np.arange(m)
@@ -80,20 +105,26 @@ def predict_profile(events,model,*,start_ms,end_ms,period_s=None):
         back[t]=previous[positions,best]
     position=int(np.argmax(score));path=np.zeros(n,dtype=int)
     for t in range(n-1,-1,-1):path[t]=position;position=int(back[t,position])
-    onsets=np.asarray(model['phase_onsets_bins']);k=len(onsets)
+    onsets=np.asarray(model['phase_onsets_bins'])*m/100;k=len(onsets)
     labels=np.searchsorted(onsets,path,side='right')-1;labels%=k
     rows=[];start=0
     for i in range(1,n+1):
         if i==n or labels[i]!=labels[start]:
             rows.append([float(start),min(float(i),(end_ms-start_ms)/1000),int(labels[start])]);start=i
-    names=[f'PHASE_{chr(65+i)}' for i in range(k)]
+    names=[f'PHASE_{label}' for label in model['phase_labels']]
+    activity=model.get('movement_activity_by_label',{})
+    streams=sorted({s for values in activity.values() for s in values})
     return dict(algorithm='Learned cyclic traffic profile; operator-calibrated',
         recording_start_timestamp_ms=start_ms,analysis_base_timestamp_ms=start_ms,
         schedule_base_timestamp_ms=start_ms,recording_duration_s=(end_ms-start_ms)/1000,
         event_count=used,phase_model_selection={'selected_phase_count':k,'conditional_on_training_labels':True},
         schedule={'model':'learned_cyclic_traffic_profile','phase_count':k,'phase_names':names,
-            'period_s':period,'raw_hsmm_segments':rows,'baseline_segments':rows},
+            'period_s':period,'raw_hsmm_segments':rows,'baseline_segments':rows,
+            'baseline_duration_targets_s':{names[i]:float((onsets[(i+1)%k]-onsets[i])%m/m*period) for i in range(k)},
+            'stream_activity_by_phase':[dict(stream=s,event_probability_by_phase={
+                names[i]:activity.get(label,{}).get(s,0.) for i,label in enumerate(model['phase_labels'])}) for s in streams]},
         learned_phase={'model_schema':model['schema'],'training_range_ms':model['training_range_ms'],
+            'phase_grid_bins':m,'baseline_segments_semantics':'local prediction alias; no separate periodic baseline',
             'phase_labels':model['phase_labels'],'test_marks_received':False,
             'phase_count_source':'training_labels_NOT_automatic_discovery',
             'physical_lamps_observed':False,'operator_reaction_uncertainty_s':[0,3]},

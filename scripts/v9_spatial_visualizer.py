@@ -832,7 +832,7 @@ function render(){
   $("cycle").textContent=Number(snapshot.cyclePosition||0).toFixed(2)+" s";
   $("vehicles").textContent=String(vehicles.length);
   $("timeLabel").textContent=new Date(DISPLAY_BASE_MS+currentTime*1000).toLocaleString()+" · T+"+currentTime.toFixed(1)+" s";
-  $("anomaly").textContent=anomaly?"⚠ "+anomaly.type+" · "+Number(anomaly.delta_s).toFixed(1)+" s":"Нет";
+  $("anomaly").textContent=anomaly?"⚠ "+anomaly.type+" · "+Number(anomaly.delta_s).toFixed(1)+" s":RESULT.anomaly_detection?.status==="not_evaluated"?"Не оценено":"Нет";
   $("sceneBadge").textContent=(estimatedView()?"Оценка сигналов · "+snapshot.phaseName+" · ":modelView()?"Оценка движений · фаза "+$("phase").textContent+" · ":RECONSTRUCTED ? "Логическая история; лампы UNKNOWN · " : PHYSICAL.enabled
     ? "V10 · физический план · "
     : "V10 OFF · "+String(PHYSICAL.reason || "physical plan unavailable")+" · ")

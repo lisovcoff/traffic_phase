@@ -1,5 +1,21 @@
 # Project status — 2D.1, 2026-10-18
 
+Latest user-authorized rewrite: LEARNED_PHASE_RESULTS_20261018.md. Independent
+automatic count models failed and stay separate. New calibrated model uses
+first-half operator marks; second-half same-session holdout improves7/13 to11/13
+strict ±2s, predicted17 to15, precision11/15. K and semantics are trained.
+No test marks at prediction; unlabelled full-recording period is transductive.
+An independent120s clock test exposed a100-state MAP clock defect; after its
+numerical correction, the SAME frozen models score11/13, versus initial12/13.
+No retraining/tuning to restore the better flawed score. All failures retained.
+Three frozen deployment profiles, /visualization/learned, two real raw ZIP
+integrations (first named member/first session only), real HTTP upload and
+two-viewer Edge desktop/mobile QA delivered.1367 full PASS plus26 affected
+tests PASS after UI metadata changes. Observed lamps UNKNOWN; known Sverdlovsky
+estimates have four main heads and N/E arrows only; anomalies not evaluated.
+Ready viewers/report: evidence/learned_release_20261018/. No unseen-day or lamp
+accuracy claim.20:00 EKB deadline missed. Main and2D.1 FAIL/default-off intact.
+
 Post-review release verification:1357 tests PASS in257.98s,5 existing warnings;
 duration counterexample FAIL before/PASS after;26 affected checks PASS and
 START_WEB.cmd --check imports the current app. Evidence:

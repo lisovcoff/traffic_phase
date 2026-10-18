@@ -78,7 +78,11 @@ def evaluate():
     rows=[]
     for row in ledger:
         path=OUT/'predictions'/row['file'];assert sha(path)==row['sha256']
-        annotation=json.loads((OUT/'heldout'/row['file']).read_text(encoding='utf8'))
+        raw_annotation=json.loads((OUT/'heldout'/row['file']).read_text(encoding='utf8'))
+        # Original ordinal fields refer to the full file. Project the subset
+        # to canonical timestamp/kind, without changing a timestamp or label.
+        annotation={'start_ms':raw_annotation['start_ms'],'marks':[
+            {'timestamp_ms':m['timestamp_ms'],'kind':m['kind']} for m in raw_annotation['marks']]}
         result=dict(file=row['file'],conditional_k=True,scope='chronological heldout half only',variants={})
         for variant,pred_path in [('baseline',SOURCE/row['file']),('learned',path)]:
             pred=json.loads(pred_path.read_text(encoding='utf8'))

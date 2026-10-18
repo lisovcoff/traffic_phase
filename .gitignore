@@ -25,6 +25,9 @@ phase_boundary_*/
 .web_runtime/
 /logs/
 
+# Retained HTTP integration inputs; do not redistribute raw user uploads.
+/evidence/learned_release_20261018/http/runs/
+
 # Local pilot media; reproducible manifests remain versioned.
 evidence/video_calibration_pilot_20261015/trajectory_sample/calibration_tracks.json
 evidence/video_calibration_pilot_20261015/**/frame_*.jpg

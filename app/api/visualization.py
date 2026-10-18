@@ -260,6 +260,7 @@ button:disabled{opacity:.45;cursor:default}
 Анализ JSON/ZIP → оценка фаз и движений → интерактивная схема и временная шкала.
 </p>
 <form id="form">
+<p><a href="/visualization/learned" style="color:#9ccaff">Обученная модель для размеченных перекрёстков</a></p>
 <p><a href="/visualization/batch" style="color:#9ccaff">Обработать архив автоматически по отдельным сеансам</a></p>
 <div class="toolbar">
 <input id="file" name="file" type="file" accept=".json,.zip,application/json,application/zip" required>

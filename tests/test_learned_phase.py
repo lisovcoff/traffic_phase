@@ -40,3 +40,17 @@ def test_prediction_abstains_without_observed_events():
     model=fit_profile(data(),marks(),base_ms=0,period_s=100,train_start_ms=0,train_end_ms=250000)
     with pytest.raises(ValueError,match='no supported prediction'):
         predict_profile([],model,start_ms=300000,end_ms=400000)
+
+
+def test_120_second_clock_does_not_turn_into_a_100_second_clock_in_silence():
+    # Uniform observation density gives no phase information. The declared
+    # time prior alone must retain a 120s cycle, independently of training labels.
+    model=dict(schema='learned-traffic-phase-v1',period_s=120.,channels=[['N->S','RELEASE']],
+        profile=[[.01] for _ in range(100)],phase_onsets_bins=[0.,50.],phase_labels=['A','B'],
+        training_range_ms=[0,1000])
+    observed=[TemporalEvent(1000,'RELEASE','N->S',1,'test',.7,'MEDIUM',None,
+        {'track_fingerprint':'1','source':'test'})]
+    result=predict_profile(observed,model,start_ms=0,end_ms=360000)
+    rows=result['schedule']['raw_hsmm_segments']
+    internal=[r[1]-r[0] for r in rows[1:-1]]
+    assert internal and all(duration==60 for duration in internal)

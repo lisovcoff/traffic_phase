@@ -1,0 +1,108 @@
+{
+  "algorithm": "Learned cyclic traffic profile; operator-calibrated",
+  "recording_start_timestamp_ms": 1740397470239.0,
+  "analysis_base_timestamp_ms": 1740397470239.0,
+  "schedule_base_timestamp_ms": 1740397470239.0,
+  "recording_duration_s": 262.481,
+  "event_count": 380,
+  "phase_model_selection": {
+    "selected_phase_count": 2,
+    "conditional_on_training_labels": true
+  },
+  "schedule": {
+    "model": "learned_cyclic_traffic_profile",
+    "phase_count": 2,
+    "phase_names": [
+      "PHASE_A",
+      "PHASE_B"
+    ],
+    "period_s": 120.02849954941996,
+    "raw_hsmm_segments": [
+      [
+        0.0,
+        27.0,
+        1
+      ],
+      [
+        27.0,
+        96.0,
+        0
+      ],
+      [
+        96.0,
+        147.0,
+        1
+      ],
+      [
+        147.0,
+        217.0,
+        0
+      ],
+      [
+        217.0,
+        258.0,
+        1
+      ],
+      [
+        258.0,
+        262.481,
+        0
+      ]
+    ],
+    "baseline_segments": [
+      [
+        0.0,
+        27.0,
+        1
+      ],
+      [
+        27.0,
+        96.0,
+        0
+      ],
+      [
+        96.0,
+        147.0,
+        1
+      ],
+      [
+        147.0,
+        217.0,
+        0
+      ],
+      [
+        217.0,
+        258.0,
+        1
+      ],
+      [
+        258.0,
+        262.481,
+        0
+      ]
+    ]
+  },
+  "learned_phase": {
+    "model_schema": "learned-traffic-phase-v1",
+    "training_range_ms": [
+      1740397207758,
+      1740397470239.0
+    ],
+    "phase_labels": [
+      "B",
+      "A"
+    ],
+    "test_marks_received": false,
+    "phase_count_source": "training_labels_NOT_automatic_discovery",
+    "physical_lamps_observed": false,
+    "operator_reaction_uncertainty_s": [
+      0,
+      3
+    ]
+  },
+  "physical_signal_plan": {
+    "enabled": false,
+    "reason": "no independent physical lamp evidence"
+  },
+  "input": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\19_2025_2_24_16.json"
+}

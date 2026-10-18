@@ -1,0 +1,33 @@
+{
+  "code_commit": "5b3b7900b576d124322b1b814c165df0742e07ec",
+  "inputs": [
+    {
+      "file": "17_2025_2_19_10_v9.json",
+      "source_sha256": "e4263e316c5e1e18365af7b5557c26b0c5e8f73077c6267c265bb55a73fb6d8b",
+      "training_sha256": "8be948312d862a5175a2cdb063f0ab421d1e4ecd94e30dba6595c7e26ef94d81",
+      "heldout_sha256": "c7a02c355811f14fafae55fe0f8043ba6307e1fca5ec29a1f554be2603c19927",
+      "cut_ms": 1739941737112.0
+    },
+    {
+      "file": "19_2025_2_24_16_v9.json",
+      "source_sha256": "46a5e1a942f873f0ff319cb3bbd918d734c579feb450ce285cc6baaf89c2d53a",
+      "training_sha256": "9a2d369ea4476fd9b56d695605606d4fc366c845d5f84e0c44a504624d91dbc0",
+      "heldout_sha256": "b45cb1ee1c816de56ec55224348a656939bb51d0dadb57d0d09ba826b3d99b80",
+      "cut_ms": 1740397470239.0
+    },
+    {
+      "file": "6_2025_2_14_20_v9.json",
+      "source_sha256": "895cd763d288c26ab6108ddaa26a86999a092a3e2eb08c370b3180c826300299",
+      "training_sha256": "53cfc2866da704e52709e41b8fd4f372fb9cbfedab6e08ff2e7912ec61629370",
+      "heldout_sha256": "e55910cf41698724f643ef5739b39b8d1c4406f4fa5b6c25c477d5be280bc50b",
+      "cut_ms": 1739545722225.5
+    }
+  ],
+  "core_sha256": "8fe864a972c3712ca4c3af01366d5c5860b504143fec9aa809b280173af2128c",
+  "worker_sha256": "2a3538fb241a9372386258a7214258940a7c6df242c31381a9c23611c463e0f5",
+  "fit_predict_workers": 3,
+  "timeout_s": 120,
+  "max_total_s": 360,
+  "tuning": false,
+  "evaluation_scope": "last half manual window only; K supplied by first-half training labels"
+}
