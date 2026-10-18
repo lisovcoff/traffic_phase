@@ -113,11 +113,15 @@ def event_channels(events):
     return selected,channels
 
 
-def discover_bundle(bundle,*,input_name='records'):
+def discover_bundle(bundle,*,input_name='records',observation_builder=None):
     from app.core.v9.primitives import infer_period
     from app.core.v10.automatic_physical import infer_physical_signal_plan
     from app.core.state_contract import attach_state_contract
-    events,channels=event_channels(bundle.temporal_events)
+    alignment=None
+    if observation_builder is None:
+        events,channels=event_channels(bundle.temporal_events)
+    else:
+        events,channels,alignment=observation_builder(bundle.temporal_events)
     if not events:raise ValueError('no supported vehicle events')
     period,period_info=infer_period(bundle[1])
     base=float(bundle[7]);end=max(max(v) for v in bundle[1].values() if len(v))
@@ -167,7 +171,7 @@ def discover_bundle(bundle,*,input_name='records'):
         count_phase={'experimental':True,'physical_lamps_observed':False,'manual_marks_used':False,
             'folded_bins':m,'time_step_s':1,'observation_model':'conditional_on_vehicle_event',
             'empty_seconds_not_negative_lamp_evidence':True,'phase_onsets_s':[g['onset'] for g in groups],
-            'calibrated_lamp_probability':None})
+            'calibrated_lamp_probability':None,'observation_alignment':alignment})
     try:result['physical_signal_plan']=infer_physical_signal_plan(result)
     except ValueError as exc:result['physical_signal_plan']={'enabled':False,'reason':str(exc)}
     return attach_state_contract(result)

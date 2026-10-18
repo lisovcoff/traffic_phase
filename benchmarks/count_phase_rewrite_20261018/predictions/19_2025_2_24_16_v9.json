@@ -1,0 +1,1329 @@
+{
+  "algorithm": "Count phase v1: circular multinomial partition + local count DP",
+  "input": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\19_2025_2_24_16.json",
+  "trajectory_count": 1154,
+  "event_count": 1103,
+  "movement_stream_count": 12,
+  "movement_streams": {
+    "E->N": 82,
+    "E->S": 66,
+    "E->W": 66,
+    "N->E": 62,
+    "N->S": 264,
+    "N->W": 61,
+    "S->E": 16,
+    "S->N": 229,
+    "S->W": 56,
+    "W->E": 42,
+    "W->N": 91,
+    "W->S": 68
+  },
+  "recording_start_timestamp_ms": 1740397207758.0,
+  "analysis_base_timestamp_ms": 1740397207758.0,
+  "event_base_timestamp_ms": 1740397207758.0,
+  "schedule_base_timestamp_ms": 1740397207758.0,
+  "recording_duration_s": 1185.003,
+  "archive": {
+    "source_files": [
+      "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\19_2025_2_24_16.json"
+    ]
+  },
+  "period_inference": {
+    "period_s": 120.02849954941996,
+    "method": "hybrid_circular_plus_multistream_lag_recurrence",
+    "search_range_s": [
+      45.0,
+      180.0
+    ],
+    "grid_step_s": 0.5,
+    "top_candidates": [
+      {
+        "period_s": 120.0,
+        "combined_score": 0.9958484617349095,
+        "circular_score": 2.6042683274400726,
+        "lag_score": 0.20434058811349007
+      },
+      {
+        "period_s": 120.5,
+        "combined_score": 0.9935305960966685,
+        "circular_score": 2.5986102085264458,
+        "lag_score": 0.20434058811349007
+      },
+      {
+        "period_s": 119.5,
+        "combined_score": 0.9929341356729277,
+        "circular_score": 2.5971541948778896,
+        "lag_score": 0.20434058811349007
+      },
+      {
+        "period_s": 121.0,
+        "combined_score": 0.9862656822299322,
+        "circular_score": 2.5808758990491945,
+        "lag_score": 0.20434058811349007
+      },
+      {
+        "period_s": 119.0,
+        "combined_score": 0.984579128539204,
+        "circular_score": 2.5767588694945402,
+        "lag_score": 0.20434058811349007
+      },
+      {
+        "period_s": 118.5,
+        "combined_score": 0.9748069010851526,
+        "circular_score": 2.542769702536538,
+        "lag_score": 0.21121711034960025
+      },
+      {
+        "period_s": 121.5,
+        "combined_score": 0.9615170250813792,
+        "circular_score": 2.5519369675227743,
+        "lag_score": 0.18298367052766362
+      },
+      {
+        "period_s": 118.0,
+        "combined_score": 0.9552708058958586,
+        "circular_score": 2.495080333547554,
+        "lag_score": 0.21121711034960025
+      }
+    ]
+  },
+  "event_extraction": {
+    "evidence_policy": "typed_per_track_counts",
+    "manual_marks_used_for_discovery": false,
+    "selected_event_count": 1103,
+    "channels": [
+      [
+        "E->N",
+        "CROSSING_PROXY"
+      ],
+      [
+        "E->N",
+        "RELEASE"
+      ],
+      [
+        "E->S",
+        "CROSSING_PROXY"
+      ],
+      [
+        "E->S",
+        "RELEASE"
+      ],
+      [
+        "E->W",
+        "CROSSING_PROXY"
+      ],
+      [
+        "E->W",
+        "RELEASE"
+      ],
+      [
+        "N->E",
+        "CROSSING_PROXY"
+      ],
+      [
+        "N->E",
+        "RELEASE"
+      ],
+      [
+        "N->S",
+        "CROSSING_PROXY"
+      ],
+      [
+        "N->S",
+        "RELEASE"
+      ],
+      [
+        "N->W",
+        "CROSSING_PROXY"
+      ],
+      [
+        "N->W",
+        "RELEASE"
+      ],
+      [
+        "S->E",
+        "CROSSING_PROXY"
+      ],
+      [
+        "S->N",
+        "CROSSING_PROXY"
+      ],
+      [
+        "S->N",
+        "RELEASE"
+      ],
+      [
+        "S->W",
+        "CROSSING_PROXY"
+      ],
+      [
+        "S->W",
+        "RELEASE"
+      ],
+      [
+        "W->E",
+        "CROSSING_PROXY"
+      ],
+      [
+        "W->E",
+        "RELEASE"
+      ],
+      [
+        "W->N",
+        "CROSSING_PROXY"
+      ],
+      [
+        "W->N",
+        "RELEASE"
+      ],
+      [
+        "W->S",
+        "CROSSING_PROXY"
+      ],
+      [
+        "W->S",
+        "RELEASE"
+      ]
+    ]
+  },
+  "phase_evidence": {
+    "source": "typed_per_track_counts",
+    "demand_entries_used_for_phase_evidence": false
+  },
+  "phase_model_selection": {
+    "selected_phase_count": 3,
+    "raw_selected_phase_count": 3,
+    "criterion": "circular_conditional_multinomial_BIC",
+    "candidates": [
+      {
+        "k": 1,
+        "bic": 6271.572195592275,
+        "negative_loglik": 3055.2195240747224
+      },
+      {
+        "k": 2,
+        "bic": 5330.383672394057,
+        "negative_loglik": 2504.0586887541976
+      },
+      {
+        "k": 3,
+        "bic": 5087.193327166961,
+        "negative_loglik": 2301.8969424192346
+      },
+      {
+        "k": 4,
+        "bic": 5093.6371630552485,
+        "negative_loglik": 2224.5522866419633
+      },
+      {
+        "k": 5,
+        "bic": 5154.548877781889,
+        "negative_loglik": 2174.4415702838683
+      },
+      {
+        "k": 6,
+        "bic": 5235.871870100165,
+        "negative_loglik": 2134.536492721591
+      }
+    ]
+  },
+  "schedule": {
+    "model": "count_phase_v1",
+    "phase_count": 3,
+    "phase_names": [
+      "PHASE_A",
+      "PHASE_B",
+      "PHASE_C"
+    ],
+    "period_s": 120.02849954941996,
+    "raw_hsmm_segments": [
+      [
+        0.0,
+        45.0,
+        2
+      ],
+      [
+        45.0,
+        57.0,
+        0
+      ],
+      [
+        57.0,
+        116.0,
+        1
+      ],
+      [
+        116.0,
+        168.0,
+        2
+      ],
+      [
+        168.0,
+        180.0,
+        0
+      ],
+      [
+        180.0,
+        236.0,
+        1
+      ],
+      [
+        236.0,
+        286.0,
+        2
+      ],
+      [
+        286.0,
+        297.0,
+        0
+      ],
+      [
+        297.0,
+        355.0,
+        1
+      ],
+      [
+        355.0,
+        406.0,
+        2
+      ],
+      [
+        406.0,
+        416.0,
+        0
+      ],
+      [
+        416.0,
+        477.0,
+        1
+      ],
+      [
+        477.0,
+        526.0,
+        2
+      ],
+      [
+        526.0,
+        535.0,
+        0
+      ],
+      [
+        535.0,
+        597.0,
+        1
+      ],
+      [
+        597.0,
+        646.0,
+        2
+      ],
+      [
+        646.0,
+        656.0,
+        0
+      ],
+      [
+        656.0,
+        715.0,
+        1
+      ],
+      [
+        715.0,
+        764.0,
+        2
+      ],
+      [
+        764.0,
+        774.0,
+        0
+      ],
+      [
+        774.0,
+        835.0,
+        1
+      ],
+      [
+        835.0,
+        885.0,
+        2
+      ],
+      [
+        885.0,
+        895.0,
+        0
+      ],
+      [
+        895.0,
+        955.0,
+        1
+      ],
+      [
+        955.0,
+        1007.0,
+        2
+      ],
+      [
+        1007.0,
+        1019.0,
+        0
+      ],
+      [
+        1019.0,
+        1077.0,
+        1
+      ],
+      [
+        1077.0,
+        1125.0,
+        2
+      ],
+      [
+        1125.0,
+        1134.0,
+        0
+      ],
+      [
+        1134.0,
+        1186.0,
+        1
+      ]
+    ],
+    "baseline_segments": [
+      [
+        0.0,
+        45.61082982877958,
+        2
+      ],
+      [
+        45.610829828779586,
+        55.213109792733185,
+        0
+      ],
+      [
+        55.213109792733185,
+        115.22735956744316,
+        1
+      ],
+      [
+        115.22735956744316,
+        165.63932937819953,
+        2
+      ],
+      [
+        165.63932937819953,
+        175.24160934215314,
+        0
+      ],
+      [
+        175.24160934215314,
+        235.25585911686312,
+        1
+      ],
+      [
+        235.25585911686312,
+        285.6678289276195,
+        2
+      ],
+      [
+        285.6678289276195,
+        295.2701088915731,
+        0
+      ],
+      [
+        295.2701088915731,
+        355.2843586662831,
+        1
+      ],
+      [
+        355.2843586662831,
+        405.69632847703946,
+        2
+      ],
+      [
+        405.69632847703946,
+        415.29860844099306,
+        0
+      ],
+      [
+        415.29860844099306,
+        475.31285821570305,
+        1
+      ],
+      [
+        475.31285821570305,
+        525.7248280264595,
+        2
+      ],
+      [
+        525.7248280264595,
+        535.3271079904131,
+        0
+      ],
+      [
+        535.3271079904131,
+        595.3413577651231,
+        1
+      ],
+      [
+        595.341357765123,
+        645.7533275758794,
+        2
+      ],
+      [
+        645.7533275758794,
+        655.355607539833,
+        0
+      ],
+      [
+        655.355607539833,
+        715.369857314543,
+        1
+      ],
+      [
+        715.369857314543,
+        765.7818271252994,
+        2
+      ],
+      [
+        765.7818271252994,
+        775.384107089253,
+        0
+      ],
+      [
+        775.384107089253,
+        835.398356863963,
+        1
+      ],
+      [
+        835.3983568639629,
+        885.8103266747194,
+        2
+      ],
+      [
+        885.8103266747194,
+        895.412606638673,
+        0
+      ],
+      [
+        895.412606638673,
+        955.4268564133829,
+        1
+      ],
+      [
+        955.4268564133829,
+        1005.8388262241393,
+        2
+      ],
+      [
+        1005.8388262241393,
+        1015.4411061880929,
+        0
+      ],
+      [
+        1015.4411061880929,
+        1075.455355962803,
+        1
+      ],
+      [
+        1075.455355962803,
+        1125.8673257735593,
+        2
+      ],
+      [
+        1125.867325773559,
+        1135.4696057375127,
+        0
+      ],
+      [
+        1135.4696057375127,
+        1186.0,
+        1
+      ]
+    ],
+    "baseline_duration_targets_s": {
+      "PHASE_A": 9.602279963953597,
+      "PHASE_B": 60.01424977470998,
+      "PHASE_C": 50.41196981075638
+    },
+    "stream_activity_by_phase": [
+      {
+        "stream": "E->N",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.0,
+          "PHASE_B": 0.0,
+          "PHASE_C": 0.15178315914028606
+        }
+      },
+      {
+        "stream": "E->S",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.0412822036027749,
+          "PHASE_B": 0.0016849195673479533,
+          "PHASE_C": 0.11525910539343664
+        }
+      },
+      {
+        "stream": "E->W",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.0,
+          "PHASE_B": 0.0,
+          "PHASE_C": 0.12409548331660092
+        }
+      },
+      {
+        "stream": "N->E",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.22349414495673414,
+          "PHASE_B": 0.03804329520385519,
+          "PHASE_C": 0.02966433963387749
+        }
+      },
+      {
+        "stream": "N->S",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.6247585139513847,
+          "PHASE_B": 0.2505114583725394,
+          "PHASE_C": 0.0
+        }
+      },
+      {
+        "stream": "N->W",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.22349414495673414,
+          "PHASE_B": 0.060487921317017634,
+          "PHASE_C": 0.0
+        }
+      },
+      {
+        "stream": "S->E",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.0,
+          "PHASE_B": 0.013400133135718084,
+          "PHASE_C": 0.015932106701319393
+        }
+      },
+      {
+        "stream": "S->N",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.3576772772683301,
+          "PHASE_B": 0.2630444170572599,
+          "PHASE_C": 0.011973036180607743
+        }
+      },
+      {
+        "stream": "S->W",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.10946771238094921,
+          "PHASE_B": 0.05890224729870408,
+          "PHASE_C": 0.01790568891448152
+        }
+      },
+      {
+        "stream": "W->E",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.0,
+          "PHASE_B": 0.0,
+          "PHASE_C": 0.08086018687124885
+        }
+      },
+      {
+        "stream": "W->N",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.010484281732512701,
+          "PHASE_B": 0.006722663671277607,
+          "PHASE_C": 0.15856722937208256
+        }
+      },
+      {
+        "stream": "W->S",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.051333671082177124,
+          "PHASE_B": 0.05890224729870408,
+          "PHASE_C": 0.052760966466031345
+        }
+      }
+    ]
+  },
+  "anomaly_detection": {
+    "temporary_phase_deviations": [],
+    "cause": "unknown"
+  },
+  "count_phase": {
+    "experimental": true,
+    "physical_lamps_observed": false,
+    "manual_marks_used": false,
+    "folded_bins": 100,
+    "time_step_s": 1,
+    "observation_model": "conditional_on_vehicle_event",
+    "empty_seconds_not_negative_lamp_evidence": true,
+    "phase_onsets_s": [
+      45.610829828779586,
+      55.213109792733185,
+      115.22735956744316
+    ],
+    "calibrated_lamp_probability": null,
+    "input_cache_sha256": "46a5e1a942f873f0ff319cb3bbd918d734c579feb450ce285cc6baaf89c2d53a",
+    "raw_ingestion_replayed": false
+  },
+  "physical_signal_plan": {
+    "enabled": true,
+    "auto_inferred": true,
+    "model": "v10_automatic_physical_signal_plan",
+    "cycle_seconds": 120.02849954941996,
+    "mapping": {
+      "PHASE_A": "NS_THROUGH",
+      "PHASE_B": "NS_THROUGH",
+      "PHASE_C": "EW_THROUGH"
+    },
+    "time_offset_s": 115.22736,
+    "recording_start_timestamp_ms": 1740397207758.0,
+    "analysis_base_timestamp_ms": 1740397207758.0,
+    "timing": {
+      "phase_anchor_model_s": 0.0,
+      "phase_anchor_physical_s": 115.22736,
+      "startup_lost_s": 0.0,
+      "slice_start_s": 0.0,
+      "cycle_rotation_s": 115.22736,
+      "event_base_offset_s": 0.0
+    },
+    "confidence": 0.8545,
+    "phases": [
+      {
+        "name": "NS_THROUGH",
+        "green_movements": [
+          "N->S",
+          "S->N"
+        ],
+        "additional_movements": [],
+        "duration_s": 69.61653,
+        "source_phase": "PHASE_A",
+        "heads": {
+          "N": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "S": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "E": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "W": {
+            "main": "RED",
+            "arrows": {}
+          }
+        }
+      },
+      {
+        "name": "EW_THROUGH",
+        "green_movements": [
+          "E->W",
+          "W->E"
+        ],
+        "additional_movements": [],
+        "duration_s": 50.41197,
+        "source_phase": "PHASE_C",
+        "heads": {
+          "N": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "S": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "E": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "W": {
+            "main": "GREEN",
+            "arrows": {}
+          }
+        }
+      }
+    ],
+    "stages": [
+      {
+        "stage_id": 1,
+        "name": "EW_THROUGH",
+        "phase_start": 0.0,
+        "phase_end": 50.41197,
+        "active_movements": [
+          "E->W",
+          "W->E"
+        ],
+        "additional_movements": [],
+        "source_phase": "PHASE_C",
+        "heads": {
+          "N": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "S": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "E": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "W": {
+            "main": "GREEN",
+            "arrows": {}
+          }
+        }
+      },
+      {
+        "stage_id": 2,
+        "name": "NS_THROUGH",
+        "phase_start": 50.41197,
+        "phase_end": 120.0285,
+        "active_movements": [
+          "N->S",
+          "S->N"
+        ],
+        "additional_movements": [],
+        "source_phase": "PHASE_A",
+        "heads": {
+          "N": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "S": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "E": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "W": {
+            "main": "RED",
+            "arrows": {}
+          }
+        }
+      }
+    ],
+    "topology": {
+      "N": {
+        "main": "N->S",
+        "arrows": []
+      },
+      "S": {
+        "main": "S->N",
+        "arrows": []
+      },
+      "E": {
+        "main": "E->W",
+        "arrows": []
+      },
+      "W": {
+        "main": "W->E",
+        "arrows": []
+      }
+    },
+    "inference": {
+      "activity_threshold": 0.08,
+      "selectivity_ratio": 1.15,
+      "phase_confidence": {
+        "PHASE_A": 1.0,
+        "PHASE_B": 0.5636,
+        "PHASE_C": 1.0
+      },
+      "turn_candidate_evidence_threshold": 0.03,
+      "turn_candidate_selectivity_ratio": 1.25,
+      "strong_turn_pair_threshold": 0.2,
+      "startup_lost_s": 0.0,
+      "cycle_rotation_s": 115.22736,
+      "inherited_empty_phases": {},
+      "turn_reciprocal_pair_min_probability": 0.06,
+      "suppressed_turn_movements_by_phase": {
+        "PHASE_A": [
+          "W->S",
+          "N->E",
+          "N->W",
+          "S->W"
+        ],
+        "PHASE_B": [
+          "W->S"
+        ],
+        "PHASE_C": [
+          "W->S",
+          "E->N",
+          "E->S",
+          "W->N"
+        ]
+      },
+      "physical_phase_count": 2,
+      "source": "V9 stream_activity_by_phase",
+      "unobserved_movements_are_not_invented": true
+    },
+    "state_semantics": {
+      "status": "UNVERIFIED_MAPPING_HYPOTHESIS",
+      "hardware_verified": false,
+      "calibrated_lamp_probability": null,
+      "reconstruction": "UNKNOWN",
+      "reason": "turn_activity_does_not_identify_hardware_arrow"
+    }
+  },
+  "state_contract": {
+    "version": 1,
+    "logical_phase": {
+      "level": "logical_phase",
+      "source": "count_phase_v1",
+      "estimated_state": "QUERY_AT_TIMESTAMP",
+      "assumptions": [
+        "anonymous_latent_phase_NOT_lamp"
+      ],
+      "observation_support": {
+        "coverage_segments_s": [
+          [
+            0.0,
+            45.0,
+            2
+          ],
+          [
+            45.0,
+            57.0,
+            0
+          ],
+          [
+            57.0,
+            116.0,
+            1
+          ],
+          [
+            116.0,
+            168.0,
+            2
+          ],
+          [
+            168.0,
+            180.0,
+            0
+          ],
+          [
+            180.0,
+            236.0,
+            1
+          ],
+          [
+            236.0,
+            286.0,
+            2
+          ],
+          [
+            286.0,
+            297.0,
+            0
+          ],
+          [
+            297.0,
+            355.0,
+            1
+          ],
+          [
+            355.0,
+            406.0,
+            2
+          ],
+          [
+            406.0,
+            416.0,
+            0
+          ],
+          [
+            416.0,
+            477.0,
+            1
+          ],
+          [
+            477.0,
+            526.0,
+            2
+          ],
+          [
+            526.0,
+            535.0,
+            0
+          ],
+          [
+            535.0,
+            597.0,
+            1
+          ],
+          [
+            597.0,
+            646.0,
+            2
+          ],
+          [
+            646.0,
+            656.0,
+            0
+          ],
+          [
+            656.0,
+            715.0,
+            1
+          ],
+          [
+            715.0,
+            764.0,
+            2
+          ],
+          [
+            764.0,
+            774.0,
+            0
+          ],
+          [
+            774.0,
+            835.0,
+            1
+          ],
+          [
+            835.0,
+            885.0,
+            2
+          ],
+          [
+            885.0,
+            895.0,
+            0
+          ],
+          [
+            895.0,
+            955.0,
+            1
+          ],
+          [
+            955.0,
+            1007.0,
+            2
+          ],
+          [
+            1007.0,
+            1019.0,
+            0
+          ],
+          [
+            1019.0,
+            1077.0,
+            1
+          ],
+          [
+            1077.0,
+            1125.0,
+            2
+          ],
+          [
+            1125.0,
+            1134.0,
+            0
+          ],
+          [
+            1134.0,
+            1186.0,
+            1
+          ]
+        ],
+        "history_field": "raw_hsmm_segments"
+      },
+      "abstention_reason": null,
+      "calibrated_lamp_probability": null
+    },
+    "activity": [
+      {
+        "movement": "E->N",
+        "scores": {
+          "PHASE_A": 0.0,
+          "PHASE_B": 0.0,
+          "PHASE_C": 0.15178315914028606
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "E->S",
+        "scores": {
+          "PHASE_A": 0.0412822036027749,
+          "PHASE_B": 0.0016849195673479533,
+          "PHASE_C": 0.11525910539343664
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "E->W",
+        "scores": {
+          "PHASE_A": 0.0,
+          "PHASE_B": 0.0,
+          "PHASE_C": 0.12409548331660092
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "N->E",
+        "scores": {
+          "PHASE_A": 0.22349414495673414,
+          "PHASE_B": 0.03804329520385519,
+          "PHASE_C": 0.02966433963387749
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "N->S",
+        "scores": {
+          "PHASE_A": 0.6247585139513847,
+          "PHASE_B": 0.2505114583725394,
+          "PHASE_C": 0.0
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "N->W",
+        "scores": {
+          "PHASE_A": 0.22349414495673414,
+          "PHASE_B": 0.060487921317017634,
+          "PHASE_C": 0.0
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "S->E",
+        "scores": {
+          "PHASE_A": 0.0,
+          "PHASE_B": 0.013400133135718084,
+          "PHASE_C": 0.015932106701319393
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "S->N",
+        "scores": {
+          "PHASE_A": 0.3576772772683301,
+          "PHASE_B": 0.2630444170572599,
+          "PHASE_C": 0.011973036180607743
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "S->W",
+        "scores": {
+          "PHASE_A": 0.10946771238094921,
+          "PHASE_B": 0.05890224729870408,
+          "PHASE_C": 0.01790568891448152
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "W->E",
+        "scores": {
+          "PHASE_A": 0.0,
+          "PHASE_B": 0.0,
+          "PHASE_C": 0.08086018687124885
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "W->N",
+        "scores": {
+          "PHASE_A": 0.010484281732512701,
+          "PHASE_B": 0.006722663671277607,
+          "PHASE_C": 0.15856722937208256
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "W->S",
+        "scores": {
+          "PHASE_A": 0.051333671082177124,
+          "PHASE_B": 0.05890224729870408,
+          "PHASE_C": 0.052760966466031345
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      }
+    ],
+    "physical_section": {
+      "estimated_state": "UNKNOWN",
+      "level": "physical_section",
+      "source": "vehicle_phase_model",
+      "assumptions": [],
+      "observation_support": {},
+      "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+      "provenance": {},
+      "mode": "reconstructed",
+      "calibrated_lamp_probability": null
+    }
+  }
+}
