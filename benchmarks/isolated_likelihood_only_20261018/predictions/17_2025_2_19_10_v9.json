@@ -1,0 +1,4151 @@
+{
+  "algorithm": "direction-agnostic traffic phase discovery V9",
+  "input": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\17_2025_2_19_10.json",
+  "trajectory_count": 2735,
+  "event_count": 2728,
+  "movement_stream_count": 9,
+  "movement_streams": {
+    "E->N": 74,
+    "E->W": 321,
+    "N->E": 99,
+    "N->S": 741,
+    "S->E": 39,
+    "S->N": 958,
+    "S->W": 1,
+    "W->E": 361,
+    "W->S": 134
+  },
+  "archive_stream_event_counts": {
+    "E->N": 74,
+    "E->W": 321,
+    "N->E": 99,
+    "N->S": 741,
+    "S->E": 39,
+    "S->N": 958,
+    "S->W": 1,
+    "W->E": 361,
+    "W->S": 134
+  },
+  "analysis_base_timestamp_ms": 1739941077895.0,
+  "event_base_timestamp_ms": 1739941077895.0,
+  "schedule_base_timestamp_ms": 1739941077895.0,
+  "recording_start_timestamp_ms": 1739941077895.0,
+  "recording_duration_s": 3710.688,
+  "event_extraction": {
+    "evidence_policy": "permission_per_stream",
+    "temporal_evidence_contract": 1,
+    "quality_diagnostics": {
+      "contract_version": 1,
+      "event_type_counts": {
+        "ENTRY": 2728,
+        "CROSSING_PROXY": 2728,
+        "RELEASE": 716
+      },
+      "event_method_counts": {
+        "input_zone_entry": 2728,
+        "observed_zone_transition_proxy": 2728,
+        "kinematic_restart_proxy": 716
+      },
+      "total_events": 6172,
+      "weak_or_unknown_uncertainty_events": 5456,
+      "weak_or_unknown_uncertainty_percent": 88.39922229423202,
+      "selected_event_count": 717,
+      "selected_weak_or_unknown_uncertainty_events": 1,
+      "selected_weak_or_unknown_uncertainty_percent": 0.1394700139470014,
+      "selection_by_movement": {
+        "E->N": "release_proxy",
+        "E->W": "release_proxy",
+        "N->E": "release_proxy",
+        "N->S": "release_proxy",
+        "S->E": "release_proxy",
+        "S->N": "release_proxy",
+        "S->W": "zone_crossing_proxy",
+        "W->E": "release_proxy",
+        "W->S": "release_proxy"
+      },
+      "track_quality_counts": {
+        "invalid_detections": 0,
+        "duplicate_detections": 0,
+        "conflicting_timestamps": 0,
+        "unsupported_metadata_restart": 741,
+        "tracks_without_usable_events": 7
+      },
+      "phase_model_receives": "timestamps_of_permission_proxies; NOT_lamp_states",
+      "uncertainty_scope": "heuristic_or_unknown_not_calibrated_lamp_transition_interval",
+      "selected_event_indices": [
+        72,
+        74,
+        76,
+        100,
+        102,
+        103,
+        105,
+        106,
+        108,
+        109,
+        110,
+        112,
+        118,
+        119,
+        120,
+        127,
+        134,
+        150,
+        151,
+        173,
+        236,
+        237,
+        238,
+        239,
+        256,
+        257,
+        258,
+        259,
+        261,
+        268,
+        274,
+        340,
+        367,
+        368,
+        369,
+        398,
+        401,
+        402,
+        403,
+        404,
+        407,
+        410,
+        414,
+        472,
+        510,
+        515,
+        524,
+        525,
+        529,
+        531,
+        532,
+        534,
+        535,
+        558,
+        559,
+        560,
+        561,
+        562,
+        564,
+        565,
+        567,
+        572,
+        573,
+        579,
+        647,
+        662,
+        664,
+        692,
+        697,
+        698,
+        699,
+        701,
+        702,
+        703,
+        704,
+        705,
+        742,
+        745,
+        746,
+        747,
+        748,
+        749,
+        753,
+        758,
+        825,
+        828,
+        865,
+        866,
+        867,
+        868,
+        870,
+        872,
+        873,
+        890,
+        892,
+        893,
+        894,
+        898,
+        900,
+        902,
+        907,
+        1007,
+        1008,
+        1013,
+        1025,
+        1026,
+        1027,
+        1028,
+        1029,
+        1030,
+        1031,
+        1069,
+        1072,
+        1075,
+        1076,
+        1077,
+        1079,
+        1082,
+        1083,
+        1084,
+        1085,
+        1086,
+        1087,
+        1090,
+        1150,
+        1152,
+        1153,
+        1156,
+        1186,
+        1187,
+        1188,
+        1191,
+        1193,
+        1195,
+        1196,
+        1197,
+        1201,
+        1243,
+        1244,
+        1245,
+        1247,
+        1248,
+        1249,
+        1250,
+        1253,
+        1254,
+        1260,
+        1306,
+        1320,
+        1323,
+        1358,
+        1359,
+        1361,
+        1362,
+        1363,
+        1364,
+        1365,
+        1366,
+        1392,
+        1393,
+        1394,
+        1395,
+        1396,
+        1397,
+        1401,
+        1495,
+        1497,
+        1499,
+        1500,
+        1501,
+        1502,
+        1503,
+        1504,
+        1524,
+        1525,
+        1526,
+        1527,
+        1528,
+        1529,
+        1531,
+        1532,
+        1533,
+        1537,
+        1539,
+        1541,
+        1546,
+        1608,
+        1610,
+        1661,
+        1663,
+        1664,
+        1695,
+        1696,
+        1697,
+        1698,
+        1700,
+        1701,
+        1705,
+        1712,
+        1781,
+        1806,
+        1812,
+        1813,
+        1814,
+        1815,
+        1816,
+        1817,
+        1818,
+        1822,
+        1828,
+        1848,
+        1850,
+        1851,
+        1852,
+        1857,
+        1859,
+        1861,
+        1862,
+        1863,
+        1870,
+        1871,
+        2011,
+        2013,
+        2022,
+        2024,
+        2025,
+        2056,
+        2060,
+        2061,
+        2064,
+        2065,
+        2067,
+        2072,
+        2098,
+        2155,
+        2156,
+        2162,
+        2215,
+        2218,
+        2219,
+        2220,
+        2221,
+        2222,
+        2256,
+        2258,
+        2259,
+        2261,
+        2262,
+        2263,
+        2267,
+        2271,
+        2273,
+        2276,
+        2343,
+        2361,
+        2388,
+        2389,
+        2390,
+        2411,
+        2431,
+        2434,
+        2435,
+        2438,
+        2439,
+        2442,
+        2443,
+        2447,
+        2454,
+        2460,
+        2462,
+        2522,
+        2537,
+        2550,
+        2551,
+        2553,
+        2554,
+        2555,
+        2556,
+        2599,
+        2600,
+        2601,
+        2602,
+        2603,
+        2604,
+        2606,
+        2608,
+        2609,
+        2611,
+        2615,
+        2625,
+        2651,
+        2663,
+        2665,
+        2666,
+        2683,
+        2684,
+        2685,
+        2686,
+        2690,
+        2692,
+        2698,
+        2743,
+        2744,
+        2745,
+        2746,
+        2747,
+        2748,
+        2769,
+        2780,
+        2788,
+        2789,
+        2790,
+        2792,
+        2793,
+        2796,
+        2797,
+        2800,
+        2805,
+        2897,
+        2898,
+        2900,
+        2901,
+        2907,
+        2911,
+        2917,
+        2918,
+        2919,
+        2920,
+        2922,
+        2937,
+        2938,
+        2939,
+        2941,
+        2944,
+        2947,
+        2961,
+        2969,
+        3003,
+        3016,
+        3036,
+        3037,
+        3043,
+        3060,
+        3061,
+        3063,
+        3073,
+        3074,
+        3075,
+        3076,
+        3077,
+        3107,
+        3109,
+        3110,
+        3111,
+        3113,
+        3116,
+        3118,
+        3128,
+        3155,
+        3164,
+        3169,
+        3170,
+        3171,
+        3197,
+        3198,
+        3199,
+        3200,
+        3225,
+        3226,
+        3228,
+        3236,
+        3238,
+        3243,
+        3246,
+        3251,
+        3252,
+        3258,
+        3332,
+        3337,
+        3358,
+        3361,
+        3377,
+        3383,
+        3384,
+        3386,
+        3387,
+        3389,
+        3391,
+        3399,
+        3417,
+        3418,
+        3419,
+        3420,
+        3422,
+        3424,
+        3425,
+        3430,
+        3434,
+        3441,
+        3452,
+        3453,
+        3492,
+        3514,
+        3516,
+        3520,
+        3525,
+        3560,
+        3570,
+        3571,
+        3572,
+        3573,
+        3574,
+        3575,
+        3576,
+        3601,
+        3602,
+        3603,
+        3604,
+        3605,
+        3606,
+        3607,
+        3608,
+        3609,
+        3611,
+        3612,
+        3615,
+        3621,
+        3630,
+        3684,
+        3699,
+        3746,
+        3755,
+        3756,
+        3757,
+        3758,
+        3761,
+        3762,
+        3800,
+        3801,
+        3802,
+        3804,
+        3805,
+        3806,
+        3807,
+        3812,
+        3814,
+        3817,
+        3818,
+        3839,
+        3841,
+        3843,
+        3873,
+        3875,
+        3885,
+        3921,
+        3936,
+        3937,
+        3938,
+        3939,
+        3940,
+        3983,
+        3984,
+        3985,
+        3988,
+        3990,
+        3995,
+        3997,
+        4000,
+        4001,
+        4018,
+        4055,
+        4056,
+        4132,
+        4133,
+        4134,
+        4135,
+        4136,
+        4138,
+        4177,
+        4179,
+        4180,
+        4181,
+        4187,
+        4219,
+        4286,
+        4287,
+        4288,
+        4289,
+        4314,
+        4315,
+        4316,
+        4317,
+        4318,
+        4319,
+        4320,
+        4356,
+        4380,
+        4387,
+        4408,
+        4417,
+        4418,
+        4419,
+        4420,
+        4421,
+        4425,
+        4449,
+        4452,
+        4453,
+        4454,
+        4455,
+        4456,
+        4457,
+        4464,
+        4465,
+        4505,
+        4507,
+        4509,
+        4510,
+        4519,
+        4554,
+        4567,
+        4569,
+        4570,
+        4571,
+        4573,
+        4575,
+        4576,
+        4609,
+        4610,
+        4613,
+        4617,
+        4619,
+        4620,
+        4622,
+        4623,
+        4627,
+        4634,
+        4698,
+        4756,
+        4757,
+        4758,
+        4764,
+        4766,
+        4767,
+        4768,
+        4769,
+        4797,
+        4798,
+        4799,
+        4801,
+        4802,
+        4803,
+        4806,
+        4807,
+        4808,
+        4810,
+        4812,
+        4813,
+        4814,
+        4822,
+        4905,
+        4909,
+        4931,
+        4938,
+        4939,
+        4940,
+        4970,
+        4971,
+        4972,
+        4974,
+        4975,
+        4976,
+        4981,
+        4982,
+        4985,
+        4990,
+        5033,
+        5038,
+        5039,
+        5041,
+        5042,
+        5045,
+        5063,
+        5108,
+        5109,
+        5154,
+        5158,
+        5160,
+        5167,
+        5168,
+        5170,
+        5171,
+        5172,
+        5177,
+        5178,
+        5179,
+        5184,
+        5185,
+        5213,
+        5214,
+        5215,
+        5216,
+        5217,
+        5228,
+        5229,
+        5231,
+        5236,
+        5237,
+        5238,
+        5240,
+        5271,
+        5274,
+        5284,
+        5287,
+        5295,
+        5296,
+        5297,
+        5298,
+        5299,
+        5300,
+        5302,
+        5331,
+        5332,
+        5333,
+        5335,
+        5337,
+        5338,
+        5339,
+        5340,
+        5342,
+        5344,
+        5347,
+        5417,
+        5418,
+        5419,
+        5421,
+        5434,
+        5464,
+        5465,
+        5475,
+        5476,
+        5477,
+        5478,
+        5479,
+        5480,
+        5481,
+        5483,
+        5517,
+        5521,
+        5532,
+        5533,
+        5534,
+        5535,
+        5536,
+        5538,
+        5540,
+        5544,
+        5545,
+        5547,
+        5606,
+        5607,
+        5609,
+        5659,
+        5660,
+        5661,
+        5681,
+        5696,
+        5697,
+        5699,
+        5707,
+        5708,
+        5725,
+        5739,
+        5744,
+        5758,
+        5768,
+        5823,
+        5836,
+        5837,
+        5838,
+        5839,
+        5848,
+        5868,
+        5870,
+        5872,
+        5874,
+        5875,
+        5877,
+        5886,
+        5888,
+        5891,
+        5903,
+        5947,
+        5950,
+        5971,
+        5996,
+        5997,
+        6015,
+        6016,
+        6018,
+        6019,
+        6043,
+        6054,
+        6057,
+        6059,
+        6060,
+        6061,
+        6062,
+        6063,
+        6073,
+        6084,
+        6117,
+        6122,
+        6123,
+        6124,
+        6128,
+        6148
+      ]
+    },
+    "methods": {
+      "input_zone_entry": 2728
+    },
+    "release_evidence_count": 716,
+    "release_evidence_methods": {
+      "kinematic_restart_proxy": 716
+    },
+    "manual_marks_used_for_discovery": false,
+    "temporal_events_ref": {
+      "file": "benchmarks/manual_marks_20261018_baseline/predictions/17_2025_2_19_10_v9.json",
+      "sha256": "e4263e316c5e1e18365af7b5557c26b0c5e8f73077c6267c265bb55a73fb6d8b"
+    }
+  },
+  "period_inference": {
+    "period_s": 99.84281321021679,
+    "method": "hybrid_circular_plus_multistream_lag_recurrence",
+    "search_range_s": [
+      45.0,
+      180.0
+    ],
+    "grid_step_s": 0.5,
+    "top_candidates": [
+      {
+        "period_s": 100.0,
+        "combined_score": 1.0,
+        "circular_score": 10.0894412835243,
+        "lag_score": 0.5061177676255609
+      },
+      {
+        "period_s": 99.5,
+        "combined_score": 0.9854390019976067,
+        "circular_score": 9.912641405710046,
+        "lag_score": 0.5061177676255609
+      },
+      {
+        "period_s": 100.5,
+        "combined_score": 0.9361185113758581,
+        "circular_score": 9.313791195427006,
+        "lag_score": 0.5061177676255609
+      },
+      {
+        "period_s": 99.0,
+        "combined_score": 0.8907569688577128,
+        "circular_score": 8.763010598289645,
+        "lag_score": 0.5061177676255609
+      },
+      {
+        "period_s": 101.0,
+        "combined_score": 0.8090216704634823,
+        "circular_score": 7.7705792576056965,
+        "lag_score": 0.5061177676255609
+      },
+      {
+        "period_s": 98.5,
+        "combined_score": 0.728343342547542,
+        "circular_score": 6.804411280569727,
+        "lag_score": 0.5018338473222252
+      },
+      {
+        "period_s": 101.5,
+        "combined_score": 0.6373191578153974,
+        "circular_score": 5.761304087928627,
+        "lag_score": 0.48202135079460473
+      },
+      {
+        "period_s": 98.0,
+        "combined_score": 0.5275265980007472,
+        "circular_score": 4.366091057389029,
+        "lag_score": 0.5018338473222252
+      }
+    ]
+  },
+  "regime_detection": {
+    "method": "global_fallback",
+    "scope": "full_input"
+  },
+  "phase_anchor_calibration": {
+    "applied": false,
+    "method": "not_required",
+    "initial_anchor_s": 0.0,
+    "delta_s": 0.0,
+    "final_anchor_s": 0.0
+  },
+  "phase_redundancy": {
+    "detected": false,
+    "method": "topological_temporal_redundancy_v4",
+    "candidate_pair": [
+      0,
+      2
+    ],
+    "supported_phase_count": 2,
+    "unsupported_phase_count": 1,
+    "phase_support_by_phase": {
+      "0": 2,
+      "1": 2,
+      "2": 0
+    },
+    "bic_gap_per_cycle": -7.0038392947612165,
+    "pairs": [
+      {
+        "cosine": 0.45564255086695155,
+        "template_overlap": 0.2910337996862667,
+        "active_jaccard": 0.0,
+        "rank_correlation": -0.3660701475689823,
+        "third_phase_max_cosine": 0.32738759842898646,
+        "third_phase_isolation": 0.1282549524379651,
+        "template_exchange_ratio": 0.13337940766033324,
+        "pair": [
+          0,
+          2
+        ],
+        "pair_id": 1,
+        "duration_balance": 0.42857142857142855,
+        "boundary_change_strength": 0.9999999980000001,
+        "boundary_exchange_ratio": 0.0,
+        "boundary_strength_ratio": 2.0,
+        "boundary_observations": 37,
+        "pair_has_unsupported_phase": true,
+        "merge_loss_per_cycle": 4.5563502721630496,
+        "pair_affinity": 0.2612995782320766
+      },
+      {
+        "cosine": 0.32738759842898646,
+        "template_overlap": 0.2602621283107613,
+        "active_jaccard": 0.0,
+        "rank_correlation": -0.28125,
+        "third_phase_max_cosine": 0.45564255086695155,
+        "third_phase_isolation": -0.1282549524379651,
+        "template_exchange_ratio": 0.11431520758179359,
+        "pair": [
+          1,
+          2
+        ],
+        "pair_id": 2,
+        "duration_balance": 0.5918367346938775,
+        "boundary_change_strength": 0.0,
+        "boundary_exchange_ratio": 0.0,
+        "boundary_strength_ratio": 0.0,
+        "boundary_observations": 37,
+        "pair_has_unsupported_phase": true,
+        "merge_loss_per_cycle": 6.986397090929391,
+        "pair_affinity": 0.19205706939640094
+      },
+      {
+        "cosine": 0.1457294852397516,
+        "template_overlap": 0.17766800411563533,
+        "active_jaccard": 0.0,
+        "rank_correlation": -0.3660701475689823,
+        "third_phase_max_cosine": 0.45564255086695155,
+        "third_phase_isolation": -0.30991306562719995,
+        "template_exchange_ratio": 0.4561137251249635,
+        "pair": [
+          0,
+          1
+        ],
+        "pair_id": 0,
+        "duration_balance": 0.7241379310344828,
+        "boundary_change_strength": 0.9999999980000001,
+        "boundary_exchange_ratio": 0.0,
+        "boundary_strength_ratio": 2.0,
+        "boundary_observations": 37,
+        "pair_has_unsupported_phase": false,
+        "merge_loss_per_cycle": 6.932424303608261,
+        "pair_affinity": 0.1821608342558262
+      }
+    ]
+  },
+  "phase_evidence": {
+    "source": "permission_per_stream",
+    "selection_scope": "per_movement",
+    "demand_entries_used_for_phase_evidence": false,
+    "excluded_movements_without_permission": [],
+    "permission_event_count": 717,
+    "release_event_count": 716
+  },
+  "phase_model_selection": {
+    "raw_selected_phase_count": 3,
+    "selected_phase_count": 3,
+    "redundancy_detector": "topological_temporal_redundancy_v4",
+    "topology_prior": {
+      "canonical_four_leg_cap_applied": false,
+      "source": "none; no verified topology supplied"
+    },
+    "search": {
+      "requested_range": [
+        2,
+        6
+      ],
+      "budget": {
+        "max_candidates": 5,
+        "max_seconds": 60.0,
+        "enforcement": "candidate-call bound; cooperative wall time; no in-flight preemption"
+      },
+      "candidate_ledger": [
+        {
+          "k": 2,
+          "status": "evaluated",
+          "reason": null,
+          "runtime_s": 1.9680000000007567
+        },
+        {
+          "k": 3,
+          "status": "evaluated",
+          "reason": null,
+          "runtime_s": 4.281999999999243
+        },
+        {
+          "k": 4,
+          "status": "evaluated",
+          "reason": "MULTIPLE_UNSUPPORTED_PHASES",
+          "runtime_s": 2.0
+        },
+        {
+          "k": 5,
+          "status": "evaluated",
+          "reason": "MULTIPLE_UNSUPPORTED_PHASES",
+          "runtime_s": 1.2339999999967404
+        },
+        {
+          "k": 6,
+          "status": "evaluated",
+          "reason": "MULTIPLE_UNSUPPORTED_PHASES",
+          "runtime_s": 1.562000000005355
+        }
+      ],
+      "search_status": "complete",
+      "attempted_candidate_count": 5,
+      "evaluated_candidate_count": 5,
+      "elapsed_s": 11.046000000002095,
+      "selected_k": 3,
+      "alternatives_ranked": [
+        3,
+        2
+      ],
+      "budget_overrun_s": 0.0,
+      "score_margin": 74.49517279925567,
+      "score_margin_semantics": "uncalibrated_criterion_difference_NOT_confidence",
+      "optimality": "best_eligible_evaluated_candidate_NOT_proven_global_optimum",
+      "event_count": 717,
+      "evidence_status": "UNSUPPORTED_PHASES_OR_NO_EVENTS",
+      "ambiguity": "UNSUPPORTED_PHASES",
+      "topology_prior": "none; stream names are not verified geometry"
+    },
+    "effective_selection": {
+      "selected_k": 3,
+      "raw_search_selected_k": 3,
+      "redundancy_override": false,
+      "certainty": "uncalibrated_model_selection_NOT_lamp_confidence"
+    },
+    "selected_candidate_after_redundancy": {
+      "k": 3,
+      "objective": -2063.596622231832,
+      "objective_semantics": "returned_model_data_loglik",
+      "initialization_diagnostics": {
+        "ensemble": {
+          "status": "available",
+          "method": "unique_membership_circular_midpoint",
+          "reason": null,
+          "matches": [
+            {
+              "onset_s": 40.4363393501378,
+              "release_group_index": 0,
+              "entry_group_index": 0,
+              "release_onset_s": 37.94026901988238,
+              "entry_onset_s": 42.93240968039322,
+              "shared_streams": [
+                "E->N",
+                "N->E"
+              ],
+              "group_streams": [
+                "E->N",
+                "N->E",
+                "N->S",
+                "W->S"
+              ]
+            },
+            {
+              "onset_s": 65.64664968571753,
+              "release_group_index": 1,
+              "entry_group_index": 1,
+              "release_onset_s": 59.40647386007899,
+              "entry_onset_s": 71.8868255113561,
+              "shared_streams": [
+                "S->E",
+                "S->N"
+              ],
+              "group_streams": [
+                "N->S",
+                "S->E",
+                "S->N"
+              ]
+            },
+            {
+              "onset_s": 92.60420925247607,
+              "release_group_index": 2,
+              "entry_group_index": 2,
+              "release_onset_s": 90.85696002129727,
+              "entry_onset_s": 94.35145848365487,
+              "shared_streams": [
+                "E->W"
+              ],
+              "group_streams": [
+                "E->W",
+                "W->E",
+                "W->S"
+              ]
+            }
+          ]
+        },
+        "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+      },
+      "data_loglik": -2063.596622231832,
+      "penalized_objective": -2107.0936617912203,
+      "approx_bic": 4408.432837900378,
+      "parameter_count": 27,
+      "segment_count": 112,
+      "median_segment_duration_s": 29.0,
+      "mean_segment_duration_s": 33.13392857142857,
+      "supported_phase_count": 2,
+      "unsupported_phase_count": 1,
+      "phase_support_by_phase": {
+        "0": 2,
+        "1": 2,
+        "2": 0
+      },
+      "phase_contrast_by_phase": {
+        "0": 0.12354839384555817,
+        "1": 0.22052245378494262,
+        "2": 0.02327922150492668
+      },
+      "exclusive_stream_support_by_phase": {
+        "0": 1,
+        "1": 1,
+        "2": 0
+      },
+      "pairwise_signature_witness_columns": {
+        "0": {
+          "1": [
+            0,
+            1
+          ],
+          "2": [
+            1
+          ]
+        },
+        "1": {
+          "0": [
+            0,
+            1
+          ],
+          "2": [
+            0
+          ]
+        },
+        "2": {
+          "0": [
+            1
+          ],
+          "1": [
+            0
+          ]
+        }
+      },
+      "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+      "recurrent_complexity_penalty": 185.8264947015881,
+      "criterion_score": 4594.259332601966,
+      "degenerate_phase_model": false,
+      "phase_support_penalty": 0.0,
+      "selection_score": 4594.259332601966,
+      "topology_cap_applied": false,
+      "eligibility_reason": null,
+      "event_support_by_phase": {
+        "0": 210,
+        "1": 392,
+        "2": 115
+      },
+      "runtime_s": 4.281999999999243
+    },
+    "criterion": "approximate_BIC_plus_recurrent_phase_complexity_penalty",
+    "candidates": [
+      {
+        "k": 2,
+        "objective": -2240.6307215550396,
+        "objective_semantics": "returned_model_data_loglik",
+        "initialization_diagnostics": {
+          "ensemble": {
+            "status": "available",
+            "method": "unique_membership_circular_midpoint",
+            "reason": null,
+            "matches": [
+              {
+                "onset_s": 40.4363393501378,
+                "release_group_index": 0,
+                "entry_group_index": 0,
+                "release_onset_s": 37.94026901988238,
+                "entry_onset_s": 42.93240968039322,
+                "shared_streams": [
+                  "E->N",
+                  "N->E",
+                  "N->S"
+                ],
+                "group_streams": [
+                  "E->N",
+                  "N->E",
+                  "N->S",
+                  "S->E",
+                  "S->N",
+                  "W->S"
+                ]
+              },
+              {
+                "onset_s": 76.87896617186694,
+                "release_group_index": 1,
+                "entry_group_index": 1,
+                "release_onset_s": 59.40647386007899,
+                "entry_onset_s": 94.35145848365487,
+                "shared_streams": [
+                  "E->W"
+                ],
+                "group_streams": [
+                  "E->W",
+                  "S->E",
+                  "S->N",
+                  "W->E",
+                  "W->S"
+                ]
+              }
+            ]
+          },
+          "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+        },
+        "data_loglik": -2240.6307215550396,
+        "penalized_objective": -2290.469857379485,
+        "approx_bic": 4668.754505401222,
+        "parameter_count": 18,
+        "segment_count": 75,
+        "median_segment_duration_s": 43.0,
+        "mean_segment_duration_s": 49.48,
+        "supported_phase_count": 1,
+        "unsupported_phase_count": 1,
+        "phase_support_by_phase": {
+          "0": 1,
+          "1": 0
+        },
+        "phase_contrast_by_phase": {
+          "0": 0.17902920186519622,
+          "1": 0.015551920756697655
+        },
+        "exclusive_stream_support_by_phase": {
+          "0": 1,
+          "1": 0
+        },
+        "pairwise_signature_witness_columns": {
+          "0": {
+            "1": [
+              0
+            ]
+          },
+          "1": {
+            "0": [
+              0
+            ]
+          }
+        },
+        "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+        "recurrent_complexity_penalty": 0.0,
+        "criterion_score": 4668.754505401222,
+        "degenerate_phase_model": false,
+        "phase_support_penalty": 0.0,
+        "selection_score": 4668.754505401222,
+        "topology_cap_applied": false,
+        "eligibility_reason": null,
+        "event_support_by_phase": {
+          "0": 568,
+          "1": 149
+        },
+        "runtime_s": 1.9680000000007567
+      },
+      {
+        "k": 3,
+        "objective": -2063.596622231832,
+        "objective_semantics": "returned_model_data_loglik",
+        "initialization_diagnostics": {
+          "ensemble": {
+            "status": "available",
+            "method": "unique_membership_circular_midpoint",
+            "reason": null,
+            "matches": [
+              {
+                "onset_s": 40.4363393501378,
+                "release_group_index": 0,
+                "entry_group_index": 0,
+                "release_onset_s": 37.94026901988238,
+                "entry_onset_s": 42.93240968039322,
+                "shared_streams": [
+                  "E->N",
+                  "N->E"
+                ],
+                "group_streams": [
+                  "E->N",
+                  "N->E",
+                  "N->S",
+                  "W->S"
+                ]
+              },
+              {
+                "onset_s": 65.64664968571753,
+                "release_group_index": 1,
+                "entry_group_index": 1,
+                "release_onset_s": 59.40647386007899,
+                "entry_onset_s": 71.8868255113561,
+                "shared_streams": [
+                  "S->E",
+                  "S->N"
+                ],
+                "group_streams": [
+                  "N->S",
+                  "S->E",
+                  "S->N"
+                ]
+              },
+              {
+                "onset_s": 92.60420925247607,
+                "release_group_index": 2,
+                "entry_group_index": 2,
+                "release_onset_s": 90.85696002129727,
+                "entry_onset_s": 94.35145848365487,
+                "shared_streams": [
+                  "E->W"
+                ],
+                "group_streams": [
+                  "E->W",
+                  "W->E",
+                  "W->S"
+                ]
+              }
+            ]
+          },
+          "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+        },
+        "data_loglik": -2063.596622231832,
+        "penalized_objective": -2107.0936617912203,
+        "approx_bic": 4408.432837900378,
+        "parameter_count": 27,
+        "segment_count": 112,
+        "median_segment_duration_s": 29.0,
+        "mean_segment_duration_s": 33.13392857142857,
+        "supported_phase_count": 2,
+        "unsupported_phase_count": 1,
+        "phase_support_by_phase": {
+          "0": 2,
+          "1": 2,
+          "2": 0
+        },
+        "phase_contrast_by_phase": {
+          "0": 0.12354839384555817,
+          "1": 0.22052245378494262,
+          "2": 0.02327922150492668
+        },
+        "exclusive_stream_support_by_phase": {
+          "0": 1,
+          "1": 1,
+          "2": 0
+        },
+        "pairwise_signature_witness_columns": {
+          "0": {
+            "1": [
+              0,
+              1
+            ],
+            "2": [
+              1
+            ]
+          },
+          "1": {
+            "0": [
+              0,
+              1
+            ],
+            "2": [
+              0
+            ]
+          },
+          "2": {
+            "0": [
+              1
+            ],
+            "1": [
+              0
+            ]
+          }
+        },
+        "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+        "recurrent_complexity_penalty": 185.8264947015881,
+        "criterion_score": 4594.259332601966,
+        "degenerate_phase_model": false,
+        "phase_support_penalty": 0.0,
+        "selection_score": 4594.259332601966,
+        "topology_cap_applied": false,
+        "eligibility_reason": null,
+        "event_support_by_phase": {
+          "0": 210,
+          "1": 392,
+          "2": 115
+        },
+        "runtime_s": 4.281999999999243
+      },
+      {
+        "k": 4,
+        "objective": -2012.3949220452855,
+        "objective_semantics": "returned_model_data_loglik",
+        "initialization_diagnostics": {
+          "ensemble": {
+            "status": "unavailable",
+            "reason": "MISSING_SEED_VIEW"
+          },
+          "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+        },
+        "data_loglik": -2012.3949220452855,
+        "penalized_objective": -2077.5111926815844,
+        "approx_bic": 4399.775968672857,
+        "parameter_count": 36,
+        "segment_count": 149,
+        "median_segment_duration_s": 25.0,
+        "mean_segment_duration_s": 24.906040268456376,
+        "supported_phase_count": 2,
+        "unsupported_phase_count": 2,
+        "phase_support_by_phase": {
+          "0": 2,
+          "1": 0,
+          "2": 0,
+          "3": 2
+        },
+        "phase_contrast_by_phase": {
+          "0": 0.26287760376930236,
+          "1": 0.050496382415294645,
+          "2": 0.01922422997653484,
+          "3": 0.10500000208616257
+        },
+        "exclusive_stream_support_by_phase": {
+          "0": 1,
+          "1": 0,
+          "2": 0,
+          "3": 1
+        },
+        "pairwise_signature_witness_columns": {
+          "0": {
+            "1": [
+              0
+            ],
+            "2": [
+              0
+            ],
+            "3": [
+              0,
+              1
+            ]
+          },
+          "1": {
+            "0": [
+              0
+            ],
+            "2": [],
+            "3": [
+              1
+            ]
+          },
+          "2": {
+            "0": [
+              0
+            ],
+            "1": [],
+            "3": [
+              1
+            ]
+          },
+          "3": {
+            "0": [
+              0,
+              1
+            ],
+            "1": [
+              1
+            ],
+            "2": [
+              1
+            ]
+          }
+        },
+        "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+        "recurrent_complexity_penalty": 371.6529894031762,
+        "criterion_score": 4771.428958076033,
+        "degenerate_phase_model": true,
+        "phase_support_penalty": null,
+        "selection_score": null,
+        "topology_cap_applied": false,
+        "eligibility_reason": "MULTIPLE_UNSUPPORTED_PHASES",
+        "event_support_by_phase": {
+          "0": 382,
+          "1": 81,
+          "2": 40,
+          "3": 214
+        },
+        "runtime_s": 2.0
+      },
+      {
+        "k": 5,
+        "objective": -1969.4826138451458,
+        "objective_semantics": "returned_model_data_loglik",
+        "initialization_diagnostics": {
+          "ensemble": {
+            "status": "unavailable",
+            "reason": "MISSING_SEED_VIEW"
+          },
+          "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+        },
+        "data_loglik": -1969.4826138451458,
+        "penalized_objective": -2045.680836463816,
+        "approx_bic": 4407.697883418148,
+        "parameter_count": 45,
+        "segment_count": 186,
+        "median_segment_duration_s": 20.0,
+        "mean_segment_duration_s": 19.951612903225808,
+        "supported_phase_count": 2,
+        "unsupported_phase_count": 3,
+        "phase_support_by_phase": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 2,
+          "4": 2
+        },
+        "phase_contrast_by_phase": {
+          "0": 0.0496540086530149,
+          "1": 0.0,
+          "2": 0.021125828623771666,
+          "3": 0.1279542350769043,
+          "4": 0.32172925939783453
+        },
+        "exclusive_stream_support_by_phase": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 1,
+          "4": 1
+        },
+        "pairwise_signature_witness_columns": {
+          "0": {
+            "1": [],
+            "2": [],
+            "3": [
+              1
+            ],
+            "4": [
+              0
+            ]
+          },
+          "1": {
+            "0": [],
+            "2": [],
+            "3": [
+              1
+            ],
+            "4": [
+              0
+            ]
+          },
+          "2": {
+            "0": [],
+            "1": [],
+            "3": [
+              1
+            ],
+            "4": [
+              0
+            ]
+          },
+          "3": {
+            "0": [
+              1
+            ],
+            "1": [
+              1
+            ],
+            "2": [
+              1
+            ],
+            "4": [
+              0,
+              1
+            ]
+          },
+          "4": {
+            "0": [
+              0
+            ],
+            "1": [
+              0
+            ],
+            "2": [
+              0
+            ],
+            "3": [
+              0,
+              1
+            ]
+          }
+        },
+        "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+        "recurrent_complexity_penalty": 557.4794841047643,
+        "criterion_score": 4965.177367522912,
+        "degenerate_phase_model": true,
+        "phase_support_penalty": null,
+        "selection_score": null,
+        "topology_cap_applied": false,
+        "eligibility_reason": "MULTIPLE_UNSUPPORTED_PHASES",
+        "event_support_by_phase": {
+          "0": 82,
+          "1": 27,
+          "2": 39,
+          "3": 208,
+          "4": 361
+        },
+        "runtime_s": 1.2339999999967404
+      },
+      {
+        "k": 6,
+        "objective": -1909.6322564309398,
+        "objective_semantics": "returned_model_data_loglik",
+        "initialization_diagnostics": {
+          "ensemble": {
+            "status": "unavailable",
+            "reason": "MISSING_SEED_VIEW"
+          },
+          "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+        },
+        "data_loglik": -1909.6322564309398,
+        "penalized_objective": -1997.4488221723232,
+        "approx_bic": 4381.743699735308,
+        "parameter_count": 54,
+        "segment_count": 224,
+        "median_segment_duration_s": 17.0,
+        "mean_segment_duration_s": 16.566964285714285,
+        "supported_phase_count": 3,
+        "unsupported_phase_count": 3,
+        "phase_support_by_phase": {
+          "0": 0,
+          "1": 3,
+          "2": 0,
+          "3": 0,
+          "4": 3,
+          "5": 3
+        },
+        "phase_contrast_by_phase": {
+          "0": 0.0,
+          "1": 0.07821979244053363,
+          "2": 0.0,
+          "3": 0.024240336760878563,
+          "4": 0.1476862186193466,
+          "5": 0.37441505571454764
+        },
+        "exclusive_stream_support_by_phase": {
+          "0": 0,
+          "1": 1,
+          "2": 0,
+          "3": 0,
+          "4": 1,
+          "5": 1
+        },
+        "pairwise_signature_witness_columns": {
+          "0": {
+            "1": [
+              2
+            ],
+            "2": [],
+            "3": [],
+            "4": [
+              1
+            ],
+            "5": [
+              0
+            ]
+          },
+          "1": {
+            "0": [
+              2
+            ],
+            "2": [
+              2
+            ],
+            "3": [
+              2
+            ],
+            "4": [
+              1,
+              2
+            ],
+            "5": [
+              0,
+              2
+            ]
+          },
+          "2": {
+            "0": [],
+            "1": [
+              2
+            ],
+            "3": [],
+            "4": [
+              1
+            ],
+            "5": [
+              0
+            ]
+          },
+          "3": {
+            "0": [],
+            "1": [
+              2
+            ],
+            "2": [],
+            "4": [
+              1
+            ],
+            "5": [
+              0
+            ]
+          },
+          "4": {
+            "0": [
+              1
+            ],
+            "1": [
+              1,
+              2
+            ],
+            "2": [
+              1
+            ],
+            "3": [
+              1
+            ],
+            "5": [
+              0,
+              1
+            ]
+          },
+          "5": {
+            "0": [
+              0
+            ],
+            "1": [
+              0,
+              2
+            ],
+            "2": [
+              0
+            ],
+            "3": [
+              0
+            ],
+            "4": [
+              0,
+              1
+            ]
+          }
+        },
+        "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+        "recurrent_complexity_penalty": 743.3059788063524,
+        "criterion_score": 5125.04967854166,
+        "degenerate_phase_model": true,
+        "phase_support_penalty": null,
+        "selection_score": null,
+        "topology_cap_applied": false,
+        "eligibility_reason": "MULTIPLE_UNSUPPORTED_PHASES",
+        "event_support_by_phase": {
+          "0": 40,
+          "1": 76,
+          "2": 18,
+          "3": 36,
+          "4": 196,
+          "5": 351
+        },
+        "runtime_s": 1.562000000005355
+      }
+    ]
+  },
+  "schedule": {
+    "model": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+    "phase_count": 3,
+    "phase_names": [
+      "PHASE_A",
+      "PHASE_B",
+      "PHASE_C"
+    ],
+    "period_s": 99.84281321021679,
+    "decoder": {
+      "min_duration_s": [
+        5.0,
+        8.0,
+        12.0
+      ],
+      "max_duration_s": [
+        38.0,
+        55.0,
+        75.0
+      ],
+      "duration_targets_s": [
+        21.46620484019661,
+        31.45048616121828,
+        46.926122208801914
+      ],
+      "transition_penalty": 0.25,
+      "initial_phase_constraint": 2
+    },
+    "raw_hsmm_segments": [
+      [
+        0.0,
+        58.0,
+        2
+      ],
+      [
+        58.0,
+        78.0,
+        0
+      ],
+      [
+        78.0,
+        106.0,
+        1
+      ],
+      [
+        106.0,
+        153.0,
+        2
+      ],
+      [
+        153.0,
+        173.0,
+        0
+      ],
+      [
+        173.0,
+        201.0,
+        1
+      ],
+      [
+        201.0,
+        241.0,
+        2
+      ],
+      [
+        241.0,
+        261.0,
+        0
+      ],
+      [
+        261.0,
+        289.0,
+        1
+      ],
+      [
+        289.0,
+        337.0,
+        2
+      ],
+      [
+        337.0,
+        358.0,
+        0
+      ],
+      [
+        358.0,
+        387.0,
+        1
+      ],
+      [
+        387.0,
+        436.0,
+        2
+      ],
+      [
+        436.0,
+        457.0,
+        0
+      ],
+      [
+        457.0,
+        486.0,
+        1
+      ],
+      [
+        486.0,
+        535.0,
+        2
+      ],
+      [
+        535.0,
+        556.0,
+        0
+      ],
+      [
+        556.0,
+        585.0,
+        1
+      ],
+      [
+        585.0,
+        633.0,
+        2
+      ],
+      [
+        633.0,
+        654.0,
+        0
+      ],
+      [
+        654.0,
+        681.0,
+        1
+      ],
+      [
+        681.0,
+        726.0,
+        2
+      ],
+      [
+        726.0,
+        746.0,
+        0
+      ],
+      [
+        746.0,
+        774.0,
+        1
+      ],
+      [
+        774.0,
+        820.0,
+        2
+      ],
+      [
+        820.0,
+        844.0,
+        0
+      ],
+      [
+        844.0,
+        880.0,
+        1
+      ],
+      [
+        880.0,
+        930.0,
+        2
+      ],
+      [
+        930.0,
+        951.0,
+        0
+      ],
+      [
+        951.0,
+        981.0,
+        1
+      ],
+      [
+        981.0,
+        1032.0,
+        2
+      ],
+      [
+        1032.0,
+        1053.0,
+        0
+      ],
+      [
+        1053.0,
+        1083.0,
+        1
+      ],
+      [
+        1083.0,
+        1134.0,
+        2
+      ],
+      [
+        1134.0,
+        1157.0,
+        0
+      ],
+      [
+        1157.0,
+        1186.0,
+        1
+      ],
+      [
+        1186.0,
+        1232.0,
+        2
+      ],
+      [
+        1232.0,
+        1252.0,
+        0
+      ],
+      [
+        1252.0,
+        1280.0,
+        1
+      ],
+      [
+        1280.0,
+        1326.0,
+        2
+      ],
+      [
+        1326.0,
+        1347.0,
+        0
+      ],
+      [
+        1347.0,
+        1377.0,
+        1
+      ],
+      [
+        1377.0,
+        1429.0,
+        2
+      ],
+      [
+        1429.0,
+        1450.0,
+        0
+      ],
+      [
+        1450.0,
+        1480.0,
+        1
+      ],
+      [
+        1480.0,
+        1532.0,
+        2
+      ],
+      [
+        1532.0,
+        1553.0,
+        0
+      ],
+      [
+        1553.0,
+        1584.0,
+        1
+      ],
+      [
+        1584.0,
+        1636.0,
+        2
+      ],
+      [
+        1636.0,
+        1657.0,
+        0
+      ],
+      [
+        1657.0,
+        1688.0,
+        1
+      ],
+      [
+        1688.0,
+        1736.0,
+        2
+      ],
+      [
+        1736.0,
+        1756.0,
+        0
+      ],
+      [
+        1756.0,
+        1785.0,
+        1
+      ],
+      [
+        1785.0,
+        1835.0,
+        2
+      ],
+      [
+        1835.0,
+        1856.0,
+        0
+      ],
+      [
+        1856.0,
+        1886.0,
+        1
+      ],
+      [
+        1886.0,
+        1936.0,
+        2
+      ],
+      [
+        1936.0,
+        1957.0,
+        0
+      ],
+      [
+        1957.0,
+        1986.0,
+        1
+      ],
+      [
+        1986.0,
+        2036.0,
+        2
+      ],
+      [
+        2036.0,
+        2057.0,
+        0
+      ],
+      [
+        2057.0,
+        2086.0,
+        1
+      ],
+      [
+        2086.0,
+        2136.0,
+        2
+      ],
+      [
+        2136.0,
+        2157.0,
+        0
+      ],
+      [
+        2157.0,
+        2192.0,
+        1
+      ],
+      [
+        2192.0,
+        2236.0,
+        2
+      ],
+      [
+        2236.0,
+        2257.0,
+        0
+      ],
+      [
+        2257.0,
+        2287.0,
+        1
+      ],
+      [
+        2287.0,
+        2335.0,
+        2
+      ],
+      [
+        2335.0,
+        2356.0,
+        0
+      ],
+      [
+        2356.0,
+        2385.0,
+        1
+      ],
+      [
+        2385.0,
+        2434.0,
+        2
+      ],
+      [
+        2434.0,
+        2455.0,
+        0
+      ],
+      [
+        2455.0,
+        2484.0,
+        1
+      ],
+      [
+        2484.0,
+        2534.0,
+        2
+      ],
+      [
+        2534.0,
+        2555.0,
+        0
+      ],
+      [
+        2555.0,
+        2584.0,
+        1
+      ],
+      [
+        2584.0,
+        2634.0,
+        2
+      ],
+      [
+        2634.0,
+        2655.0,
+        0
+      ],
+      [
+        2655.0,
+        2685.0,
+        1
+      ],
+      [
+        2685.0,
+        2735.0,
+        2
+      ],
+      [
+        2735.0,
+        2756.0,
+        0
+      ],
+      [
+        2756.0,
+        2785.0,
+        1
+      ],
+      [
+        2785.0,
+        2833.0,
+        2
+      ],
+      [
+        2833.0,
+        2854.0,
+        0
+      ],
+      [
+        2854.0,
+        2883.0,
+        1
+      ],
+      [
+        2883.0,
+        2933.0,
+        2
+      ],
+      [
+        2933.0,
+        2954.0,
+        0
+      ],
+      [
+        2954.0,
+        2983.0,
+        1
+      ],
+      [
+        2983.0,
+        3033.0,
+        2
+      ],
+      [
+        3033.0,
+        3054.0,
+        0
+      ],
+      [
+        3054.0,
+        3084.0,
+        1
+      ],
+      [
+        3084.0,
+        3134.0,
+        2
+      ],
+      [
+        3134.0,
+        3155.0,
+        0
+      ],
+      [
+        3155.0,
+        3187.0,
+        1
+      ],
+      [
+        3187.0,
+        3235.0,
+        2
+      ],
+      [
+        3235.0,
+        3256.0,
+        0
+      ],
+      [
+        3256.0,
+        3285.0,
+        1
+      ],
+      [
+        3285.0,
+        3334.0,
+        2
+      ],
+      [
+        3334.0,
+        3355.0,
+        0
+      ],
+      [
+        3355.0,
+        3384.0,
+        1
+      ],
+      [
+        3384.0,
+        3434.0,
+        2
+      ],
+      [
+        3434.0,
+        3455.0,
+        0
+      ],
+      [
+        3455.0,
+        3484.0,
+        1
+      ],
+      [
+        3484.0,
+        3529.0,
+        2
+      ],
+      [
+        3529.0,
+        3549.0,
+        0
+      ],
+      [
+        3549.0,
+        3576.0,
+        1
+      ],
+      [
+        3576.0,
+        3622.0,
+        2
+      ],
+      [
+        3622.0,
+        3642.0,
+        0
+      ],
+      [
+        3642.0,
+        3669.0,
+        1
+      ],
+      [
+        3669.0,
+        3711.0,
+        2
+      ]
+    ],
+    "baseline_phase_centers_s": {
+      "PHASE_A": 36.875461198269804,
+      "PHASE_B": 57.80412354386546,
+      "PHASE_C": 87.29590374583523
+    },
+    "baseline_duration_targets_s": {
+      "PHASE_A": 20.928662345595626,
+      "PHASE_B": 29.491780201969846,
+      "PHASE_C": 49.42237066265125
+    },
+    "baseline_reconstruction": {
+      "status": "available",
+      "reason": null,
+      "source": "contiguous_observed_phase_changes",
+      "first_segment_left_censored": true,
+      "semantics": "periodic_reference_NOT_actual_history_or_lamp_switch",
+      "onset_counts_by_phase": {
+        "0": 37,
+        "1": 37,
+        "2": 37
+      }
+    },
+    "baseline_segments": [
+      [
+        0.0,
+        36.875461198269804,
+        2
+      ],
+      [
+        36.875461198269804,
+        57.80412354386546,
+        0
+      ],
+      [
+        57.80412354386546,
+        87.29590374583523,
+        1
+      ],
+      [
+        87.29590374583523,
+        136.7182744084866,
+        2
+      ],
+      [
+        136.7182744084866,
+        157.64693675408225,
+        0
+      ],
+      [
+        157.64693675408225,
+        187.138716956052,
+        1
+      ],
+      [
+        187.138716956052,
+        236.56108761870337,
+        2
+      ],
+      [
+        236.56108761870337,
+        257.48974996429905,
+        0
+      ],
+      [
+        257.48974996429905,
+        286.98153016626884,
+        1
+      ],
+      [
+        286.98153016626884,
+        336.4039008289202,
+        2
+      ],
+      [
+        336.4039008289202,
+        357.3325631745158,
+        0
+      ],
+      [
+        357.3325631745158,
+        386.8243433764856,
+        1
+      ],
+      [
+        386.8243433764856,
+        436.246714039137,
+        2
+      ],
+      [
+        436.246714039137,
+        457.1753763847326,
+        0
+      ],
+      [
+        457.1753763847326,
+        486.6671565867024,
+        1
+      ],
+      [
+        486.6671565867024,
+        536.0895272493538,
+        2
+      ],
+      [
+        536.0895272493538,
+        557.0181895949494,
+        0
+      ],
+      [
+        557.0181895949494,
+        586.5099697969192,
+        1
+      ],
+      [
+        586.5099697969192,
+        635.9323404595706,
+        2
+      ],
+      [
+        635.9323404595706,
+        656.8610028051662,
+        0
+      ],
+      [
+        656.8610028051662,
+        686.3527830071359,
+        1
+      ],
+      [
+        686.3527830071359,
+        735.7751536697873,
+        2
+      ],
+      [
+        735.7751536697873,
+        756.7038160153829,
+        0
+      ],
+      [
+        756.7038160153829,
+        786.1955962173527,
+        1
+      ],
+      [
+        786.1955962173527,
+        835.6179668800041,
+        2
+      ],
+      [
+        835.6179668800041,
+        856.5466292255998,
+        0
+      ],
+      [
+        856.5466292255998,
+        886.0384094275696,
+        1
+      ],
+      [
+        886.0384094275696,
+        935.460780090221,
+        2
+      ],
+      [
+        935.460780090221,
+        956.3894424358166,
+        0
+      ],
+      [
+        956.3894424358166,
+        985.8812226377863,
+        1
+      ],
+      [
+        985.8812226377863,
+        1035.3035933004376,
+        2
+      ],
+      [
+        1035.3035933004376,
+        1056.2322556460333,
+        0
+      ],
+      [
+        1056.2322556460333,
+        1085.724035848003,
+        1
+      ],
+      [
+        1085.724035848003,
+        1135.1464065106543,
+        2
+      ],
+      [
+        1135.1464065106543,
+        1156.07506885625,
+        0
+      ],
+      [
+        1156.07506885625,
+        1185.5668490582198,
+        1
+      ],
+      [
+        1185.5668490582198,
+        1234.9892197208712,
+        2
+      ],
+      [
+        1234.9892197208712,
+        1255.917882066467,
+        0
+      ],
+      [
+        1255.917882066467,
+        1285.4096622684367,
+        1
+      ],
+      [
+        1285.4096622684367,
+        1334.832032931088,
+        2
+      ],
+      [
+        1334.832032931088,
+        1355.7606952766837,
+        0
+      ],
+      [
+        1355.7606952766837,
+        1385.2524754786534,
+        1
+      ],
+      [
+        1385.2524754786534,
+        1434.6748461413047,
+        2
+      ],
+      [
+        1434.6748461413047,
+        1455.6035084869004,
+        0
+      ],
+      [
+        1455.6035084869004,
+        1485.0952886888701,
+        1
+      ],
+      [
+        1485.0952886888701,
+        1534.5176593515216,
+        2
+      ],
+      [
+        1534.5176593515216,
+        1555.4463216971174,
+        0
+      ],
+      [
+        1555.4463216971174,
+        1584.938101899087,
+        1
+      ],
+      [
+        1584.938101899087,
+        1634.3604725617383,
+        2
+      ],
+      [
+        1634.3604725617383,
+        1655.289134907334,
+        0
+      ],
+      [
+        1655.289134907334,
+        1684.7809151093038,
+        1
+      ],
+      [
+        1684.7809151093038,
+        1734.203285771955,
+        2
+      ],
+      [
+        1734.203285771955,
+        1755.1319481175508,
+        0
+      ],
+      [
+        1755.1319481175508,
+        1784.6237283195205,
+        1
+      ],
+      [
+        1784.6237283195205,
+        1834.046098982172,
+        2
+      ],
+      [
+        1834.046098982172,
+        1854.9747613277677,
+        0
+      ],
+      [
+        1854.9747613277677,
+        1884.4665415297375,
+        1
+      ],
+      [
+        1884.4665415297375,
+        1933.8889121923887,
+        2
+      ],
+      [
+        1933.8889121923887,
+        1954.8175745379845,
+        0
+      ],
+      [
+        1954.8175745379845,
+        1984.3093547399542,
+        1
+      ],
+      [
+        1984.3093547399542,
+        2033.7317254026054,
+        2
+      ],
+      [
+        2033.7317254026054,
+        2054.660387748201,
+        0
+      ],
+      [
+        2054.660387748201,
+        2084.152167950171,
+        1
+      ],
+      [
+        2084.152167950171,
+        2133.5745386128224,
+        2
+      ],
+      [
+        2133.5745386128224,
+        2154.503200958418,
+        0
+      ],
+      [
+        2154.503200958418,
+        2183.994981160388,
+        1
+      ],
+      [
+        2183.994981160388,
+        2233.417351823039,
+        2
+      ],
+      [
+        2233.417351823039,
+        2254.3460141686346,
+        0
+      ],
+      [
+        2254.3460141686346,
+        2283.8377943706046,
+        1
+      ],
+      [
+        2283.8377943706046,
+        2333.2601650332563,
+        2
+      ],
+      [
+        2333.2601650332563,
+        2354.188827378852,
+        0
+      ],
+      [
+        2354.188827378852,
+        2383.6806075808217,
+        1
+      ],
+      [
+        2383.6806075808217,
+        2433.102978243473,
+        2
+      ],
+      [
+        2433.102978243473,
+        2454.0316405890685,
+        0
+      ],
+      [
+        2454.0316405890685,
+        2483.5234207910385,
+        1
+      ],
+      [
+        2483.5234207910385,
+        2532.9457914536897,
+        2
+      ],
+      [
+        2532.9457914536897,
+        2553.874453799285,
+        0
+      ],
+      [
+        2553.874453799285,
+        2583.366234001255,
+        1
+      ],
+      [
+        2583.366234001255,
+        2632.7886046639064,
+        2
+      ],
+      [
+        2632.7886046639064,
+        2653.717267009502,
+        0
+      ],
+      [
+        2653.717267009502,
+        2683.209047211472,
+        1
+      ],
+      [
+        2683.209047211472,
+        2732.631417874123,
+        2
+      ],
+      [
+        2732.631417874123,
+        2753.5600802197187,
+        0
+      ],
+      [
+        2753.5600802197187,
+        2783.0518604216886,
+        1
+      ],
+      [
+        2783.0518604216886,
+        2832.47423108434,
+        2
+      ],
+      [
+        2832.47423108434,
+        2853.4028934299354,
+        0
+      ],
+      [
+        2853.4028934299354,
+        2882.8946736319053,
+        1
+      ],
+      [
+        2882.8946736319053,
+        2932.317044294557,
+        2
+      ],
+      [
+        2932.317044294557,
+        2953.2457066401525,
+        0
+      ],
+      [
+        2953.2457066401525,
+        2982.7374868421225,
+        1
+      ],
+      [
+        2982.7374868421225,
+        3032.1598575047738,
+        2
+      ],
+      [
+        3032.1598575047738,
+        3053.0885198503693,
+        0
+      ],
+      [
+        3053.0885198503693,
+        3082.580300052339,
+        1
+      ],
+      [
+        3082.580300052339,
+        3132.0026707149905,
+        2
+      ],
+      [
+        3132.0026707149905,
+        3152.931333060586,
+        0
+      ],
+      [
+        3152.931333060586,
+        3182.423113262556,
+        1
+      ],
+      [
+        3182.423113262556,
+        3231.845483925207,
+        2
+      ],
+      [
+        3231.845483925207,
+        3252.7741462708027,
+        0
+      ],
+      [
+        3252.7741462708027,
+        3282.2659264727727,
+        1
+      ],
+      [
+        3282.2659264727727,
+        3331.688297135424,
+        2
+      ],
+      [
+        3331.688297135424,
+        3352.6169594810194,
+        0
+      ],
+      [
+        3352.6169594810194,
+        3382.1087396829894,
+        1
+      ],
+      [
+        3382.1087396829894,
+        3431.5311103456406,
+        2
+      ],
+      [
+        3431.5311103456406,
+        3452.459772691236,
+        0
+      ],
+      [
+        3452.459772691236,
+        3481.951552893206,
+        1
+      ],
+      [
+        3481.951552893206,
+        3531.3739235558573,
+        2
+      ],
+      [
+        3531.3739235558573,
+        3552.302585901453,
+        0
+      ],
+      [
+        3552.302585901453,
+        3581.794366103423,
+        1
+      ],
+      [
+        3581.794366103423,
+        3631.2167367660745,
+        2
+      ],
+      [
+        3631.2167367660745,
+        3652.14539911167,
+        0
+      ],
+      [
+        3652.14539911167,
+        3681.63717931364,
+        1
+      ],
+      [
+        3681.63717931364,
+        3710.688,
+        2
+      ]
+    ],
+    "phase_duration_summary": {
+      "PHASE_A": {
+        "median_s": 21.0,
+        "mean_s": 20.91891891891892,
+        "observations": 37
+      },
+      "PHASE_B": {
+        "median_s": 29.0,
+        "mean_s": 29.45945945945946,
+        "observations": 37
+      },
+      "PHASE_C": {
+        "median_s": 49.0,
+        "mean_s": 48.60526315789474,
+        "observations": 38
+      }
+    },
+    "stream_activity_by_phase": [
+      {
+        "stream": "S->N",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.23052245378494263,
+          "PHASE_C": 0.01
+        }
+      },
+      {
+        "stream": "N->S",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.13354839384555817,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.01
+        }
+      },
+      {
+        "stream": "E->W",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.03327922150492668
+        }
+      },
+      {
+        "stream": "N->E",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.05225806310772896,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.01
+        }
+      },
+      {
+        "stream": "E->N",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.03419354930520058,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.01
+        }
+      },
+      {
+        "stream": "W->S",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.015963204205036163
+        }
+      },
+      {
+        "stream": "S->E",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.01604033075273037,
+          "PHASE_C": 0.01
+        }
+      },
+      {
+        "stream": "W->E",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.01
+        }
+      },
+      {
+        "stream": "S->W",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.01
+        }
+      }
+    ]
+  },
+  "anomaly_detection": {
+    "temporary_phase_deviations": [
+      {
+        "start_s": 844.0,
+        "end_s": 880.0,
+        "phase": "PHASE_B",
+        "observed_duration_s": 36.0,
+        "baseline_duration_s": 29.491780201969846,
+        "delta_s": 6.508219798030154,
+        "type": "temporary_phase_extension",
+        "cause": "unknown"
+      }
+    ],
+    "cause": "unknown"
+  },
+  "online": {
+    "tracker": "OnlinePhaseTracker",
+    "input": "timestamp_ms + anonymous stream",
+    "no_retraining_per_chunk": true
+  },
+  "physical_signal_plan": {
+    "enabled": true,
+    "auto_inferred": true,
+    "model": "v10_automatic_physical_signal_plan",
+    "cycle_seconds": 99.84281321021679,
+    "mapping": {
+      "PHASE_A": "NS_TURN",
+      "PHASE_B": "NS_THROUGH",
+      "PHASE_C": "EW_THROUGH"
+    },
+    "time_offset_s": 87.295904,
+    "recording_start_timestamp_ms": 1739941077895.0,
+    "analysis_base_timestamp_ms": 1739941077895.0,
+    "timing": {
+      "phase_anchor_model_s": 0.0,
+      "phase_anchor_physical_s": 87.295904,
+      "startup_lost_s": 0.0,
+      "slice_start_s": 0.0,
+      "cycle_rotation_s": 87.295904,
+      "event_base_offset_s": 0.0
+    },
+    "confidence": 1.0,
+    "phases": [
+      {
+        "name": "NS_TURN",
+        "green_movements": [
+          "E->N",
+          "N->E",
+          "N->S"
+        ],
+        "additional_movements": [
+          "E->N",
+          "N->E"
+        ],
+        "duration_s": 20.928662,
+        "source_phase": "PHASE_A",
+        "heads": {
+          "N": {
+            "main": "GREEN",
+            "arrows": {
+              "N->E": "GREEN"
+            }
+          },
+          "S": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "E": {
+            "main": "RED",
+            "arrows": {
+              "E->N": "GREEN"
+            }
+          },
+          "W": {
+            "main": "RED",
+            "arrows": {}
+          }
+        }
+      },
+      {
+        "name": "NS_THROUGH",
+        "green_movements": [
+          "N->S",
+          "S->N"
+        ],
+        "additional_movements": [],
+        "duration_s": 29.49178,
+        "source_phase": "PHASE_B",
+        "heads": {
+          "N": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "S": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "E": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "W": {
+            "main": "RED",
+            "arrows": {}
+          }
+        }
+      },
+      {
+        "name": "EW_THROUGH",
+        "green_movements": [
+          "E->W",
+          "W->E"
+        ],
+        "additional_movements": [],
+        "duration_s": 49.422371,
+        "source_phase": "PHASE_C",
+        "heads": {
+          "N": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "S": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "E": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "W": {
+            "main": "GREEN",
+            "arrows": {}
+          }
+        }
+      }
+    ],
+    "stages": [
+      {
+        "stage_id": 1,
+        "name": "EW_THROUGH",
+        "phase_start": 0.0,
+        "phase_end": 49.422371,
+        "active_movements": [
+          "E->W",
+          "W->E"
+        ],
+        "additional_movements": [],
+        "source_phase": "PHASE_C",
+        "heads": {
+          "N": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "S": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "E": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "W": {
+            "main": "GREEN",
+            "arrows": {}
+          }
+        }
+      },
+      {
+        "stage_id": 2,
+        "name": "NS_TURN",
+        "phase_start": 49.422371,
+        "phase_end": 70.351033,
+        "active_movements": [
+          "E->N",
+          "N->E",
+          "N->S"
+        ],
+        "additional_movements": [
+          "E->N",
+          "N->E"
+        ],
+        "source_phase": "PHASE_A",
+        "heads": {
+          "N": {
+            "main": "GREEN",
+            "arrows": {
+              "N->E": "GREEN"
+            }
+          },
+          "S": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "E": {
+            "main": "RED",
+            "arrows": {
+              "E->N": "GREEN"
+            }
+          },
+          "W": {
+            "main": "RED",
+            "arrows": {}
+          }
+        }
+      },
+      {
+        "stage_id": 3,
+        "name": "NS_THROUGH",
+        "phase_start": 70.351033,
+        "phase_end": 99.842813,
+        "active_movements": [
+          "N->S",
+          "S->N"
+        ],
+        "additional_movements": [],
+        "source_phase": "PHASE_B",
+        "heads": {
+          "N": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "S": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "E": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "W": {
+            "main": "RED",
+            "arrows": {}
+          }
+        }
+      }
+    ],
+    "topology": {
+      "N": {
+        "main": "N->S",
+        "arrows": [
+          "N->E"
+        ]
+      },
+      "S": {
+        "main": "S->N",
+        "arrows": []
+      },
+      "E": {
+        "main": "E->W",
+        "arrows": [
+          "E->N"
+        ]
+      },
+      "W": {
+        "main": "W->E",
+        "arrows": []
+      }
+    },
+    "inference": {
+      "activity_threshold": 0.08,
+      "selectivity_ratio": 1.15,
+      "phase_confidence": {
+        "PHASE_A": 1.0,
+        "PHASE_B": 1.0,
+        "PHASE_C": 1.0
+      },
+      "turn_candidate_evidence_threshold": 0.03,
+      "turn_candidate_selectivity_ratio": 1.25,
+      "strong_turn_pair_threshold": 0.2,
+      "startup_lost_s": 0.0,
+      "cycle_rotation_s": 87.295904,
+      "inherited_empty_phases": {},
+      "turn_reciprocal_pair_min_probability": 0.06,
+      "suppressed_turn_movements_by_phase": {
+        "PHASE_A": [],
+        "PHASE_B": [],
+        "PHASE_C": []
+      },
+      "physical_phase_count": 3,
+      "source": "V9 stream_activity_by_phase",
+      "unobserved_movements_are_not_invented": true
+    },
+    "state_semantics": {
+      "status": "UNVERIFIED_MAPPING_HYPOTHESIS",
+      "hardware_verified": false,
+      "calibrated_lamp_probability": null,
+      "reconstruction": "UNKNOWN",
+      "reason": "turn_activity_does_not_identify_hardware_arrow"
+    }
+  },
+  "archive": {
+    "source_file_count": 1,
+    "source_files": [
+      "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\17_2025_2_19_10.json"
+    ]
+  },
+  "state_contract": {
+    "version": 1,
+    "logical_phase": {
+      "level": "logical_phase",
+      "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+      "estimated_state": "QUERY_AT_TIMESTAMP",
+      "assumptions": [
+        "anonymous_latent_phase_NOT_lamp"
+      ],
+      "observation_support": {
+        "coverage_segments_s": [
+          [
+            0.0,
+            58.0,
+            2
+          ],
+          [
+            58.0,
+            78.0,
+            0
+          ],
+          [
+            78.0,
+            106.0,
+            1
+          ],
+          [
+            106.0,
+            153.0,
+            2
+          ],
+          [
+            153.0,
+            173.0,
+            0
+          ],
+          [
+            173.0,
+            201.0,
+            1
+          ],
+          [
+            201.0,
+            241.0,
+            2
+          ],
+          [
+            241.0,
+            261.0,
+            0
+          ],
+          [
+            261.0,
+            289.0,
+            1
+          ],
+          [
+            289.0,
+            337.0,
+            2
+          ],
+          [
+            337.0,
+            358.0,
+            0
+          ],
+          [
+            358.0,
+            387.0,
+            1
+          ],
+          [
+            387.0,
+            436.0,
+            2
+          ],
+          [
+            436.0,
+            457.0,
+            0
+          ],
+          [
+            457.0,
+            486.0,
+            1
+          ],
+          [
+            486.0,
+            535.0,
+            2
+          ],
+          [
+            535.0,
+            556.0,
+            0
+          ],
+          [
+            556.0,
+            585.0,
+            1
+          ],
+          [
+            585.0,
+            633.0,
+            2
+          ],
+          [
+            633.0,
+            654.0,
+            0
+          ],
+          [
+            654.0,
+            681.0,
+            1
+          ],
+          [
+            681.0,
+            726.0,
+            2
+          ],
+          [
+            726.0,
+            746.0,
+            0
+          ],
+          [
+            746.0,
+            774.0,
+            1
+          ],
+          [
+            774.0,
+            820.0,
+            2
+          ],
+          [
+            820.0,
+            844.0,
+            0
+          ],
+          [
+            844.0,
+            880.0,
+            1
+          ],
+          [
+            880.0,
+            930.0,
+            2
+          ],
+          [
+            930.0,
+            951.0,
+            0
+          ],
+          [
+            951.0,
+            981.0,
+            1
+          ],
+          [
+            981.0,
+            1032.0,
+            2
+          ],
+          [
+            1032.0,
+            1053.0,
+            0
+          ],
+          [
+            1053.0,
+            1083.0,
+            1
+          ],
+          [
+            1083.0,
+            1134.0,
+            2
+          ],
+          [
+            1134.0,
+            1157.0,
+            0
+          ],
+          [
+            1157.0,
+            1186.0,
+            1
+          ],
+          [
+            1186.0,
+            1232.0,
+            2
+          ],
+          [
+            1232.0,
+            1252.0,
+            0
+          ],
+          [
+            1252.0,
+            1280.0,
+            1
+          ],
+          [
+            1280.0,
+            1326.0,
+            2
+          ],
+          [
+            1326.0,
+            1347.0,
+            0
+          ],
+          [
+            1347.0,
+            1377.0,
+            1
+          ],
+          [
+            1377.0,
+            1429.0,
+            2
+          ],
+          [
+            1429.0,
+            1450.0,
+            0
+          ],
+          [
+            1450.0,
+            1480.0,
+            1
+          ],
+          [
+            1480.0,
+            1532.0,
+            2
+          ],
+          [
+            1532.0,
+            1553.0,
+            0
+          ],
+          [
+            1553.0,
+            1584.0,
+            1
+          ],
+          [
+            1584.0,
+            1636.0,
+            2
+          ],
+          [
+            1636.0,
+            1657.0,
+            0
+          ],
+          [
+            1657.0,
+            1688.0,
+            1
+          ],
+          [
+            1688.0,
+            1736.0,
+            2
+          ],
+          [
+            1736.0,
+            1756.0,
+            0
+          ],
+          [
+            1756.0,
+            1785.0,
+            1
+          ],
+          [
+            1785.0,
+            1835.0,
+            2
+          ],
+          [
+            1835.0,
+            1856.0,
+            0
+          ],
+          [
+            1856.0,
+            1886.0,
+            1
+          ],
+          [
+            1886.0,
+            1936.0,
+            2
+          ],
+          [
+            1936.0,
+            1957.0,
+            0
+          ],
+          [
+            1957.0,
+            1986.0,
+            1
+          ],
+          [
+            1986.0,
+            2036.0,
+            2
+          ],
+          [
+            2036.0,
+            2057.0,
+            0
+          ],
+          [
+            2057.0,
+            2086.0,
+            1
+          ],
+          [
+            2086.0,
+            2136.0,
+            2
+          ],
+          [
+            2136.0,
+            2157.0,
+            0
+          ],
+          [
+            2157.0,
+            2192.0,
+            1
+          ],
+          [
+            2192.0,
+            2236.0,
+            2
+          ],
+          [
+            2236.0,
+            2257.0,
+            0
+          ],
+          [
+            2257.0,
+            2287.0,
+            1
+          ],
+          [
+            2287.0,
+            2335.0,
+            2
+          ],
+          [
+            2335.0,
+            2356.0,
+            0
+          ],
+          [
+            2356.0,
+            2385.0,
+            1
+          ],
+          [
+            2385.0,
+            2434.0,
+            2
+          ],
+          [
+            2434.0,
+            2455.0,
+            0
+          ],
+          [
+            2455.0,
+            2484.0,
+            1
+          ],
+          [
+            2484.0,
+            2534.0,
+            2
+          ],
+          [
+            2534.0,
+            2555.0,
+            0
+          ],
+          [
+            2555.0,
+            2584.0,
+            1
+          ],
+          [
+            2584.0,
+            2634.0,
+            2
+          ],
+          [
+            2634.0,
+            2655.0,
+            0
+          ],
+          [
+            2655.0,
+            2685.0,
+            1
+          ],
+          [
+            2685.0,
+            2735.0,
+            2
+          ],
+          [
+            2735.0,
+            2756.0,
+            0
+          ],
+          [
+            2756.0,
+            2785.0,
+            1
+          ],
+          [
+            2785.0,
+            2833.0,
+            2
+          ],
+          [
+            2833.0,
+            2854.0,
+            0
+          ],
+          [
+            2854.0,
+            2883.0,
+            1
+          ],
+          [
+            2883.0,
+            2933.0,
+            2
+          ],
+          [
+            2933.0,
+            2954.0,
+            0
+          ],
+          [
+            2954.0,
+            2983.0,
+            1
+          ],
+          [
+            2983.0,
+            3033.0,
+            2
+          ],
+          [
+            3033.0,
+            3054.0,
+            0
+          ],
+          [
+            3054.0,
+            3084.0,
+            1
+          ],
+          [
+            3084.0,
+            3134.0,
+            2
+          ],
+          [
+            3134.0,
+            3155.0,
+            0
+          ],
+          [
+            3155.0,
+            3187.0,
+            1
+          ],
+          [
+            3187.0,
+            3235.0,
+            2
+          ],
+          [
+            3235.0,
+            3256.0,
+            0
+          ],
+          [
+            3256.0,
+            3285.0,
+            1
+          ],
+          [
+            3285.0,
+            3334.0,
+            2
+          ],
+          [
+            3334.0,
+            3355.0,
+            0
+          ],
+          [
+            3355.0,
+            3384.0,
+            1
+          ],
+          [
+            3384.0,
+            3434.0,
+            2
+          ],
+          [
+            3434.0,
+            3455.0,
+            0
+          ],
+          [
+            3455.0,
+            3484.0,
+            1
+          ],
+          [
+            3484.0,
+            3529.0,
+            2
+          ],
+          [
+            3529.0,
+            3549.0,
+            0
+          ],
+          [
+            3549.0,
+            3576.0,
+            1
+          ],
+          [
+            3576.0,
+            3622.0,
+            2
+          ],
+          [
+            3622.0,
+            3642.0,
+            0
+          ],
+          [
+            3642.0,
+            3669.0,
+            1
+          ],
+          [
+            3669.0,
+            3711.0,
+            2
+          ]
+        ],
+        "history_field": "raw_hsmm_segments"
+      },
+      "abstention_reason": null,
+      "calibrated_lamp_probability": null
+    },
+    "activity": [
+      {
+        "movement": "S->N",
+        "scores": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.23052245378494263,
+          "PHASE_C": 0.01
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "N->S",
+        "scores": {
+          "PHASE_A": 0.13354839384555817,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.01
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "E->W",
+        "scores": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.03327922150492668
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "N->E",
+        "scores": {
+          "PHASE_A": 0.05225806310772896,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.01
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "E->N",
+        "scores": {
+          "PHASE_A": 0.03419354930520058,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.01
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "W->S",
+        "scores": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.015963204205036163
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "S->E",
+        "scores": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.01604033075273037,
+          "PHASE_C": 0.01
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "W->E",
+        "scores": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.01
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "S->W",
+        "scores": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.01,
+          "PHASE_C": 0.01
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      }
+    ],
+    "physical_section": {
+      "estimated_state": "UNKNOWN",
+      "level": "physical_section",
+      "source": "vehicle_phase_model",
+      "assumptions": [],
+      "observation_support": {},
+      "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+      "provenance": {},
+      "mode": "reconstructed",
+      "calibrated_lamp_probability": null
+    }
+  },
+  "isolated_candidate": {
+    "variant": "likelihood_only",
+    "unchanged_selection": true,
+    "labels_used": false,
+    "dt": 1.0,
+    "seed": 0,
+    "unchanged_period_model": true,
+    "experimental_local_history": false
+  }
+}
