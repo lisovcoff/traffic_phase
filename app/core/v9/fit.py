@@ -72,8 +72,10 @@ def _fit_from_initial_labels(
             transition_penalty=0.25,
             duration_targets=targets,
             initial_phase=initial_phase,
-            duration_min_factor=0.25 if k == 3 else 0.65,
-            duration_max_factor=1.75 if k == 3 else 1.35,
+            # K2 must have the same feasible duration flexibility as K3;
+            # otherwise clear unequal two-phase cycles can be excluded.
+            duration_min_factor=0.25 if k in (2, 3) else 0.65,
+            duration_max_factor=1.75 if k in (2, 3) else 1.35,
         )
         new_probs = fit_bernoulli_templates(x, labels, k)
         coherence = _boundary_coherence(
