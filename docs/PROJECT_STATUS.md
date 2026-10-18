@@ -1,5 +1,12 @@
 # Project status — 2D.1, 2026-10-18
 
+Gemini review package delivered as traffic_phase_gemini_review_20261018_v2.zip:
+9,602,084 bytes,478 files. ZIP CRC and all payload hashes PASS; fresh extraction
+reproduces all3 latent/resolved scores and verifies full lossless event caches.
+Receipt: evidence/gemini_review_20261018/receipt.json. Raw excerpts113/134/72
+tracks,120s core plus30s context; full source trajectories explicitly excluded.
+First archive preserved; v2 corrects verifier JSON-key comparison only.
+
 2026-10-18 user-requested independent Gemini review package: see
 GEMINI_REVIEW_BRIEF_20261018.md and scripts/build_gemini_review.py. Archive
 budget10,000,000 bytes, full source app/scripts/tests (large fixtures excluded),

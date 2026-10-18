@@ -1,5 +1,10 @@
 # traffic_phase — план до готового продукта
 
+Пакет Gemini проверен после свежей распаковки:478 файлов,9 602 084байта,
+все SHA-256/CRC и точное повторение оценок на3 event caches PASS. Итоговый файл:
+`../deliverables/traffic_phase_gemini_review_20261018_v2.zip`.
+Протокол: `evidence/gemini_review_20261018/receipt.json`. Код алгоритма сохранён.
+
 2026-10-18: по запросу пользователя подготовлен компактный пакет для независимого
 ревью Gemini: весь текущий Python-код app/scripts/tests, схемы, полный cache
 событий и predictions трёх размеченных записей, исходные manual_marks и operator
