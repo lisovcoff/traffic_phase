@@ -1,5 +1,15 @@
 # Project status — 2D.1, 2026-10-18
 
+2026-10-18 all three Gemini replies checked against current code and saved
+events: GEMINI_REVIEW_ASSESSMENT_20261018.md. Movement-wide RELEASE preference
+does suppress eligible proxies, including1968/506/735 other track identities
+without their own RELEASE. Default still uses permissions, BIC is active,
+redundancy is called; suggested blanket fixes and promised gains unverified.
+Saved JSON17 winner is an unrefined periodic seed, relevant to missed holds.
+Read-only inspection and small counterexamples only; no fitting, model changes
+or metric changes. Original review SHA and counts saved under
+evidence/gemini_review_assessment_20261018/inspection.json.
+
 Gemini review package delivered as traffic_phase_gemini_review_20261018_v2.zip:
 9,602,084 bytes,478 files. ZIP CRC and all payload hashes PASS; fresh extraction
 reproduces all3 latent/resolved scores and verifies full lossless event caches.
