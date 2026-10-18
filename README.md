@@ -1,5 +1,10 @@
 # traffic_phase
 
+2026-10-18: [five post-review algorithm checks and duration correction](docs/ALGORITHM_CHECK_RESULTS_20261018.md).
+K2 refinement now supports the same duration flexibility as K3 (verified20/80-cycle
+counterexample). Real timing scores remain15/17,1/8,3/9; four other candidates
+are not enabled because they did not pass the frozen comparison.
+
 2026-10-18: [manual-marks validation and corrected Sverdlovsky signal scheme](docs/MANUAL_MARKS_VALIDATION_20261018.md).
 The default signal estimate uses four main heads with additional sections only
 on N/E for the confirmed Sverdlovsky profile; W/S have no extra sections.

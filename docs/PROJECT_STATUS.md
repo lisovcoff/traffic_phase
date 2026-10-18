@@ -1,5 +1,20 @@
 # Project status — 2D.1, 2026-10-18
 
+Post-review release verification:1357 tests PASS in257.98s,5 existing warnings;
+duration counterexample FAIL before/PASS after;26 affected checks PASS and
+START_WEB.cmd --check imports the current app. Evidence:
+evidence/algorithm_checks_20261018/. Real strict scores remain15/17,1/8,3/9.
+
+2026-10-18 implemented and compared five isolated post-Gemini candidates:
+ALGORITHM_CHECK_RESULTS_20261018.md. Per-track selection4/17,1/8,2/9;
+likelihood-only1/17,1/8,3/9; positive-onset15/17,1/8,3/9 but false K3 on19;
+silent-censoring0/17,1/8,3/9. All preserved and not promoted. Equal K2/K3
+duration flexibility preserves15/17,1/8,3/9 and fixes independent20/80-cycle
+counterexample (36 wrong seconds before,0 after). This alone is promoted.
+Three production integration replays exactly match its sealed schedules and
+periods. No real timing gain claim; main, known hardware, old results and
+2D.1 FAIL/default-off preserved. No further candidate search after frozen round.
+
 2026-10-18 all three Gemini replies checked against current code and saved
 events: GEMINI_REVIEW_ASSESSMENT_20261018.md. Movement-wide RELEASE preference
 does suppress eligible proxies, including1968/506/735 other track identities
