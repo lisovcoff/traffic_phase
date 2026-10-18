@@ -47,7 +47,10 @@ def main():
             metrics=evaluate_prediction(value,validate_annotation(annotation))
             metrics['operator_delay_compatibility']={field:evaluate_reaction_bound(value,annotation,field=field)
                 for field in ('raw_hsmm_segments','baseline_segments')}
-            assert metrics==expected[variant]['metrics'],f'changed score: {name}/{variant}'
+            # JSON object keys (e.g. anonymous phase IDs) are strings on disk.
+            # Canonicalize keys only; do not round numbers or relax comparisons.
+            serialized=json.loads(json.dumps(metrics,allow_nan=False))
+            assert serialized==expected[variant]['metrics'],f'changed score: {name}/{variant}'
             score=metrics['histories']['raw_hsmm_segments']['boundaries']['mae_s']
             reaction=metrics['operator_delay_compatibility']['raw_hsmm_segments']
             print(name,variant,f"strict={score['matched_boundaries']}/{score['truth_boundaries']}",
