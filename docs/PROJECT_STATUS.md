@@ -1,5 +1,18 @@
 # Project status — 2D.1, 2026-10-18
 
+2026-10-18 explicit user-authorized manual-marks replay and signal correction:
+see MANUAL_MARKS_VALIDATION_20261018.md. Confirmed Sverdlovsky hardware is four
+main heads, N/E arrows only, no W/S arrows. Added an explicit known-site profile,
+conditional signal estimates over actual local history, and separate exports;
+observed lamps remain UNKNOWN. Raw automatic K3/2/3 vs manual3/2/2 retained;
+operating-state projection3/2/2 removes five false splits on JSON6 without
+moving boundaries. Fresh strict matches15/17,1/8,3/9, total19/34; projection
+reduces predicted boundaries41 to36. Reaction interval[mark-3s,mark] separately
+scores8/17,3/8,5/9. Channel-filter candidate failed and is preserved/default-off.
+No new holdout or physical lamp accuracy claim. Full suite1348 PASS, then33
+targeted PASS after profile/export/seek refinements; isolated Edge all3 viewers
+PASS with screenshots. Main and previous results preserved;2D.1 remains FAIL.
+
 2026-10-18 spatial display fix: MODEL_PHASE_VIEW_20261018.md. Default view now
 colors per-movement fitted characteristics for the selected logical phase,
 instead of showing only unknown physical lamps. Separate physical view retains

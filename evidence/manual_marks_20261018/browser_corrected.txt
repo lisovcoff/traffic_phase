@@ -1,0 +1,65 @@
+.web_runtime/model_phase_view_20261018/qa_venv/Scripts/python.exe : Traceback (most recent call last):
+строка:2 знак:1
++ .web_runtime/model_phase_view_20261018/qa_venv/Scripts/python.exe -m  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\scripts\qa_manual_marks_viewers.py", line 72, in <module>
+    main()
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\scripts\qa_manual_marks_viewers.py", line 54, in main
+    page.locator('#phaseTimeline button').nth(1).click()
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\model_phase_view_20261018\qa_venv\Lib\site-pac
+kages\playwright\sync_api\_generated.py", line 11021, in click
+    self._sync(
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\model_phase_view_20261018\qa_venv\Lib\site-pac
+kages\playwright\_impl\_sync_base.py", line 111, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\model_phase_view_20261018\qa_venv\Lib\site-pac
+kages\playwright\_impl\_locator.py", line 174, in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\model_phase_view_20261018\qa_venv\Lib\site-pac
+kages\playwright\_impl\_frame.py", line 598, in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\model_phase_view_20261018\qa_venv\Lib\site-pac
+kages\playwright\_impl\_connection.py", line 78, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\model_phase_view_20261018\qa_venv\Lib\site-pac
+kages\playwright\_impl\_connection.py", line 636, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator("#phaseTimeline button").nth(1)
+    - locator resolved to <button type="button" class="timeline-segment phase-0" title="���� N_E_ARROW � 38.0�60.0 s"><
+/button>
+  - attempting click action
+    2 \xd7 waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <button type="button" title="���� NS � 60.0�91.0 s" class="timeline-segment phase-1"></button> intercepts point
+er events
+    - retrying click action
+    - waiting 20ms
+    2 \xd7 waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <button type="button" title="���� NS � 60.0�91.0 s" class="timeline-segment phase-1"></button> intercepts point
+er events
+    - retrying click action
+      - waiting 100ms
+    57 \xd7 waiting for element to be visible, enabled and stable
+       - element is visible, enabled and stable
+       - scrolling into view if needed
+       - done scrolling
+       - <button type="button" title="���� NS � 60.0�91.0 s" class="timeline-segment phase-1"></button> intercepts poin
+ter events
+     - retrying click action
+       - waiting 500ms
+

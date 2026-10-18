@@ -67,7 +67,7 @@ input[type=range]{width:100%}
 .dot.green{background:var(--green)}.dot.yellow{background:var(--yellow)}.dot.red{background:var(--red)}.dot.car{background:var(--blue)}
 .notice{border-left:3px solid var(--blue);font-size:12px}
 .timeline{height:36px;background:var(--panel2);border-radius:8px;position:relative;overflow:hidden}
-.timeline-segment{position:absolute;top:4px;bottom:4px;border-radius:4px;border:1px solid #566170;cursor:pointer}
+.timeline-segment{position:absolute;top:4px;bottom:4px;border-radius:4px;border:1px solid #566170;cursor:pointer;padding:0;min-width:0;box-sizing:border-box}
 .phase-0{background:#38534a}.phase-1{background:#4d445b}.phase-2{background:#5a4b3b}
 .phase-3{background:#3f4f63}.phase-4{background:#5a3f50}.phase-other{background:#4b5563}
 .axis{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-top:4px}
@@ -701,7 +701,7 @@ function renderSignalList(snapshot){
     const arrowText=head.arrows.map(function(item){
       return "доп. "+item.movement+" "+item.state;
     }).join(" · ");
-    right.textContent=(estimatedView()?"Основной ":RECONSTRUCTED?"Секции не установлены; состояние ":"основной ")+head.main.state+(RECONSTRUCTED||PHYSICAL.enabled?"":" · activity score="+Number(head.main.probability||0).toFixed(3))+(arrowText?" · "+arrowText:"");
+    right.textContent=(estimatedView()?"Основной ":RECONSTRUCTED?(ESTIMATED_SIGNALS.hardware_confirmed?"Состояние ламп ":"Секции не установлены; состояние "):"основной ")+head.main.state+(RECONSTRUCTED||PHYSICAL.enabled?"":" · activity score="+Number(head.main.probability||0).toFixed(3))+(arrowText?" · "+arrowText:"");
     right.style.color=head.main.state==="UNKNOWN"?"var(--muted)":head.main.state==="GREEN"?"var(--green)":head.main.state==="YELLOW"?"var(--yellow)":head.main.state==="RED_YELLOW"?"var(--orange)":"var(--red)";
     row.append(left,right);holder.appendChild(row);
   }
@@ -1171,7 +1171,7 @@ def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
     if mode not in {"reconstructed","configured","simulated"}:raise ValueError("invalid report mode")
     signal_model=build_signal_model(result,activity_threshold=activity_threshold,mode=mode)
     product=build_report_payload(result)
-    estimated=result.get('estimated_signals') or build_estimated_signals(result,profile_id=intersection_profile)
+    estimated=(result.get('estimated_signals') if intersection_profile=='auto' else None) or build_estimated_signals(result,profile_id=intersection_profile)
 
     physical=_physical_visual_model(result,physical_plan)
     if time_offset_s is not None:

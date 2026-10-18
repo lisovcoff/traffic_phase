@@ -1,0 +1,2272 @@
+{
+  "algorithm": "direction-agnostic traffic phase discovery V9",
+  "input": "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\19_2025_2_24_16.json",
+  "trajectory_count": 1154,
+  "event_count": 1104,
+  "movement_stream_count": 12,
+  "movement_streams": {
+    "E->N": 82,
+    "E->S": 66,
+    "E->W": 66,
+    "N->E": 62,
+    "N->S": 264,
+    "N->W": 61,
+    "S->E": 16,
+    "S->N": 230,
+    "S->W": 56,
+    "W->E": 42,
+    "W->N": 91,
+    "W->S": 68
+  },
+  "archive_stream_event_counts": {
+    "E->N": 82,
+    "E->S": 66,
+    "E->W": 66,
+    "N->E": 62,
+    "N->S": 264,
+    "N->W": 61,
+    "S->E": 16,
+    "S->N": 230,
+    "S->W": 56,
+    "W->E": 42,
+    "W->N": 91,
+    "W->S": 68
+  },
+  "analysis_base_timestamp_ms": 1740397207758.0,
+  "event_base_timestamp_ms": 1740397207758.0,
+  "schedule_base_timestamp_ms": 1740397207758.0,
+  "recording_start_timestamp_ms": 1740397207758.0,
+  "recording_duration_s": 1184.664,
+  "event_extraction": {
+    "evidence_policy": "permission_per_stream",
+    "temporal_evidence_contract": 1,
+    "quality_diagnostics": {
+      "contract_version": 1,
+      "event_type_counts": {
+        "ENTRY": 1104,
+        "CROSSING_PROXY": 1104,
+        "RELEASE": 581
+      },
+      "event_method_counts": {
+        "input_zone_entry": 1104,
+        "observed_zone_transition_proxy": 1104,
+        "kinematic_restart_proxy": 581
+      },
+      "total_events": 2789,
+      "weak_or_unknown_uncertainty_events": 2208,
+      "weak_or_unknown_uncertainty_percent": 79.16816063105055,
+      "selected_event_count": 597,
+      "selected_weak_or_unknown_uncertainty_events": 16,
+      "selected_weak_or_unknown_uncertainty_percent": 2.680067001675042,
+      "selection_by_movement": {
+        "E->N": "release_proxy",
+        "E->S": "release_proxy",
+        "E->W": "release_proxy",
+        "N->E": "release_proxy",
+        "N->S": "release_proxy",
+        "N->W": "release_proxy",
+        "S->E": "zone_crossing_proxy",
+        "S->N": "release_proxy",
+        "S->W": "release_proxy",
+        "W->E": "release_proxy",
+        "W->N": "release_proxy",
+        "W->S": "release_proxy"
+      },
+      "track_quality_counts": {
+        "invalid_detections": 0,
+        "duplicate_detections": 0,
+        "conflicting_timestamps": 0,
+        "unsupported_metadata_restart": 588,
+        "tracks_without_usable_events": 50
+      },
+      "phase_model_receives": "timestamps_of_permission_proxies; NOT_lamp_states",
+      "uncertainty_scope": "heuristic_or_unknown_not_calibrated_lamp_transition_interval",
+      "selected_event_indices": [
+        42,
+        45,
+        54,
+        69,
+        72,
+        73,
+        84,
+        85,
+        86,
+        88,
+        94,
+        95,
+        97,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        107,
+        109,
+        111,
+        113,
+        114,
+        115,
+        117,
+        118,
+        119,
+        121,
+        124,
+        126,
+        128,
+        137,
+        138,
+        142,
+        146,
+        150,
+        160,
+        162,
+        200,
+        205,
+        213,
+        216,
+        233,
+        235,
+        238,
+        242,
+        245,
+        251,
+        257,
+        268,
+        277,
+        278,
+        279,
+        281,
+        285,
+        287,
+        288,
+        289,
+        291,
+        295,
+        296,
+        297,
+        300,
+        301,
+        302,
+        308,
+        310,
+        312,
+        319,
+        321,
+        328,
+        349,
+        359,
+        361,
+        363,
+        364,
+        367,
+        369,
+        370,
+        384,
+        386,
+        393,
+        394,
+        395,
+        396,
+        397,
+        400,
+        401,
+        402,
+        403,
+        404,
+        407,
+        408,
+        412,
+        413,
+        416,
+        417,
+        420,
+        422,
+        425,
+        437,
+        438,
+        459,
+        476,
+        482,
+        487,
+        491,
+        509,
+        516,
+        530,
+        538,
+        542,
+        549,
+        556,
+        557,
+        558,
+        561,
+        563,
+        564,
+        566,
+        568,
+        569,
+        572,
+        574,
+        576,
+        582,
+        585,
+        588,
+        590,
+        591,
+        599,
+        607,
+        611,
+        637,
+        641,
+        642,
+        643,
+        646,
+        649,
+        654,
+        659,
+        662,
+        669,
+        672,
+        673,
+        676,
+        682,
+        683,
+        684,
+        685,
+        686,
+        687,
+        688,
+        689,
+        690,
+        691,
+        693,
+        695,
+        696,
+        700,
+        701,
+        705,
+        706,
+        710,
+        716,
+        722,
+        729,
+        766,
+        770,
+        779,
+        780,
+        793,
+        798,
+        799,
+        800,
+        801,
+        806,
+        810,
+        811,
+        817,
+        818,
+        821,
+        847,
+        848,
+        849,
+        851,
+        852,
+        853,
+        856,
+        857,
+        858,
+        859,
+        861,
+        863,
+        865,
+        869,
+        874,
+        877,
+        878,
+        879,
+        883,
+        887,
+        888,
+        889,
+        892,
+        946,
+        949,
+        952,
+        957,
+        960,
+        965,
+        968,
+        969,
+        970,
+        971,
+        974,
+        975,
+        976,
+        977,
+        978,
+        979,
+        980,
+        981,
+        982,
+        983,
+        986,
+        987,
+        991,
+        992,
+        993,
+        995,
+        996,
+        998,
+        999,
+        1004,
+        1005,
+        1007,
+        1008,
+        1010,
+        1012,
+        1015,
+        1018,
+        1021,
+        1027,
+        1037,
+        1079,
+        1133,
+        1135,
+        1136,
+        1140,
+        1160,
+        1163,
+        1167,
+        1170,
+        1171,
+        1172,
+        1173,
+        1174,
+        1175,
+        1177,
+        1179,
+        1183,
+        1187,
+        1189,
+        1190,
+        1193,
+        1199,
+        1201,
+        1205,
+        1207,
+        1239,
+        1246,
+        1247,
+        1249,
+        1250,
+        1251,
+        1252,
+        1260,
+        1266,
+        1267,
+        1269,
+        1270,
+        1271,
+        1272,
+        1274,
+        1276,
+        1279,
+        1280,
+        1281,
+        1282,
+        1284,
+        1285,
+        1288,
+        1290,
+        1292,
+        1295,
+        1301,
+        1302,
+        1343,
+        1350,
+        1357,
+        1377,
+        1380,
+        1385,
+        1409,
+        1411,
+        1419,
+        1423,
+        1424,
+        1425,
+        1426,
+        1428,
+        1429,
+        1430,
+        1431,
+        1432,
+        1433,
+        1436,
+        1437,
+        1439,
+        1441,
+        1453,
+        1479,
+        1487,
+        1513,
+        1515,
+        1517,
+        1518,
+        1519,
+        1521,
+        1524,
+        1529,
+        1535,
+        1536,
+        1537,
+        1539,
+        1540,
+        1541,
+        1542,
+        1543,
+        1544,
+        1547,
+        1548,
+        1549,
+        1551,
+        1553,
+        1554,
+        1558,
+        1561,
+        1562,
+        1565,
+        1566,
+        1631,
+        1634,
+        1642,
+        1644,
+        1654,
+        1662,
+        1688,
+        1709,
+        1710,
+        1712,
+        1713,
+        1714,
+        1715,
+        1716,
+        1717,
+        1718,
+        1719,
+        1720,
+        1721,
+        1724,
+        1726,
+        1727,
+        1729,
+        1730,
+        1732,
+        1734,
+        1737,
+        1739,
+        1740,
+        1741,
+        1751,
+        1752,
+        1755,
+        1758,
+        1789,
+        1796,
+        1800,
+        1802,
+        1803,
+        1805,
+        1808,
+        1813,
+        1815,
+        1816,
+        1818,
+        1819,
+        1821,
+        1823,
+        1824,
+        1825,
+        1826,
+        1828,
+        1829,
+        1832,
+        1833,
+        1835,
+        1841,
+        1850,
+        1861,
+        1869,
+        1871,
+        1882,
+        1900,
+        1907,
+        1908,
+        1934,
+        1937,
+        1941,
+        1968,
+        1975,
+        1979,
+        1982,
+        1992,
+        1994,
+        1995,
+        1996,
+        1997,
+        1998,
+        1999,
+        2001,
+        2002,
+        2003,
+        2005,
+        2006,
+        2008,
+        2009,
+        2014,
+        2015,
+        2017,
+        2018,
+        2022,
+        2024,
+        2029,
+        2030,
+        2035,
+        2041,
+        2044,
+        2050,
+        2074,
+        2089,
+        2092,
+        2093,
+        2097,
+        2098,
+        2099,
+        2105,
+        2108,
+        2110,
+        2111,
+        2112,
+        2113,
+        2115,
+        2116,
+        2117,
+        2118,
+        2120,
+        2121,
+        2122,
+        2123,
+        2124,
+        2125,
+        2131,
+        2134,
+        2135,
+        2136,
+        2143,
+        2146,
+        2158,
+        2191,
+        2195,
+        2198,
+        2203,
+        2207,
+        2209,
+        2221,
+        2232,
+        2239,
+        2250,
+        2256,
+        2262,
+        2271,
+        2273,
+        2274,
+        2275,
+        2276,
+        2277,
+        2278,
+        2279,
+        2280,
+        2283,
+        2287,
+        2289,
+        2292,
+        2293,
+        2295,
+        2298,
+        2299,
+        2303,
+        2308,
+        2316,
+        2344,
+        2346,
+        2347,
+        2349,
+        2356,
+        2357,
+        2358,
+        2359,
+        2360,
+        2361,
+        2362,
+        2363,
+        2364,
+        2365,
+        2366,
+        2367,
+        2368,
+        2373,
+        2376,
+        2385,
+        2387,
+        2389,
+        2398,
+        2400,
+        2404,
+        2406,
+        2410,
+        2455,
+        2481,
+        2510,
+        2512,
+        2554,
+        2559,
+        2562,
+        2563,
+        2566,
+        2567,
+        2568,
+        2569,
+        2570,
+        2571,
+        2574,
+        2576,
+        2577,
+        2578,
+        2579,
+        2584,
+        2585,
+        2587,
+        2596,
+        2607,
+        2625,
+        2626,
+        2628,
+        2635,
+        2636,
+        2638,
+        2641,
+        2642,
+        2643,
+        2654,
+        2660,
+        2661,
+        2662,
+        2663,
+        2664,
+        2665,
+        2670,
+        2671,
+        2675,
+        2677,
+        2678,
+        2682,
+        2683,
+        2691,
+        2699,
+        2739,
+        2748,
+        2754,
+        2760,
+        2762,
+        2771,
+        2786
+      ]
+    },
+    "methods": {
+      "input_zone_entry": 1104
+    },
+    "release_evidence_count": 581,
+    "release_evidence_methods": {
+      "kinematic_restart_proxy": 581
+    },
+    "manual_marks_used_for_discovery": false,
+    "temporal_events_ref": {
+      "file": "benchmarks\\manual_marks_20261018_baseline\\predictions\\19_2025_2_24_16_v9.json",
+      "sha256": "46a5e1a942f873f0ff319cb3bbd918d734c579feb450ce285cc6baaf89c2d53a"
+    }
+  },
+  "period_inference": {
+    "period_s": 120.02849954941996,
+    "method": "hybrid_circular_plus_multistream_lag_recurrence",
+    "search_range_s": [
+      45.0,
+      180.0
+    ],
+    "grid_step_s": 0.5,
+    "top_candidates": [
+      {
+        "period_s": 120.0,
+        "combined_score": 0.9958484617349095,
+        "circular_score": 2.6042683274400726,
+        "lag_score": 0.20434058811349007
+      },
+      {
+        "period_s": 120.5,
+        "combined_score": 0.9935305960966685,
+        "circular_score": 2.5986102085264458,
+        "lag_score": 0.20434058811349007
+      },
+      {
+        "period_s": 119.5,
+        "combined_score": 0.9929341356729277,
+        "circular_score": 2.5971541948778896,
+        "lag_score": 0.20434058811349007
+      },
+      {
+        "period_s": 121.0,
+        "combined_score": 0.9862656822299322,
+        "circular_score": 2.5808758990491945,
+        "lag_score": 0.20434058811349007
+      },
+      {
+        "period_s": 119.0,
+        "combined_score": 0.984579128539204,
+        "circular_score": 2.5767588694945402,
+        "lag_score": 0.20434058811349007
+      },
+      {
+        "period_s": 118.5,
+        "combined_score": 0.9748069010851526,
+        "circular_score": 2.542769702536538,
+        "lag_score": 0.21121711034960025
+      },
+      {
+        "period_s": 121.5,
+        "combined_score": 0.9615170250813792,
+        "circular_score": 2.5519369675227743,
+        "lag_score": 0.18298367052766362
+      },
+      {
+        "period_s": 118.0,
+        "combined_score": 0.9552708058958586,
+        "circular_score": 2.495080333547554,
+        "lag_score": 0.21121711034960025
+      }
+    ]
+  },
+  "regime_detection": {
+    "method": "global_fallback",
+    "scope": "full_input"
+  },
+  "phase_anchor_calibration": {
+    "applied": false,
+    "method": "not_required",
+    "initial_anchor_s": 0.0,
+    "delta_s": 0.0,
+    "final_anchor_s": 0.0
+  },
+  "phase_redundancy": {
+    "detected": false,
+    "method": "not_evaluated",
+    "candidate_pair": null,
+    "pairs": []
+  },
+  "phase_evidence": {
+    "source": "permission_per_stream",
+    "selection_scope": "per_movement",
+    "demand_entries_used_for_phase_evidence": false,
+    "excluded_movements_without_permission": [
+      "E->N",
+      "E->S",
+      "N->E",
+      "N->W",
+      "S->E",
+      "S->W",
+      "W->N",
+      "W->S"
+    ],
+    "permission_event_count": 231,
+    "release_event_count": 581
+  },
+  "phase_model_selection": {
+    "raw_selected_phase_count": 2,
+    "selected_phase_count": 2,
+    "redundancy_detector": "not_evaluated",
+    "topology_prior": {
+      "canonical_four_leg_cap_applied": false,
+      "source": "none; no verified topology supplied"
+    },
+    "search": {
+      "requested_range": [
+        2,
+        6
+      ],
+      "budget": {
+        "max_candidates": 5,
+        "max_seconds": 60.0,
+        "enforcement": "candidate-call bound; cooperative wall time; no in-flight preemption"
+      },
+      "candidate_ledger": [
+        {
+          "k": 2,
+          "status": "evaluated",
+          "reason": null,
+          "runtime_s": 0.6090000000003783
+        },
+        {
+          "k": 3,
+          "status": "evaluated",
+          "reason": "MULTIPLE_UNSUPPORTED_PHASES",
+          "runtime_s": 0.875
+        },
+        {
+          "k": 4,
+          "status": "evaluated",
+          "reason": "MULTIPLE_UNSUPPORTED_PHASES",
+          "runtime_s": 0.5630000000001019
+        },
+        {
+          "k": 5,
+          "status": "evaluated",
+          "reason": "MULTIPLE_UNSUPPORTED_PHASES",
+          "runtime_s": 0.34399999999914144
+        },
+        {
+          "k": 6,
+          "status": "evaluated",
+          "reason": "MULTIPLE_UNSUPPORTED_PHASES",
+          "runtime_s": 0.43699999999989814
+        }
+      ],
+      "search_status": "complete",
+      "attempted_candidate_count": 5,
+      "evaluated_candidate_count": 5,
+      "elapsed_s": 2.82799999999952,
+      "selected_k": 2,
+      "alternatives_ranked": [
+        2
+      ],
+      "budget_overrun_s": 0.0,
+      "score_margin": null,
+      "score_margin_semantics": "uncalibrated_criterion_difference_NOT_confidence",
+      "optimality": "best_eligible_evaluated_candidate_NOT_proven_global_optimum",
+      "event_count": 231,
+      "evidence_status": "MODEL_SIGNATURE_SUPPORTED_NOT_EXTERNAL_VALIDATION",
+      "ambiguity": "ALTERNATIVES_RETAINED_NO_CALIBRATED_CERTAINTY",
+      "topology_prior": "none; stream names are not verified geometry"
+    },
+    "effective_selection": {
+      "selected_k": 2,
+      "raw_search_selected_k": 2,
+      "redundancy_override": false,
+      "certainty": "uncalibrated_model_selection_NOT_lamp_confidence"
+    },
+    "selected_candidate_after_redundancy": {
+      "k": 2,
+      "objective": -669.8334225086967,
+      "objective_semantics": "returned_model_data_loglik",
+      "initialization_diagnostics": {
+        "ensemble": {
+          "status": "available",
+          "method": "unique_membership_circular_midpoint",
+          "reason": null,
+          "matches": [
+            {
+              "onset_s": 48.61154231751509,
+              "release_group_index": 0,
+              "entry_group_index": 0,
+              "release_onset_s": 45.610829828779586,
+              "entry_onset_s": 51.61225480625058,
+              "shared_streams": [
+                "N->S",
+                "S->N"
+              ],
+              "group_streams": [
+                "E->W",
+                "N->E",
+                "N->S",
+                "N->W",
+                "S->E",
+                "S->N",
+                "S->W",
+                "W->S"
+              ]
+            },
+            {
+              "onset_s": 117.32785830955801,
+              "release_group_index": 1,
+              "entry_group_index": 1,
+              "release_onset_s": 115.82750206519026,
+              "entry_onset_s": 118.82821455392576,
+              "shared_streams": [
+                "W->E"
+              ],
+              "group_streams": [
+                "E->N",
+                "E->S",
+                "E->W",
+                "W->E",
+                "W->N"
+              ]
+            }
+          ]
+        },
+        "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+      },
+      "data_loglik": -669.8334225086967,
+      "penalized_objective": null,
+      "approx_bic": 1407.3771843349064,
+      "parameter_count": 8,
+      "segment_count": 20,
+      "median_segment_duration_s": 54.5,
+      "mean_segment_duration_s": 59.25,
+      "supported_phase_count": 2,
+      "unsupported_phase_count": 0,
+      "phase_support_by_phase": {
+        "0": 2,
+        "1": 2
+      },
+      "phase_contrast_by_phase": {
+        "0": 0.11066473811864853,
+        "1": 0.07383838087320328
+      },
+      "exclusive_stream_support_by_phase": {
+        "0": 1,
+        "1": 1
+      },
+      "pairwise_signature_witness_columns": {
+        "0": {
+          "1": [
+            0,
+            2
+          ]
+        },
+        "1": {
+          "0": [
+            0,
+            2
+          ]
+        }
+      },
+      "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+      "recurrent_complexity_penalty": 0.0,
+      "criterion_score": 1407.3771843349064,
+      "degenerate_phase_model": false,
+      "phase_support_penalty": 0.0,
+      "selection_score": 1407.3771843349064,
+      "topology_cap_applied": false,
+      "eligibility_reason": null,
+      "event_support_by_phase": {
+        "0": 167,
+        "1": 64
+      },
+      "runtime_s": 0.6090000000003783
+    },
+    "criterion": "approximate_BIC_plus_recurrent_phase_complexity_penalty",
+    "candidates": [
+      {
+        "k": 2,
+        "objective": -669.8334225086967,
+        "objective_semantics": "returned_model_data_loglik",
+        "initialization_diagnostics": {
+          "ensemble": {
+            "status": "available",
+            "method": "unique_membership_circular_midpoint",
+            "reason": null,
+            "matches": [
+              {
+                "onset_s": 48.61154231751509,
+                "release_group_index": 0,
+                "entry_group_index": 0,
+                "release_onset_s": 45.610829828779586,
+                "entry_onset_s": 51.61225480625058,
+                "shared_streams": [
+                  "N->S",
+                  "S->N"
+                ],
+                "group_streams": [
+                  "E->W",
+                  "N->E",
+                  "N->S",
+                  "N->W",
+                  "S->E",
+                  "S->N",
+                  "S->W",
+                  "W->S"
+                ]
+              },
+              {
+                "onset_s": 117.32785830955801,
+                "release_group_index": 1,
+                "entry_group_index": 1,
+                "release_onset_s": 115.82750206519026,
+                "entry_onset_s": 118.82821455392576,
+                "shared_streams": [
+                  "W->E"
+                ],
+                "group_streams": [
+                  "E->N",
+                  "E->S",
+                  "E->W",
+                  "W->E",
+                  "W->N"
+                ]
+              }
+            ]
+          },
+          "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+        },
+        "data_loglik": -669.8334225086967,
+        "penalized_objective": null,
+        "approx_bic": 1407.3771843349064,
+        "parameter_count": 8,
+        "segment_count": 20,
+        "median_segment_duration_s": 54.5,
+        "mean_segment_duration_s": 59.25,
+        "supported_phase_count": 2,
+        "unsupported_phase_count": 0,
+        "phase_support_by_phase": {
+          "0": 2,
+          "1": 2
+        },
+        "phase_contrast_by_phase": {
+          "0": 0.11066473811864853,
+          "1": 0.07383838087320328
+        },
+        "exclusive_stream_support_by_phase": {
+          "0": 1,
+          "1": 1
+        },
+        "pairwise_signature_witness_columns": {
+          "0": {
+            "1": [
+              0,
+              2
+            ]
+          },
+          "1": {
+            "0": [
+              0,
+              2
+            ]
+          }
+        },
+        "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+        "recurrent_complexity_penalty": 0.0,
+        "criterion_score": 1407.3771843349064,
+        "degenerate_phase_model": false,
+        "phase_support_penalty": 0.0,
+        "selection_score": 1407.3771843349064,
+        "topology_cap_applied": false,
+        "eligibility_reason": null,
+        "event_support_by_phase": {
+          "0": 167,
+          "1": 64
+        },
+        "runtime_s": 0.6090000000003783
+      },
+      {
+        "k": 3,
+        "objective": -604.3843086695385,
+        "objective_semantics": "returned_model_data_loglik",
+        "initialization_diagnostics": {
+          "ensemble": {
+            "status": "unavailable",
+            "reason": "MISSING_SEED_VIEW"
+          },
+          "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+        },
+        "data_loglik": -604.3843086695385,
+        "penalized_objective": -617.6878514685193,
+        "approx_bic": 1310.3341263153466,
+        "parameter_count": 12,
+        "segment_count": 30,
+        "median_segment_duration_s": 32.0,
+        "mean_segment_duration_s": 39.5,
+        "supported_phase_count": 1,
+        "unsupported_phase_count": 2,
+        "phase_support_by_phase": {
+          "0": 0,
+          "1": 2,
+          "2": 0
+        },
+        "phase_contrast_by_phase": {
+          "0": 0.05998313963413238,
+          "1": 0.26096361864358186,
+          "2": 0.0
+        },
+        "exclusive_stream_support_by_phase": {
+          "0": 0,
+          "1": 2,
+          "2": 0
+        },
+        "pairwise_signature_witness_columns": {
+          "0": {
+            "1": [
+              0,
+              1
+            ],
+            "2": []
+          },
+          "1": {
+            "0": [
+              0,
+              1
+            ],
+            "2": [
+              0,
+              1
+            ]
+          },
+          "2": {
+            "0": [],
+            "1": [
+              0,
+              1
+            ]
+          }
+        },
+        "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+        "recurrent_complexity_penalty": 49.34927973136213,
+        "criterion_score": 1359.6834060467088,
+        "degenerate_phase_model": true,
+        "phase_support_penalty": null,
+        "selection_score": null,
+        "topology_cap_applied": false,
+        "eligibility_reason": "MULTIPLE_UNSUPPORTED_PHASES",
+        "event_support_by_phase": {
+          "0": 65,
+          "1": 151,
+          "2": 15
+        },
+        "runtime_s": 0.875
+      },
+      {
+        "k": 4,
+        "objective": -576.2489407992709,
+        "objective_semantics": "returned_model_data_loglik",
+        "initialization_diagnostics": {
+          "ensemble": {
+            "status": "unavailable",
+            "reason": "MISSING_SEED_VIEW"
+          },
+          "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+        },
+        "data_loglik": -576.2489407992709,
+        "penalized_objective": -592.5350884725995,
+        "approx_bic": 1287.9185602335679,
+        "parameter_count": 16,
+        "segment_count": 40,
+        "median_segment_duration_s": 30.5,
+        "mean_segment_duration_s": 29.625,
+        "supported_phase_count": 2,
+        "unsupported_phase_count": 2,
+        "phase_support_by_phase": {
+          "0": 0,
+          "1": 3,
+          "2": 0,
+          "3": 3
+        },
+        "phase_contrast_by_phase": {
+          "0": 0.0,
+          "1": 0.26532347896446784,
+          "2": 0.0,
+          "3": 0.12403949738790591
+        },
+        "exclusive_stream_support_by_phase": {
+          "0": 0,
+          "1": 2,
+          "2": 0,
+          "3": 1
+        },
+        "pairwise_signature_witness_columns": {
+          "0": {
+            "1": [
+              0,
+              1
+            ],
+            "2": [],
+            "3": [
+              2
+            ]
+          },
+          "1": {
+            "0": [
+              0,
+              1
+            ],
+            "2": [
+              0,
+              1
+            ],
+            "3": [
+              0,
+              1,
+              2
+            ]
+          },
+          "2": {
+            "0": [],
+            "1": [
+              0,
+              1
+            ],
+            "3": [
+              2
+            ]
+          },
+          "3": {
+            "0": [
+              2
+            ],
+            "1": [
+              0,
+              1,
+              2
+            ],
+            "2": [
+              2
+            ]
+          }
+        },
+        "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+        "recurrent_complexity_penalty": 98.69855946272426,
+        "criterion_score": 1386.617119696292,
+        "degenerate_phase_model": true,
+        "phase_support_penalty": null,
+        "selection_score": null,
+        "topology_cap_applied": false,
+        "eligibility_reason": "MULTIPLE_UNSUPPORTED_PHASES",
+        "event_support_by_phase": {
+          "0": 8,
+          "1": 151,
+          "2": 13,
+          "3": 59
+        },
+        "runtime_s": 0.5630000000001019
+      },
+      {
+        "k": 5,
+        "objective": -531.8989165699155,
+        "objective_semantics": "returned_model_data_loglik",
+        "initialization_diagnostics": {
+          "ensemble": {
+            "status": "unavailable",
+            "reason": "MISSING_SEED_VIEW"
+          },
+          "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+        },
+        "data_loglik": -531.8989165699155,
+        "penalized_objective": -555.479489062791,
+        "approx_bic": 1233.0736814336135,
+        "parameter_count": 20,
+        "segment_count": 50,
+        "median_segment_duration_s": 24.0,
+        "mean_segment_duration_s": 23.7,
+        "supported_phase_count": 2,
+        "unsupported_phase_count": 3,
+        "phase_support_by_phase": {
+          "0": 0,
+          "1": 0,
+          "2": 3,
+          "3": 0,
+          "4": 3
+        },
+        "phase_contrast_by_phase": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.15852541273459791,
+          "3": 0.0,
+          "4": 0.33802008705213665
+        },
+        "exclusive_stream_support_by_phase": {
+          "0": 0,
+          "1": 0,
+          "2": 1,
+          "3": 0,
+          "4": 2
+        },
+        "pairwise_signature_witness_columns": {
+          "0": {
+            "1": [],
+            "2": [
+              2
+            ],
+            "3": [],
+            "4": [
+              0,
+              1
+            ]
+          },
+          "1": {
+            "0": [],
+            "2": [
+              2
+            ],
+            "3": [],
+            "4": [
+              0,
+              1
+            ]
+          },
+          "2": {
+            "0": [
+              2
+            ],
+            "1": [
+              2
+            ],
+            "3": [
+              2
+            ],
+            "4": [
+              0,
+              1,
+              2
+            ]
+          },
+          "3": {
+            "0": [],
+            "1": [],
+            "2": [
+              2
+            ],
+            "4": [
+              0,
+              1
+            ]
+          },
+          "4": {
+            "0": [
+              0,
+              1
+            ],
+            "1": [
+              0,
+              1
+            ],
+            "2": [
+              0,
+              1,
+              2
+            ],
+            "3": [
+              0,
+              1
+            ]
+          }
+        },
+        "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+        "recurrent_complexity_penalty": 148.0478391940864,
+        "criterion_score": 1381.1215206277,
+        "degenerate_phase_model": true,
+        "phase_support_penalty": null,
+        "selection_score": null,
+        "topology_cap_applied": false,
+        "eligibility_reason": "MULTIPLE_UNSUPPORTED_PHASES",
+        "event_support_by_phase": {
+          "0": 4,
+          "1": 14,
+          "2": 57,
+          "3": 5,
+          "4": 151
+        },
+        "runtime_s": 0.34399999999914144
+      },
+      {
+        "k": 6,
+        "objective": -505.1163017739754,
+        "objective_semantics": "returned_model_data_loglik",
+        "initialization_diagnostics": {
+          "ensemble": {
+            "status": "unavailable",
+            "reason": "MISSING_SEED_VIEW"
+          },
+          "selection_rule": "max_model_quality_all_sources_first_retained_on_exact_tie"
+        },
+        "data_loglik": -505.1163017739754,
+        "penalized_objective": -531.4616598915297,
+        "approx_bic": 1213.3636215004897,
+        "parameter_count": 24,
+        "segment_count": 60,
+        "median_segment_duration_s": 21.0,
+        "mean_segment_duration_s": 19.75,
+        "supported_phase_count": 2,
+        "unsupported_phase_count": 4,
+        "phase_support_by_phase": {
+          "0": 0,
+          "1": 0,
+          "2": 4,
+          "3": 0,
+          "4": 0,
+          "5": 4
+        },
+        "phase_contrast_by_phase": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.19367502649128437,
+          "3": 0.0,
+          "4": 0.0,
+          "5": 0.41697034528851507
+        },
+        "exclusive_stream_support_by_phase": {
+          "0": 0,
+          "1": 0,
+          "2": 2,
+          "3": 0,
+          "4": 0,
+          "5": 2
+        },
+        "pairwise_signature_witness_columns": {
+          "0": {
+            "1": [],
+            "2": [
+              2,
+              3
+            ],
+            "3": [],
+            "4": [],
+            "5": [
+              0,
+              1
+            ]
+          },
+          "1": {
+            "0": [],
+            "2": [
+              2,
+              3
+            ],
+            "3": [],
+            "4": [],
+            "5": [
+              0,
+              1
+            ]
+          },
+          "2": {
+            "0": [
+              2,
+              3
+            ],
+            "1": [
+              2,
+              3
+            ],
+            "3": [
+              2,
+              3
+            ],
+            "4": [
+              2,
+              3
+            ],
+            "5": [
+              0,
+              1,
+              2,
+              3
+            ]
+          },
+          "3": {
+            "0": [],
+            "1": [],
+            "2": [
+              2,
+              3
+            ],
+            "4": [],
+            "5": [
+              0,
+              1
+            ]
+          },
+          "4": {
+            "0": [],
+            "1": [],
+            "2": [
+              2,
+              3
+            ],
+            "3": [],
+            "5": [
+              0,
+              1
+            ]
+          },
+          "5": {
+            "0": [
+              0,
+              1
+            ],
+            "1": [
+              0,
+              1
+            ],
+            "2": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "3": [
+              0,
+              1
+            ],
+            "4": [
+              0,
+              1
+            ]
+          }
+        },
+        "phase_support_semantics": "heuristic_joint_fitted_signature_NOT_external_identifiability",
+        "recurrent_complexity_penalty": 197.39711892544852,
+        "criterion_score": 1410.7607404259381,
+        "degenerate_phase_model": true,
+        "phase_support_penalty": null,
+        "selection_score": null,
+        "topology_cap_applied": false,
+        "eligibility_reason": "MULTIPLE_UNSUPPORTED_PHASES",
+        "event_support_by_phase": {
+          "0": 5,
+          "1": 11,
+          "2": 59,
+          "3": 2,
+          "4": 6,
+          "5": 148
+        },
+        "runtime_s": 0.43699999999989814
+      }
+    ]
+  },
+  "schedule": {
+    "model": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+    "phase_count": 2,
+    "phase_names": [
+      "PHASE_A",
+      "PHASE_B"
+    ],
+    "period_s": 120.02849954941996,
+    "decoder": {
+      "min_duration_s": [
+        70.21667223641067,
+        49.811827313009275
+      ],
+      "max_duration_s": [
+        70.21667223641067,
+        49.811827313009275
+      ],
+      "transition_penalty": 0.25
+    },
+    "raw_hsmm_segments": [
+      [
+        0.0,
+        46.0,
+        1
+      ],
+      [
+        46.0,
+        116.0,
+        0
+      ],
+      [
+        116.0,
+        166.0,
+        1
+      ],
+      [
+        166.0,
+        236.0,
+        0
+      ],
+      [
+        236.0,
+        286.0,
+        1
+      ],
+      [
+        286.0,
+        356.0,
+        0
+      ],
+      [
+        356.0,
+        406.0,
+        1
+      ],
+      [
+        406.0,
+        476.0,
+        0
+      ],
+      [
+        476.0,
+        526.0,
+        1
+      ],
+      [
+        526.0,
+        596.0,
+        0
+      ],
+      [
+        596.0,
+        646.0,
+        1
+      ],
+      [
+        646.0,
+        716.0,
+        0
+      ],
+      [
+        716.0,
+        766.0,
+        1
+      ],
+      [
+        766.0,
+        836.0,
+        0
+      ],
+      [
+        836.0,
+        886.0,
+        1
+      ],
+      [
+        886.0,
+        957.0,
+        0
+      ],
+      [
+        957.0,
+        1006.0,
+        1
+      ],
+      [
+        1006.0,
+        1077.0,
+        0
+      ],
+      [
+        1077.0,
+        1126.0,
+        1
+      ],
+      [
+        1126.0,
+        1185.0,
+        0
+      ]
+    ],
+    "baseline_phase_centers_s": {
+      "PHASE_A": 45.871752027610164,
+      "PHASE_B": 116.1081955972136
+    },
+    "baseline_duration_targets_s": {
+      "PHASE_A": 70.23644356960345,
+      "PHASE_B": 49.792055979816496
+    },
+    "baseline_reconstruction": {
+      "status": "available",
+      "reason": null,
+      "source": "contiguous_observed_phase_changes",
+      "first_segment_left_censored": true,
+      "semantics": "periodic_reference_NOT_actual_history_or_lamp_switch",
+      "onset_counts_by_phase": {
+        "0": 10,
+        "1": 9
+      }
+    },
+    "baseline_segments": [
+      [
+        0.0,
+        45.871752027610164,
+        1
+      ],
+      [
+        45.871752027610164,
+        116.1081955972136,
+        0
+      ],
+      [
+        116.1081955972136,
+        165.90025157703013,
+        1
+      ],
+      [
+        165.90025157703013,
+        236.13669514663354,
+        0
+      ],
+      [
+        236.13669514663354,
+        285.9287511264501,
+        1
+      ],
+      [
+        285.9287511264501,
+        356.1651946960535,
+        0
+      ],
+      [
+        356.1651946960535,
+        405.95725067587006,
+        1
+      ],
+      [
+        405.95725067587006,
+        476.19369424547347,
+        0
+      ],
+      [
+        476.19369424547347,
+        525.98575022529,
+        1
+      ],
+      [
+        525.98575022529,
+        596.2221937948934,
+        0
+      ],
+      [
+        596.2221937948934,
+        646.0142497747099,
+        1
+      ],
+      [
+        646.0142497747099,
+        716.2506933443134,
+        0
+      ],
+      [
+        716.2506933443134,
+        766.0427493241299,
+        1
+      ],
+      [
+        766.0427493241299,
+        836.2791928937334,
+        0
+      ],
+      [
+        836.2791928937334,
+        886.0712488735498,
+        1
+      ],
+      [
+        886.0712488735498,
+        956.3076924431533,
+        0
+      ],
+      [
+        956.3076924431533,
+        1006.0997484229698,
+        1
+      ],
+      [
+        1006.0997484229698,
+        1076.3361919925733,
+        0
+      ],
+      [
+        1076.3361919925733,
+        1126.1282479723898,
+        1
+      ],
+      [
+        1126.1282479723898,
+        1184.664,
+        0
+      ]
+    ],
+    "phase_duration_summary": {
+      "PHASE_A": {
+        "median_s": 70.0,
+        "mean_s": 69.1,
+        "observations": 10
+      },
+      "PHASE_B": {
+        "median_s": 50.0,
+        "mean_s": 49.4,
+        "observations": 10
+      }
+    },
+    "stream_activity_by_phase": [
+      {
+        "stream": "N->S",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.12066473811864853,
+          "PHASE_B": 0.01
+        }
+      },
+      {
+        "stream": "S->N",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.05852601304650307,
+          "PHASE_B": 0.011111111380159855
+        }
+      },
+      {
+        "stream": "E->W",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.08383838087320328
+        }
+      },
+      {
+        "stream": "W->E",
+        "event_probability_by_phase": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.03333333507180214
+        }
+      }
+    ]
+  },
+  "anomaly_detection": {
+    "temporary_phase_deviations": [],
+    "cause": "unknown"
+  },
+  "online": {
+    "tracker": "OnlinePhaseTracker",
+    "input": "timestamp_ms + anonymous stream",
+    "no_retraining_per_chunk": true
+  },
+  "physical_signal_plan": {
+    "enabled": true,
+    "auto_inferred": true,
+    "model": "v10_automatic_physical_signal_plan",
+    "cycle_seconds": 120.02849954941996,
+    "mapping": {
+      "PHASE_A": "NS_THROUGH",
+      "PHASE_B": "EW_THROUGH"
+    },
+    "time_offset_s": 116.108196,
+    "recording_start_timestamp_ms": 1740397207758.0,
+    "analysis_base_timestamp_ms": 1740397207758.0,
+    "timing": {
+      "phase_anchor_model_s": 0.0,
+      "phase_anchor_physical_s": 116.108196,
+      "startup_lost_s": 0.0,
+      "slice_start_s": 0.0,
+      "cycle_rotation_s": 116.108196,
+      "event_base_offset_s": 0.0
+    },
+    "confidence": 1.0,
+    "phases": [
+      {
+        "name": "NS_THROUGH",
+        "green_movements": [
+          "N->S"
+        ],
+        "additional_movements": [],
+        "duration_s": 70.236444,
+        "source_phase": "PHASE_A",
+        "heads": {
+          "N": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "S": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "E": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "W": {
+            "main": "RED",
+            "arrows": {}
+          }
+        }
+      },
+      {
+        "name": "EW_THROUGH",
+        "green_movements": [
+          "E->W"
+        ],
+        "additional_movements": [],
+        "duration_s": 49.792056,
+        "source_phase": "PHASE_B",
+        "heads": {
+          "N": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "S": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "E": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "W": {
+            "main": "RED",
+            "arrows": {}
+          }
+        }
+      }
+    ],
+    "stages": [
+      {
+        "stage_id": 1,
+        "name": "EW_THROUGH",
+        "phase_start": 0.0,
+        "phase_end": 49.792056,
+        "active_movements": [
+          "E->W"
+        ],
+        "additional_movements": [],
+        "source_phase": "PHASE_B",
+        "heads": {
+          "N": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "S": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "E": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "W": {
+            "main": "RED",
+            "arrows": {}
+          }
+        }
+      },
+      {
+        "stage_id": 2,
+        "name": "NS_THROUGH",
+        "phase_start": 49.792056,
+        "phase_end": 120.0285,
+        "active_movements": [
+          "N->S"
+        ],
+        "additional_movements": [],
+        "source_phase": "PHASE_A",
+        "heads": {
+          "N": {
+            "main": "GREEN",
+            "arrows": {}
+          },
+          "S": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "E": {
+            "main": "RED",
+            "arrows": {}
+          },
+          "W": {
+            "main": "RED",
+            "arrows": {}
+          }
+        }
+      }
+    ],
+    "topology": {
+      "N": {
+        "main": "N->S",
+        "arrows": []
+      },
+      "S": {
+        "main": "S->N",
+        "arrows": []
+      },
+      "E": {
+        "main": "E->W",
+        "arrows": []
+      },
+      "W": {
+        "main": "W->E",
+        "arrows": []
+      }
+    },
+    "inference": {
+      "activity_threshold": 0.08,
+      "selectivity_ratio": 1.15,
+      "phase_confidence": {
+        "PHASE_A": 1.0,
+        "PHASE_B": 1.0
+      },
+      "turn_candidate_evidence_threshold": 0.03,
+      "turn_candidate_selectivity_ratio": 1.25,
+      "strong_turn_pair_threshold": 0.2,
+      "startup_lost_s": 0.0,
+      "cycle_rotation_s": 116.108196,
+      "inherited_empty_phases": {},
+      "turn_reciprocal_pair_min_probability": 0.06,
+      "suppressed_turn_movements_by_phase": {
+        "PHASE_A": [],
+        "PHASE_B": []
+      },
+      "physical_phase_count": 2,
+      "source": "V9 stream_activity_by_phase",
+      "unobserved_movements_are_not_invented": true
+    },
+    "state_semantics": {
+      "status": "UNVERIFIED_MAPPING_HYPOTHESIS",
+      "hardware_verified": false,
+      "calibrated_lamp_probability": null,
+      "reconstruction": "UNKNOWN",
+      "reason": "turn_activity_does_not_identify_hardware_arrow"
+    }
+  },
+  "archive": {
+    "source_file_count": 1,
+    "source_files": [
+      "D:\\Code\\PythonProjects\\traffic_phase\\data\\ручная разметка\\19_2025_2_24_16.json"
+    ]
+  },
+  "state_contract": {
+    "version": 1,
+    "logical_phase": {
+      "level": "logical_phase",
+      "source": "cyclic_bernoulli_hsmm_plus_periodic_baseline",
+      "estimated_state": "QUERY_AT_TIMESTAMP",
+      "assumptions": [
+        "anonymous_latent_phase_NOT_lamp"
+      ],
+      "observation_support": {
+        "coverage_segments_s": [
+          [
+            0.0,
+            46.0,
+            1
+          ],
+          [
+            46.0,
+            116.0,
+            0
+          ],
+          [
+            116.0,
+            166.0,
+            1
+          ],
+          [
+            166.0,
+            236.0,
+            0
+          ],
+          [
+            236.0,
+            286.0,
+            1
+          ],
+          [
+            286.0,
+            356.0,
+            0
+          ],
+          [
+            356.0,
+            406.0,
+            1
+          ],
+          [
+            406.0,
+            476.0,
+            0
+          ],
+          [
+            476.0,
+            526.0,
+            1
+          ],
+          [
+            526.0,
+            596.0,
+            0
+          ],
+          [
+            596.0,
+            646.0,
+            1
+          ],
+          [
+            646.0,
+            716.0,
+            0
+          ],
+          [
+            716.0,
+            766.0,
+            1
+          ],
+          [
+            766.0,
+            836.0,
+            0
+          ],
+          [
+            836.0,
+            886.0,
+            1
+          ],
+          [
+            886.0,
+            957.0,
+            0
+          ],
+          [
+            957.0,
+            1006.0,
+            1
+          ],
+          [
+            1006.0,
+            1077.0,
+            0
+          ],
+          [
+            1077.0,
+            1126.0,
+            1
+          ],
+          [
+            1126.0,
+            1185.0,
+            0
+          ]
+        ],
+        "history_field": "raw_hsmm_segments"
+      },
+      "abstention_reason": null,
+      "calibrated_lamp_probability": null
+    },
+    "activity": [
+      {
+        "movement": "N->S",
+        "scores": {
+          "PHASE_A": 0.12066473811864853,
+          "PHASE_B": 0.01
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "S->N",
+        "scores": {
+          "PHASE_A": 0.05852601304650307,
+          "PHASE_B": 0.011111111380159855
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "E->W",
+        "scores": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.08383838087320328
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      },
+      {
+        "movement": "W->E",
+        "scores": {
+          "PHASE_A": 0.01,
+          "PHASE_B": 0.03333333507180214
+        },
+        "estimate": {
+          "estimated_state": "MODELLED_EVENT_ACTIVITY",
+          "level": "activity",
+          "source": "bernoulli_event_occupancy",
+          "assumptions": [
+            "event_occupancy_score_NOT_lamp_probability"
+          ],
+          "observation_support": {
+            "support_kind": "fitted_vehicle_event_occupancy; local_demand_unknown"
+          },
+          "abstention_reason": null,
+          "provenance": {},
+          "mode": "reconstructed",
+          "calibrated_lamp_probability": null
+        }
+      }
+    ],
+    "physical_section": {
+      "estimated_state": "UNKNOWN",
+      "level": "physical_section",
+      "source": "vehicle_phase_model",
+      "assumptions": [],
+      "observation_support": {},
+      "abstention_reason": "UNVERIFIED_SECTION_MAPPING",
+      "provenance": {},
+      "mode": "reconstructed",
+      "calibrated_lamp_probability": null
+    }
+  },
+  "controlled_channel_candidate": {
+    "allowed_movements": [
+      "E->W",
+      "N->S",
+      "S->N",
+      "W->E"
+    ],
+    "excluded_permission_movements": [
+      "E->N",
+      "E->S",
+      "N->E",
+      "N->W",
+      "S->E",
+      "S->W",
+      "W->N",
+      "W->S"
+    ],
+    "permission_events_used": 231,
+    "demand_entries_unchanged": true,
+    "period_model_unchanged": true,
+    "automatic_k_range": [
+      2,
+      6
+    ],
+    "annotation_input": false,
+    "scope": "Sverdlovsky confirmed channels; other two sites through-only diagnostic assumption"
+  }
+}

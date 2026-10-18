@@ -1,5 +1,11 @@
 # traffic_phase
 
+2026-10-18: [manual-marks validation and corrected Sverdlovsky signal scheme](docs/MANUAL_MARKS_VALIDATION_20261018.md).
+The default signal estimate uses four main heads with additional sections only
+on N/E for the confirmed Sverdlovsky profile; W/S have no extra sections.
+All three labelled JSON files rerun. Strict timing matches:15/17,1/8,3/9;
+remaining timing errors are recorded, not hidden by the display correction.
+
 2026-10-18: [spatial view now shows colored phase/movement estimates](docs/MODEL_PHASE_VIEW_20261018.md).
 Use the display selector to inspect physical lamps separately; unverified lamps stay UNKNOWN.
 

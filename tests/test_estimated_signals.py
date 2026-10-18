@@ -122,3 +122,13 @@ process.stdout.write(JSON.stringify([6,16,26,31].map(t=>vm.runInContext(`({estim
         assert all(head['main']['state']=='UNKNOWN' for head in row['physical']['heads'].values())
         assert len(row['physical']['heads']['N']['arrows'])==1
         assert row['physical']['heads']['S']['arrows']==row['physical']['heads']['W']['arrows']==[]
+
+
+def test_explicit_viewer_profile_overrides_cached_automatic_projection():
+    from scripts.v9_spatial_visualizer import render_html
+    value=prediction()
+    value['estimated_signals']={'available':False,'reason':'STALE_GENERIC_PROPOSAL'}
+    page=render_html(value,{},[],intersection_profile='lenina_sverdlovsky')
+    embedded=json.loads(re.search(r'^const ESTIMATED_SIGNALS = (.*);$',page,re.M).group(1))
+    assert embedded['hardware_confirmed'] and embedded['available']
+    assert embedded['profile_id']=='lenina_sverdlovsky'
