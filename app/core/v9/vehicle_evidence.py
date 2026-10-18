@@ -200,6 +200,46 @@ def select_permission_events(events):
     return sorted(chosen, key=lambda event: event.timestamp_ms), methods
 
 
+def select_permission_events_per_track(events):
+    """Opt-in: one permission proxy per source/track/movement, never demand.
+
+    Preserve each free-flowing vehicle even if another car on the movement
+    stopped. Prefer its own supported restart; otherwise its eligible crossing.
+    Neither observation establishes a lamp color or switch timestamp.
+    """
+    grouped = defaultdict(lambda: defaultdict(list))
+
+    def order(event):
+        return (event.timestamp_ms,event.event_type,event.movement,
+                str(event.provenance.get('source','')),
+                str(event.provenance.get('track_fingerprint','')),
+                event.evidence_method,json.dumps(event.to_dict(),sort_keys=True))
+
+    for event in events:
+        fingerprint=event.provenance.get('track_fingerprint')
+        if not isinstance(fingerprint,str) or not fingerprint:
+            continue
+        if event.event_type=='RELEASE' and event.evidence_quality!='LOW':
+            kind='release_proxy'
+        elif (event.event_type=='CROSSING_PROXY' and event.provenance.get('eligible_proxy')
+              and not event.provenance.get('conflicting_timestamps')
+              and not event.provenance.get('invalid_detections')):
+            kind='zone_crossing_proxy'
+        else:
+            continue
+        key=(str(event.provenance.get('source','')),fingerprint,event.movement)
+        grouped[key][kind].append(event)
+    chosen,counts=[],defaultdict(Counter)
+    for kinds in grouped.values():
+        kind='release_proxy' if kinds.get('release_proxy') else 'zone_crossing_proxy'
+        event=min(kinds[kind],key=order)
+        chosen.append(event)
+        counts[event.movement][kind]+=1
+    methods={movement:('mixed_release_and_crossing_proxy' if len(kinds)>1 else next(iter(kinds)))
+             for movement,kinds in sorted(counts.items())}
+    return sorted(chosen,key=order),methods
+
+
 def diagnostics(events, selected, methods, track_stats):
     weak = sum(e.evidence_quality == "LOW" or e.temporal_uncertainty_ms is None for e in events)
     selected_weak = sum(e.evidence_quality == "LOW" or e.temporal_uncertainty_ms is None for e in selected)
