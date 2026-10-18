@@ -1,0 +1,18 @@
+{
+  "full": {
+    "passed": 1392,
+    "failed": 0,
+    "warnings": 5,
+    "elapsed_s": 258.87,
+    "command": "pytest -q -p no:cacheprovider --basetemp=.web_runtime/yellow_pytest_20261019"
+  },
+  "final_affected": {
+    "passed": 38,
+    "failed": 0,
+    "warnings": 1,
+    "elapsed_s": 6.53,
+    "command": "pytest tests/test_signal_timing.py tests/test_timing_profiles.py tests/test_timing_calibration.py tests/test_estimated_signals.py tests/test_learned_visualization.py tests/v9/test_v9_spatial_visualizer.py tests/test_spatial_model_view.py -q -p no:cacheprovider"
+  },
+  "browser": "browser_v3/results.json",
+  "browser_screenshots_visually_reviewed": true
+}

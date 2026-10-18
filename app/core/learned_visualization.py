@@ -9,6 +9,7 @@ from app.core.v9.primitives import infer_period
 from app.core.v9.source_scope import choose_source,choose_session,input_sessions,attach_input_scope,ScopeChoiceRequired
 from app.core.v9.spatial import build_spatial_projection,compact_trajectories
 from app.core.v10.estimated_signals import build_estimated_signals
+from app.core.v10.timing_profiles import resolve_timing_profile
 from scripts.v9_spatial_visualizer import render_html
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -43,8 +44,9 @@ def build_learned_visualization(path,*,model_id,source_member=None,session_id=No
     result['learned_phase'].update(site_id=model_id,site_name=SITES[model_id],
         model_sha256=hashlib.sha256(model_path.read_bytes()).hexdigest())
     attach_input_scope(result,member,selected,choices,source_count=len(sources))
-    profile='lenina_sverdlovsky' if model_id=='lenina_sverdlovsky' else 'none'
-    result['estimated_signals']=build_estimated_signals(result,profile_id=profile)
+    profile=model_id if model_id in {'lenina_sverdlovsky','lenina_entuziastov'} else 'none'
+    calibration=resolve_timing_profile(path,member,model_id)
+    result['estimated_signals']=build_estimated_signals(result,profile_id=profile,boundary_calibration=calibration)
     kwargs={'source_member':member}
     if len(sessions)>1:kwargs.update(start_timestamp_ms=start,end_timestamp_ms=end)
     tracks=load_tracks(path,**kwargs)

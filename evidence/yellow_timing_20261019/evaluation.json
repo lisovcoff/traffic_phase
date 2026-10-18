@@ -1,0 +1,587 @@
+{
+  "fresh_window_video_pts_s": [
+    3300,
+    3600
+  ],
+  "calibration_video_pts_s": [
+    900,
+    1500
+  ],
+  "truth_sha256": "ceaedd576adcae8ae47d9139d32f2a8d95d2af0c5b31a944e2b56b6bd09500fa",
+  "source_prediction_sha256": "dce3a8db3b81dc5011aaf374e88ae4d0fbf196d7e7dc203c95800c1bb3172887",
+  "results": {
+    "original_binary": {
+      "onsets": {
+        "GREEN": {
+          "truth_onsets": 3,
+          "predicted_onsets": 3,
+          "paired_onsets": 3,
+          "missed_truth": 0,
+          "unpaired_predictions": 0,
+          "mean_signed_midpoint_error_s": 2.5466064282307648,
+          "mean_absolute_midpoint_error_s": 2.5466064282307648,
+          "mean_distance_to_truth_bracket_s": 2.518828650453088,
+          "within_0_5s_of_bracket": 0,
+          "within_2s_of_bracket": 0,
+          "pairs": [
+            {
+              "index": 0,
+              "predicted_s": 3321.6521619837863,
+              "truth_s": [
+                3319.0333333333333,
+                3319.133333333333
+              ],
+              "signed_error_s": 2.56882865045327,
+              "error_interval_s": [
+                2.518828650453088,
+                2.618828650452997
+              ]
+            },
+            {
+              "index": 1,
+              "predicted_s": 3421.6521619837863,
+              "truth_s": [
+                3419.1,
+                3419.133333333333
+              ],
+              "signed_error_s": 2.535495317119512,
+              "error_interval_s": [
+                2.518828650453088,
+                2.552161983786391
+              ]
+            },
+            {
+              "index": 2,
+              "predicted_s": 3521.6521619837863,
+              "truth_s": [
+                3519.1,
+                3519.133333333333
+              ],
+              "signed_error_s": 2.535495317119512,
+              "error_interval_s": [
+                2.518828650453088,
+                2.552161983786391
+              ]
+            }
+          ],
+          "physical_clock_uncertainty_included": false
+        },
+        "YELLOW": {
+          "truth_onsets": 3,
+          "predicted_onsets": 0,
+          "paired_onsets": 0,
+          "missed_truth": 3,
+          "unpaired_predictions": 0,
+          "mean_signed_midpoint_error_s": null,
+          "mean_absolute_midpoint_error_s": null,
+          "mean_distance_to_truth_bracket_s": null,
+          "within_0_5s_of_bracket": 0,
+          "within_2s_of_bracket": 0,
+          "pairs": [],
+          "physical_clock_uncertainty_included": false
+        },
+        "RED": {
+          "truth_onsets": 3,
+          "predicted_onsets": 3,
+          "paired_onsets": 3,
+          "missed_truth": 0,
+          "unpaired_predictions": 0,
+          "mean_signed_midpoint_error_s": 3.5632730948976437,
+          "mean_absolute_midpoint_error_s": 3.5632730948976437,
+          "mean_distance_to_truth_bracket_s": 3.3854953171197244,
+          "within_0_5s_of_bracket": 0,
+          "within_2s_of_bracket": 0,
+          "pairs": [
+            {
+              "index": 0,
+              "predicted_s": 3373.6521619837863,
+              "truth_s": [
+                3369.6,
+                3370.6
+              ],
+              "signed_error_s": 3.552161983786391,
+              "error_interval_s": [
+                3.052161983786391,
+                4.052161983786391
+              ]
+            },
+            {
+              "index": 1,
+              "predicted_s": 3473.6521619837863,
+              "truth_s": [
+                3470.0666666666666,
+                3470.1
+              ],
+              "signed_error_s": 3.56882865045327,
+              "error_interval_s": [
+                3.552161983786391,
+                3.585495317119694
+              ]
+            },
+            {
+              "index": 2,
+              "predicted_s": 3573.6521619837863,
+              "truth_s": [
+                3570.0666666666666,
+                3570.1
+              ],
+              "signed_error_s": 3.56882865045327,
+              "error_interval_s": [
+                3.552161983786391,
+                3.585495317119694
+              ]
+            }
+          ],
+          "physical_clock_uncertainty_included": false
+        }
+      },
+      "state_error": {
+        "scored_seconds": 275.1666666666674,
+        "wrong_seconds": 25.879638569385406,
+        "correct_fraction": 0.9059492238544445,
+        "per_color": {
+          "GREEN": {
+            "seconds": 143.60000000000036,
+            "wrong_s": 7.556485951359264
+          },
+          "YELLOW": {
+            "seconds": 8.16666666666697,
+            "wrong_s": 8.16666666666697
+          },
+          "RED": {
+            "seconds": 123.40000000000009,
+            "wrong_s": 10.156485951359173
+          }
+        },
+        "scope": "confident interior intervals of three visible N-main cycles; uncertain brackets/RY excluded; green includes blinking",
+        "clock_uncertainty_in_scalar_metric": false
+      }
+    },
+    "normative_only": {
+      "onsets": {
+        "GREEN": {
+          "truth_onsets": 3,
+          "predicted_onsets": 3,
+          "paired_onsets": 3,
+          "missed_truth": 0,
+          "unpaired_predictions": 0,
+          "mean_signed_midpoint_error_s": 2.5466064282307648,
+          "mean_absolute_midpoint_error_s": 2.5466064282307648,
+          "mean_distance_to_truth_bracket_s": 2.518828650453088,
+          "within_0_5s_of_bracket": 0,
+          "within_2s_of_bracket": 0,
+          "pairs": [
+            {
+              "index": 0,
+              "predicted_s": 3321.6521619837863,
+              "truth_s": [
+                3319.0333333333333,
+                3319.133333333333
+              ],
+              "signed_error_s": 2.56882865045327,
+              "error_interval_s": [
+                2.518828650453088,
+                2.618828650452997
+              ]
+            },
+            {
+              "index": 1,
+              "predicted_s": 3421.6521619837863,
+              "truth_s": [
+                3419.1,
+                3419.133333333333
+              ],
+              "signed_error_s": 2.535495317119512,
+              "error_interval_s": [
+                2.518828650453088,
+                2.552161983786391
+              ]
+            },
+            {
+              "index": 2,
+              "predicted_s": 3521.6521619837863,
+              "truth_s": [
+                3519.1,
+                3519.133333333333
+              ],
+              "signed_error_s": 2.535495317119512,
+              "error_interval_s": [
+                2.518828650453088,
+                2.552161983786391
+              ]
+            }
+          ],
+          "physical_clock_uncertainty_included": false
+        },
+        "YELLOW": {
+          "truth_onsets": 3,
+          "predicted_onsets": 3,
+          "paired_onsets": 3,
+          "missed_truth": 0,
+          "unpaired_predictions": 0,
+          "mean_signed_midpoint_error_s": 3.557717539342017,
+          "mean_absolute_midpoint_error_s": 3.557717539342017,
+          "mean_distance_to_truth_bracket_s": 3.4632730948975827,
+          "within_0_5s_of_bracket": 0,
+          "within_2s_of_bracket": 0,
+          "pairs": [
+            {
+              "index": 0,
+              "predicted_s": 3370.6521619837863,
+              "truth_s": [
+                3366.9666666666667,
+                3367.2
+              ],
+              "signed_error_s": 3.56882865045327,
+              "error_interval_s": [
+                3.452161983786482,
+                3.685495317119603
+              ]
+            },
+            {
+              "index": 1,
+              "predicted_s": 3470.6521619837863,
+              "truth_s": [
+                3466.9666666666667,
+                3467.2
+              ],
+              "signed_error_s": 3.56882865045327,
+              "error_interval_s": [
+                3.452161983786482,
+                3.685495317119603
+              ]
+            },
+            {
+              "index": 2,
+              "predicted_s": 3570.6521619837863,
+              "truth_s": [
+                3567.0666666666666,
+                3567.1666666666665
+              ],
+              "signed_error_s": 3.535495317119512,
+              "error_interval_s": [
+                3.485495317119785,
+                3.585495317119694
+              ]
+            }
+          ],
+          "physical_clock_uncertainty_included": false
+        },
+        "RED": {
+          "truth_onsets": 3,
+          "predicted_onsets": 3,
+          "paired_onsets": 3,
+          "missed_truth": 0,
+          "unpaired_predictions": 0,
+          "mean_signed_midpoint_error_s": 3.5632730948976437,
+          "mean_absolute_midpoint_error_s": 3.5632730948976437,
+          "mean_distance_to_truth_bracket_s": 3.3854953171197244,
+          "within_0_5s_of_bracket": 0,
+          "within_2s_of_bracket": 0,
+          "pairs": [
+            {
+              "index": 0,
+              "predicted_s": 3373.6521619837863,
+              "truth_s": [
+                3369.6,
+                3370.6
+              ],
+              "signed_error_s": 3.552161983786391,
+              "error_interval_s": [
+                3.052161983786391,
+                4.052161983786391
+              ]
+            },
+            {
+              "index": 1,
+              "predicted_s": 3473.6521619837863,
+              "truth_s": [
+                3470.0666666666666,
+                3470.1
+              ],
+              "signed_error_s": 3.56882865045327,
+              "error_interval_s": [
+                3.552161983786391,
+                3.585495317119694
+              ]
+            },
+            {
+              "index": 2,
+              "predicted_s": 3573.6521619837863,
+              "truth_s": [
+                3570.0666666666666,
+                3570.1
+              ],
+              "signed_error_s": 3.56882865045327,
+              "error_interval_s": [
+                3.552161983786391,
+                3.585495317119694
+              ]
+            }
+          ],
+          "physical_clock_uncertainty_included": false
+        }
+      },
+      "state_error": {
+        "scored_seconds": 275.1666666666674,
+        "wrong_seconds": 25.879638569385406,
+        "correct_fraction": 0.9059492238544445,
+        "per_color": {
+          "GREEN": {
+            "seconds": 143.60000000000036,
+            "wrong_s": 7.556485951359264
+          },
+          "YELLOW": {
+            "seconds": 8.16666666666697,
+            "wrong_s": 8.16666666666697
+          },
+          "RED": {
+            "seconds": 123.40000000000009,
+            "wrong_s": 10.156485951359173
+          }
+        },
+        "scope": "confident interior intervals of three visible N-main cycles; uncertain brackets/RY excluded; green includes blinking",
+        "clock_uncertainty_in_scalar_metric": false
+      }
+    },
+    "calibrated_with_transitions": {
+      "onsets": {
+        "GREEN": {
+          "truth_onsets": 3,
+          "predicted_onsets": 3,
+          "paired_onsets": 3,
+          "missed_truth": 0,
+          "unpaired_predictions": 0,
+          "mean_signed_midpoint_error_s": -0.09722222222186853,
+          "mean_absolute_midpoint_error_s": 0.09722222222186853,
+          "mean_distance_to_truth_bracket_s": 0.06944444444404023,
+          "within_0_5s_of_bracket": 3,
+          "within_2s_of_bracket": 3,
+          "pairs": [
+            {
+              "index": 0,
+              "predicted_s": 3319.0083333333337,
+              "truth_s": [
+                3319.0333333333333,
+                3319.133333333333
+              ],
+              "signed_error_s": -0.07499999999936335,
+              "error_interval_s": [
+                -0.12499999999954525,
+                -0.024999999999636202
+              ]
+            },
+            {
+              "index": 1,
+              "predicted_s": 3419.0083333333337,
+              "truth_s": [
+                3419.1,
+                3419.133333333333
+              ],
+              "signed_error_s": -0.10833333333312112,
+              "error_interval_s": [
+                -0.12499999999954525,
+                -0.09166666666624224
+              ]
+            },
+            {
+              "index": 2,
+              "predicted_s": 3519.0083333333337,
+              "truth_s": [
+                3519.1,
+                3519.133333333333
+              ],
+              "signed_error_s": -0.10833333333312112,
+              "error_interval_s": [
+                -0.12499999999954525,
+                -0.09166666666624224
+              ]
+            }
+          ],
+          "physical_clock_uncertainty_included": false
+        },
+        "YELLOW": {
+          "truth_onsets": 3,
+          "predicted_onsets": 3,
+          "paired_onsets": 3,
+          "missed_truth": 0,
+          "unpaired_predictions": 0,
+          "mean_signed_midpoint_error_s": -0.12777777777758578,
+          "mean_absolute_midpoint_error_s": 0.12777777777758578,
+          "mean_distance_to_truth_bracket_s": 0.03333333333330302,
+          "within_0_5s_of_bracket": 3,
+          "within_2s_of_bracket": 3,
+          "pairs": [
+            {
+              "index": 0,
+              "predicted_s": 3366.9666666666667,
+              "truth_s": [
+                3366.9666666666667,
+                3367.2
+              ],
+              "signed_error_s": -0.11666666666633319,
+              "error_interval_s": [
+                -0.23333333333312112,
+                0.0
+              ]
+            },
+            {
+              "index": 1,
+              "predicted_s": 3466.9666666666667,
+              "truth_s": [
+                3466.9666666666667,
+                3467.2
+              ],
+              "signed_error_s": -0.11666666666633319,
+              "error_interval_s": [
+                -0.23333333333312112,
+                0.0
+              ]
+            },
+            {
+              "index": 2,
+              "predicted_s": 3566.9666666666667,
+              "truth_s": [
+                3567.0666666666666,
+                3567.1666666666665
+              ],
+              "signed_error_s": -0.15000000000009095,
+              "error_interval_s": [
+                -0.1999999999998181,
+                -0.09999999999990905
+              ]
+            }
+          ],
+          "physical_clock_uncertainty_included": false
+        },
+        "RED": {
+          "truth_onsets": 3,
+          "predicted_onsets": 3,
+          "paired_onsets": 3,
+          "missed_truth": 0,
+          "unpaired_predictions": 0,
+          "mean_signed_midpoint_error_s": -0.12222222222195948,
+          "mean_absolute_midpoint_error_s": 0.12222222222195948,
+          "mean_distance_to_truth_bracket_s": 0.06666666666660603,
+          "within_0_5s_of_bracket": 3,
+          "within_2s_of_bracket": 3,
+          "pairs": [
+            {
+              "index": 0,
+              "predicted_s": 3369.9666666666667,
+              "truth_s": [
+                3369.6,
+                3370.6
+              ],
+              "signed_error_s": -0.13333333333321207,
+              "error_interval_s": [
+                -0.6333333333332121,
+                0.36666666666678793
+              ]
+            },
+            {
+              "index": 1,
+              "predicted_s": 3469.9666666666667,
+              "truth_s": [
+                3470.0666666666666,
+                3470.1
+              ],
+              "signed_error_s": -0.11666666666633319,
+              "error_interval_s": [
+                -0.13333333333321207,
+                -0.09999999999990905
+              ]
+            },
+            {
+              "index": 2,
+              "predicted_s": 3569.9666666666667,
+              "truth_s": [
+                3570.0666666666666,
+                3570.1
+              ],
+              "signed_error_s": -0.11666666666633319,
+              "error_interval_s": [
+                -0.13333333333321207,
+                -0.09999999999990905
+              ]
+            }
+          ],
+          "physical_clock_uncertainty_included": false
+        }
+      },
+      "state_error": {
+        "scored_seconds": 275.1666666666674,
+        "wrong_seconds": 0.4833333333322116,
+        "correct_fraction": 0.998243488794674,
+        "per_color": {
+          "GREEN": {
+            "seconds": 143.60000000000036,
+            "wrong_s": 0.09999999999990905
+          },
+          "YELLOW": {
+            "seconds": 8.16666666666697,
+            "wrong_s": 0.1999999999998181
+          },
+          "RED": {
+            "seconds": 123.40000000000009,
+            "wrong_s": 0.18333333333248447
+          }
+        },
+        "scope": "confident interior intervals of three visible N-main cycles; uncertain brackets/RY excluded; green includes blinking",
+        "clock_uncertainty_in_scalar_metric": false
+      }
+    }
+  },
+  "yellow_duration_checks": {
+    "sverdlovsky": [
+      {
+        "index": 0,
+        "appearance_duration_bounds_s": [
+          2.400000000000091,
+          3.633333333333212
+        ],
+        "normative3s_compatible": true
+      },
+      {
+        "index": 1,
+        "appearance_duration_bounds_s": [
+          2.866666666666788,
+          3.133333333333212
+        ],
+        "normative3s_compatible": true
+      },
+      {
+        "index": 2,
+        "appearance_duration_bounds_s": [
+          2.900000000000091,
+          3.033333333333303
+        ],
+        "normative3s_compatible": true
+      }
+    ],
+    "enthusiasts": [
+      {
+        "index": 0,
+        "appearance_duration_bounds_s": [
+          2.233333333333121,
+          6.299999999999727
+        ],
+        "normative3s_compatible": true
+      },
+      {
+        "index": 1,
+        "appearance_duration_bounds_s": [
+          2.966666666666697,
+          3.133333333333212
+        ],
+        "normative3s_compatible": true
+      }
+    ]
+  },
+  "no_tuning_after_evaluation": true,
+  "enthusiasts_json_accuracy": null,
+  "enthusiasts_reason": "independent camera/export clock mapping remains unresolved",
+  "red_yellow_onset_accuracy": null,
+  "red_yellow_reason": "duration/presence modeled as explicit normative assumption, no sealed onset truth",
+  "universal_scope": "same transition engine for any mapped head; numerical delays source-specific, not a universal road constant"
+}

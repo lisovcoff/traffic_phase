@@ -46,7 +46,7 @@ def test_catalog_assignment_is_invariant_to_anonymous_names_and_indices():
         for row in value['schedule']['raw_hsmm_segments']:
             row[2]=perm.index(row[2])
         result=build_estimated_signals(value,profile_id='lenina_sverdlovsky')
-        assert [result['states'][row[2]]['name'] for row in result['segments']]==['EW','N_E_ARROW','NS']
+        assert [result['operating_states'][row[2]]['name'] for row in result['operating_segments']]==['EW','N_E_ARROW','NS']
 
 
 def test_no_discriminating_evidence_does_not_force_a_catalog_answer():

@@ -74,7 +74,8 @@ def _heads(topology, green):
             for approach,head in topology.items()}
 
 
-def build_estimated_signals(result, *, profile_id='auto', input_name=None):
+def build_estimated_signals(result, *, profile_id='auto', input_name=None, transitions=True,
+                            yellow_s=3., red_yellow_s=2., boundary_calibration=None):
     query = prepare_logical_query(result)
     key, profile = resolve_profile(input_name if input_name is not None else result.get('input',''), profile_id)
     base = dict(schema='estimated-operating-signals-v1', available=False,
@@ -120,9 +121,15 @@ def build_estimated_signals(result, *, profile_id='auto', input_name=None):
             segments[-1][1] = end
         else:
             segments.append([start,end,state])
-    return {**base,'available':True,'reason':None,'profile_name':profile['name'] if profile else None,
+    estimate = {**base,'available':True,'reason':None,'profile_name':profile['name'] if profile else None,
         'topology_source':profile['source'] if profile else 'unverified_automatic_proposal',
+        'hardware_scope':profile.get('hardware_scope','configured_topology') if profile else 'unverified_automatic_proposal',
         'topology':topology,'states':states,'segments':segments,
         'phase_mapping':label_to_id,'operating_phase_count':len(states),
         'phase_count_conditioned_on_operator_catalog':bool(profile),
         'unrepresented_configured_groups':[g['name'] for g in groups if g['name'] not in {s['name'] for s in states}]}
+    if transitions:
+        from app.core.v10.signal_timing import apply_signal_timing
+        estimate=apply_signal_timing(estimate,yellow_s=yellow_s,red_yellow_s=red_yellow_s,
+            boundary_calibration=boundary_calibration)
+    return estimate

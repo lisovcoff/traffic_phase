@@ -44,20 +44,21 @@ h1,h2,h3{margin:0}p{line-height:1.4}.muted{color:var(--muted)}
 .stats{display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:8px}
 .stat{background:var(--panel2);border-radius:10px;padding:10px}
 .stat span{display:block;color:var(--muted);font-size:10px}
-.stat strong{display:block;margin-top:4px;font-size:17px}
+.stat strong{display:block;margin-top:4px;font-size:17px;overflow-wrap:anywhere}
 button,select,input{font:inherit}
 button{border:0;border-radius:8px;padding:8px 12px;cursor:pointer;background:#2a3039;color:var(--text)}
 button.primary{background:#f0f3f7;color:#111}
 button:disabled{opacity:.45;cursor:default}
 input[type=range]{width:100%}
 .layout{display:grid;grid-template-columns:minmax(560px,1fr) 320px;gap:12px}
+.layout>*{min-width:0}
 .canvas-wrap{position:relative;background:#0b0e13;border-radius:12px;overflow:hidden}
 #scene{display:block;width:100%;aspect-ratio:1/1}
-.scene-badge{position:absolute;left:12px;top:12px;background:rgba(13,16,21,.82);border:1px solid #39414d;border-radius:9px;padding:7px 9px;font-size:12px}
+.scene-badge{position:absolute;left:12px;top:12px;max-width:calc(100% - 24px);overflow-wrap:anywhere;background:rgba(13,16,21,.82);border:1px solid #39414d;border-radius:9px;padding:7px 9px;font-size:12px}
 .scene-badge.warning{border-color:#8d6b2f}
 .side h3{font-size:15px;margin-bottom:8px}
-.phase-card{display:flex;justify-content:space-between;gap:8px;padding:9px;background:var(--panel2);border-radius:9px;margin-top:7px}
-.phase-card strong{font-size:13px}.phase-card span{color:var(--muted);font-size:11px}
+.phase-card{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:9px;background:var(--panel2);border-radius:9px;margin-top:7px}
+.phase-card strong{min-width:0;overflow-wrap:anywhere;font-size:13px}.phase-card span{color:var(--muted);font-size:11px}
 .movement-card{display:block}.movement-row{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:12px}
 .movement-row span{color:inherit}.phase-card.current{outline:2px solid var(--green)}
 .legend{display:grid;gap:7px;color:var(--muted);font-size:11px}
@@ -838,7 +839,7 @@ function render(){
     : "V10 OFF · "+String(PHYSICAL.reason || "physical plan unavailable")+" · ")
     +"N ↑ · S ↓ · W ← · E → · "+vehicles.length+" машин";
   $("sceneBadge").className="scene-badge"+(anomaly?" warning":"");
-  $("semanticText").textContent=estimatedView()?(ESTIMATED_SIGNALS.hardware_confirmed?"Схема: "+ESTIMATED_SIGNALS.profile_name+", задана пользователем. ":"Схема сигналов — гипотеза алгоритма. ")+"Цвета и время переключений оценены по траекториям. Погашенная допсекция обозначена OFF. Жёлтые интервалы не определяются. Наблюдение ламп: UNKNOWN.":modelView()?"Цвет сравнивает характеристику движения в текущей фазе с его максимумом по фазам. Зелёный — не ниже 70% максимума, серый — ниже, жёлтый — фазы не различаются. Это оценка состава фазы, а не разрешение проезда. "+(snapshot.abstention_reason?"Фаза недоступна: "+snapshot.abstention_reason:""):RECONSTRUCTED ? "Логическая фаза по общей истории; физические лампы и секции UNKNOWN. Отсутствие движения не доказывает RED. Причина UNKNOWN: "+String(snapshot.abstention_reason||"аппаратные состояния не наблюдались") : PHYSICAL.enabled
+  $("semanticText").textContent=estimatedView()?(ESTIMATED_SIGNALS.hardware_confirmed?"Схема: "+ESTIMATED_SIGNALS.profile_name+", задана пользователем. ":"Схема сигналов — гипотеза алгоритма. ")+"Цвета и время переключений оценены по траекториям. Погашенная допсекция обозначена OFF. Жёлтый 3 с перед красным; красный с жёлтым до 2 с перед зелёным — оценка по нормативной модели. Наблюдение ламп: UNKNOWN.":modelView()?"Цвет сравнивает характеристику движения в текущей фазе с его максимумом по фазам. Зелёный — не ниже 70% максимума, серый — ниже, жёлтый — фазы не различаются. Это оценка состава фазы, а не разрешение проезда. "+(snapshot.abstention_reason?"Фаза недоступна: "+snapshot.abstention_reason:""):RECONSTRUCTED ? "Логическая фаза по общей истории; физические лампы и секции UNKNOWN. Отсутствие движения не доказывает RED. Причина UNKNOWN: "+String(snapshot.abstention_reason||"аппаратные состояния не наблюдались") : PHYSICAL.enabled
     ? "зелёный/красный — по V10 physical phase mapping и заданному плану сигналов. Жёлтый и красный+жёлтый — модельные переходы."
     : "V10 physical plan ОТКЛЮЧЁН: "+String(PHYSICAL.reason || "причина не передана")+". Сейчас отображается fallback V9, а не физические головы.";
   renderSignalList(snapshot);
@@ -1171,7 +1172,10 @@ def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
     if mode not in {"reconstructed","configured","simulated"}:raise ValueError("invalid report mode")
     signal_model=build_signal_model(result,activity_threshold=activity_threshold,mode=mode)
     product=build_report_payload(result)
-    estimated=(result.get('estimated_signals') if intersection_profile=='auto' else None) or build_estimated_signals(result,profile_id=intersection_profile)
+    estimated=result.get('estimated_signals')
+    if not estimated or (intersection_profile!='auto' and estimated.get('profile_id')!=(None if intersection_profile=='none' else intersection_profile)):
+        estimated=build_estimated_signals(result,profile_id=intersection_profile,
+            yellow_s=yellow_duration_seconds,red_yellow_s=red_yellow_duration_seconds)
 
     physical=_physical_visual_model(result,physical_plan)
     if time_offset_s is not None:
@@ -1292,7 +1296,8 @@ def build_spatial_visualization(
         else result.get("physical_signal_plan")
     )
     projection = build_spatial_projection(tracks)
-    result['estimated_signals']=build_estimated_signals(result,profile_id=intersection_profile,input_name=input_path.name)
+    result['estimated_signals']=build_estimated_signals(result,profile_id=intersection_profile,input_name=input_path.name,
+        yellow_s=yellow_duration_seconds,red_yellow_s=red_yellow_duration_seconds)
     analysis_base_ms = float(result["analysis_base_timestamp_ms"])
     time_offset_s = (analysis_base_ms - display_base_ms) / 1000.0
     compact = compact_trajectories(

@@ -1,0 +1,28 @@
+{
+  "profiles": [
+    {
+      "model_id": "lenina_sverdlovsky",
+      "source_member": "17_2025_2_27_10.json",
+      "input_sha256": [
+        "a5c4ad80fa6a275cffb638d74510ef798e53cc02bb07e6f12330d49365eb6f79",
+        "68c524df5e0ecc7d3f79267b10040c79ec0050d029e3e94fb14b12f2e6807a12"
+      ],
+      "calibration": {
+        "approach": "N",
+        "onset_bias_s": {
+          "GREEN": 2.6438286504528,
+          "RED": 3.685495317119429
+        },
+        "source": "first video window900..1500; independently supported four-car clock",
+        "training_video_pts_s": [
+          900,
+          1500
+        ],
+        "clock_delta_s": 1.253838016213823,
+        "clock_accuracy": "conditional fixed-geometry empirical link, not physical device certification",
+        "other_heads_timing": "shared operating boundary assumption; not separately observed",
+        "evidence": "evidence/cardinal_clock_link_20261018/clock_aware_calibration.json"
+      }
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "status": "PASS",
+  "real_archives": {
+    "sverdlovsky": {
+      "available": true,
+      "heads": [
+        "N",
+        "S",
+        "E",
+        "W"
+      ],
+      "states": [
+        "GREEN",
+        "RED",
+        "RED_YELLOW",
+        "UNKNOWN",
+        "YELLOW"
+      ],
+      "source_member": "17_2025_2_27_10.json",
+      "source_sha_scoped_bias": true
+    },
+    "enthusiasts": {
+      "available": true,
+      "heads": [
+        "E",
+        "W"
+      ],
+      "states": [
+        "GREEN",
+        "RED",
+        "RED_YELLOW",
+        "YELLOW"
+      ],
+      "source_member": "6_2025_2_23_13.json",
+      "source_sha_scoped_bias": false
+    }
+  },
+  "predictions_use_no_annotations": true,
+  "raw_learned_phase_boundaries_unchanged": true,
+  "display_phase_name_order": "exported model uses C/A/B instead of prior wrapper A/B/C; same indices, boundaries and mapped operating signals"
+}

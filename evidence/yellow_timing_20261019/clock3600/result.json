@@ -1,0 +1,66 @@
+{
+  "status": "PASS",
+  "comparisons": {
+    "0.0": {
+      "errors_px": [
+        165.76020404763446,
+        184.11698062095158,
+        200.55048311613214
+      ],
+      "max_error_px": 200.55048311613214
+    },
+    "1.253838016213823": {
+      "errors_px": [
+        10.658579116644633,
+        10.44015781141923,
+        10.961040400885063
+      ],
+      "max_error_px": 10.961040400885063
+    }
+  },
+  "conditional_clock": {
+    "delta_sets_s": [
+      [
+        1.0205509317333963,
+        1.5783091286048148
+      ]
+    ],
+    "per_observation_sets_s": [
+      [
+        [
+          0.8846402643134752,
+          1.5783091286048148
+        ]
+      ],
+      [
+        [
+          0.9793358483452721,
+          1.6081745663509537
+        ]
+      ],
+      [
+        [
+          1.0205509317333963,
+          1.5989805537633401
+        ]
+      ]
+    ],
+    "frozen_candidate_in_set": true,
+    "localization_allowance_px": 50,
+    "homography_frozen": true,
+    "refit": false,
+    "semantics": "conditional feasible set only; supplied pixel allowance; excludes geometry/identity/shutter/clock uncertainty",
+    "calibrated_sync_uncertainty_ms": null
+  },
+  "all_five_car_conditional_bounds_s": [
+    [
+      1.126901865752302,
+      1.368506726470514
+    ]
+  ],
+  "delta_s": 1.253838016213823,
+  "geometry_refit": false,
+  "clock_refit": false,
+  "no_second_human_point_review": true,
+  "bounds_semantics": "conditional on fixed geometry, manual identity/feature and50px allowance; not an absolute hardware-clock certificate"
+}

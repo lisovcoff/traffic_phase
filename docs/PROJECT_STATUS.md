@@ -1,5 +1,28 @@
 # Project status — 2D.1, 2026-10-19
 
+Latest explicit task implemented: YELLOW_TIMING_RESULTS_20261019.md. Shared
+estimated-signal history now inserts3s YELLOW before RED and configurable0..2s
+RED_YELLOW before GREEN, per merged main-head run. No false yellow at a continuing
+green/arrow-only boundary, no gap wrapping, short inconsistent runs abstain.
+Head-generic training API fits separate G/R onset delays using training-only
+clock-linked truth; source SHA gates deployment. Joint operating-boundary
+correction avoids creating conflicting green by independently shifting one head.
+Fresh video3300..3600 truth sealed before comparison:9 Sverd,8 Enth onsets;
+third Enth yellow and RY onsets unresolved. Frozen first-window Sverd biases
+improve N-main green MAE2.547->.097s/red3.563->.122s; yellow MAE.128s,9/9 within.5s
+of image brackets. Same-session three-cycle validation only; scalar errors omit
+conditional device/geometry clock uncertainty. Five fresh cars support frozen
+delta1.253838 through3600s. Enth gets confirmed visible main E/W mapping; JSON
+clock not accepted and paired accuracy not claimed. Yellow durations consistent
+with3s in both videos; normative RY2s remains an assumption, configurable to0.
+Two real ZIP integrations and both actual MP4s in isolated Edge PASS; mobile
+long-label overflow fixed, failed HTML/screens retained.1392 full tests PASS,
+then affected checks after generic trainer/CSS added (receipt in evidence).
+Ready report/viewers: evidence/yellow_timing_20261019/report.html. Traffic-derived
+raw phase boundaries unchanged; signal estimates/transitions improved. Main,
+old evidence, other-day profiles and2D.1 status preserved. Universal code is not
+proof of universal physical accuracy; next requires Enth clock/other heads/new day.
+
 User follow-up resolved the candidate7 maneuver: E->_E, waiting for W->_E.
 Preserved in evidence/enthusiasts_turn_clock_20261019/. Nine new native crops
 show waiting at28/29s and visible turn resumption at30s, completed around34/35s.

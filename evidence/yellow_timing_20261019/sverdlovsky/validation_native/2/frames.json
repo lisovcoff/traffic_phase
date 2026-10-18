@@ -1,0 +1,133 @@
+{
+  "rows": [
+    {
+      "file": "frame_00001.png",
+      "pts_s": 3518.6,
+      "pts_ticks": 316674000,
+      "sha256": "5d06215a349fe03a4494832e0fc8e15464cd4c0f1d7eb82422c47f9d1c85805b"
+    },
+    {
+      "file": "frame_00002.png",
+      "pts_s": 3518.6666666666665,
+      "pts_ticks": 316680000,
+      "sha256": "e3ae56740a6c80f53cb705a360e0dd9682ebf19b7e405a18de5b3d6990281d5d"
+    },
+    {
+      "file": "frame_00003.png",
+      "pts_s": 3518.7,
+      "pts_ticks": 316683000,
+      "sha256": "99641a37aaf7cc95d6f3d136c902f5a57813c32898ed3a07abdb0f99ddb3a20e"
+    },
+    {
+      "file": "frame_00004.png",
+      "pts_s": 3518.733333333333,
+      "pts_ticks": 316686000,
+      "sha256": "be5cdaa450c3eae0f3a0b666417839e6c4324523087538b2b53eb6715d9f08dd"
+    },
+    {
+      "file": "frame_00005.png",
+      "pts_s": 3518.766666666667,
+      "pts_ticks": 316689000,
+      "sha256": "9ff47de1370e23a749ae791422820ac4db672ef659a55c9846d5f5fc414ef5ed"
+    },
+    {
+      "file": "frame_00006.png",
+      "pts_s": 3518.8,
+      "pts_ticks": 316692000,
+      "sha256": "2524e4d92b4b809ca50d8d6e4fe12e46994b4dd396d8fde0af4bae4d0833ced6"
+    },
+    {
+      "file": "frame_00007.png",
+      "pts_s": 3518.866666666667,
+      "pts_ticks": 316698000,
+      "sha256": "5d4440cdf6488d51c3571642af4296291c20e8693b55a3a674ab83e95de6e7ee"
+    },
+    {
+      "file": "frame_00008.png",
+      "pts_s": 3518.9,
+      "pts_ticks": 316701000,
+      "sha256": "5fee0dd2f558c11c6238ff5ab0abc8c49cbfe3b1b294e8158c5c5c255a0feaa6"
+    },
+    {
+      "file": "frame_00009.png",
+      "pts_s": 3518.9333333333334,
+      "pts_ticks": 316704000,
+      "sha256": "1a68d2bb9ce2bc46bad271d7f93578e6c42faeca6ac6ff40fe70b69237d7b854"
+    },
+    {
+      "file": "frame_00010.png",
+      "pts_s": 3518.9666666666667,
+      "pts_ticks": 316707000,
+      "sha256": "e9daac2a616c2c931d908988b7ffc98a8ac7e02eb57cb88ec418d5cf59b5561a"
+    },
+    {
+      "file": "frame_00011.png",
+      "pts_s": 3519.0,
+      "pts_ticks": 316710000,
+      "sha256": "e18071ac6f2dacc3757d759fe9f3d4d2f378e763ef76a322e3b35bc26506ef52"
+    },
+    {
+      "file": "frame_00012.png",
+      "pts_s": 3519.0666666666666,
+      "pts_ticks": 316716000,
+      "sha256": "14e9505e9e5dcfb10a01b66362ab328389bbb513d6d0cd3a8f9ac95e285de90e"
+    },
+    {
+      "file": "frame_00013.png",
+      "pts_s": 3519.1,
+      "pts_ticks": 316719000,
+      "sha256": "ddfecd2e85a6fa45b416051540cb99bfd2baf32486abf863789bd7a432b0881d"
+    },
+    {
+      "file": "frame_00014.png",
+      "pts_s": 3519.133333333333,
+      "pts_ticks": 316722000,
+      "sha256": "550a002252b3ca88e250309b1ea828690728fe508cc68ea19d8849862f54a341"
+    },
+    {
+      "file": "frame_00015.png",
+      "pts_s": 3519.1666666666665,
+      "pts_ticks": 316725000,
+      "sha256": "8fcb51cd4c219d98a8f379fb3a598b13460b1f511f6f5c297f07eeec7eae20a6"
+    },
+    {
+      "file": "frame_00016.png",
+      "pts_s": 3519.2,
+      "pts_ticks": 316728000,
+      "sha256": "2f63409394dfd3c538d47fc3606fd805f965db8ad3ee934be0dff188c5604f5c"
+    },
+    {
+      "file": "frame_00017.png",
+      "pts_s": 3519.266666666667,
+      "pts_ticks": 316734000,
+      "sha256": "207b60c695585aa483fe45c20cfc1c94b240de4456e5ef8af56b1409807ffc07"
+    },
+    {
+      "file": "frame_00018.png",
+      "pts_s": 3519.3,
+      "pts_ticks": 316737000,
+      "sha256": "0bcf1cba5535bc775da711d62ed0e6f92a2a8455f735955a7696ad4f2e3808b4"
+    }
+  ],
+  "command": [
+    "ffmpeg",
+    "-nostdin",
+    "-hide_banner",
+    "-loglevel",
+    "info",
+    "-copyts",
+    "-ss",
+    "3518.6",
+    "-t",
+    "0.8",
+    "-i",
+    "C:\\Users\\sheld\\Downloads\\len_sverdl 2025-02-27T10_00_00_2025-02-27T12_00_00.mp4",
+    "-vf",
+    "crop=180:120:1940:864,trim=start=3518.6:end=3519.4,showinfo",
+    "-frames:v",
+    "26",
+    "-fps_mode",
+    "passthrough",
+    "D:\\Code\\PythonProjects\\traffic_phase\\audit_checkout\\evidence\\yellow_timing_20261019\\sverdlovsky\\validation_native\\2\\frame_%05d.png"
+  ]
+}

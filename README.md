@@ -1,5 +1,11 @@
 # traffic_phase
 
+2026-10-19: [yellow transitions and fresh video validation](docs/YELLOW_TIMING_RESULTS_20261019.md).
+Open `evidence/yellow_timing_20261019/report.html` for both ready real-ZIP viewers
+and local MP4 comparison. Shared signal history now includes YELLOW/RED_YELLOW.
+Source-scoped first-window calibration improves three fresh Sverdlovsky N-main
+cycles; Enthusiasts main E/W are represented, but its video/JSON clock is unresolved.
+
 2026-10-19: [independent four-car clock check and N-main calibration](docs/CARDINAL_CLOCK_LINK_RESULTS_20261019.md).
 Open `evidence/cardinal_clock_link_20261018/visible_head_comparison.html`, select
 the Sverdlovsky MP4 and compare before/after. Supported JSON clock delta1.254s;
