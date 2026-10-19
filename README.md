@@ -1,5 +1,14 @@
 # traffic_phase
 
+2026-10-19: [all archives and realistic synthetic validation](docs/ALL_ARCHIVES_SYNTHETIC_RESULTS_20261019.md).
+Open `evidence/all_archives_synthetic_20261019/report.html` for the complete
+219-source audit and72 scenarios (62 simulated hours), with interactive timelines
+and local trajectory-only ZIP links. Automatic K matches13/72; universal accuracy
+is NOT established. Normal learned visualization no longer applies the exact-source
+reference-video correction. Video is evaluation material only; frozen learned
+profiles still supply intersection-specific K. Restart an existing web server
+to load this change. Earlier calibrated viewers below are historical diagnostics.
+
 2026-10-19: [yellow transitions and fresh video validation](docs/YELLOW_TIMING_RESULTS_20261019.md).
 Open `evidence/yellow_timing_20261019/report.html` for both ready real-ZIP viewers
 and local MP4 comparison. Shared signal history now includes YELLOW/RED_YELLOW.

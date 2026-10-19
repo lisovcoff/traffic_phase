@@ -1,0 +1,195 @@
+{
+  "schema": "traffic-simulation-environment-v1",
+  "sources": [
+    {
+      "id": "0034",
+      "sha256": null,
+      "sample_scope": "first 256 trajectories of median-size member in each of 6 archives; partial read, CRC NOT checked, NOT a full-file SHA or traffic-weighted sample",
+      "job": {
+        "path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\Ленина-Свердловский 11.02.25-19.02.25.zip",
+        "member": "17_2025_2_13_15.json",
+        "bytes": 259613018,
+        "crc32": "16c82228",
+        "archive_bytes": 5317162967,
+        "id": "0034",
+        "source_name": "17_2025_2_13_15.json",
+        "site": "lenina_sverdlovsky"
+      },
+      "prefix_sha256": "5278e27a4d45cb24bb89e7202dd9dd8f08b6543a8ff43345d99bf2fd83f6e357"
+    },
+    {
+      "id": "0091",
+      "sha256": null,
+      "sample_scope": "first 256 trajectories of median-size member in each of 6 archives; partial read, CRC NOT checked, NOT a full-file SHA or traffic-weighted sample",
+      "job": {
+        "path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\Ленина-Свердловский 27.02.25.zip",
+        "member": "17_2025_2_27_10.json",
+        "bytes": 272972956,
+        "crc32": "6f4afe03",
+        "archive_bytes": 180555021,
+        "id": "0091",
+        "source_name": "17_2025_2_27_10.json",
+        "site": "lenina_sverdlovsky"
+      },
+      "prefix_sha256": "279196be61a53d8f9e31a7a3473eb673d17fb1722536f99bfe6debe95758a108"
+    },
+    {
+      "id": "0098",
+      "sha256": null,
+      "sample_scope": "first 256 trajectories of median-size member in each of 6 archives; partial read, CRC NOT checked, NOT a full-file SHA or traffic-weighted sample",
+      "job": {
+        "path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\Ленина-Энтузиастов 05.10.24.zip",
+        "member": "6_2025_2_23_17.json",
+        "bytes": 158178522,
+        "crc32": "15e0914b",
+        "archive_bytes": 180248829,
+        "id": "0098",
+        "source_name": "6_2025_2_23_17.json",
+        "site": "lenina_entuziastov"
+      },
+      "prefix_sha256": "9c0b7f272662d9d1371616ba1256aa627d860c04172e429fcf2362a0b474da77"
+    },
+    {
+      "id": "0136",
+      "sha256": null,
+      "sample_scope": "first 256 trajectories of median-size member in each of 6 archives; partial read, CRC NOT checked, NOT a full-file SHA or traffic-weighted sample",
+      "job": {
+        "path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\Ленина-Энтузиастов 10.02.25-17.02.25.zip",
+        "member": "6_2025_2_12_14.json",
+        "bytes": 148240684,
+        "crc32": "82ec5715",
+        "archive_bytes": 3815283633,
+        "id": "0136",
+        "source_name": "6_2025_2_12_14.json",
+        "site": "lenina_entuziastov"
+      },
+      "prefix_sha256": "3808370fd2d1d6f75965423f4ca928ef4f94991ed842996ee84ca78b74b07c42"
+    },
+    {
+      "id": "0207",
+      "sha256": null,
+      "sample_scope": "first 256 trajectories of median-size member in each of 6 archives; partial read, CRC NOT checked, NOT a full-file SHA or traffic-weighted sample",
+      "job": {
+        "path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\Чичерина-40 Лет Победы 12.04.24.zip",
+        "member": "19_2025_2_24_17.json",
+        "bytes": 387976889,
+        "crc32": "cdc95d52",
+        "archive_bytes": 491320876,
+        "id": "0207",
+        "source_name": "19_2025_2_24_17.json",
+        "site": "chicherina_40let"
+      },
+      "prefix_sha256": "f0b5239da3142bfd62f56309b4df8deb9ba6c75201413360ee03ba781d6c2840"
+    },
+    {
+      "id": "0214",
+      "sha256": null,
+      "sample_scope": "first 256 trajectories of median-size member in each of 6 archives; partial read, CRC NOT checked, NOT a full-file SHA or traffic-weighted sample",
+      "job": {
+        "path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\Чичерина-40 Лет Победы 19.04.24.zip",
+        "member": "19_2025_2_25_12.json",
+        "bytes": 403971859,
+        "crc32": "09c11e72",
+        "archive_bytes": 616888766,
+        "id": "0214",
+        "source_name": "19_2025_2_25_12.json",
+        "site": "chicherina_40let"
+      },
+      "prefix_sha256": "20b9f3d427388c1d46277248cb7f921d321cdef346faa6135eb2241b5868fa6a"
+    }
+  ],
+  "tracks": 1536,
+  "detections": 360010,
+  "detection_step_quantiles_s": [
+    0.083,
+    0.108,
+    0.12,
+    0.133,
+    0.152
+  ],
+  "positive_raw_speed_quantiles": [
+    11.818653214048211,
+    20.957603832512646,
+    32.77223597207485,
+    43.16408599147368,
+    52.66969926440765
+  ],
+  "raw_speed_units": "unknown in supplier data; simulator explicitly uses km/h",
+  "vehicle_classes": {
+    "mini_truck": 40,
+    "car": 1393,
+    "mini_bus": 47,
+    "tram": 3,
+    "middle_truck": 8,
+    "middle_bus": 10,
+    "bus": 28,
+    "truck": 2,
+    "special_trans": 4,
+    "road_train": 1
+  },
+  "track_duration_quantiles_s": [
+    6.203,
+    8.818999999999999,
+    14.0235,
+    41.592,
+    73.7935
+  ],
+  "video_duration_evidence": [
+    {
+      "site": "sverdlovsky",
+      "source": "evidence\\yellow_timing_20261019\\sverdlovsky\\fresh_truth_sealed.json",
+      "sha256": "ceaedd576adcae8ae47d9139d32f2a8d95d2af0c5b31a944e2b56b6bd09500fa",
+      "observed_yellow_duration_bounds_s": [
+        [
+          2.400000000000091,
+          3.633333333333212
+        ],
+        [
+          2.866666666666788,
+          3.133333333333212
+        ],
+        [
+          2.900000000000091,
+          3.033333333333303
+        ]
+      ],
+      "use": "video-only duration corroboration; no video access by inference; no Enthusiasts JSON clock assumed"
+    },
+    {
+      "site": "enthusiasts",
+      "source": "evidence\\yellow_timing_20261019\\enthusiasts\\fresh_truth_sealed.json",
+      "sha256": "7940f20a00ece7cde4f4a6d44f70341e0ac9403efe1f97916cec075f8caf1f7c",
+      "observed_yellow_duration_bounds_s": [
+        [
+          2.233333333333121,
+          6.299999999999727
+        ],
+        [
+          2.966666666666697,
+          3.133333333333212
+        ]
+      ],
+      "use": "video-only duration corroboration; no video access by inference; no Enthusiasts JSON clock assumed"
+    }
+  ],
+  "calibration_scope": "bounded per-member traffic reservoirs; source files deduplicated; NO phase predictions or truth used",
+  "physical_assumptions": {
+    "yellow_s": 3.0,
+    "red_yellow_s": 2.0,
+    "startup_delay_s": [
+      0.8,
+      3.5
+    ],
+    "acceleration_mps2": [
+      1.1,
+      2.5
+    ],
+    "deceleration_mps2": 3.0,
+    "standstill_gap_m": 6.5,
+    "reaction_headway_s": [
+      0.8,
+      1.6
+    ],
+    "note": "reaction/geometry/headways are simulator assumptions, not measured ground truth"
+  }
+}

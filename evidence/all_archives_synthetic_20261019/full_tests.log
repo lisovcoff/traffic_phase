@@ -1,0 +1,61 @@
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 20%]
+........................................................................ [ 25%]
+........................................................................ [ 30%]
+........................................................................ [ 35%]
+........................................................................ [ 41%]
+........................................................................ [ 46%]
+...........................F............................................ [ 51%]
+........................................................................ [ 56%]
+........................................................................ [ 61%]
+........................................................................ [ 66%]
+........................................................................ [ 71%]
+........................................................................ [ 76%]
+........................................................................ [ 82%]
+........................................................................ [ 87%]
+........................................................................ [ 92%]
+........................................................................ [ 97%]
+....................................                                     [100%]
+================================== FAILURES ===================================
+_____ test_synthetic_realtime_ingestion_latency_stays_linear_and_bounded ______
+
+    def test_synthetic_realtime_ingestion_latency_stays_linear_and_bounded():
+        import time
+    
+        engine = RealtimeSignalInferenceEngine(
+            phase_model(),
+            recent_window_s=12.0,
+        )
+        start = time.perf_counter()
+        for index in range(1000):
+            engine.ingest_event(
+                event(
+                    EventType.RELEASE,
+                    index / 10.0,
+                    "N" if index % 2 == 0 else "E",
+                )
+            )
+        elapsed = time.perf_counter() - start
+    
+>       assert elapsed < 5.0
+E       assert 9.90169620000006 < 5.0
+
+tests\test_realtime_inference.py:1109: AssertionError
+============================== warnings summary ===============================
+.web_runtime\release_20261018\venv312\Lib\site-packages\fastapi\testclient.py:1
+  D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\release_20261018\venv312\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_phase_discovery.py::test_discovers_exactly_two_opposing_phase_states
+tests/test_phase_discovery.py::test_single_cycle_delay_outlier_does_not_create_extra_phase
+tests/test_phase_discovery.py::test_phase_intervals_cover_cycle_without_overlap
+tests/test_phase_discovery.py::test_does_not_hardcode_only_one_phase
+  D:\Code\PythonProjects\traffic_phase\audit_checkout\app\core\phase_discovery.py:184: RuntimeWarning: All-NaN slice encountered
+    return np.nanmedian(values, axis=0)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_realtime_inference.py::test_synthetic_realtime_ingestion_latency_stays_linear_and_bounded
+1 failed, 1403 passed, 5 warnings in 579.24s (0:09:39)

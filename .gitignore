@@ -28,6 +28,15 @@ phase_boundary_*/
 # Retained HTTP integration inputs; do not redistribute raw user uploads.
 /evidence/learned_release_20261018/http/runs/
 
+# Full local validation reservoirs/products remain on disk. Compact summaries,
+# source hashes and a manifest are versioned instead of duplicating large data.
+/evidence/all_archives_synthetic_20261019/ingest/
+/evidence/all_archives_synthetic_20261019/results/
+/evidence/all_archives_synthetic_20261019/learned_replay/
+/evidence/all_archives_synthetic_20261019/synthetic/sealed/
+/evidence/all_archives_synthetic_20261019/synthetic/results/
+/evidence/all_archives_synthetic_20261019/synthetic/evaluation_v2/
+
 # Local pilot media; reproducible manifests remain versioned.
 evidence/video_calibration_pilot_20261015/trajectory_sample/calibration_tracks.json
 evidence/video_calibration_pilot_20261015/**/frame_*.jpg

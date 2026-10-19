@@ -1,0 +1,1792 @@
+{
+  "source": {
+    "path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\Ленина-Свердловский 27.02.25.zip",
+    "member": "17_2025_2_27_10.json",
+    "bytes": 272972956,
+    "crc32": "6f4afe03",
+    "archive_bytes": 180555021,
+    "id": "0091",
+    "source_name": "17_2025_2_27_10.json",
+    "site": "lenina_sverdlovsky"
+  },
+  "truth_sha256": "ceaedd576adcae8ae47d9139d32f2a8d95d2af0c5b31a944e2b56b6bd09500fa",
+  "video_pts_window_s": [
+    3300,
+    3600
+  ],
+  "modes": {
+    "automatic_known_hardware_uncalibrated": {
+      "mapping_availability": [
+        {
+          "available": true,
+          "reason": null
+        }
+      ],
+      "metrics": {
+        "GREEN": {
+          "fixed_clock": {
+            "0.5": {
+              "matched": 1,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "midpoint_mae_s": 0.38617138671875,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635714951.0,
+                  "truth_interval_ms": [
+                    1740635715287.1714,
+                    1740635715387.1714
+                  ],
+                  "distance_to_bracket_s": 0.33617138671875,
+                  "midpoint_error_s": 0.38617138671875
+                }
+              ]
+            },
+            "1": {
+              "matched": 1,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "midpoint_mae_s": 0.38617138671875,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635714951.0,
+                  "truth_interval_ms": [
+                    1740635715287.1714,
+                    1740635715387.1714
+                  ],
+                  "distance_to_bracket_s": 0.33617138671875,
+                  "midpoint_error_s": 0.38617138671875
+                }
+              ]
+            },
+            "2": {
+              "matched": 1,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "midpoint_mae_s": 0.38617138671875,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635714951.0,
+                  "truth_interval_ms": [
+                    1740635715287.1714,
+                    1740635715387.1714
+                  ],
+                  "distance_to_bracket_s": 0.33617138671875,
+                  "midpoint_error_s": 0.38617138671875
+                }
+              ]
+            },
+            "3": {
+              "matched": 2,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.6666666666666666,
+              "recall": 0.6666666666666666,
+              "midpoint_mae_s": 1.402838134765625,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635714951.0,
+                  "truth_interval_ms": [
+                    1740635715287.1714,
+                    1740635715387.1714
+                  ],
+                  "distance_to_bracket_s": 0.33617138671875,
+                  "midpoint_error_s": 0.38617138671875
+                },
+                {
+                  "prediction_ms": 1740635812951.0,
+                  "truth_interval_ms": [
+                    1740635815353.8381,
+                    1740635815387.1714
+                  ],
+                  "distance_to_bracket_s": 2.402838134765625,
+                  "midpoint_error_s": 2.4195048828125
+                }
+              ]
+            }
+          },
+          "conditional_clock_envelope": {
+            "0.5": {
+              "matched": 1,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "midpoint_mae_s": 0.38003759765625,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635714951.0,
+                  "truth_interval_ms": [
+                    1740635715160.235,
+                    1740635715501.84
+                  ],
+                  "distance_to_bracket_s": 0.209235107421875,
+                  "midpoint_error_s": 0.38003759765625
+                }
+              ]
+            },
+            "1": {
+              "matched": 1,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "midpoint_mae_s": 0.38003759765625,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635714951.0,
+                  "truth_interval_ms": [
+                    1740635715160.235,
+                    1740635715501.84
+                  ],
+                  "distance_to_bracket_s": 0.209235107421875,
+                  "midpoint_error_s": 0.38003759765625
+                }
+              ]
+            },
+            "2": {
+              "matched": 1,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "midpoint_mae_s": 0.38003759765625,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635714951.0,
+                  "truth_interval_ms": [
+                    1740635715160.235,
+                    1740635715501.84
+                  ],
+                  "distance_to_bracket_s": 0.209235107421875,
+                  "midpoint_error_s": 0.38003759765625
+                }
+              ]
+            },
+            "3": {
+              "matched": 2,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.6666666666666666,
+              "recall": 0.6666666666666666,
+              "midpoint_mae_s": 1.396704345703125,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635714951.0,
+                  "truth_interval_ms": [
+                    1740635715160.235,
+                    1740635715501.84
+                  ],
+                  "distance_to_bracket_s": 0.209235107421875,
+                  "midpoint_error_s": 0.38003759765625
+                },
+                {
+                  "prediction_ms": 1740635812951.0,
+                  "truth_interval_ms": [
+                    1740635815226.9019,
+                    1740635815501.84
+                  ],
+                  "distance_to_bracket_s": 2.27590185546875,
+                  "midpoint_error_s": 2.41337109375
+                }
+              ]
+            }
+          }
+        },
+        "YELLOW": {
+          "fixed_clock": {
+            "0.5": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "1": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "2": {
+              "matched": 1,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "midpoint_mae_s": 1.61382861328125,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635864951.0,
+                  "truth_interval_ms": [
+                    1740635863220.5046,
+                    1740635863453.8381
+                  ],
+                  "distance_to_bracket_s": 1.497161865234375,
+                  "midpoint_error_s": 1.61382861328125
+                }
+              ]
+            },
+            "3": {
+              "matched": 2,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.6666666666666666,
+              "recall": 0.6666666666666666,
+              "midpoint_mae_s": 2.0166666259765624,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635864951.0,
+                  "truth_interval_ms": [
+                    1740635863220.5046,
+                    1740635863453.8381
+                  ],
+                  "distance_to_bracket_s": 1.497161865234375,
+                  "midpoint_error_s": 1.61382861328125
+                },
+                {
+                  "prediction_ms": 1740635960951.0,
+                  "truth_interval_ms": [
+                    1740635963320.5046,
+                    1740635963420.5046
+                  ],
+                  "distance_to_bracket_s": 2.369504638671875,
+                  "midpoint_error_s": 2.419504638671875
+                }
+              ]
+            }
+          },
+          "conditional_clock_envelope": {
+            "0.5": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "1": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "2": {
+              "matched": 1,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "midpoint_mae_s": 1.61996240234375,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635864951.0,
+                  "truth_interval_ms": [
+                    1740635863093.5686,
+                    1740635863568.5068
+                  ],
+                  "distance_to_bracket_s": 1.3824931640625,
+                  "midpoint_error_s": 1.61996240234375
+                }
+              ]
+            },
+            "3": {
+              "matched": 2,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.6666666666666666,
+              "recall": 0.6666666666666666,
+              "midpoint_mae_s": 2.016666748046875,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635864951.0,
+                  "truth_interval_ms": [
+                    1740635863093.5686,
+                    1740635863568.5068
+                  ],
+                  "distance_to_bracket_s": 1.3824931640625,
+                  "midpoint_error_s": 1.61996240234375
+                },
+                {
+                  "prediction_ms": 1740635960951.0,
+                  "truth_interval_ms": [
+                    1740635963193.5686,
+                    1740635963535.1733
+                  ],
+                  "distance_to_bracket_s": 2.242568603515625,
+                  "midpoint_error_s": 2.41337109375
+                }
+              ]
+            }
+          }
+        },
+        "RED": {
+          "fixed_clock": {
+            "0.5": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "1": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "2": {
+              "matched": 1,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "midpoint_mae_s": 1.61382861328125,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635867951.0,
+                  "truth_interval_ms": [
+                    1740635866320.5046,
+                    1740635866353.8381
+                  ],
+                  "distance_to_bracket_s": 1.597161865234375,
+                  "midpoint_error_s": 1.61382861328125
+                }
+              ]
+            },
+            "3": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 2.467612711588542,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635762951.0,
+                  "truth_interval_ms": [
+                    1740635765853.8381,
+                    1740635766853.8381
+                  ],
+                  "distance_to_bracket_s": 2.902838134765625,
+                  "midpoint_error_s": 3.402838134765625
+                },
+                {
+                  "prediction_ms": 1740635867951.0,
+                  "truth_interval_ms": [
+                    1740635866320.5046,
+                    1740635866353.8381
+                  ],
+                  "distance_to_bracket_s": 1.597161865234375,
+                  "midpoint_error_s": 1.61382861328125
+                },
+                {
+                  "prediction_ms": 1740635963951.0,
+                  "truth_interval_ms": [
+                    1740635966320.5046,
+                    1740635966353.8381
+                  ],
+                  "distance_to_bracket_s": 2.369504638671875,
+                  "midpoint_error_s": 2.38617138671875
+                }
+              ]
+            }
+          },
+          "conditional_clock_envelope": {
+            "0.5": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "1": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "2": {
+              "matched": 1,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "midpoint_mae_s": 1.61996240234375,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635867951.0,
+                  "truth_interval_ms": [
+                    1740635866193.5686,
+                    1740635866468.5068
+                  ],
+                  "distance_to_bracket_s": 1.4824931640625,
+                  "midpoint_error_s": 1.61996240234375
+                }
+              ]
+            },
+            "3": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 2.465568115234375,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635762951.0,
+                  "truth_interval_ms": [
+                    1740635765726.9019,
+                    1740635766968.5068
+                  ],
+                  "distance_to_bracket_s": 2.77590185546875,
+                  "midpoint_error_s": 3.396704345703125
+                },
+                {
+                  "prediction_ms": 1740635867951.0,
+                  "truth_interval_ms": [
+                    1740635866193.5686,
+                    1740635866468.5068
+                  ],
+                  "distance_to_bracket_s": 1.4824931640625,
+                  "midpoint_error_s": 1.61996240234375
+                },
+                {
+                  "prediction_ms": 1740635963951.0,
+                  "truth_interval_ms": [
+                    1740635966193.5686,
+                    1740635966468.5068
+                  ],
+                  "distance_to_bracket_s": 2.242568603515625,
+                  "midpoint_error_s": 2.38003759765625
+                }
+              ]
+            }
+          }
+        }
+      },
+      "predicted_onsets_ms": {
+        "RED_YELLOW": [
+          1740635712951.0,
+          1740635810951.0,
+          1740635908951.0
+        ],
+        "GREEN": [
+          1740635714951.0,
+          1740635812951.0,
+          1740635910951.0
+        ],
+        "YELLOW": [
+          1740635759951.0,
+          1740635864951.0,
+          1740635960951.0
+        ],
+        "RED": [
+          1740635762951.0,
+          1740635867951.0,
+          1740635963951.0
+        ]
+      }
+    },
+    "learned_known_hardware_uncalibrated": {
+      "mapping_availability": [
+        {
+          "available": true,
+          "reason": null
+        }
+      ],
+      "metrics": {
+        "GREEN": {
+          "fixed_clock": {
+            "0.5": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "1": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "2": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "3": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 2.5466062825520837,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635717906.0,
+                  "truth_interval_ms": [
+                    1740635715287.1714,
+                    1740635715387.1714
+                  ],
+                  "distance_to_bracket_s": 2.51882861328125,
+                  "midpoint_error_s": 2.56882861328125
+                },
+                {
+                  "prediction_ms": 1740635817906.0,
+                  "truth_interval_ms": [
+                    1740635815353.8381,
+                    1740635815387.1714
+                  ],
+                  "distance_to_bracket_s": 2.51882861328125,
+                  "midpoint_error_s": 2.5354951171875
+                },
+                {
+                  "prediction_ms": 1740635917906.0,
+                  "truth_interval_ms": [
+                    1740635915353.8381,
+                    1740635915387.1714
+                  ],
+                  "distance_to_bracket_s": 2.51882861328125,
+                  "midpoint_error_s": 2.5354951171875
+                }
+              ]
+            }
+          },
+          "conditional_clock_envelope": {
+            "0.5": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "1": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "2": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "3": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 2.5527400716145836,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635717906.0,
+                  "truth_interval_ms": [
+                    1740635715160.235,
+                    1740635715501.84
+                  ],
+                  "distance_to_bracket_s": 2.404159912109375,
+                  "midpoint_error_s": 2.57496240234375
+                },
+                {
+                  "prediction_ms": 1740635817906.0,
+                  "truth_interval_ms": [
+                    1740635815226.9019,
+                    1740635815501.84
+                  ],
+                  "distance_to_bracket_s": 2.404159912109375,
+                  "midpoint_error_s": 2.54162890625
+                },
+                {
+                  "prediction_ms": 1740635917906.0,
+                  "truth_interval_ms": [
+                    1740635915226.9019,
+                    1740635915501.84
+                  ],
+                  "distance_to_bracket_s": 2.404159912109375,
+                  "midpoint_error_s": 2.54162890625
+                }
+              ]
+            }
+          }
+        },
+        "YELLOW": {
+          "fixed_clock": {
+            "0.5": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "1": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "2": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "3": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            }
+          },
+          "conditional_clock_envelope": {
+            "0.5": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "1": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "2": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "3": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            }
+          }
+        },
+        "RED": {
+          "fixed_clock": {
+            "0.5": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "1": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "2": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "3": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            }
+          },
+          "conditional_clock_envelope": {
+            "0.5": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "1": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "2": {
+              "matched": 0,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.0,
+              "recall": 0.0,
+              "midpoint_mae_s": null,
+              "pairs": []
+            },
+            "3": {
+              "matched": 1,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 0.3333333333333333,
+              "recall": 0.3333333333333333,
+              "midpoint_mae_s": 3.558295654296875,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635769906.0,
+                  "truth_interval_ms": [
+                    1740635765726.9019,
+                    1740635766968.5068
+                  ],
+                  "distance_to_bracket_s": 2.9374931640625,
+                  "midpoint_error_s": 3.558295654296875
+                }
+              ]
+            }
+          }
+        }
+      },
+      "predicted_onsets_ms": {
+        "RED_YELLOW": [
+          1740635715906.0,
+          1740635815906.0,
+          1740635915906.0
+        ],
+        "GREEN": [
+          1740635717906.0,
+          1740635817906.0,
+          1740635917906.0
+        ],
+        "YELLOW": [
+          1740635766906.0,
+          1740635866906.0,
+          1740635966906.0
+        ],
+        "RED": [
+          1740635769906.0,
+          1740635869906.0,
+          1740635969906.0
+        ]
+      }
+    },
+    "learned_known_hardware_exact_source_calibration": {
+      "mapping_availability": [
+        {
+          "available": true,
+          "reason": null
+        }
+      ],
+      "metrics": {
+        "GREEN": {
+          "fixed_clock": {
+            "0.5": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.09722233072916667,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635715262.1714,
+                  "truth_interval_ms": [
+                    1740635715287.1714,
+                    1740635715387.1714
+                  ],
+                  "distance_to_bracket_s": 0.025,
+                  "midpoint_error_s": 0.075
+                },
+                {
+                  "prediction_ms": 1740635815262.1714,
+                  "truth_interval_ms": [
+                    1740635815353.8381,
+                    1740635815387.1714
+                  ],
+                  "distance_to_bracket_s": 0.091666748046875,
+                  "midpoint_error_s": 0.10833349609375
+                },
+                {
+                  "prediction_ms": 1740635915262.1714,
+                  "truth_interval_ms": [
+                    1740635915353.8381,
+                    1740635915387.1714
+                  ],
+                  "distance_to_bracket_s": 0.091666748046875,
+                  "midpoint_error_s": 0.10833349609375
+                }
+              ]
+            },
+            "1": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.09722233072916667,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635715262.1714,
+                  "truth_interval_ms": [
+                    1740635715287.1714,
+                    1740635715387.1714
+                  ],
+                  "distance_to_bracket_s": 0.025,
+                  "midpoint_error_s": 0.075
+                },
+                {
+                  "prediction_ms": 1740635815262.1714,
+                  "truth_interval_ms": [
+                    1740635815353.8381,
+                    1740635815387.1714
+                  ],
+                  "distance_to_bracket_s": 0.091666748046875,
+                  "midpoint_error_s": 0.10833349609375
+                },
+                {
+                  "prediction_ms": 1740635915262.1714,
+                  "truth_interval_ms": [
+                    1740635915353.8381,
+                    1740635915387.1714
+                  ],
+                  "distance_to_bracket_s": 0.091666748046875,
+                  "midpoint_error_s": 0.10833349609375
+                }
+              ]
+            },
+            "2": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.09722233072916667,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635715262.1714,
+                  "truth_interval_ms": [
+                    1740635715287.1714,
+                    1740635715387.1714
+                  ],
+                  "distance_to_bracket_s": 0.025,
+                  "midpoint_error_s": 0.075
+                },
+                {
+                  "prediction_ms": 1740635815262.1714,
+                  "truth_interval_ms": [
+                    1740635815353.8381,
+                    1740635815387.1714
+                  ],
+                  "distance_to_bracket_s": 0.091666748046875,
+                  "midpoint_error_s": 0.10833349609375
+                },
+                {
+                  "prediction_ms": 1740635915262.1714,
+                  "truth_interval_ms": [
+                    1740635915353.8381,
+                    1740635915387.1714
+                  ],
+                  "distance_to_bracket_s": 0.091666748046875,
+                  "midpoint_error_s": 0.10833349609375
+                }
+              ]
+            },
+            "3": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.09722233072916667,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635715262.1714,
+                  "truth_interval_ms": [
+                    1740635715287.1714,
+                    1740635715387.1714
+                  ],
+                  "distance_to_bracket_s": 0.025,
+                  "midpoint_error_s": 0.075
+                },
+                {
+                  "prediction_ms": 1740635815262.1714,
+                  "truth_interval_ms": [
+                    1740635815353.8381,
+                    1740635815387.1714
+                  ],
+                  "distance_to_bracket_s": 0.091666748046875,
+                  "midpoint_error_s": 0.10833349609375
+                },
+                {
+                  "prediction_ms": 1740635915262.1714,
+                  "truth_interval_ms": [
+                    1740635915353.8381,
+                    1740635915387.1714
+                  ],
+                  "distance_to_bracket_s": 0.091666748046875,
+                  "midpoint_error_s": 0.10833349609375
+                }
+              ]
+            }
+          },
+          "conditional_clock_envelope": {
+            "0.5": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.09108854166666668,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635715262.1714,
+                  "truth_interval_ms": [
+                    1740635715160.235,
+                    1740635715501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.0688662109375
+                },
+                {
+                  "prediction_ms": 1740635815262.1714,
+                  "truth_interval_ms": [
+                    1740635815226.9019,
+                    1740635815501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.10219970703125
+                },
+                {
+                  "prediction_ms": 1740635915262.1714,
+                  "truth_interval_ms": [
+                    1740635915226.9019,
+                    1740635915501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.10219970703125
+                }
+              ]
+            },
+            "1": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.09108854166666668,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635715262.1714,
+                  "truth_interval_ms": [
+                    1740635715160.235,
+                    1740635715501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.0688662109375
+                },
+                {
+                  "prediction_ms": 1740635815262.1714,
+                  "truth_interval_ms": [
+                    1740635815226.9019,
+                    1740635815501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.10219970703125
+                },
+                {
+                  "prediction_ms": 1740635915262.1714,
+                  "truth_interval_ms": [
+                    1740635915226.9019,
+                    1740635915501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.10219970703125
+                }
+              ]
+            },
+            "2": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.09108854166666668,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635715262.1714,
+                  "truth_interval_ms": [
+                    1740635715160.235,
+                    1740635715501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.0688662109375
+                },
+                {
+                  "prediction_ms": 1740635815262.1714,
+                  "truth_interval_ms": [
+                    1740635815226.9019,
+                    1740635815501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.10219970703125
+                },
+                {
+                  "prediction_ms": 1740635915262.1714,
+                  "truth_interval_ms": [
+                    1740635915226.9019,
+                    1740635915501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.10219970703125
+                }
+              ]
+            },
+            "3": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.09108854166666668,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635715262.1714,
+                  "truth_interval_ms": [
+                    1740635715160.235,
+                    1740635715501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.0688662109375
+                },
+                {
+                  "prediction_ms": 1740635815262.1714,
+                  "truth_interval_ms": [
+                    1740635815226.9019,
+                    1740635815501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.10219970703125
+                },
+                {
+                  "prediction_ms": 1740635915262.1714,
+                  "truth_interval_ms": [
+                    1740635915226.9019,
+                    1740635915501.84
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.10219970703125
+                }
+              ]
+            }
+          }
+        },
+        "YELLOW": {
+          "fixed_clock": {
+            "0.5": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12777783203125,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635763220.5046,
+                  "truth_interval_ms": [
+                    1740635763220.5046,
+                    1740635763453.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635863220.5046,
+                  "truth_interval_ms": [
+                    1740635863220.5046,
+                    1740635863453.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635963220.5046,
+                  "truth_interval_ms": [
+                    1740635963320.5046,
+                    1740635963420.5046
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.15
+                }
+              ]
+            },
+            "1": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12777783203125,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635763220.5046,
+                  "truth_interval_ms": [
+                    1740635763220.5046,
+                    1740635763453.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635863220.5046,
+                  "truth_interval_ms": [
+                    1740635863220.5046,
+                    1740635863453.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635963220.5046,
+                  "truth_interval_ms": [
+                    1740635963320.5046,
+                    1740635963420.5046
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.15
+                }
+              ]
+            },
+            "2": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12777783203125,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635763220.5046,
+                  "truth_interval_ms": [
+                    1740635763220.5046,
+                    1740635763453.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635863220.5046,
+                  "truth_interval_ms": [
+                    1740635863220.5046,
+                    1740635863453.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635963220.5046,
+                  "truth_interval_ms": [
+                    1740635963320.5046,
+                    1740635963420.5046
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.15
+                }
+              ]
+            },
+            "3": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12777783203125,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635763220.5046,
+                  "truth_interval_ms": [
+                    1740635763220.5046,
+                    1740635763453.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635863220.5046,
+                  "truth_interval_ms": [
+                    1740635863220.5046,
+                    1740635863453.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635963220.5046,
+                  "truth_interval_ms": [
+                    1740635963320.5046,
+                    1740635963420.5046
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.15
+                }
+              ]
+            }
+          },
+          "conditional_clock_envelope": {
+            "0.5": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12164412434895834,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635763220.5046,
+                  "truth_interval_ms": [
+                    1740635763093.5686,
+                    1740635763568.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635863220.5046,
+                  "truth_interval_ms": [
+                    1740635863093.5686,
+                    1740635863568.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635963220.5046,
+                  "truth_interval_ms": [
+                    1740635963193.5686,
+                    1740635963535.1733
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.143866455078125
+                }
+              ]
+            },
+            "1": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12164412434895834,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635763220.5046,
+                  "truth_interval_ms": [
+                    1740635763093.5686,
+                    1740635763568.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635863220.5046,
+                  "truth_interval_ms": [
+                    1740635863093.5686,
+                    1740635863568.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635963220.5046,
+                  "truth_interval_ms": [
+                    1740635963193.5686,
+                    1740635963535.1733
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.143866455078125
+                }
+              ]
+            },
+            "2": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12164412434895834,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635763220.5046,
+                  "truth_interval_ms": [
+                    1740635763093.5686,
+                    1740635763568.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635863220.5046,
+                  "truth_interval_ms": [
+                    1740635863093.5686,
+                    1740635863568.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635963220.5046,
+                  "truth_interval_ms": [
+                    1740635963193.5686,
+                    1740635963535.1733
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.143866455078125
+                }
+              ]
+            },
+            "3": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12164412434895834,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635763220.5046,
+                  "truth_interval_ms": [
+                    1740635763093.5686,
+                    1740635763568.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635863220.5046,
+                  "truth_interval_ms": [
+                    1740635863093.5686,
+                    1740635863568.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635963220.5046,
+                  "truth_interval_ms": [
+                    1740635963193.5686,
+                    1740635963535.1733
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.143866455078125
+                }
+              ]
+            }
+          }
+        },
+        "RED": {
+          "fixed_clock": {
+            "0.5": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12222233072916668,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635766220.5046,
+                  "truth_interval_ms": [
+                    1740635765853.8381,
+                    1740635766853.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.13333349609375
+                },
+                {
+                  "prediction_ms": 1740635866220.5046,
+                  "truth_interval_ms": [
+                    1740635866320.5046,
+                    1740635866353.8381
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635966220.5046,
+                  "truth_interval_ms": [
+                    1740635966320.5046,
+                    1740635966353.8381
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.116666748046875
+                }
+              ]
+            },
+            "1": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12222233072916668,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635766220.5046,
+                  "truth_interval_ms": [
+                    1740635765853.8381,
+                    1740635766853.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.13333349609375
+                },
+                {
+                  "prediction_ms": 1740635866220.5046,
+                  "truth_interval_ms": [
+                    1740635866320.5046,
+                    1740635866353.8381
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635966220.5046,
+                  "truth_interval_ms": [
+                    1740635966320.5046,
+                    1740635966353.8381
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.116666748046875
+                }
+              ]
+            },
+            "2": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12222233072916668,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635766220.5046,
+                  "truth_interval_ms": [
+                    1740635765853.8381,
+                    1740635766853.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.13333349609375
+                },
+                {
+                  "prediction_ms": 1740635866220.5046,
+                  "truth_interval_ms": [
+                    1740635866320.5046,
+                    1740635866353.8381
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635966220.5046,
+                  "truth_interval_ms": [
+                    1740635966320.5046,
+                    1740635966353.8381
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.116666748046875
+                }
+              ]
+            },
+            "3": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.12222233072916668,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635766220.5046,
+                  "truth_interval_ms": [
+                    1740635765853.8381,
+                    1740635766853.8381
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.13333349609375
+                },
+                {
+                  "prediction_ms": 1740635866220.5046,
+                  "truth_interval_ms": [
+                    1740635866320.5046,
+                    1740635866353.8381
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.116666748046875
+                },
+                {
+                  "prediction_ms": 1740635966220.5046,
+                  "truth_interval_ms": [
+                    1740635966320.5046,
+                    1740635966353.8381
+                  ],
+                  "distance_to_bracket_s": 0.1,
+                  "midpoint_error_s": 0.116666748046875
+                }
+              ]
+            }
+          },
+          "conditional_clock_envelope": {
+            "0.5": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.11608854166666667,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635766220.5046,
+                  "truth_interval_ms": [
+                    1740635765726.9019,
+                    1740635766968.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.12719970703125
+                },
+                {
+                  "prediction_ms": 1740635866220.5046,
+                  "truth_interval_ms": [
+                    1740635866193.5686,
+                    1740635866468.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635966220.5046,
+                  "truth_interval_ms": [
+                    1740635966193.5686,
+                    1740635966468.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                }
+              ]
+            },
+            "1": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.11608854166666667,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635766220.5046,
+                  "truth_interval_ms": [
+                    1740635765726.9019,
+                    1740635766968.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.12719970703125
+                },
+                {
+                  "prediction_ms": 1740635866220.5046,
+                  "truth_interval_ms": [
+                    1740635866193.5686,
+                    1740635866468.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635966220.5046,
+                  "truth_interval_ms": [
+                    1740635966193.5686,
+                    1740635966468.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                }
+              ]
+            },
+            "2": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.11608854166666667,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635766220.5046,
+                  "truth_interval_ms": [
+                    1740635765726.9019,
+                    1740635766968.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.12719970703125
+                },
+                {
+                  "prediction_ms": 1740635866220.5046,
+                  "truth_interval_ms": [
+                    1740635866193.5686,
+                    1740635866468.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635966220.5046,
+                  "truth_interval_ms": [
+                    1740635966193.5686,
+                    1740635966468.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                }
+              ]
+            },
+            "3": {
+              "matched": 3,
+              "predicted": 3,
+              "expected": 3,
+              "precision": 1.0,
+              "recall": 1.0,
+              "midpoint_mae_s": 0.11608854166666667,
+              "pairs": [
+                {
+                  "prediction_ms": 1740635766220.5046,
+                  "truth_interval_ms": [
+                    1740635765726.9019,
+                    1740635766968.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.12719970703125
+                },
+                {
+                  "prediction_ms": 1740635866220.5046,
+                  "truth_interval_ms": [
+                    1740635866193.5686,
+                    1740635866468.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                },
+                {
+                  "prediction_ms": 1740635966220.5046,
+                  "truth_interval_ms": [
+                    1740635966193.5686,
+                    1740635966468.5068
+                  ],
+                  "distance_to_bracket_s": 0.0,
+                  "midpoint_error_s": 0.110532958984375
+                }
+              ]
+            }
+          }
+        }
+      },
+      "predicted_onsets_ms": {
+        "RED_YELLOW": [
+          1740635713262.1714,
+          1740635813262.1714,
+          1740635913262.1714
+        ],
+        "GREEN": [
+          1740635715262.1714,
+          1740635815262.1714,
+          1740635915262.1714
+        ],
+        "YELLOW": [
+          1740635763220.5046,
+          1740635863220.5046,
+          1740635963220.5046
+        ],
+        "RED": [
+          1740635766220.5046,
+          1740635866220.5046,
+          1740635966220.5046
+        ]
+      }
+    }
+  },
+  "replay_semantics": "previously inspected same-session truth; rerun, NOT a fresh independent holdout",
+  "inference_input": "cached trajectory events and frozen model/config only; truth read exclusively by evaluator",
+  "limitation": "N main only, three cycles, conditional geometry/identity clock. No universal or other-day lamp accuracy claim.",
+  "enthusiasts": "video yellow durations inform simulation; JSON/video clock unresolved, paired signal accuracy unavailable",
+  "chicherina": "public video returns empty download body; user also unable to download; no direct lamp truth"
+}

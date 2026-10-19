@@ -1,5 +1,20 @@
 # Project status — 2D.1, 2026-10-19
 
+Latest delivered task: ALL_ARCHIVES_SYNTHETIC_RESULTS_20261019.md. All219 raw
+sources processed by automatic discovery and frozen learned profiles;216 unique
+JSONs,134,648,606 detections including duplicate loose files. All72 realistic
+queue/sensor scenarios completed (62h,54,694,888 detections). Full-recording
+evaluation: automatic K13/72, logical-state error42.1%, actual automatic four-main-
+head color error36.4% including UNKNOWN. Universal accuracy NOT accepted.
+Video/annotations never enter inference; exact-source reference-video timing
+bias disabled in normal learned visualization and retained for explicit
+retrospective diagnostics only. Earlier calibrated9/9 below is not deployment
+or universal accuracy. Same raw input admits distinct3/4-phase empty-flow plans;
+counterexample retained. Interactive report and input ZIP links are in
+evidence/all_archives_synthetic_20261019/report.html. Phase solvers, learned
+profiles, main and2D.1 FAIL/default-off unchanged. No decoder/training experiment
+resumed. Next model changes need a separate measured comparison and new holdout.
+
 Latest explicit task implemented: YELLOW_TIMING_RESULTS_20261019.md. Shared
 estimated-signal history now inserts3s YELLOW before RED and configurable0..2s
 RED_YELLOW before GREEN, per merged main-head run. No false yellow at a continuing
