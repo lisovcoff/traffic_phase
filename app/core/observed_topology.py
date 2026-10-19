@@ -16,7 +16,7 @@ def project_observed_topology(result, approaches, *, repair_missing_phases=False
         physical_absence_certified=False)
     plan=value.get('physical_signal_plan',{})
     if len(active)==4 and plan.get('enabled') and repair_missing_phases:
-        _repair_inherited_turn_phase(value)
+        _repair_inherited_turn_phase(value,allow_single_turn=repair_missing_phases=='selective')
     if len(active)!=3 or not plan.get('enabled'):
         return value
     topology={a:deepcopy(h) for a,h in plan.get('topology',{}).items() if a in active}
@@ -95,7 +95,7 @@ def project_observed_topology(result, approaches, *, repair_missing_phases=False
     return value
 
 
-def _repair_inherited_turn_phase(result):
+def _repair_inherited_turn_phase(result, *, allow_single_turn=False):
     """Do not erase a reciprocal, selective turn phase by through-state inheritance.
 
     Restricted to explicitly inherited empty phases with no local support for
@@ -110,7 +110,8 @@ def _repair_inherited_turn_phase(result):
         for row in rows:
             rates=row['event_probability_by_phase'];p=rates.get(phase,0);other=max((v for n,v in rates.items() if n!=phase),default=0)
             if p>=.03 and p>=1.25*max(other,.001) and p-other>=.02:candidates.append(row['stream'])
-        if not any('->'.join(reversed(m.split('->'))) in candidates for m in candidates):continue
+        reciprocal=any('->'.join(reversed(m.split('->'))) in candidates for m in candidates)
+        if not reciprocal and not (allow_single_turn and len(candidates)==1):continue
         label='RECOVERED_'+phase;plan['mapping'][phase]=label
         for m in candidates:
             a=m.split('->')[0];head=plan['topology'][a]

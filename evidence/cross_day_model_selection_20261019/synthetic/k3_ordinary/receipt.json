@@ -1,0 +1,100 @@
+{
+  "case": {
+    "id": "k3_ordinary",
+    "k": 3,
+    "partition": "development",
+    "duration_s": 1800,
+    "training_duration_s": 1500,
+    "periods": [
+      90,
+      108
+    ],
+    "arrival_rate_s": 0.08,
+    "training_seeds": [
+      2026107101,
+      2026107102
+    ],
+    "online_seed": 2026107103
+  },
+  "model_id": "7c5a8501cd88424c9877e74952896c0f",
+  "working_K": [
+    3,
+    3
+  ],
+  "latent_K": [
+    3,
+    3
+  ],
+  "scores": {
+    "baseline": {
+      "counts": {
+        "total": 6484,
+        "known": 6258,
+        "correct": 5766,
+        "correct_GREEN": 1734,
+        "total_GREEN": 1928,
+        "correct_RED": 3934,
+        "total_RED": 4196,
+        "correct_YELLOW": 42,
+        "total_YELLOW": 216,
+        "correct_RED_YELLOW": 56,
+        "total_RED_YELLOW": 144
+      },
+      "accuracy": 0.8892658852560148,
+      "coverage": 0.9651449722393585,
+      "tick_p95_ms": 17.987100000027567,
+      "regime_counts": {
+        "regime_001": 1775,
+        "regime_002": 26
+      }
+    },
+    "normalized": {
+      "counts": {
+        "total": 6484,
+        "known": 6288,
+        "correct": 5798,
+        "correct_GREEN": 1750,
+        "total_GREEN": 1928,
+        "correct_RED": 3950,
+        "total_RED": 4196,
+        "correct_YELLOW": 42,
+        "total_YELLOW": 216,
+        "correct_RED_YELLOW": 56,
+        "total_RED_YELLOW": 144
+      },
+      "accuracy": 0.8942011104256632,
+      "coverage": 0.9697717458359038,
+      "tick_p95_ms": 17.634899995755404,
+      "regime_counts": {
+        "regime_001": 1751,
+        "regime_002": 50
+      }
+    },
+    "candidate": {
+      "counts": {
+        "total": 6484,
+        "known": 6288,
+        "correct": 5804,
+        "correct_GREEN": 1750,
+        "total_GREEN": 1928,
+        "correct_RED": 3956,
+        "total_RED": 4196,
+        "correct_YELLOW": 42,
+        "total_YELLOW": 216,
+        "correct_RED_YELLOW": 56,
+        "total_RED_YELLOW": 144
+      },
+      "accuracy": 0.8951264651449723,
+      "coverage": 0.9697717458359038,
+      "tick_p95_ms": 18.08349999919301,
+      "regime_counts": {
+        "regime_001": 1751,
+        "regime_002": 50
+      }
+    }
+  },
+  "code_sha256": "ffccab8d11f309eb82b7e336ee65165626e803dfe5432962193c0dc1ac80e411",
+  "runtime_s": 106.96800000000076,
+  "online_truth_supplied_to_predictor": false,
+  "training_online_demand_seeds_disjoint": true
+}

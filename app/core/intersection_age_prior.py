@@ -15,7 +15,8 @@ def attach_age_priors(model,folder):
         for member in regime['members']:
             session=sessions[member['session_id']]
             with gzip.open(folder/session['prediction'],'rt',encoding='utf8') as stream:result=json.load(stream)
-            projected=project_observed_topology(result,model['approaches'],repair_missing_phases=model.get('projection_version')=='observed-topology-v2')
+            projected=project_observed_topology(result,model['approaches'],repair_missing_phases=(
+                'selective' if model.get('projection_version')=='observed-topology-v3' else model.get('projection_version')=='observed-topology-v2'))
             template=operating_template(projected);segments=template['schedule']['raw_hsmm_segments']
             starts=[s[0] for s in segments];base=result.get('schedule_base_timestamp_ms',result.get('analysis_base_timestamp_ms',0))
             for event in result.get('event_extraction',{}).get('temporal_events',[]):

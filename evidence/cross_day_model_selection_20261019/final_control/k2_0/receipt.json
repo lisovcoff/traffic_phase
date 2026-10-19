@@ -1,0 +1,38 @@
+{
+  "case": {
+    "k": 2,
+    "rep": 0,
+    "seed": 2026109211
+  },
+  "scores": {
+    "baseline": {
+      "counts": {
+        "total": 6484,
+        "correct": 5530,
+        "known": 6028
+      },
+      "accuracy": 0.8528685996298581,
+      "coverage": 0.9296730413325108
+    },
+    "candidate": {
+      "counts": {
+        "total": 6484,
+        "correct": 5518,
+        "known": 6020
+      },
+      "accuracy": 0.85101789019124,
+      "coverage": 0.9284392350400987
+    }
+  },
+  "model_id": "cc8e84feb8ad467588e4f8553c37f8cc",
+  "offline_model_sha256": "c44f6ddb3e986f7cbd348b566a6f24e1d66e88991d282442b0ec8e89e4f781f9",
+  "working_K": [
+    2,
+    2
+  ],
+  "runtime_s": 16.29699999999866,
+  "protocol_sha256": "5ae8d708b4518a6f2bbecb9c6fb31b34ab3cfa4bcec7a1333ca58681d134aa4a",
+  "video_and_annotations_used": false,
+  "online_demand_seeds_disjoint_from_training": true,
+  "scope": "simulation, not field lamp accuracy"
+}

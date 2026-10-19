@@ -9,11 +9,12 @@ from types import SimpleNamespace
 import numpy as np
 
 from app.core.intersection_project import _compass
+from app.core.intersection_emissions import MovementMarks
 from app.core.recovery.motion import restart_from_raw_speed
 from app.core.v9.spatial import apply_projection
 from app.core.trajectory_geometry import haversine_distance_m
 
-VERSION='causal-intersection-v4'
+VERSION='causal-intersection-v7'
 
 
 def coarse_restart(points,now):
@@ -54,6 +55,12 @@ def geographic_restart(points,now):
 class CausalIntersection:
     def __init__(self,model):
         self.model=model;self.last_ms=None;self.tracks={};self.evidence_ms=None;self.event_count=0
+        self.marks=MovementMarks(model['regimes'],contamination=.2)
+        self.transition_forecasts={}
+        # Equipment belongs to the intersection, not to a temporary program.
+        # Missing support in one sparse session must not remove a saved section.
+        self.topology={a:dict(arrows=sorted({m for r in model['regimes']
+            for m in r.get('signal_topology',{}).get(a,{}).get('arrows',[])})) for a in model['approaches']}
         self.banks=[];self.initial=[];self.hazards=[];self.transitions=[];self.medians=[]
         self.age_cap=min(1800,max(180,int(max(r['period_s'] for r in model['regimes'])*4)))
         self.geometry_key=next(iter(model.get('geometries',{})),None)
@@ -89,17 +96,9 @@ class CausalIntersection:
 
     def _observe(self,events):
         for origin,target,weight in events:
-            likelihoods=[]
-            for regime in self.model['regimes']:
-                candidates=[]
-                for movement,values in regime['movement_probabilities'].items():
-                    parts=movement.replace('_','').split('->')
-                    if parts[0]!=origin or (target and parts[1]!=target):continue
-                    rates=np.array(values);span=float(np.ptp(rates))
-                    if span>.01:candidates.append((rates-rates.min())/span)
-                likelihoods.append(.05+.95*np.max(candidates,axis=0) if candidates else np.full(regime['phase_count'],.2))
+            likelihoods=self.marks.likelihoods(origin,target)
             for i,values in enumerate(likelihoods):
-                self.banks[i]*=values[:,None]**weight
+                self.banks[i]*=np.maximum(.001,values[:,None])**weight
                 if weight>=1:
                     regime=self.model['regimes'][i];histograms=[]
                     for movement,hist in regime.get('restart_age_histograms',{}).items():
@@ -136,7 +135,8 @@ class CausalIntersection:
                 if d['millis'] in known and d!=known[d['millis']]:raise ValueError('conflicting detection timestamp')
                 known[d['millis']]=d
         gap_ms=now-previous if previous is not None else 0
-        if gap_ms>self.age_cap*1000:self.banks=[b.copy() for b in self.initial]
+        if gap_ms>self.age_cap*1000:
+            self.banks=[b.copy() for b in self.initial];self.transition_forecasts.clear()
         elif previous is not None:self._advance(max(1,int(round(gap_ms/1000))))
         self.tracks={k:t for k,t in self.tracks.items() if now-t['last_ms']<=180000}
         events=[];rendered=[]
@@ -170,7 +170,8 @@ class CausalIntersection:
         events=list({(a,b):(a,b,w) for a,b,w in sorted(events,key=lambda e:e[2])}.values())
         events=[(a,b,w) for a,b,w in events if any(m.split('->')[0]==a and (b is None or m.replace('_','').split('->')[1]==b)
             and np.ptp(values)>.01 for r in self.model['regimes'] for m,values in r['movement_probabilities'].items())]
-        if events:self._observe(events);self.evidence_ms=now
+        if events:
+            self._observe(events);self.evidence_ms=now
         self.event_count+=len(events)
         self.last_ms=now
         masses=[b.sum(axis=1) for b in self.banks];regime_index=int(np.argmax([v.sum() for v in masses]))
@@ -180,7 +181,7 @@ class CausalIntersection:
         recent=self.evidence_ms is not None and now-self.evidence_ms<=max(15000,regime['period_s']*500)
         heads={};best_heads=(regime.get('phase_head_states') or [{}]*regime['phase_count'])[phase]
         for approach in self.model['approaches']:
-            topology=regime.get('signal_topology',{}).get(approach,dict(arrows=[]))
+            topology=self.topology[approach]
             head=dict(main=dict(state='UNKNOWN',source='INSUFFICIENT_CURRENT_EVIDENCE',confidence=0.),arrows=[])
             for movement in [None]+topology['arrows']:
                 votes={}
@@ -202,12 +203,23 @@ class CausalIntersection:
             nxt=int(np.argmax(self.transitions[regime_index][phase]));next_heads=regime['phase_head_states'][nxt]
             remaining=self.medians[regime_index][phase]-age
             fresh={a for a,b,w in events if w>=1}
-            if 0<=remaining<=3:
-                for a,head in heads.items():
+            token=(regime['regime_id'],phase)
+            for a,head in heads.items():
+                pending=self.transition_forecasts.get(a)
+                if pending and (pending['token']!=token or a in fresh):
+                    self.transition_forecasts.pop(a);pending=None
+                if pending:
+                    # An issued yellow forecast cannot turn green merely because
+                    # mean phase age passed its duration. Finish that forecast;
+                    # actual new restart evidence can revise a prior extension.
+                    color='YELLOW' if now<pending['deadline_ms'] else 'RED'
+                else:
                     current=best_heads.get(a,{}).get('main',{}).get('state');following=next_heads.get(a,{}).get('main',{}).get('state')
-                    color='YELLOW' if current=='GREEN' and following=='RED' and a not in fresh else (
-                        'RED_YELLOW' if current=='RED' and following=='GREEN' and remaining<=2 else None)
-                    if color and head['main']['state']!='UNKNOWN':head['main'].update(state=color,source='OFFLINE_DURATION_TRANSITION_PRIOR')
+                    color='YELLOW' if 0<=remaining<=3 and current=='GREEN' and following=='RED' and a not in fresh else (
+                        'RED_YELLOW' if 0<=remaining<=2 and current=='RED' and following=='GREEN' else None)
+                    if color=='YELLOW' and head['main']['state']!='UNKNOWN':
+                        self.transition_forecasts[a]=dict(token=token,deadline_ms=now+remaining*1000)
+                if color and head['main']['state']!='UNKNOWN':head['main'].update(state=color,source='OFFLINE_DURATION_TRANSITION_PRIOR')
         return dict(schema=VERSION,timestamp_ms=now,sequence=packet['sequence'],model_id=self.model['model_id'],
             model_fingerprint=self.model['fingerprint'],structure_source='OFFLINE_ONLY',
             phase_count=regime['phase_count'],regime_id=regime['regime_id'],regime_confidence=mode_probability,
@@ -219,4 +231,6 @@ class CausalIntersection:
             last_evidence_ms=self.evidence_ms,status='TRACKING' if recent else 'AWAITING_EVIDENCE',
             missing_interval_ms=[previous+1000,now] if previous is not None and gap_ms>1500 else None,
             projection_source=self.geometry_key,projection_semantics='offline_reference_camera_assumption',
+            signal_topology_source='OFFLINE_CATALOGUE_UNION_UNCONFIRMED_HARDWARE',
+            duration_basis='OFFLINE_DURATION_DISTRIBUTIONS_WITH_CAUSAL_PHASE_AGE_POSTERIOR',
             phase_timings='causal_estimates_NOT_observed_lamps',video_used=False,annotations_used=False)

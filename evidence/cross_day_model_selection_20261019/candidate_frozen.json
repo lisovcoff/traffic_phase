@@ -1,0 +1,20 @@
+{
+  "engine": "causal-intersection-v6",
+  "code_sha256": {
+    "app/core/intersection_online.py": "966b16fbad11fa693916340f36acee2c0427c31e277fcbb61e88ca7160bf3b08",
+    "app/core/intersection_emissions.py": "b03947c5cf82b60d3e2b7c6c340833ab18783c853eb7098b91c13705e300324f",
+    "app/core/intersection_durations.py": "eeb47d2808e3145327d338eb846c593c438332f8cfcb747846f56077f0b9f361",
+    "app/core/observed_topology.py": "af2b436b1f50b91afc6a9333a8fcd1411fda70aa107a12cfa629d8170ae964fe",
+    "app/core/intersection_project.py": "90d41a0601fff21240dba1083eb8e5da2bd3cc2548a3185afa456b653d24a7ca",
+    "app/core/intersection_age_prior.py": "91c1c5e6c6ce0e8ba291a4cf94184daf61892c85425480a8349c4999eee4f761",
+    "app/api/intersection_projects.py": "1b435e9bee7ccc2a728c901da4dbf089a66f324bb740bab283a2736e6e39c305",
+    "app/api/intersection_online.py": "c6b0ceb43a4b209194b0beaa3fef62cb20dc314a3e4566fa2d0f6616bc505cab"
+  },
+  "selection": "8 development designs; categorical common alphabet, 20% contamination, conservative duration learning, isolated selective-turn projection; holdout not inspected",
+  "holdout_cases": [
+    "k2_holdout",
+    "k3_holdout",
+    "k4_holdout",
+    "k5_holdout"
+  ]
+}

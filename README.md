@@ -11,10 +11,14 @@ never production inputs.
 Full accuracy acceptance is still in progress. Signal hardware and
 colors remain estimates; trajectories can leave them ambiguous.
 
-**Latest cross-day check:** training on February11–19 and replaying February27
-processed88 recordings and10,844 packets. Visible N-main red onsets matched0/6
-within5s; this transfer is **not accepted for reliable signal recovery**.
-[Measured results and limitations](docs/CROSS_DAY_SVERDLOVSKY_RESULTS_20261019.md).
+**Latest correction (October20):** comparable mode likelihoods, preserved selective
+turn states/sections, and online renderer compatibility. On two previously revealed
+N-main video windows, cross-day onsets improved from12/18 to18/18 within5s, with
+one extra red onset. Working-K regressions improved54/72→70/72 and18/24→24/24.
+All four other archives passed held-member motion replay; their lamp accuracy is
+unmeasured. Eight new synthetic controls scored86.44% versus86.57% before, so
+universal color-accuracy improvement is **not established**.
+[Results, ready local players and limitations](docs/CROSS_DAY_RECOVERY_RESULTS_20261020.md).
 
 ## Run
 

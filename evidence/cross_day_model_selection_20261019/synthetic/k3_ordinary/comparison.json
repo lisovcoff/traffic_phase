@@ -1,0 +1,55 @@
+{
+  "scores": {
+    "candidate": {
+      "counts": {
+        "total": 6484,
+        "known": 6288,
+        "correct": 5808
+      },
+      "accuracy": 0.8957433682911783,
+      "coverage": 0.9697717458359038
+    },
+    "noise10": {
+      "counts": {
+        "total": 6484,
+        "known": 6288,
+        "correct": 5806
+      },
+      "accuracy": 0.8954349167180753,
+      "coverage": 0.9697717458359038
+    },
+    "noise20": {
+      "counts": {
+        "total": 6484,
+        "known": 6260,
+        "correct": 5802
+      },
+      "accuracy": 0.8948180135718692,
+      "coverage": 0.9654534238124615
+    }
+  },
+  "baseline": {
+    "counts": {
+      "total": 6484,
+      "known": 6258,
+      "correct": 5766,
+      "correct_GREEN": 1734,
+      "total_GREEN": 1928,
+      "correct_RED": 3934,
+      "total_RED": 4196,
+      "correct_YELLOW": 42,
+      "total_YELLOW": 216,
+      "correct_RED_YELLOW": 56,
+      "total_RED_YELLOW": 144
+    },
+    "accuracy": 0.8892658852560148,
+    "coverage": 0.9651449722393585,
+    "tick_p95_ms": 17.987100000027567,
+    "regime_counts": {
+      "regime_001": 1775,
+      "regime_002": 26
+    }
+  },
+  "causal_event_cache_parity_packets": 1801,
+  "code_sha256": "ffccab8d11f309eb82b7e336ee65165626e803dfe5432962193c0dc1ac80e411"
+}

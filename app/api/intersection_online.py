@@ -74,7 +74,8 @@ def viewer(identifier:str,stream:str):
     _,_,result=load_prediction(folder,session['session_id'])
     from app.core.observed_topology import project_observed_topology
     from scripts.v9_spatial_visualizer import render_html
-    result=project_observed_topology(result,model['approaches'],repair_missing_phases=model.get('projection_version')=='observed-topology-v2')
+    result=project_observed_topology(result,model['approaches'],repair_missing_phases=(
+        'selective' if model.get('projection_version')=='observed-topology-v3' else model.get('projection_version')=='observed-topology-v2'))
     result.get('event_extraction',{}).pop('temporal_events',None)
     projection=model['geometries'][session['source_member']]['projection']
     page=render_html(result,projection,[],intersection_profile='none',online_mode=True)

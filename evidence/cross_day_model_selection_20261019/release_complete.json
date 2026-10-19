@@ -1,0 +1,319 @@
+{
+  "engine": "causal-intersection-v5",
+  "model_id": "507ebe2af2f849189086f200d81f1359",
+  "stream_id": "e6e21da7d98f46be9ccb47009734ce8e",
+  "packets": 10844,
+  "ordinary_store_exact_prefix_packets": 24,
+  "accelerated_journal_commits": true,
+  "tick_s_p50": 0.015346049996878719,
+  "tick_s_p95": 0.02504886500209978,
+  "runtime_s": 198.70300000000134,
+  "modes": {
+    "regime_001": 10788,
+    "regime_002": 4,
+    "regime_008": 27,
+    "regime_004": 14,
+    "regime_007": 11
+  },
+  "video_metrics": [
+    {
+      "pts_s": [
+        2100,
+        2400
+      ],
+      "scores": {
+        "GREEN": {
+          "2": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.3739396731058757,
+            "errors_s": [
+              0.679495096206665,
+              1.7461621761322021,
+              1.6961617469787598
+            ]
+          },
+          "5": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.3739396731058757,
+            "errors_s": [
+              0.679495096206665,
+              1.7461621761322021,
+              1.6961617469787598
+            ]
+          },
+          "10": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.3739396731058757,
+            "errors_s": [
+              0.679495096206665,
+              1.7461621761322021,
+              1.6961617469787598
+            ]
+          }
+        },
+        "YELLOW": {
+          "2": {
+            "matched": 2,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.5,
+            "recall": 0.6666666666666666,
+            "mae_s": 1.2044954299926758,
+            "errors_s": [
+              1.6628286838531494,
+              0.7461621761322021
+            ]
+          },
+          "5": {
+            "matched": 3,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.75,
+            "recall": 1.0,
+            "mae_s": 1.6961619853973389,
+            "errors_s": [
+              2.679495096206665,
+              1.6628286838531494,
+              0.7461621761322021
+            ]
+          },
+          "10": {
+            "matched": 3,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.75,
+            "recall": 1.0,
+            "mae_s": 1.6961619853973389,
+            "errors_s": [
+              2.679495096206665,
+              1.6628286838531494,
+              0.7461621761322021
+            ]
+          }
+        },
+        "RED": {
+          "2": {
+            "matched": 1,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.25,
+            "recall": 0.3333333333333333,
+            "mae_s": 0.7461621761322021,
+            "errors_s": [
+              0.7461621761322021
+            ]
+          },
+          "5": {
+            "matched": 3,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.75,
+            "recall": 1.0,
+            "mae_s": 2.0406064987182617,
+            "errors_s": [
+              2.7128286361694336,
+              2.6628286838531494,
+              0.7461621761322021
+            ]
+          },
+          "10": {
+            "matched": 3,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.75,
+            "recall": 1.0,
+            "mae_s": 2.0406064987182617,
+            "errors_s": [
+              2.7128286361694336,
+              2.6628286838531494,
+              0.7461621761322021
+            ]
+          }
+        }
+      },
+      "onsets_ms": {
+        "GREEN": [
+          1740634517000,
+          1740634617000,
+          1740634716000
+        ],
+        "YELLOW": [
+          1740634564000,
+          1740634665000,
+          1740634667000,
+          1740634766000
+        ],
+        "RED": [
+          1740634567000,
+          1740634615000,
+          1740634669000,
+          1740634769000
+        ]
+      }
+    },
+    {
+      "pts_s": [
+        3300,
+        3600
+      ],
+      "scores": {
+        "GREEN": {
+          "2": {
+            "matched": 1,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 0.3333333333333333,
+            "recall": 0.3333333333333333,
+            "mae_s": 0.6294951438903809,
+            "errors_s": [
+              0.6294951438903809
+            ]
+          },
+          "5": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.9739396572113037,
+            "errors_s": [
+              2.629495143890381,
+              0.6294951438903809,
+              2.6628286838531494
+            ]
+          },
+          "10": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.9739396572113037,
+            "errors_s": [
+              2.629495143890381,
+              0.6294951438903809,
+              2.6628286838531494
+            ]
+          }
+        },
+        "YELLOW": {
+          "2": {
+            "matched": 2,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 0.6666666666666666,
+            "recall": 0.6666666666666666,
+            "mae_s": 0.6461620330810547,
+            "errors_s": [
+              0.62949538230896,
+              0.6628286838531494
+            ]
+          },
+          "5": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.3183842500050862,
+            "errors_s": [
+              0.62949538230896,
+              2.6628286838531494,
+              0.6628286838531494
+            ]
+          },
+          "10": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.3183842500050862,
+            "errors_s": [
+              0.62949538230896,
+              2.6628286838531494,
+              0.6628286838531494
+            ]
+          }
+        },
+        "RED": {
+          "2": {
+            "matched": 2,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.5,
+            "recall": 0.6666666666666666,
+            "mae_s": 0.6544952392578125,
+            "errors_s": [
+              0.6628286838531494,
+              0.6461617946624756
+            ]
+          },
+          "5": {
+            "matched": 3,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.75,
+            "recall": 1.0,
+            "mae_s": 1.6572730541229248,
+            "errors_s": [
+              0.6628286838531494,
+              3.6628286838531494,
+              0.6461617946624756
+            ]
+          },
+          "10": {
+            "matched": 3,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.75,
+            "recall": 1.0,
+            "mae_s": 1.6572730541229248,
+            "errors_s": [
+              0.6628286838531494,
+              3.6628286838531494,
+              0.6461617946624756
+            ]
+          }
+        }
+      },
+      "onsets_ms": {
+        "GREEN": [
+          1740635718000,
+          1740635816000,
+          1740635918000
+        ],
+        "YELLOW": [
+          1740635764000,
+          1740635866000,
+          1740635964000
+        ],
+        "RED": [
+          1740635767000,
+          1740635769000,
+          1740635870000,
+          1740635967000
+        ]
+      }
+    }
+  ],
+  "code_sha256": {
+    "app/core/intersection_online.py": "ffccab8d11f309eb82b7e336ee65165626e803dfe5432962193c0dc1ac80e411",
+    "app/core/intersection_emissions.py": "08a74d6abdd6af77bc327ab8becea0fff7d7169a435fa9c9893c8d5476ce982e"
+  },
+  "sqlite_integrity": "ok",
+  "semantics": "raw causal packets, offline earlier dates, unchanged fingerprint; video evaluator only",
+  "limitations": "Previously revealed video windows and conditional camera clock; N main only; accelerated latency is not durable HTTP latency"
+}

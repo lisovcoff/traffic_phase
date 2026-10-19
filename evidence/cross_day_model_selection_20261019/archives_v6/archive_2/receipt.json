@@ -1,0 +1,34 @@
+{
+  "archive": "Чичерина-40 Лет Победы 12.04.24.zip",
+  "offline_sources_verified": 6,
+  "model_id": "1af03bbdbd104880b805b33d256a5e80",
+  "raw_held_sha256": "258ea23ebc1608dbc6eb84da31aa8455a14aee35332bfd88607c104ebfe85598",
+  "held_member": "19_2025_2_24_16.json",
+  "packets": 1193,
+  "packet_sha256": "b2dff25ce6d6cd02de91ab91e051865a829b1ad295f0c0d04770a050e435fc40",
+  "runtime_s": 51.25,
+  "metrics": {
+    "baseline": {
+      "observation_nll_per_weight": 1.43006807954901,
+      "weight": 809.7000000000135,
+      "modes": {
+        "regime_001": 1193
+      },
+      "known_coverage": 0.9765297569153395,
+      "additional_unscored_events": 0
+    },
+    "candidate": {
+      "observation_nll_per_weight": 1.410969946218458,
+      "weight": 809.7000000000135,
+      "modes": {
+        "regime_001": 86,
+        "regime_002": 1107
+      },
+      "known_coverage": 0.9715004191114837,
+      "additional_unscored_events": 15
+    }
+  },
+  "lamp_accuracy": "NOT_MEASURABLE_WITHOUT_INDEPENDENT_LAMP_LABELS",
+  "score_semantics": "causal predictive movement score on common events only, common alphabet/contamination; not lamp accuracy; new selective phases can admit additional marks",
+  "offline_scope": "new v3 projection from sealed solver outputs; raw held member excluded from model"
+}

@@ -266,6 +266,28 @@ def test_restart_age_prior_is_learned_only_from_offline_events(tmp_path):
     assert not result['annotations_used'] and not result['video_used']
 
 
+@pytest.mark.parametrize('rotation',range(4))
+def test_selective_single_turn_is_not_replaced_by_unrelated_through_green(rotation):
+    from app.core.observed_topology import project_observed_topology
+    from app.core.v10.automatic_physical import infer_physical_signal_plan
+    order='NESW';rotate={a:order[(i+rotation)%4] for i,a in enumerate(order)}
+    groups=[{'N->S'},{'E->W'},{'S->N'},{'W->E'},{'N->E'}]
+    groups=[{'->'.join(rotate[a] for a in m.split('->')) for m in g} for g in groups]
+    value=prediction(k=5);s=value['schedule'];names=s['phase_names']
+    s['period_s']=100;s['raw_hsmm_segments']=s['baseline_segments']=[[z*20,(z+1)*20,z] for z in range(5)]
+    s['stream_activity_by_phase']=[dict(stream=m,event_probability_by_phase={name:(.2 if m in g else .01)
+        for name,g in zip(names,groups)}) for m in sorted(set.union(*groups))]
+    value.update(analysis_base_timestamp_ms=0,schedule_base_timestamp_ms=0,recording_start_timestamp_ms=0)
+    value['physical_signal_plan']=infer_physical_signal_plan(value);original=deepcopy(value)
+    legacy=project_observed_topology(value,list(order),repair_missing_phases=True)
+    assert project.operating_template(legacy)['schedule']['phase_count']==4
+    fixed=project_observed_topology(value,list(order),repair_missing_phases='selective')
+    template=project.operating_template(fixed)
+    assert template['schedule']['phase_count']==5
+    assert rotate['N']+'->'+rotate['E'] in template['signal_topology'][rotate['N']]['arrows']
+    assert value==original
+
+
 def test_explicit_prepared_source_adapter_preserves_product_model(tmp_path):
     from app.core.v9.events import load_event_streams
     from app.core.recovery.motion import extract_motion_evidence

@@ -1,0 +1,40 @@
+{
+  "id": "k5_shifted",
+  "model_id": "2c9f41ebdf1a474e9d6dd60325280367",
+  "baseline": {
+    "counts": {
+      "total": 6484,
+      "known": 6199,
+      "correct": 5319,
+      "correct_GREEN": 800,
+      "total_GREEN": 1053,
+      "correct_RED": 4473,
+      "total_RED": 5101,
+      "correct_YELLOW": 29,
+      "total_YELLOW": 198,
+      "correct_RED_YELLOW": 17,
+      "total_RED_YELLOW": 132
+    },
+    "accuracy": 0.8203269586674892,
+    "coverage": 0.9560456508328192,
+    "tick_p95_ms": 16.713299999537412,
+    "regime_counts": {
+      "regime_001": 1752,
+      "regime_002": 49
+    }
+  },
+  "working_K": [
+    5,
+    5
+  ],
+  "counts": {
+    "total": 6484,
+    "known": 6242,
+    "correct": 5856
+  },
+  "accuracy": 0.9031462060456509,
+  "coverage": 0.9626773596545343,
+  "code_sha256": "966b16fbad11fa693916340f36acee2c0427c31e277fcbb61e88ca7160bf3b08",
+  "causal_event_parity_packets": 1801,
+  "heldout": false
+}

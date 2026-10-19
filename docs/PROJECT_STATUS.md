@@ -1,5 +1,18 @@
 # Project status — Trajectory recovery v1, 2026-10-19
 
+LATEST20.10: CROSS_DAY_RECOVERY_RESULTS_20261020.md. v7 mode-mark normalization,
+stable yellow forecast, archive-wide section union, v3 isolated turn repair, and
+current-schema panel/renderer are delivered. Week→February27 raw causal replay:
+18/18 N-main onsets within5s vs12/18, one extra red; previously revealed windows,
+conditional clock, not all-day/all-head proof. Working-K regression70/72 vs54/72,
+24/24 vs18/24. Other four archives:125 sealed source results,9135 fresh raw held-
+member packets; all four movement predictive scores improve, lamp truth absent.
+New8-seed control86.44% vs86.57%: no universal color-accuracy gain. Rejected v6
+duration adaptation improved simulation but biased real yellow; production does
+not import it. Full1479 PASS, subsequent46 affected PASS, actual HTTP/Edge colors,
+seek/resume/reload/mobile PASS. Sources/old models/failed evidence preserved.
+Product-wide physical timing/extension acceptance remains open.2D.1 untouched.
+
 LATEST: CROSS_DAY_SVERDLOVSKY_RESULTS_20261019.md. Pipeline PASS, signal accuracy
 FAIL for week11–19 → February27.88/88 raw SHA/CRC verified; current production
 solver reuses sealed events/numerical fits;6 fresh cold predictions match.352,124

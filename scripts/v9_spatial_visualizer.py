@@ -165,12 +165,13 @@ input[type=range]{width:100%}
 <script>
 const RESULT = __RESULT__;
 const ONLINE_MODE = __ONLINE_MODE__;
+const SUPPORTED_ONLINE_SCHEMAS = __SUPPORTED_ONLINE_SCHEMAS__;
 let LIVE_SNAPSHOT = null;
 let LIVE_HISTORICAL = false;
 if(ONLINE_MODE)window.addEventListener("message",function(event){
   if(!ONLINE_MODE || event.source!==parent || event.data?.type!=="traffic-online")return;
   const value=event.data.snapshot;
-  if(!value || !["causal-intersection-v1","causal-intersection-v2","causal-intersection-v3","causal-intersection-v4"].includes(value.schema) || (!event.data.historical && !LIVE_HISTORICAL && LIVE_SNAPSHOT && value.timestamp_ms<LIVE_SNAPSHOT.timestamp_ms))return;
+  if(!value || !SUPPORTED_ONLINE_SCHEMAS.includes(value.schema) || (!event.data.historical && !LIVE_HISTORICAL && LIVE_SNAPSHOT && value.timestamp_ms<LIVE_SNAPSHOT.timestamp_ms))return;
   LIVE_SNAPSHOT=value;LIVE_HISTORICAL=Boolean(event.data.historical);stop();render();
 });
 const RECONSTRUCTED = __RECONSTRUCTED__;
@@ -1260,6 +1261,9 @@ def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
     history_offset=(float(anchor)-float(display_base))/1000 if anchor is not None and display_base is not None else None
     page=PAGE.replace("__RESULT__",_safe_json(result))
     page=page.replace("__ONLINE_MODE__",_safe_json(bool(online_mode)))
+    from app.core.intersection_online import VERSION as online_version
+    versions=[f'causal-intersection-v{i}' for i in range(1,int(online_version.rsplit('v',1)[1])+1)]
+    page=page.replace("__SUPPORTED_ONLINE_SCHEMAS__",_safe_json(versions))
     page=page.replace("__PRODUCT__",_safe_json(product))
     page=page.replace("__ESTIMATED_SIGNALS__",_safe_json(estimated))
     page=page.replace("__RECONSTRUCTED__",_safe_json(mode=="reconstructed"))

@@ -340,7 +340,7 @@ def run_project(input_path, folder, *, on_progress=None, predictor=None, _source
             for session in sessions:
                 with gzip.open(folder/session['prediction'],'rt',encoding='utf8') as stream:
                     result=json.load(stream)
-                template=operating_template(project_observed_topology(result,approaches,repair_missing_phases=True))
+                template=operating_template(project_observed_topology(result,approaches,repair_missing_phases='selective'))
                 session.update(phase_count=template['schedule']['phase_count'],state_basis=template['state_basis'])
                 predictions.append((session['session_id'],template))
         catalogue = build_catalogue(predictions)
@@ -352,7 +352,7 @@ def run_project(input_path, folder, *, on_progress=None, predictor=None, _source
             input=dict(name=display_name, sha256=digest(input_path), source_count=len(sources),
                        intersection_identity='declared_single_intersection; namespace consistency not independently certified'),
             completeness='COMPLETE' if complete else 'PARTIAL', sessions=sessions, regimes=catalogue,
-            projection_version='observed-topology-v2',
+            projection_version='observed-topology-v3',
             source_inventory=deepcopy(state['sources']),
             geometries=geometries,
             approaches=approaches, observed_approach_count=len(approaches),

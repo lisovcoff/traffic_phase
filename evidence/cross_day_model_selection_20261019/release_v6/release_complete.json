@@ -1,0 +1,302 @@
+{
+  "engine": "causal-intersection-v6",
+  "model_id": "44ae19132cc145758452d13b3eab55d3",
+  "stream_id": "77c30cd574fc4dac9cb79f8f21d15bff",
+  "packets": 10844,
+  "ordinary_store_exact_prefix_packets": 24,
+  "accelerated_journal_commits": true,
+  "tick_s_p50": 0.01780969999890658,
+  "tick_s_p95": 0.03577346000165563,
+  "runtime_s": 241.09399999999732,
+  "modes": {
+    "regime_001": 10794,
+    "regime_002": 4,
+    "regime_008": 25,
+    "regime_004": 21
+  },
+  "video_metrics": [
+    {
+      "pts_s": [
+        2100,
+        2400
+      ],
+      "scores": {
+        "GREEN": {
+          "2": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.3739396731058757,
+            "errors_s": [
+              0.679495096206665,
+              1.7461621761322021,
+              1.6961617469787598
+            ]
+          },
+          "5": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.3739396731058757,
+            "errors_s": [
+              0.679495096206665,
+              1.7461621761322021,
+              1.6961617469787598
+            ]
+          },
+          "10": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.3739396731058757,
+            "errors_s": [
+              0.679495096206665,
+              1.7461621761322021,
+              1.6961617469787598
+            ]
+          }
+        },
+        "YELLOW": {
+          "2": {
+            "matched": 0,
+            "predicted": 2,
+            "expected": 3,
+            "precision": 0.0,
+            "recall": 0.0,
+            "mae_s": null,
+            "errors_s": []
+          },
+          "5": {
+            "matched": 1,
+            "predicted": 2,
+            "expected": 3,
+            "precision": 0.5,
+            "recall": 0.3333333333333333,
+            "mae_s": 4.662828683853149,
+            "errors_s": [
+              4.662828683853149
+            ]
+          },
+          "10": {
+            "matched": 2,
+            "predicted": 2,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "mae_s": 5.171161890029907,
+            "errors_s": [
+              5.679495096206665,
+              4.662828683853149
+            ]
+          }
+        },
+        "RED": {
+          "2": {
+            "matched": 1,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.25,
+            "recall": 0.3333333333333333,
+            "mae_s": 1.7461621761322021,
+            "errors_s": [
+              1.7461621761322021
+            ]
+          },
+          "5": {
+            "matched": 3,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.75,
+            "recall": 1.0,
+            "mae_s": 3.373939832051595,
+            "errors_s": [
+              4.712828636169434,
+              3.6628286838531494,
+              1.7461621761322021
+            ]
+          },
+          "10": {
+            "matched": 3,
+            "predicted": 4,
+            "expected": 3,
+            "precision": 0.75,
+            "recall": 1.0,
+            "mae_s": 3.373939832051595,
+            "errors_s": [
+              4.712828636169434,
+              3.6628286838531494,
+              1.7461621761322021
+            ]
+          }
+        }
+      },
+      "onsets_ms": {
+        "GREEN": [
+          1740634517000,
+          1740634617000,
+          1740634716000
+        ],
+        "YELLOW": [
+          1740634668000,
+          1740634769000
+        ],
+        "RED": [
+          1740634568000,
+          1740634614000,
+          1740634670000,
+          1740634771000
+        ]
+      }
+    },
+    {
+      "pts_s": [
+        3300,
+        3600
+      ],
+      "scores": {
+        "GREEN": {
+          "2": {
+            "matched": 1,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 0.3333333333333333,
+            "recall": 0.3333333333333333,
+            "mae_s": 0.6294951438903809,
+            "errors_s": [
+              0.6294951438903809
+            ]
+          },
+          "5": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.9739396572113037,
+            "errors_s": [
+              2.629495143890381,
+              0.6294951438903809,
+              2.6628286838531494
+            ]
+          },
+          "10": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 1.9739396572113037,
+            "errors_s": [
+              2.629495143890381,
+              0.6294951438903809,
+              2.6628286838531494
+            ]
+          }
+        },
+        "YELLOW": {
+          "2": {
+            "matched": 0,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 0.0,
+            "recall": 0.0,
+            "mae_s": null,
+            "errors_s": []
+          },
+          "5": {
+            "matched": 2,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 0.6666666666666666,
+            "recall": 0.6666666666666666,
+            "mae_s": 3.6461620330810547,
+            "errors_s": [
+              3.62949538230896,
+              3.6628286838531494
+            ]
+          },
+          "10": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 4.318384250005086,
+            "errors_s": [
+              3.62949538230896,
+              5.662828683853149,
+              3.6628286838531494
+            ]
+          }
+        },
+        "RED": {
+          "2": {
+            "matched": 0,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 0.0,
+            "recall": 0.0,
+            "mae_s": null,
+            "errors_s": []
+          },
+          "5": {
+            "matched": 2,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 0.6666666666666666,
+            "recall": 0.6666666666666666,
+            "mae_s": 4.1544952392578125,
+            "errors_s": [
+              4.662828683853149,
+              3.6461617946624756
+            ]
+          },
+          "10": {
+            "matched": 3,
+            "predicted": 3,
+            "expected": 3,
+            "precision": 1.0,
+            "recall": 1.0,
+            "mae_s": 4.990606387456258,
+            "errors_s": [
+              4.662828683853149,
+              6.662828683853149,
+              3.6461617946624756
+            ]
+          }
+        }
+      },
+      "onsets_ms": {
+        "GREEN": [
+          1740635718000,
+          1740635816000,
+          1740635918000
+        ],
+        "YELLOW": [
+          1740635767000,
+          1740635869000,
+          1740635967000
+        ],
+        "RED": [
+          1740635770000,
+          1740635873000,
+          1740635971000
+        ]
+      }
+    }
+  ],
+  "code_sha256": {
+    "app/core/intersection_online.py": "966b16fbad11fa693916340f36acee2c0427c31e277fcbb61e88ca7160bf3b08",
+    "app/core/intersection_emissions.py": "b03947c5cf82b60d3e2b7c6c340833ab18783c853eb7098b91c13705e300324f",
+    "app/core/intersection_durations.py": "eeb47d2808e3145327d338eb846c593c438332f8cfcb747846f56077f0b9f361"
+  },
+  "sqlite_integrity": "ok",
+  "semantics": "raw causal packets, offline earlier dates, unchanged fingerprint; video evaluator only",
+  "limitations": "Previously revealed video windows and conditional camera clock; N main only; accelerated latency is not durable HTTP latency"
+}

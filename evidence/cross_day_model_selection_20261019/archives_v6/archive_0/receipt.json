@@ -1,0 +1,34 @@
+{
+  "archive": "Ленина-Энтузиастов 05.10.24.zip",
+  "offline_sources_verified": 6,
+  "model_id": "cbe48a6b8a244bc3bfe9d04bff4da29c",
+  "raw_held_sha256": "f71585ad7a887514d6fd254cdf86b3e08be54e915ca032f42ce08123efe501f6",
+  "held_member": "6_2025_2_23_13.json",
+  "packets": 559,
+  "packet_sha256": "8ec5471ca0f03a039584723d7e28ef36c4ac475f621c648880bd0c5ec74d0a40",
+  "runtime_s": 5.421999999998661,
+  "metrics": {
+    "baseline": {
+      "observation_nll_per_weight": 1.4837757096879973,
+      "weight": 139.59999999999943,
+      "modes": {
+        "regime_003": 74,
+        "regime_001": 485
+      },
+      "known_coverage": 0.9785330948121646
+    },
+    "candidate": {
+      "observation_nll_per_weight": 1.4803456484127797,
+      "weight": 139.59999999999943,
+      "modes": {
+        "regime_003": 74,
+        "regime_001": 471,
+        "regime_002": 14
+      },
+      "known_coverage": 0.9709302325581395
+    }
+  },
+  "lamp_accuracy": "NOT_MEASURABLE_WITHOUT_INDEPENDENT_LAMP_LABELS",
+  "score_semantics": "causal predictive movement score with common alphabet/contamination; not lamp accuracy",
+  "offline_scope": "new v3 projection from sealed solver outputs; raw held member excluded from model"
+}

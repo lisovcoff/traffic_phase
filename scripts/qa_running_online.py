@@ -9,11 +9,10 @@ from scripts.corpus_validation import ROOT, prepare_worker_environment, save
 prepare_worker_environment()
 
 
-def main(base,out):
+def main(base,out,identifier='1eada5fee84648b389dd6bfded3ad153'):
     site.addsitedir(str(ROOT/'.web_runtime/model_phase_view_20261018/qa_venv/Lib/site-packages'))
     from playwright.sync_api import sync_playwright
     out.mkdir(parents=True,exist_ok=False)
-    identifier='1eada5fee84648b389dd6bfded3ad153'
     feed=ROOT/'evidence/intersection_online_20261019/browser_v7/real_packets.jsonl'
     packets=[json.loads(line) for line in feed.read_text(encoding='utf8').splitlines() if line.strip()]
     errors=[];requests=[];begin=time.monotonic()
@@ -75,4 +74,5 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--base-url',default='http://127.0.0.1:8017')
     parser.add_argument('--out',type=Path,required=True)
-    args=parser.parse_args();main(args.base_url.rstrip('/'),args.out)
+    parser.add_argument('--project',default='1eada5fee84648b389dd6bfded3ad153')
+    args=parser.parse_args();main(args.base_url.rstrip('/'),args.out,args.project)

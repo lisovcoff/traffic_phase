@@ -1,0 +1,103 @@
+{
+  "archive": "Ленина-Энтузиастов 05.10.24.zip",
+  "sources": 6,
+  "sources_checked": [
+    {
+      "id": "0094",
+      "member": "6_2025_2_23_13.json",
+      "prediction_sha256": "443c59f58abd230dd2cae74e4a79ebb3ff30c7460a8237acf36ec7ba99ccd747",
+      "latent_K": 2,
+      "working_K": 2,
+      "period_s": 100.725,
+      "offline_solver_guard": "unchanged code + sealed production parity"
+    },
+    {
+      "id": "0095",
+      "member": "6_2025_2_23_14.json",
+      "prediction_sha256": "fa182d396b1755ea81ada20e2f1a033be3ca716d290636a60d0019cdba96dc03",
+      "latent_K": 4,
+      "working_K": 2,
+      "period_s": 99.93145833333334,
+      "offline_solver_guard": "unchanged code + sealed production parity"
+    },
+    {
+      "id": "0096",
+      "member": "6_2025_2_23_15.json",
+      "prediction_sha256": "8f945cc5e42c8511b35df275f1557e7929cc6319954342fe22db1bc7f1843f78",
+      "latent_K": 2,
+      "working_K": 2,
+      "period_s": 99.8261501486557,
+      "offline_solver_guard": "unchanged code + sealed production parity"
+    },
+    {
+      "id": "0097",
+      "member": "6_2025_2_23_16.json",
+      "prediction_sha256": "36de704b4c523a1f749b650a47228b22f26e20a7f3a7521940f4a85c20ee61c9",
+      "latent_K": 4,
+      "working_K": 3,
+      "period_s": 100.09238374422254,
+      "offline_solver_guard": "unchanged code + sealed production parity"
+    },
+    {
+      "id": "0098",
+      "member": "6_2025_2_23_17.json",
+      "prediction_sha256": "4950629c9737987c474dbe96c917d72d355cce617accecee71c3d3f359ceb466",
+      "latent_K": 3,
+      "working_K": 3,
+      "period_s": 99.86689363761448,
+      "offline_solver_guard": "unchanged code + sealed production parity"
+    },
+    {
+      "id": "0099",
+      "member": "6_2025_2_23_18.json",
+      "prediction_sha256": "e804fb85377dbdb584c9a0ec1f1208034d39d7ad8866b4611d6439c0169eee03",
+      "latent_K": 2,
+      "working_K": 2,
+      "period_s": 120.10714410759776,
+      "offline_solver_guard": "unchanged code + sealed production parity"
+    }
+  ],
+  "held_member": "6_2025_2_23_13.json",
+  "model_id": "22c9cac6161d41209272d2ca6a03b607",
+  "training_members": 5,
+  "regimes": 3,
+  "packets": 559,
+  "raw_held_sha256": "f71585ad7a887514d6fd254cdf86b3e08be54e915ca032f42ce08123efe501f6",
+  "metrics": {
+    "baseline": {
+      "observation_nll_per_weight": 1.4152025960041963,
+      "total_observation_weight": 139.59999999999943,
+      "modes": {
+        "regime_003": 74,
+        "regime_001": 485
+      },
+      "main_colors": {
+        "UNKNOWN": 48,
+        "RED": 1060,
+        "GREEN": 1043,
+        "YELLOW": 51,
+        "RED_YELLOW": 34
+      }
+    },
+    "candidate": {
+      "observation_nll_per_weight": 1.4063638190863716,
+      "total_observation_weight": 139.59999999999943,
+      "modes": {
+        "regime_003": 74,
+        "regime_001": 471,
+        "regime_002": 14
+      },
+      "main_colors": {
+        "UNKNOWN": 60,
+        "RED": 1082,
+        "GREEN": 1053,
+        "YELLOW": 25,
+        "RED_YELLOW": 16
+      }
+    }
+  },
+  "runtime_s": 10.859000000004016,
+  "lamp_accuracy": "NOT_MEASURABLE_WITHOUT_ACCEPTED_INDEPENDENT_LAMP_LABELS",
+  "all_sources_fresh_cold": false,
+  "offline_cache_semantics": "sealed production predictions, unchanged solver hash; fresh catalogue, fresh raw held-member replay"
+}
