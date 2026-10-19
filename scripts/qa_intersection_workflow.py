@@ -48,10 +48,20 @@ def main(job_file,out):
             frame.locator('#seekTime').fill(target)
             frame.locator('#seekGo').click()
             assert abs(frame.locator('body').evaluate('()=>window.__V10_DEBUG__.current_time_s')-123.4)<.01
+            assert frame.locator('main').evaluate('e=>e.getBoundingClientRect().bottom<=innerHeight+1')
             page.screenshot(path=str(out/'real_desktop.png'),full_page=True)
             page.set_viewport_size(dict(width=390,height=844))
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
+            page.wait_for_timeout(100)
+            assert frame.locator('main').evaluate('e=>e.getBoundingClientRect().bottom<=innerHeight+1')
             page.screenshot(path=str(out/'real_mobile.png'),full_page=True)
+            # Record choice must change the actual saved result, not just a label.
+            for session in page.evaluate('model.sessions'):
+                page.locator('#session').select_option(session['session_id'])
+                page.wait_for_function("member=>document.getElementById('viewer').contentDocument?.getElementById('input-scope')?.textContent.includes(member)",arg=session['source_member'])
+                frame.locator('#phaseTimeline button').first.wait_for(timeout=60000)
+                assert frame.locator('body').evaluate('()=>RESULT.input_scope.source_member')==session['source_member']
+                assert frame.locator('body').evaluate('()=>ESTIMATED_SIGNALS.operating_phase_count')==3
             page.goto('http://traffic.test/visualization',wait_until='domcontentloaded')
             page.wait_for_selector('#result:visible',timeout=30000)
             assert page.evaluate('identifier')==identifier
@@ -70,7 +80,7 @@ def main(job_file,out):
             save(out/'receipt.json',dict(status='PASS',browser='isolated headless Edge; ASGI routing, no user profile/server',
                 actual_upload=True,real_archive_model=identifier,three_sessions=True,working_K=3,
                 manual_profiles=False,playback=True,slider=True,mobile_no_overflow=True,
-                persisted_restore=True,date_time_seek=True,anonymous_synthetic_K=2,new_model_id=page.evaluate('identifier'),
+                persisted_restore=True,all_real_sessions_selected=True,date_time_seek=True,single_page_scroll=True,anonymous_synthetic_K=2,new_model_id=page.evaluate('identifier'),
                 javascript_errors=errors,requests=requests,runtime_s=time.monotonic()-begin))
             print('Browser full workflow PASS',flush=True)
         except Exception as error:

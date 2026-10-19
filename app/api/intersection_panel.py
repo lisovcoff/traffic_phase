@@ -11,7 +11,9 @@ PAGE = r'''<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name
 <details><summary>Ход обработки</summary><pre id="details"></pre></details></section>
 <iframe id="viewer" title="Перекрёсток, машины и сигналы" hidden></iframe>
 </main><script>
-const $=id=>document.getElementById(id);let identifier=null,model=null,pollTimer=null,revision=0;
+const $=id=>document.getElementById(id);let identifier=null,model=null,pollTimer=null,revision=0,viewerResize=null;
+// Follow the inner content size so the user scrolls one page on desktop/mobile.
+$('viewer').addEventListener('load',()=>{viewerResize?.disconnect();const content=$('viewer').contentDocument?.querySelector('main');if(!content)return;const fit=()=>{$('viewer').style.height=Math.max(800,Math.ceil(content.getBoundingClientRect().bottom+20))+'px';};viewerResize=new ResizeObserver(fit);viewerResize.observe(content);fit();});
 const stages={inventory:'Проверка архива',extracting:'Чтение траекторий',discovering:'Определение фаз',catalogue:'Объединение повторяющихся режимов',finished:'Анализ завершён',queued:'Ожидание обработки',upload:'Загрузка файла'};
 const fmt=new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Yekaterinburg',dateStyle:'short',timeStyle:'medium'});
 function clear(){revision++;clearTimeout(pollTimer);$('result').hidden=true;$('viewer').hidden=true;$('viewer').removeAttribute('src');$('viewer').srcdoc='';$('error').textContent='';model=null;}
