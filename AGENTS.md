@@ -8,5 +8,8 @@ defines semantics. Update the roadmap when a step is actually delivered.
 
 Current 2D.1 remains FAIL and experimental/default-off. No real replay, tuning,
 new decoder/likelihood/prior experiment is implied by documentation or annotation
-tool work. Trajectory-only review is not independent lamp truth. Main stays
-unchanged; work on task branches. Respect newer explicit user instructions.
+tool work. Trajectory-only review is not independent lamp truth.
+User explicitly authorized publishing the verified product work to main on
+2026-10-19. Use task branches for new implementation and publish checked
+milestones under that authorization; never force-push or remove research evidence.
+Respect newer explicit user instructions.

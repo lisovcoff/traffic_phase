@@ -1,233 +1,100 @@
-# traffic_phase
+# Traffic Phase
 
-19.10, первая часовая поставка: **[весь ZIP → сохраняемая модель → одна панель](docs/INTERSECTION_PROJECT_RESULTS_20261019.md)**.
-`START_WEB.cmd` → http://127.0.0.1:8017/visualization. Перезапустите старый сервер.
-Все JSON/сеансы анализируются автоматически, ручной профиль не нужен;
-работают выбор записи, плеер, точное время (Екб), сохранение/возобновление.
-Онлайн на этой модели и приёмка переменных режимов ещё остаются.
+**English** ? [???????](README.ru.md)
 
-Full-product status19.10: **not yet complete** for the requested one-panel,
-automatic whole-archive offline → per-second vehicle JSON online workflow.
-[Remaining work and acceptance criteria](docs/DELIVERY_GAP_ASSESSMENT_20261019.md).
-The release below is the improved offline component; its metrics do not certify
-automatic hardware discovery, variable regimes or the integrated online product.
+Infer traffic-signal phases from vehicle trajectories when signals are not directly
+visible. Upload one intersection's JSON or ZIP and inspect vehicles and estimated
+signals in an interactive player. Video and manual labels are evaluation material,
+never production inputs.
 
-2026-10-19: **[trajectory-only algorithm improved and connected to the app](docs/ACCURACY_RECOVERY_RESULTS_20261019.md).**
-Run `START_WEB.cmd`, then open http://127.0.0.1:8017/visualization. Restart an
-existing server to load the new backend. Prediction uses JSON/ZIP trajectories;
-video is evaluation material only. The normal page now selects
-`trajectory_recovery_v1`, as do web batch and the spatial/batch CLI.
+**Status:** whole-archive offline analysis is available. Online on the saved model
+and acceptance of changing cycles/regimes are in progress. Signal hardware and
+colors remain estimates; trajectories can leave them ambiguous.
 
-Open **[the ready report and three real viewers](evidence/accuracy_recovery_20261019/report_v2.html)**
-without a server. All219 real sources processed; production parity315/315;
-real HTTP upload3/3 and isolated desktop/mobile browser checks PASS.
-Full test suite1433 PASS; `START_WEB.cmd --check` PASS.
-Development72 cases: K13/72→68/72, phase-state error42.13%→4.01%.
-Reserved24 new-seed cases: K24/24, phase-state error2.85%.
-Fresh visible N-main block:3/9→8/9 switching times within2s, no video bias.
-This is measured improvement, not universal physical-lamp accuracy. Manual
-strict timing regresses7/13→6/13; declared0–3s reaction compatibility improves
-6/13→9/13. Full local-deviation acceptance2D.1 remains FAIL/default-off.
+## Run
 
-The entries below describe earlier results and retained diagnostic viewers.
+Python **3.12** is the tested version. From the repository root on Windows:
 
-2026-10-19: [all archives and realistic synthetic validation](docs/ALL_ARCHIVES_SYNTHETIC_RESULTS_20261019.md).
-Open `evidence/all_archives_synthetic_20261019/report.html` for the complete
-219-source audit and72 scenarios (62 simulated hours), with interactive timelines
-and local trajectory-only ZIP links. Automatic K matches13/72; universal accuracy
-is NOT established. Normal learned visualization no longer applies the exact-source
-reference-video correction. Video is evaluation material only; frozen learned
-profiles still supply intersection-specific K. Restart an existing web server
-to load this change. Earlier calibrated viewers below are historical diagnostics.
+```bat
+INSTALL.cmd
+START_WEB.cmd
+```
 
-2026-10-19: [yellow transitions and fresh video validation](docs/YELLOW_TIMING_RESULTS_20261019.md).
-Open `evidence/yellow_timing_20261019/report.html` for both ready real-ZIP viewers
-and local MP4 comparison. Shared signal history now includes YELLOW/RED_YELLOW.
-Source-scoped first-window calibration improves three fresh Sverdlovsky N-main
-cycles; Enthusiasts main E/W are represented, but its video/JSON clock is unresolved.
+Open **http://127.0.0.1:8017/visualization**. Stop an old server with `Ctrl+C` before
+restarting it after an update. `START_WEB.cmd --check` verifies imports without
+starting a server. In the existing local workspace, the parent launcher forwards
+to the same repository in `audit_checkout/`; fresh clones have a normal project root.
 
-2026-10-19: [independent four-car clock check and N-main calibration](docs/CARDINAL_CLOCK_LINK_RESULTS_20261019.md).
-Open `evidence/cardinal_clock_link_20261018/visible_head_comparison.html`, select
-the Sverdlovsky MP4 and compare before/after. Supported JSON clock delta1.254s;
-source-time green/red corrections2.644/3.685s. Main-only export, separate from
-production profiles. Enthusiasts clock remains unresolved; concrete car review:
-`evidence/cardinal_clock_link_20261018/enthusiasts_identity_review/index.html`.
+Other platforms:
 
-Direct video check: [clock readouts, native frames and conditional delay](docs/DIRECT_VIDEO_TRUTH_RESULTS_20261018.md).
-Open `evidence/direct_video_truth_20261018/visible_head_comparison.html` and select
-the Sverdlovsky MP4 to compare the visible head and before/after timing proposals.
-No server/upload needed. These proposals remain separate from the app pending
-independent JSON/video clock and cardinal-head confirmation.
+```sh
+python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements-tested-py312.txt
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8017
+```
 
-2026-10-18: [new calibrated model and real-data results](docs/LEARNED_PHASE_RESULTS_20261018.md).
-Run `START_WEB.cmd`, then open http://127.0.0.1:8017/visualization/learned.
-Choose the intersection and upload JSON/ZIP; prediction needs no annotation file.
-Restart an already running server to load this route. Three frozen intersection
-models are included. On the chronological second-half holdout, timing matches
-improve from7/13 to11/13 in ±2s (11/15 predicted boundaries match).
-Training uses first-half operator marks and supplies the number of phases;
-this is same-session validation, not automatic phase discovery or lamp truth.
-Open `evidence/learned_release_20261018/summary.html` for results and ready viewers.
+## Analyze
 
-2026-10-18: [five post-review algorithm checks and duration correction](docs/ALGORITHM_CHECK_RESULTS_20261018.md).
-K2 refinement now supports the same duration flexibility as K3 (verified20/80-cycle
-counterexample). Real timing scores remain15/17,1/8,3/9; four other candidates
-are not enabled because they did not pass the frozen comparison.
+1. Select trajectory JSON or ZIP recordings of **one intersection**.
+2. Click **Analyze**. All supported JSON members and observation sessions are
+   processed automatically; individual failures remain visible in partial results.
+3. Select a recording. Use play/pause, speed, timeline seeking, or precise date/time
+   in Yekaterinburg time (UTC+05:00). No phase count or hardware profile is required.
 
-2026-10-18: [manual-marks validation and corrected Sverdlovsky signal scheme](docs/MANUAL_MARKS_VALIDATION_20261018.md).
-The default signal estimate uses four main heads with additional sections only
-on N/E for the confirmed Sverdlovsky profile; W/S have no extra sections.
-All three labelled JSON files rerun. Strict timing matches:15/17,1/8,3/9;
-remaining timing errors are recorded, not hidden by the display correction.
+The model stores observed approaches, candidate head configurations, working phase
+count K, recurring signature groups, duration statistics and provenance. Three- and
+four-approach schematic views are supported. Sources retain separate clocks and
+track namespaces; gaps are not joined into an invented history.
 
-2026-10-18: [spatial view now shows colored phase/movement estimates](docs/MODEL_PHASE_VIEW_20261018.md).
-Use the display selector to inspect physical lamps separately; unverified lamps stay UNKNOWN.
+Results persist in `logs/intersection_projects/<model_id>/`. Reopening a completed
+model does not fit it again. Model download is structural, not yet a portable bundle
+of the original upload and players; retain the local project folder for playback.
+Interrupted unfinished jobs do not yet resume automatically. Raw datasets, virtual
+environments and runtime logs are excluded from Git.
 
-Delivery candidate, 2026-10-18: [launch, verification and measured accuracy](docs/DELIVERY_20261018.md).
-Windows/Python 3.12: `INSTALL.cmd`, then `START_WEB.cmd`.
-The tested dependency versions are in `requirements-tested-py312.txt`.
+## Validation and limits
 
-Local web launch: `START_WEB.cmd`, then http://127.0.0.1:8017/visualization.
-Automatic archive/session jobs: http://127.0.0.1:8017/visualization/batch.
-The batch page exports predictions, per-session HTML and a reproducible manifest;
-timeouts/unprocessed sessions stay UNKNOWN. [Budgets and verified scope](docs/BOUNDED_ARCHIVE_BATCH_20261016.md).
-This is a working development workflow, **not final accuracy acceptance**:
-local extensions remain 2D.1 FAIL; physical sections/lamps require independent evidence.
+The measured offline component processed219 real sources. K matched68/72 synthetic
+development cases and24/24 reserved cases; phase-state error was4.01% and2.85%.
+A fresh visible-head video block matched8/9 switches within2s, subject to documented
+clock assumptions. These are conditional results, not universal physical accuracy.
 
-Development roadmap: [ROADMAP.md](ROADMAP.md). Manual review tool:
-double-click `START_ANNOTATION.cmd` or run `py -3 -m scripts.run_annotation`;
-open http://127.0.0.1:8011/annotation. [Instructions](docs/ANNOTATION_WORKBENCH.md).
+The product workflow was checked on2 complete real archives/9 sessions, all9 saved
+players, desktop/mobile Edge, and8 T-intersection structural scenarios. Full suite:
+1449 tests PASS. [Workflow evidence](docs/INTERSECTION_PROJECT_RESULTS_20261019.md),
+[accuracy evidence](docs/ACCURACY_RECOVERY_RESULTS_20261019.md).
 
-Research/prototype module for estimating traffic-signal phase structure when
-the physical signal is not directly visible and only vehicle trajectories are
-available.
+Changing durations, weekend programs, unusual extensions and live synchronization
+still need integrated acceptance. The signature catalogue does not certify controller
+programs. An empty approach can remain unseen; a turning vehicle does not prove an
+arrow. An extension's cause cannot be identified as an emergency vehicle/motorcade
+without distinguishing observations.
 
-Product objective and completion criteria: [PRODUCT_GOAL](docs/PRODUCT_GOAL.md).
-Current acceptance status: [PROJECT_STATUS](docs/PROJECT_STATUS.md).
-The [2026-10-15 readiness audit](docs/PROJECT_AUDIT_20261015.md) records remaining
-algorithm/physical-validation and HTML-contract gaps. The historical viewer and
-baseline descriptions below do not establish verified lamp reconstruction.
+## Repository
 
-## V9 direction-agnostic discovery
+| Path | Purpose |
+|---|---|
+| `app/api/`, `app/core/` | Application API and inference |
+| `scripts/` | CLI and reproducible validation |
+| `tests/`, `.github/` | Tests and CI |
+| `docs/` | Status, design, instructions and reports |
+| `config/` | Configuration and retained diagnostic schemes |
+| `evidence/`, `benchmarks/`, `validation/`, `diagnostics/` | Research evidence; not runtime inputs |
+| `logs/` | Local uploads, models and output; ignored by Git |
 
-V9 is the discovery core. It does not require phase names, compass-direction
-semantics, a fixed number of phases, or manual labels as inputs to discovery.
+[Documentation](docs/README.md) ? [Roadmap](ROADMAP.md) ? [Status](docs/PROJECT_STATUS.md).
+The [previous README](docs/history/README_PRE_CONSOLIDATION_20261019.md) is archived;
+its dated findings do not override current instructions. Research evidence is
+retained, including rejected experiments and their limitations.
 
-The pipeline is:
+## Developer checks
 
-    JSON / ZIP
-        |
-        v
-    trajectory records
-        |
-        v
-    release + input-entry event views
-        |
-        v
-    hybrid period inference
-        |
-        v
-    anonymous movement streams
-        |
-        v
-    cyclic HSMM phase segmentation
-        |
-        v
-    PHASE_A / PHASE_B / PHASE_C ...
-        |
-        +--> periodic baseline
-        |
-        +--> temporary phase-deviation diagnostics
-        |
-        +--> causal realtime tracker
-        |
-        +--> V10 physical signal semantics / visualization
+```sh
+python -m compileall -q app scripts tests
+python -m pytest -q
+python -m scripts.e2e_smoke
+```
 
-The V9 implementation lives under app/core/v9/.
-
-## Run V9
-
-Single JSON, ZIP archive, or directory of JSON files:
-
-    python -m scripts.v9_phase_discovery path/to/input.json
-    python -m scripts.v9_phase_discovery path/to/archive.zip
-    python -m scripts.v9_phase_discovery path/to/json_directory
-
-The command writes:
-
-    v9_output/phase_discovery_v9.json
-
-## Canonical spatial visualizer control point
-
-The known-good spatial viewer control point is commit:
-
-    0768f510c0dc93e1fbac16877c1c5440b5faa76e
-
-The canonical renderer is scripts/v9_spatial_visualizer.py. The offline CLI and
-the Uvicorn endpoint /visualization/analyze must use the same builder
-build_spatial_visualization(). This keeps V9 discovery, V10 physical signal
-semantics, additional arrow sections, timing, and the final HTML viewer on one
-code path.
-
-Large JSON/ZIP archives use the same path-based discovery as V9 CLI, including
-streaming event extraction and large-recording regime selection. The web layer
-must not switch back to discover_records(load_source(...)) for archive analysis.
-
-Offline reference command:
-
-    python -m scripts.v9_spatial_visualizer path/to/input.zip --output spatial.html
-
-Do not maintain a second independent spatial-rendering implementation in the
-web layer. Changes to the spatial viewer should be checked against the control
-point above before being accepted.
-
-## Unified web visualization
-
-Start the application:
-
-    python -m uvicorn app.main:app --reload
-
-Open:
-
-    http://127.0.0.1:8000/visualization
-
-Upload a JSON or ZIP archive and press **Запустить анализ**. The server runs V9
-discovery, applies the V10 physical signal semantics when the model contains a
-physical plan, and opens the spatial visualization with reconstructed vehicle
-flows, signal heads, additional arrow sections, phase timeline, period and
-deviation diagnostics.
-
-The visualization is self-contained after the server generates it; the browser
-does not need direct access to the original archive.
-
-## API
-
-    GET  /api/v1/v9/info
-    POST /api/v1/v9/analyze
-    POST /api/v1/v9/realtime
-
-V9 realtime currently consumes timestamped anonymous movement events. It is
-causal and does not infer a specific cause for a sustained phase deviation.
-
-## Validation
-
-The repository CI runs Python compilation, the full pytest suite, an end-to-end
-smoke test, and the Lenina regression fixture.
-
-
-## Known-good Lenina–Sverdlovsky baseline
-
-Reference baseline:
-
-    commit: df544b18e844c17059cfa678237e70885c3a8cac
-    input: 17_2025_2_19_10.json
-    V9: 2735 trajectories / 2728 events / 9 streams / 3 phases
-    period: 99.842813 s
-
-This is the reference regression point for Lenina–Sverdlovsky. Physical-signal
-changes must preserve its NS protected-turn signature and its EW/NS through
-signals.
-
-For every web analysis the server writes a complete run trace under
-logs/<run_id>/, including the V9 result, V10 physical plan, 0.1-second signal
-timeline, manifest, and generated HTML viewer.
+CI also checks a Git LFS Lenina fixture; fetch LFS files for that regression.
+Legacy annotation and explicit-profile tools remain separate evaluation utilities.
