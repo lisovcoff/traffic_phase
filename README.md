@@ -1,5 +1,11 @@
 # traffic_phase
 
+Full-product status19.10: **not yet complete** for the requested one-panel,
+automatic whole-archive offline → per-second vehicle JSON online workflow.
+[Remaining work and acceptance criteria](docs/DELIVERY_GAP_ASSESSMENT_20261019.md).
+The release below is the improved offline component; its metrics do not certify
+automatic hardware discovery, variable regimes or the integrated online product.
+
 2026-10-19: **[trajectory-only algorithm improved and connected to the app](docs/ACCURACY_RECOVERY_RESULTS_20261019.md).**
 Run `START_WEB.cmd`, then open http://127.0.0.1:8017/visualization. Restart an
 existing server to load the new backend. Prediction uses JSON/ZIP trajectories;

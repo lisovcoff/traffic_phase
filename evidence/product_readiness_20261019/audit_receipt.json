@@ -1,0 +1,40 @@
+{
+  "code_commit": "973594f",
+  "kind": "read-only source/schema audit and deterministic projection probe",
+  "product_ready": false,
+  "algorithms_changed": false,
+  "experiments_resumed": false,
+  "legacy_v9_realtime_request_fields": [
+    "model",
+    "model_id",
+    "stream_id",
+    "event",
+    "lookback_s"
+  ],
+  "legacy_trajectory_request_fields": [
+    "stream_id",
+    "trajectory",
+    "trajectory_id",
+    "phase_model",
+    "event_origin_ms",
+    "recent_window_s",
+    "yellow_duration_seconds",
+    "red_yellow_duration_seconds",
+    "baseline_profile"
+  ],
+  "source_sha256": {
+    "app/core/recovery/engine.py": "dae22cd4885b3e3c19297217ebe34e59ff24b06d73d9a5b593ce01b4824456d8",
+    "app/core/recovery/clock.py": "faca3b707a2fc0076445858f60c35f4647e5165906ef22929c99afe5ee60cb9b",
+    "app/core/v10/automatic_physical.py": "36761579470df06393d80a37480b276b14f1551ba3ee936ccf5553803fe340a3",
+    "app/core/v10/estimated_signals.py": "219ebd7f24b5611e2af27c327cc98300c48e0ef2bef737ff127b6f3d7ec3c4bb",
+    "app/core/v9/spatial.py": "92536546dc684d6e48743fe21218348c94f4307e5b6c8a314c2841596931ff96",
+    "app/core/v9/source_scope.py": "8a62cebbdefd3661cb552658243f619ee6428f7b44682088798839a453b30f37",
+    "app/core/archive_batch.py": "6046c0f501e3f2ff013149b54d026add932536561ffbaad53d5608e7a119dc93",
+    "app/api/visualization.py": "f0c20620382c79601816abb0bf2104b4d8aef2d24afa42bad18acae5ed5fef6b",
+    "app/api/v9.py": "1757291dca804cff8e101b888d98a7790ba650624c01cebb02448e4e8c14f8b2",
+    "app/api/realtime.py": "3d2b1677ce2c090363c7dec9c0c8d827ea6d09c02eb349bd0d739d34f80b8276",
+    "app/core/online_phase_learning.py": "fd0731ee8b6e354d8e8c4a2d9308be6e8fb20df8ec395d50b05b67db6457cf10"
+  },
+  "main_unchanged": "a005a2521f62ce3b2c9f9d52f9f0d73913754e01",
+  "prior_test_reference": "evidence/accuracy_recovery_20261019/checks/full_pytest_receipt.json;1433 PASS before this documentation-only audit"
+}

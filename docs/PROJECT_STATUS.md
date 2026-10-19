@@ -1,5 +1,18 @@
 # Project status — Trajectory recovery v1, 2026-10-19
 
+FULL PRODUCT NOT DELIVERED. User clarified19.10: one panel, whole-intersection
+ZIP/JSON automatically,3/4 approaches and hardware/K inferred without known
+profiles, variable cycles/regimes, then causal per-second vehicle JSON online
+using exclusively the offline-learned structure, with the same visualization.
+See DELIVERY_GAP_ASSESSMENT_20261019.md. The release below is the measured offline
+component, not completion of this end-to-end product. Confirmed gaps: manual
+source/session selection and small batch budgets; four-head physical projection
+even for a constructed3-approach signature; known-hardware filename profiles;
+no new-backend-to-online/UI handoff; local-deviation acceptance still missing.
+Existing legacy realtime/causal/adaptive/regime components are useful but are
+not a validated integration with trajectory_recovery_v1. Assessment only;
+no algorithm tuning or paused2D.1 experiment resumed by this documentation.
+
 DELIVERED: ACCURACY_RECOVERY_RESULTS_20261019.md and
 evidence/accuracy_recovery_20261019/report_v2.html. Latest explicit user instruction
 authorized improvement of real/synthetic accuracy and completion of the app.
