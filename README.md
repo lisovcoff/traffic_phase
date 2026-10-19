@@ -11,6 +11,11 @@ never production inputs.
 Full accuracy acceptance is still in progress. Signal hardware and
 colors remain estimates; trajectories can leave them ambiguous.
 
+**Latest cross-day check:** training on February11–19 and replaying February27
+processed88 recordings and10,844 packets. Visible N-main red onsets matched0/6
+within5s; this transfer is **not accepted for reliable signal recovery**.
+[Measured results and limitations](docs/CROSS_DAY_SVERDLOVSKY_RESULTS_20261019.md).
+
 ## Run
 
 Python **3.12** is the tested version. From the repository root on Windows:

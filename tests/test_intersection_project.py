@@ -264,3 +264,21 @@ def test_restart_age_prior_is_learned_only_from_offline_events(tmp_path):
     assert hist[0][0]>hist[0][-1] and hist[1]==[1.]*16
     assert r['restart_age_samples']['N->S']==[11,0]
     assert not result['annotations_used'] and not result['video_used']
+
+
+def test_explicit_prepared_source_adapter_preserves_product_model(tmp_path):
+    from app.core.v9.events import load_event_streams
+    from app.core.recovery.motion import extract_motion_evidence
+    source=tmp_path/'input.json';record=track()
+    source.write_text(json.dumps([record]),encoding='utf8')
+    raw=project.run_project(source,tmp_path/'raw',predictor=lambda *a,**kw:prediction())
+    def loader(path,selected):
+        assert path==source.resolve() and selected['source_member']=='input.json'
+        bundle=load_event_streams(path,source_member=selected['source_member'],_event_extractor=extract_motion_evidence)
+        points=[{k:d.get(k) for k in ('millis','centroid_x','centroid_y','zone')} for d in record['detections']]
+        return bundle,dict(record_counts=dict(trajectory_records=1,detections=2),samples={'N':[
+            dict(zone_in='N',zone_out='_S',detections=points)]})
+    prepared=project.run_project(source,tmp_path/'prepared',predictor=lambda *a,**kw:prediction(),_source_loader=loader)
+    for value in (raw,prepared):
+        value.pop('model_id');value.pop('fingerprint')
+    assert prepared==raw

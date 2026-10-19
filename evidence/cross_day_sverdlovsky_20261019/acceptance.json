@@ -1,0 +1,29 @@
+{
+  "pipeline": "PASS",
+  "signal_accuracy_acceptance": "FAIL",
+  "raw_sources_verified": 88,
+  "offline_sessions": 88,
+  "online_packets": 10844,
+  "ordinary_prefix_exact_match": 674,
+  "train_test_dates_disjoint": true,
+  "visible_N_main": {
+    "green_within_2s": {
+      "matched": 5,
+      "expected": 6,
+      "predicted": 14
+    },
+    "yellow_within_2s": {
+      "matched": 5,
+      "expected": 6,
+      "predicted": 6
+    },
+    "red_within_5s": {
+      "matched": 0,
+      "expected": 6,
+      "predicted": 7
+    }
+  },
+  "targeted_tests": 38,
+  "browser": "PASS: 12 views, seven days, eight signature groups, saved online stream/history/restore/mobile",
+  "limitations": "Previously revealed labels, conditional clock, N-main only. Accelerated journal commits; no full HTTP throughput or long-journal engine-restoration benchmark. Default offline ingestion/online inference unchanged."
+}

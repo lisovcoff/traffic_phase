@@ -1,5 +1,18 @@
 # Project status — Trajectory recovery v1, 2026-10-19
 
+LATEST: CROSS_DAY_SVERDLOVSKY_RESULTS_20261019.md. Pipeline PASS, signal accuracy
+FAIL for week11–19 → February27.88/88 raw SHA/CRC verified; current production
+solver reuses sealed events/numerical fits;6 fresh cold predictions match.352,124
+track records/67,364,832 detections;8 signature groups with K2/3/4 and100/120s.
+Full10,844-packet causal replay completed;674 ordinary-store responses match
+exactly before accelerated journal commits. Visible N-main G5/6 ±2s with9 extra
+onsets; R0/6 ±5s in two previously revealed video windows. K2 regime dominates
+10,699 packets; structural/regime selection needs correction, not source-specific
+video calibration.96% known coverage is NOT accuracy. Hardware N/E recovered
+for64/88 session hypotheses. Browser12 views cover7 days/all8 groups and online
+history/restore/mobile. Cold views19.6–51.4s.38 affected tests PASS. No decoder
+tuning or paused2D.1 resumed. Source archives and earlier artifacts retained.
+
 Online replay fix19.10: explicit waiting/processing/EOF feedback, completion
 survives polling, and packet scheduling accounts for request latency. Online
 JSON requests time out after30s.36 affected tests PASS; actual HTTP/Edge replay,

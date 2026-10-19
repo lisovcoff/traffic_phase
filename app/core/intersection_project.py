@@ -211,7 +211,7 @@ def build_catalogue(predictions):
     return output
 
 
-def run_project(input_path, folder, *, on_progress=None, predictor=None):
+def run_project(input_path, folder, *, on_progress=None, predictor=None, _source_loader=None):
     """Process every JSON and every session; publish explicit partial failures."""
     from app.core.v9.events import load_event_streams
     from app.core.recovery.motion import extract_motion_evidence
@@ -262,7 +262,14 @@ def run_project(input_path, folder, *, on_progress=None, predictor=None):
                             samples[origin].append(dict(zone_in=track.get('zone_in'),zone_out=track.get('zone_out'),detections=points))
                     return extract_motion_evidence(track,**kwargs)
                 try:
-                    bundle = load_event_streams(input_path, source_member=member,_event_extractor=extractor)
+                    if _source_loader is None:
+                        bundle = load_event_streams(input_path, source_member=member,_event_extractor=extractor)
+                    else:
+                        # Explicit local validation adapter; HTTP jobs always read raw input.
+                        # The adapter must verify source/cache hashes before returning data.
+                        bundle, summary = _source_loader(input_path, source)
+                        counts.update(summary['record_counts'])
+                        samples.update(summary['samples'])
                 except EvidenceUnavailable:
                     if not counts['trajectory_records']:
                         row.update(status='SKIPPED_NON_TRAJECTORY_JSON',record_counts=dict(counts))
