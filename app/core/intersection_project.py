@@ -324,13 +324,13 @@ def run_project(input_path, folder, *, on_progress=None, predictor=None):
             raise ValueError('No session could produce an intersection model')
         state['stage'] = 'catalogue'; checkpoint()
         approaches = [a for a in COMPASS if compass_counts[a]]
-        if len(approaches)==3:
+        if len(approaches) in (3,4):
             from app.core.observed_topology import project_observed_topology
             predictions=[]
             for session in sessions:
                 with gzip.open(folder/session['prediction'],'rt',encoding='utf8') as stream:
                     result=json.load(stream)
-                template=operating_template(project_observed_topology(result,approaches))
+                template=operating_template(project_observed_topology(result,approaches,repair_missing_phases=True))
                 session.update(phase_count=template['schedule']['phase_count'],state_basis=template['state_basis'])
                 predictions.append((session['session_id'],template))
         catalogue = build_catalogue(predictions)
@@ -342,6 +342,7 @@ def run_project(input_path, folder, *, on_progress=None, predictor=None):
             input=dict(name=display_name, sha256=digest(input_path), source_count=len(sources),
                        intersection_identity='declared_single_intersection; namespace consistency not independently certified'),
             completeness='COMPLETE' if complete else 'PARTIAL', sessions=sessions, regimes=catalogue,
+            projection_version='observed-topology-v2',
             source_inventory=deepcopy(state['sources']),
             geometries=geometries,
             approaches=approaches, observed_approach_count=len(approaches),
@@ -353,6 +354,8 @@ def run_project(input_path, folder, *, on_progress=None, predictor=None):
                 s['observation_start_ms']/1000, timezone(timedelta(hours=5))).weekday()) for s in sessions],
             regime_selection_semantics='signature catalogue; weekday programs not yet certified',
             input_path_private=str(input_path), errors=state['errors'])
+        from app.core.intersection_age_prior import attach_age_priors
+        attach_age_priors(model,folder)
         model['fingerprint'] = model_fingerprint(model)
         write_json(folder/'model.json', model)
         state.update(status='READY' if complete else 'PARTIAL', stage='finished', model_id=model['model_id'],

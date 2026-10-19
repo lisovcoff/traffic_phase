@@ -204,3 +204,34 @@ def test_t_signature_keeps_two_states_in_all_rotations(rotation):
     assert template['schedule']['phase_count']==2
     assert set(template['signal_topology'])=={mapping[a] for a in ['N','S','E']}
     assert template['signal_topology'][mapping['E']]['main']==mapping['E']+'->'+mapping['N']
+
+
+def test_inherited_empty_turn_phase_is_not_erased_by_hardware_projection():
+    from app.core.observed_topology import project_observed_topology
+    from app.core.v10.automatic_physical import infer_physical_signal_plan
+    groups=[{'N->S','S->N'},{'N->E','E->N'},{'E->W','W->E'}]
+    value=prediction(k=3);s=value['schedule'];names=s['phase_names']
+    s['raw_hsmm_segments']=s['baseline_segments']=[[0,25,0],[25,50,1],[50,80,2]]
+    s['stream_activity_by_phase']=[dict(stream=m,event_probability_by_phase={n:(.15 if m in g else .01)
+        for n,g in zip(names,groups)}) for m in sorted(set.union(*groups))]
+    value.update(analysis_base_timestamp_ms=0,schedule_base_timestamp_ms=0,recording_start_timestamp_ms=0)
+    value['physical_signal_plan']=infer_physical_signal_plan(value);original=deepcopy(value)
+    assert project.operating_template(value)['schedule']['phase_count']==2
+    old=project_observed_topology(value,['N','S','E','W'])
+    assert old['physical_signal_plan']==value['physical_signal_plan']
+    new=project_observed_topology(value,['N','S','E','W'],repair_missing_phases=True)
+    assert project.operating_template(new)['schedule']['phase_count']==3
+    assert new['physical_signal_plan']['projection_repair']['resolved_inherited_phases']==['PHASE_B']
+    assert value==original
+
+
+def test_restart_age_prior_is_learned_only_from_offline_events(tmp_path):
+    value=prediction();value['schedule_base_timestamp_ms']=0
+    value['event_extraction']=dict(temporal_events=[dict(event_type='RELEASE',movement='N->S',timestamp_ms=s*1000)
+        for s in range(1,12)])
+    source=tmp_path/'input.json';source.write_text(json.dumps([track()]))
+    result=project.run_project(source,tmp_path/'out',predictor=lambda *a,**kw:deepcopy(value))
+    r=result['regimes'][0];hist=r['restart_age_histograms']['N->S']
+    assert hist[0][0]>hist[0][-1] and hist[1]==[1.]*16
+    assert r['restart_age_samples']['N->S']==[11,0]
+    assert not result['annotations_used'] and not result['video_used']

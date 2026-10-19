@@ -1,0 +1,895 @@
+{
+  "schema": "traffic-intersection-model-v1",
+  "model_id": "8382c893c0f9431391865ee39a98f2f4",
+  "algorithm": "trajectory_recovery_v1",
+  "input": {
+    "name": "input.zip",
+    "sha256": "ccbad5235de940febfdac136788686467408af561031fc94f01b8a9e2f522a22",
+    "source_count": 2,
+    "intersection_identity": "declared_single_intersection; namespace consistency not independently certified"
+  },
+  "completeness": "COMPLETE",
+  "sessions": [
+    {
+      "session_id": "725d8607035fe3e2d714b266",
+      "source_member": "session0.json",
+      "source_index": 0,
+      "observation_start_ms": 1800000000000,
+      "observation_end_ms": 1800000899984,
+      "track_count": 441,
+      "status": "READY",
+      "phase_count": 2,
+      "latent_phase_count": 3,
+      "state_basis": "automatic_estimated_head_configurations",
+      "period_s": 89.58474404761904,
+      "prediction": "sessions/725d8607035fe3e2d714b266.json.gz",
+      "prediction_sha256": "a688d0da30828d6aac869a021a532cf64dfb9d00bac1b4b4e07b4ca33767792b",
+      "regime_id": "regime_001"
+    },
+    {
+      "session_id": "019aa281594ea60f48ccf9d9",
+      "source_member": "session1.json",
+      "source_index": 1,
+      "observation_start_ms": 1800000000000,
+      "observation_end_ms": 1800000899989,
+      "track_count": 451,
+      "status": "READY",
+      "phase_count": 2,
+      "latent_phase_count": 3,
+      "state_basis": "automatic_estimated_head_configurations",
+      "period_s": 106.27983333333333,
+      "prediction": "sessions/019aa281594ea60f48ccf9d9.json.gz",
+      "prediction_sha256": "055cb2924f9be37a152c13abb7fe595cb29a52c29221a2cf5803dd92f52ce213",
+      "regime_id": "regime_002"
+    }
+  ],
+  "regimes": [
+    {
+      "regime_id": "regime_001",
+      "phase_count": 2,
+      "phase_names": [
+        "PHASE_A",
+        "PHASE_B"
+      ],
+      "period_s": 89.58474404761904,
+      "members": [
+        {
+          "session_id": "725d8607035fe3e2d714b266",
+          "phase_mapping": {
+            "0": 0,
+            "1": 1
+          },
+          "signature_distance": 0.0
+        }
+      ],
+      "movement_probabilities": {
+        "N->S": [
+          0.10740667509440187,
+          0.01
+        ],
+        "W->E": [
+          0.010000000000000002,
+          0.18421052396297455
+        ],
+        "S->N": [
+          0.10223372466369766,
+          0.01
+        ],
+        "N->E": [
+          0.10986402115433784,
+          0.01
+        ],
+        "E->N": [
+          0.0908324143442387,
+          0.01
+        ],
+        "E->W": [
+          0.010000000000000002,
+          0.1315789520740509
+        ]
+      },
+      "phase_durations": {
+        "PHASE_A": {
+          "samples": 10,
+          "p10_s": 57.69991715653805,
+          "median_s": 57.69991715653809,
+          "p90_s": 57.85542005605927
+        },
+        "PHASE_B": {
+          "samples": 10,
+          "p10_s": 31.729323991559774,
+          "median_s": 31.884826891080934,
+          "p90_s": 31.884826891080998
+        }
+      },
+      "reference_baseline": [
+        [
+          0.0,
+          2.568585705850177,
+          1
+        ],
+        [
+          2.568585705850177,
+          60.42378378443943,
+          0
+        ],
+        [
+          60.42378378443943,
+          92.15332975346922,
+          1
+        ],
+        [
+          92.15332975346922,
+          150.00852783205846,
+          0
+        ],
+        [
+          150.00852783205846,
+          181.73807380108826,
+          1
+        ],
+        [
+          181.73807380108826,
+          239.5932718796775,
+          0
+        ],
+        [
+          239.5932718796775,
+          271.3228178487073,
+          1
+        ],
+        [
+          271.3228178487073,
+          329.17801592729654,
+          0
+        ],
+        [
+          329.17801592729654,
+          360.90756189632634,
+          1
+        ],
+        [
+          360.90756189632634,
+          418.7627599749156,
+          0
+        ],
+        [
+          418.7627599749156,
+          450.4923059439454,
+          1
+        ],
+        [
+          450.4923059439454,
+          508.3475040225346,
+          0
+        ],
+        [
+          508.3475040225346,
+          540.0770499915644,
+          1
+        ],
+        [
+          540.0770499915644,
+          597.9322480701537,
+          0
+        ],
+        [
+          597.9322480701537,
+          629.6617940391834,
+          1
+        ],
+        [
+          629.6617940391834,
+          687.5169921177727,
+          0
+        ],
+        [
+          687.5169921177727,
+          719.2465380868025,
+          1
+        ],
+        [
+          719.2465380868025,
+          777.1017361653918,
+          0
+        ],
+        [
+          777.1017361653918,
+          808.8312821344216,
+          1
+        ],
+        [
+          808.8312821344216,
+          866.6864802130109,
+          0
+        ],
+        [
+          866.6864802130109,
+          898.4160261820406,
+          1
+        ],
+        [
+          898.4160261820406,
+          899.0,
+          0
+        ]
+      ],
+      "reference_period_s": 89.58474404761904,
+      "signal_topology": {
+        "N": {
+          "main": "N->S",
+          "arrows": []
+        },
+        "S": {
+          "main": "S->N",
+          "arrows": []
+        },
+        "E": {
+          "main": "E->W",
+          "arrows": []
+        },
+        "W": {
+          "main": "W->E",
+          "arrows": []
+        }
+      },
+      "phase_head_states": [
+        {
+          "N": {
+            "main": {
+              "state": "GREEN",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "S": {
+            "main": {
+              "state": "GREEN",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "E": {
+            "main": {
+              "state": "RED",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "W": {
+            "main": {
+              "state": "RED",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          }
+        },
+        {
+          "N": {
+            "main": {
+              "state": "RED",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "S": {
+            "main": {
+              "state": "RED",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "E": {
+            "main": {
+              "state": "GREEN",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "W": {
+            "main": {
+              "state": "GREEN",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          }
+        }
+      ],
+      "state_basis": "automatic_estimated_head_configurations",
+      "observed_transitions": [
+        {
+          "source": 0,
+          "target": 1,
+          "observations": 10
+        },
+        {
+          "source": 1,
+          "target": 0,
+          "observations": 11
+        }
+      ],
+      "grouping_semantics": "heuristic recurring observed signatures; NOT certified controller programs",
+      "structure_source": "offline_trajectory_only",
+      "online_structure_frozen": true
+    },
+    {
+      "regime_id": "regime_002",
+      "phase_count": 2,
+      "phase_names": [
+        "PHASE_A",
+        "PHASE_B"
+      ],
+      "period_s": 106.27983333333333,
+      "members": [
+        {
+          "session_id": "019aa281594ea60f48ccf9d9",
+          "phase_mapping": {
+            "0": 0,
+            "1": 1
+          },
+          "signature_distance": 0.0
+        }
+      ],
+      "movement_probabilities": {
+        "S->N": [
+          0.115102376806752,
+          0.01
+        ],
+        "W->E": [
+          0.01,
+          0.303398072719574
+        ],
+        "N->S": [
+          0.09366749261904737,
+          0.01
+        ],
+        "E->N": [
+          0.09523049369361361,
+          0.01
+        ],
+        "E->W": [
+          0.01,
+          0.2160194218158722
+        ],
+        "N->E": [
+          0.07338025839216006,
+          0.012135921977460386
+        ]
+      },
+      "phase_durations": {
+        "PHASE_A": {
+          "samples": 8,
+          "p10_s": 80.59465216587319,
+          "median_s": 80.68186554846164,
+          "p90_s": 80.74465216587322
+        },
+        "PHASE_B": {
+          "samples": 8,
+          "p10_s": 25.535181167460088,
+          "median_s": 25.597967784871685,
+          "p90_s": 25.685181167460165
+        }
+      },
+      "reference_baseline": [
+        [
+          0.0,
+          0.2227097248662357,
+          1
+        ],
+        [
+          0.2227097248662357,
+          80.89552909557995,
+          0
+        ],
+        [
+          80.89552909557995,
+          106.50254305819956,
+          1
+        ],
+        [
+          106.50254305819956,
+          187.17536242891327,
+          0
+        ],
+        [
+          187.17536242891327,
+          212.7823763915329,
+          1
+        ],
+        [
+          212.7823763915329,
+          293.4551957622466,
+          0
+        ],
+        [
+          293.4551957622466,
+          319.06220972486625,
+          1
+        ],
+        [
+          319.06220972486625,
+          399.73502909557993,
+          0
+        ],
+        [
+          399.73502909557993,
+          425.3420430581996,
+          1
+        ],
+        [
+          425.3420430581996,
+          506.01486242891326,
+          0
+        ],
+        [
+          506.01486242891326,
+          531.6218763915329,
+          1
+        ],
+        [
+          531.6218763915329,
+          612.2946957622465,
+          0
+        ],
+        [
+          612.2946957622465,
+          637.9017097248662,
+          1
+        ],
+        [
+          637.9017097248662,
+          718.5745290955799,
+          0
+        ],
+        [
+          718.5745290955799,
+          744.1815430581996,
+          1
+        ],
+        [
+          744.1815430581996,
+          824.8543624289133,
+          0
+        ],
+        [
+          824.8543624289133,
+          850.4613763915329,
+          1
+        ],
+        [
+          850.4613763915329,
+          897.0,
+          0
+        ]
+      ],
+      "reference_period_s": 106.27983333333333,
+      "signal_topology": {
+        "N": {
+          "main": "N->S",
+          "arrows": []
+        },
+        "S": {
+          "main": "S->N",
+          "arrows": []
+        },
+        "E": {
+          "main": "E->W",
+          "arrows": []
+        },
+        "W": {
+          "main": "W->E",
+          "arrows": []
+        }
+      },
+      "phase_head_states": [
+        {
+          "N": {
+            "main": {
+              "state": "GREEN",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "S": {
+            "main": {
+              "state": "GREEN",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "E": {
+            "main": {
+              "state": "RED",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "W": {
+            "main": {
+              "state": "RED",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          }
+        },
+        {
+          "N": {
+            "main": {
+              "state": "RED",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "S": {
+            "main": {
+              "state": "RED",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "E": {
+            "main": {
+              "state": "GREEN",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "W": {
+            "main": {
+              "state": "GREEN",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          }
+        }
+      ],
+      "state_basis": "automatic_estimated_head_configurations",
+      "observed_transitions": [
+        {
+          "source": 0,
+          "target": 1,
+          "observations": 8
+        },
+        {
+          "source": 1,
+          "target": 0,
+          "observations": 9
+        }
+      ],
+      "grouping_semantics": "heuristic recurring observed signatures; NOT certified controller programs",
+      "structure_source": "offline_trajectory_only",
+      "online_structure_frozen": true
+    }
+  ],
+  "source_inventory": [
+    {
+      "source_member": "session0.json",
+      "uncompressed_bytes": 41241638,
+      "crc32": "c0b7aeac",
+      "status": "READY",
+      "sessions": [
+        {
+          "session_id": "725d8607035fe3e2d714b266",
+          "source_member": "session0.json",
+          "source_index": 0,
+          "observation_start_ms": 1800000000000,
+          "observation_end_ms": 1800000899984,
+          "track_count": 441,
+          "status": "READY",
+          "phase_count": 2,
+          "latent_phase_count": 3,
+          "state_basis": "automatic_estimated_head_configurations",
+          "period_s": 89.58474404761904,
+          "prediction": "sessions/725d8607035fe3e2d714b266.json.gz",
+          "prediction_sha256": "a688d0da30828d6aac869a021a532cf64dfb9d00bac1b4b4e07b4ca33767792b",
+          "regime_id": "regime_001"
+        }
+      ],
+      "record_counts": {
+        "trajectory_records": 459,
+        "detections": 206428
+      }
+    },
+    {
+      "source_member": "session1.json",
+      "uncompressed_bytes": 62276140,
+      "crc32": "2eec27a4",
+      "status": "READY",
+      "sessions": [
+        {
+          "session_id": "019aa281594ea60f48ccf9d9",
+          "source_member": "session1.json",
+          "source_index": 1,
+          "observation_start_ms": 1800000000000,
+          "observation_end_ms": 1800000899989,
+          "track_count": 451,
+          "status": "READY",
+          "phase_count": 2,
+          "latent_phase_count": 3,
+          "state_basis": "automatic_estimated_head_configurations",
+          "period_s": 106.27983333333333,
+          "prediction": "sessions/019aa281594ea60f48ccf9d9.json.gz",
+          "prediction_sha256": "055cb2924f9be37a152c13abb7fe595cb29a52c29221a2cf5803dd92f52ce213",
+          "regime_id": "regime_002"
+        }
+      ],
+      "record_counts": {
+        "trajectory_records": 483,
+        "detections": 312913
+      }
+    }
+  ],
+  "geometries": {
+    "session0.json": {
+      "projection": {
+        "method": "heading_aligned_four_point_homography",
+        "base_method": "four_point_homography",
+        "anchors": {
+          "N": [
+            0.5385960269009762,
+            0.67006039808414
+          ],
+          "S": [
+            0.45713195367927173,
+            0.3113394564880332
+          ],
+          "E": [
+            0.677709857903795,
+            0.48149107603856744
+          ],
+          "W": [
+            0.32427771890442225,
+            0.5182722785180138
+          ]
+        },
+        "matrix": [
+          [
+            1.9344021776248659,
+            -0.5663123919563532,
+            -0.2468518883948477
+          ],
+          [
+            -0.19800688767650876,
+            -2.036633850005253,
+            1.5544385110847354
+          ],
+          [
+            0.002181422041641607,
+            -0.25359498614142584,
+            1.0
+          ]
+        ],
+        "base_matrix": [
+          [
+            1.9344497814453396,
+            -0.5658555089649793,
+            -0.24710412499146578
+          ],
+          [
+            -0.19767129790213342,
+            -2.0367100905369733,
+            1.554308844517493
+          ],
+          [
+            0.002181422041641607,
+            -0.25359498614142584,
+            1.0
+          ]
+        ],
+        "heading_alignment": {
+          "available": true,
+          "samples": {
+            "W_to_E": 48,
+            "E_to_W": 21,
+            "S_to_N": 48,
+            "N_to_S": 23,
+            "horizontal_approach_fallback": 0,
+            "vertical_approach_fallback": 0
+          },
+          "source_axes": {
+            "W_to_E": [
+              0.9999999849349647,
+              0.0001735801558363923
+            ],
+            "S_to_N": [
+              0.00023922327918943765,
+              -0.999999971386111
+            ]
+          },
+          "heading_angles_deg": {
+            "W_to_E_from_positive_X": 0.009945410386591054,
+            "S_to_N_from_negative_Y": 0.013706484389566497
+          },
+          "observed_axis_angle_deg": 89.99623892599703,
+          "observed_orthogonality_error_deg": 0.0037610740029663248,
+          "isotropic_scale": 0.9999999978454904,
+          "correction_matrix": [
+            [
+              0.9999999713861114,
+              0.00023922327918943773,
+              -0.00011959733265043404
+            ],
+            [
+              -0.00017358015583639235,
+              0.9999999849349649,
+              8.679761043572931e-05
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        },
+        "canonical_approaches": {
+          "N": [
+            0.5,
+            0.1
+          ],
+          "S": [
+            0.5,
+            0.9
+          ],
+          "E": [
+            0.9,
+            0.5
+          ],
+          "W": [
+            0.1,
+            0.5
+          ]
+        }
+      },
+      "scope": "bounded geometric sample per observed incoming approach; schematic, not calibrated road geometry"
+    },
+    "session1.json": {
+      "projection": {
+        "method": "heading_aligned_four_point_homography",
+        "base_method": "four_point_homography",
+        "anchors": {
+          "N": [
+            0.2712755196081906,
+            0.459002557240875
+          ],
+          "S": [
+            0.7168339349546559,
+            0.5388893850721732
+          ],
+          "E": [
+            0.5159686202256601,
+            0.6864277731999097
+          ],
+          "W": [
+            0.47893915718996344,
+            0.25533807942738207
+          ]
+        },
+        "matrix": [
+          [
+            -0.2628475858302148,
+            1.2115686458527204,
+            -0.09596751520268071
+          ],
+          [
+            1.3794797459561088,
+            -0.36073475621802154,
+            -0.13089991134360443
+          ],
+          [
+            -0.0034595249372095936,
+            -0.4828989443018663,
+            1.0
+          ]
+        ],
+        "base_matrix": [
+          [
+            -0.26224073251503516,
+            1.2115166568756952,
+            -0.09624492004461843
+          ],
+          [
+            1.3793627866280656,
+            -0.36008166455643503,
+            -0.13116798529861703
+          ],
+          [
+            -0.0034595249372095936,
+            -0.4828989443018663,
+            1.0
+          ]
+        ],
+        "heading_alignment": {
+          "available": true,
+          "samples": {
+            "W_to_E": 48,
+            "E_to_W": 25,
+            "S_to_N": 48,
+            "N_to_S": 33,
+            "horizontal_approach_fallback": 0,
+            "vertical_approach_fallback": 0
+          },
+          "source_axes": {
+            "W_to_E": [
+              0.9999998989763019,
+              0.00044949681427659707
+            ],
+            "S_to_N": [
+              -0.00043941911532270844,
+              -0.9999999034554159
+            ]
+          },
+          "heading_angles_deg": {
+            "W_to_E_from_positive_X": 0.025754271229888732,
+            "S_to_N_from_negative_Y": -0.02517686155559348
+          },
+          "observed_axis_angle_deg": 90.0509311327855,
+          "observed_orthogonality_error_deg": 0.050931132785493105,
+          "isotropic_scale": 0.9999996049142351,
+          "correction_matrix": [
+            [
+              0.999999903455416,
+              -0.0004394191153227085,
+              0.0002197578299533709
+            ],
+            [
+              -0.00044949681427659707,
+              0.999999898976302,
+              0.0002247989189873012
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        },
+        "canonical_approaches": {
+          "N": [
+            0.5,
+            0.1
+          ],
+          "S": [
+            0.5,
+            0.9
+          ],
+          "E": [
+            0.9,
+            0.5
+          ],
+          "W": [
+            0.1,
+            0.5
+          ]
+        }
+      },
+      "scope": "bounded geometric sample per observed incoming approach; schematic, not calibrated road geometry"
+    }
+  },
+  "approaches": [
+    "N",
+    "S",
+    "E",
+    "W"
+  ],
+  "observed_approach_count": 4,
+  "topology_semantics": "observed origins/destinations; empty approaches may remain unseen; hardware inference not certified",
+  "known_hardware_profile_used": false,
+  "annotations_used": false,
+  "video_used": false,
+  "offline_structure_frozen": true,
+  "history_semantics": "separate source/session histories; no continuity across gaps",
+  "calendar_timezone": "UTC+05:00; source acquisition dates not independently certified",
+  "calendar_observations": [
+    {
+      "session_id": "725d8607035fe3e2d714b266",
+      "weekday": 4
+    },
+    {
+      "session_id": "019aa281594ea60f48ccf9d9",
+      "weekday": 4
+    }
+  ],
+  "regime_selection_semantics": "signature catalogue; weekday programs not yet certified",
+  "errors": [],
+  "fingerprint": "413a17bab972beecc0a5c09d20a9a0fbd6e0dab9eefab74dd062c1aa7cfc5cb9"
+}

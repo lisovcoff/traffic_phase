@@ -1,4 +1,5 @@
-tests/fixtures/*.json filter=lfs diff=lfs merge=lfs -text
+tests/fixtures/*.json -filter diff merge -text
+tests/fixtures/lenina_video_sample_20mb.json filter=lfs diff=lfs merge=lfs -text
 
 evidence/release_20261018/** -text -whitespace
 evidence/model_phase_view_20261018/** -text -whitespace
@@ -148,6 +149,20 @@ README.md -text
 README.ru.md -text
 docs/README.md -text
 docs/history/README_PRE_CONSOLIDATION_20261019.md -text
+scripts/event_time_prototype.py -text
+scripts/run_event_time_prototype.py -text
+scripts/event_time_suite.py -text
+app/core/offline_benchmark.py -text
+app/core/intersection_online*.py -text
+app/core/intersection_age_prior.py -text
+app/api/intersection_online.py -text
+scripts/*online*.py -text
+scripts/check_causal_intersection.py -text
+scripts/check_projection_repair.py -text
+scripts/enrich_intersection_model.py -text
+tests/test_intersection_online.py -text
+evidence/intersection_online_20261019/** -text -whitespace
+docs/INTERSECTION_ONLINE_RESULTS_20261019.md -text
 evidence/intersection_project_20261019/** -text -whitespace
 ROADMAP.md -text
 docs/PROJECT_STATUS.md -text

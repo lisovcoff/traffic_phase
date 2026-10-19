@@ -10,6 +10,7 @@ from app.core.upload_limits import UploadLimitMiddleware
 from app.api.archive_batch import router as archive_batch_router
 from app.api.learned_visualization import router as learned_visualization_router
 from app.api.intersection_projects import router as intersection_projects_router
+from app.api.intersection_online import router as intersection_online_router
 
 app = FastAPI(
     title="Traffic Phase Estimator",
@@ -27,6 +28,7 @@ app.include_router(annotation_router)
 app.include_router(archive_batch_router)
 app.include_router(learned_visualization_router)
 app.include_router(intersection_projects_router)
+app.include_router(intersection_online_router)
 app.add_middleware(UploadLimitMiddleware)
 
 

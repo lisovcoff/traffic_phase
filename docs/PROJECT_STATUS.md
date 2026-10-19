@@ -1,5 +1,18 @@
 # Project status — Trajectory recovery v1, 2026-10-19
 
+LATEST: INTERSECTION_ONLINE_RESULTS_20261019.md. User authorized main publication.
+Whole-archive offline → fixed-structure causal online → common live car/head view,
+immutable issuance history, timestamp seek/resume and journal restoration are built.
+Offline-only restart ages and causal geographic motion improve timing; video is
+evaluation-only. Real green3/3 within2s has an extra onset and same-recording/clock
+limitations. Diagnostic online colors89.1%/87.6% including UNKNOWN after warmup.
+Latent K68/72,24/24 differs from working K54/72,18/24 on revealed regressions.
+Universal physical accuracy/variable-regime acceptance remain open. Prior entries
+describe historical state; main publication is now explicitly authorized.
+Integrated verification:1462 full-suite PASS, launch/compilation/smoke PASS,
+browser_v7 real JSONL/history/live-resume/restore/mobile PASS. Raw packets remain
+local. Evidence in intersection_online_20261019. Failed attempts preserved.
+
 LATEST IMPLEMENTATION: INTERSECTION_PROJECT_RESULTS_20261019.md.
 Whole-archive autonomous ingestion, persistent checksummed model/session outputs,
 source failures/partial results, recurring working-configuration catalogue, and

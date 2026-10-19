@@ -1,0 +1,457 @@
+{
+  "status": "FAIL",
+  "error": "Locator.evaluate: RangeError: Invalid time value\n    at Date.toISOString (<anonymous>)\n    at localSeekValue (about:srcdoc:879:59)\n    at eval (eval at evaluate (:370:30), <anonymous>:1:5)\n    at UtilityScript.evaluate (<anonymous>:377:18)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)",
+  "javascript_errors": [],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/visualization",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/model",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/sessions/18a2a26530ccd7e3b678a96d/viewer",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/8ef5673c166049b399370d04c3c1162a/viewer",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/8ef5673c166049b399370d04c3c1162a",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/viewer",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/intersections/402997a8e8ce4e989576e5764903ba39/online/b893a64b69724ba890b90743e4561e0d/packets",
+      "status": 200
+    }
+  ]
+}

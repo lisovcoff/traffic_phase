@@ -1,0 +1,342 @@
+........................................................................ [  4%]
+........................................................................ [  9%]
+............................................FF.......................... [ 14%]
+............................F........................................... [ 19%]
+........................................................................ [ 24%]
+........................................................................ [ 29%]
+........................................................................ [ 34%]
+........................................................................ [ 39%]
+........................................................................ [ 44%]
+........................................................................ [ 49%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 64%]
+.......................................................................F [ 69%]
+FFF..................................................................... [ 74%]
+........................................................................ [ 79%]
+........................................................................ [ 83%]
+........................................................................ [ 88%]
+........................................................................ [ 93%]
+........................................................................ [ 98%]
+..................                                                       [100%]
+================================== FAILURES ===================================
+_________ test_lenina_reference_plan_has_no_w_or_s_additional_section _________
+
+    def test_lenina_reference_plan_has_no_w_or_s_additional_section():
+        path=Path(__file__).parent/'fixtures/lenina_physical_signal_plan.json'
+>       plan=json.loads(path.read_text(encoding='utf-8'))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_estimated_signals.py:93: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\sheld\AppData\Local\Programs\Python\Python312\Lib\json\__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\sheld\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:338: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <json.decoder.JSONDecoder object at 0x0000022A8B632FC0>
+s = 'version https://git-lfs.github.com/spec/v1\noid sha256:d430da9022b8adf9fc9990363ace3c81c3848dc21c00d60fdc5b6bfd8b0c96e8\nsize 838\n'
+idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+C:\Users\sheld\AppData\Local\Programs\Python\Python312\Lib\json\decoder.py:356: JSONDecodeError
+_ test_actual_viewer_js_keeps_main_and_arrows_distinct_and_never_wraps_history _
+
+    def test_actual_viewer_js_keeps_main_and_arrows_distinct_and_never_wraps_history():
+        from scripts.v9_spatial_visualizer import render_html
+        if not shutil.which('node'):
+            import pytest
+            pytest.skip('Node required for actual viewer JS contract')
+        page=render_html(prediction(),{},[],intersection_profile='lenina_sverdlovsky')
+        script=re.search(r'<script>(.*?)</script>',page,re.S).group(1).split('window.addEventListener("resize",resizeCanvas);')[0]
+        harness='''const vm=require('node:vm'),fs=require('node:fs'),script=fs.readFileSync(0,'utf8');
+    const c={document:{getElementById:()=>({value:'signals'})}};vm.createContext(c);vm.runInContext(script,c);
+    process.stdout.write(JSON.stringify([6,16,26,31].map(t=>vm.runInContext(`({estimate:estimatedSnapshot(${t}),physical:signalSnapshot(${t})})`,c))));'''
+        run=subprocess.run([shutil.which('node'),'-e',harness],input=script,capture_output=True,text=True,encoding='utf-8',timeout=10)
+>       assert run.returncode==0,run.stderr
+E       AssertionError: evalmachine.<anonymous>:6
+E         window.addEventListener("message",function(event){
+E         ^
+E         
+E         ReferenceError: window is not defined
+E             at evalmachine.<anonymous>:6:1
+E             at Script.runInContext (node:vm:149:12)
+E             at Object.runInContext (node:vm:301:6)
+E             at [eval]:2:84
+E             at runScriptInThisContext (node:internal/vm:209:10)
+E             at node:internal/process/execution:446:12
+E             at [eval]-wrapper:6:24
+E             at runScriptInContext (node:internal/process/execution:444:60)
+E             at evalFunction (node:internal/process/execution:279:30)
+E             at evalTypeScript (node:internal/process/execution:291:3)
+E         
+E         Node.js v22.22.3
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\nvm4w\\nodejs\\node.EXE', '-e', "const vm=require('node:vm'),fs=require('node:fs'),script=...ternal/process/execution:279:30)\n    at evalTypeScript (node:internal/process/execution:291:3)\n\nNode.js v22.22.3\n').returncode
+
+tests\test_estimated_signals.py:111: AssertionError
+________________________ test_outputs_and_inputs_seals ________________________
+
+    def test_outputs_and_inputs_seals():
+        seal=read(OUT/'outputs_sealed.json');started=read(OUT/'started.json')
+        assert seal['inference_calls']==36
+        assert seal['cpu_s']<=read(OUT/'manifest.json')['suite_cpu_seconds']
+        assert sha(OUT/'inputs.json')==seal['inputs_after_sha256']==started['inputs_sha256']
+        for item in seal['predictions']:
+            assert sha(ROOT/item['path'])==item['sha256']
+>       for p,h in started['source_hashes'].items(): assert sha(ROOT/p)==h
+                                                     ^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert 'af5c3feaa678...ae5feb34fa745' == '406f13db553e...3596ee4b94405'
+E         
+E         - 406f13db553ea766e117762f459c805380e92b96c394c9dc5633596ee4b94405
+E         + af5c3feaa678faa63c956a3efa61bc6967926b3d46fa3653a85ae5feb34fa745
+
+tests\test_event_time_artifacts.py:21: AssertionError
+_ test_sparse_signatures_are_visible_and_follow_history_instead_of_periodic_wrap _
+
+    def test_sparse_signatures_are_visible_and_follow_history_instead_of_periodic_wrap():
+>       first, second, outside = run_js([6, 18, 26])
+                                 ^^^^^^^^^^^^^^^^^^^
+
+tests\test_spatial_model_view.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+times = [6, 18, 26]
+
+    def run_js(times):
+        if not shutil.which('node'):
+            pytest.skip('Node is required for actual JavaScript contract checks')
+        page = render_html(prediction(), {}, [])
+        script = re.search(r'<script>(.*?)</script>', page, re.S).group(1)
+        # All pure functions above UI listeners, including the actual timebase lookup.
+        script = script.split('window.addEventListener("resize",resizeCanvas);')[0]
+        harness = '''
+    const vm=require('node:vm'),fs=require('node:fs'),input=JSON.parse(fs.readFileSync(0,'utf8'));
+    const context={document:{getElementById:()=>({value:'model'})}};vm.createContext(context);
+    vm.runInContext(input.script,context);
+    const rows=input.times.map(t=>vm.runInContext(`(()=>{const s=signalSnapshot(${t});
+      return {phase:s.phase,reason:s.abstention_reason,physical:s.heads,activity:phaseMovements(s.phase)};})()`,context));
+    process.stdout.write(JSON.stringify(rows));
+    '''
+        result = subprocess.run([shutil.which('node'), '-e', harness],
+            input=json.dumps(dict(script=script, times=times)), text=True, capture_output=True,
+            encoding='utf-8', timeout=10)
+>       assert result.returncode == 0, result.stderr
+E       AssertionError: evalmachine.<anonymous>:6
+E         window.addEventListener("message",function(event){
+E         ^
+E         
+E         ReferenceError: window is not defined
+E             at evalmachine.<anonymous>:6:1
+E             at Script.runInContext (node:vm:149:12)
+E             at Object.runInContext (node:vm:301:6)
+E             at [eval]:4:4
+E             at runScriptInThisContext (node:internal/vm:209:10)
+E             at node:internal/process/execution:446:12
+E             at [eval]-wrapper:6:24
+E             at runScriptInContext (node:internal/process/execution:444:60)
+E             at evalFunction (node:internal/process/execution:279:30)
+E             at evalTypeScript (node:internal/process/execution:291:3)
+E         
+E         Node.js v22.22.3
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\nvm4w\\nodejs\\node.EXE', '-e', "\nconst vm=require('node:vm'),fs=require('node:fs'),input...ternal/process/execution:279:30)\n    at evalTypeScript (node:internal/process/execution:291:3)\n\nNode.js v22.22.3\n').returncode
+
+tests\test_spatial_model_view.py:45: AssertionError
+_ test_shared_movements_and_constant_scores_are_not_forced_to_a_single_phase __
+
+    def test_shared_movements_and_constant_scores_are_not_forced_to_a_single_phase():
+>       first, second = run_js([6, 18])
+                        ^^^^^^^^^^^^^^^
+
+tests\test_spatial_model_view.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+times = [6, 18]
+
+    def run_js(times):
+        if not shutil.which('node'):
+            pytest.skip('Node is required for actual JavaScript contract checks')
+        page = render_html(prediction(), {}, [])
+        script = re.search(r'<script>(.*?)</script>', page, re.S).group(1)
+        # All pure functions above UI listeners, including the actual timebase lookup.
+        script = script.split('window.addEventListener("resize",resizeCanvas);')[0]
+        harness = '''
+    const vm=require('node:vm'),fs=require('node:fs'),input=JSON.parse(fs.readFileSync(0,'utf8'));
+    const context={document:{getElementById:()=>({value:'model'})}};vm.createContext(context);
+    vm.runInContext(input.script,context);
+    const rows=input.times.map(t=>vm.runInContext(`(()=>{const s=signalSnapshot(${t});
+      return {phase:s.phase,reason:s.abstention_reason,physical:s.heads,activity:phaseMovements(s.phase)};})()`,context));
+    process.stdout.write(JSON.stringify(rows));
+    '''
+        result = subprocess.run([shutil.which('node'), '-e', harness],
+            input=json.dumps(dict(script=script, times=times)), text=True, capture_output=True,
+            encoding='utf-8', timeout=10)
+>       assert result.returncode == 0, result.stderr
+E       AssertionError: evalmachine.<anonymous>:6
+E         window.addEventListener("message",function(event){
+E         ^
+E         
+E         ReferenceError: window is not defined
+E             at evalmachine.<anonymous>:6:1
+E             at Script.runInContext (node:vm:149:12)
+E             at Object.runInContext (node:vm:301:6)
+E             at [eval]:4:4
+E             at runScriptInThisContext (node:internal/vm:209:10)
+E             at node:internal/process/execution:446:12
+E             at [eval]-wrapper:6:24
+E             at runScriptInContext (node:internal/process/execution:444:60)
+E             at evalFunction (node:internal/process/execution:279:30)
+E             at evalTypeScript (node:internal/process/execution:291:3)
+E         
+E         Node.js v22.22.3
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\nvm4w\\nodejs\\node.EXE', '-e', "\nconst vm=require('node:vm'),fs=require('node:fs'),input...ternal/process/execution:279:30)\n    at evalTypeScript (node:internal/process/execution:291:3)\n\nNode.js v22.22.3\n').returncode
+
+tests\test_spatial_model_view.py:45: AssertionError
+_________ test_missing_score_is_unknown_not_zero_or_closed_permission _________
+
+    def test_missing_score_is_unknown_not_zero_or_closed_permission():
+>       first, second = run_js([6, 18])
+                        ^^^^^^^^^^^^^^^
+
+tests\test_spatial_model_view.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+times = [6, 18]
+
+    def run_js(times):
+        if not shutil.which('node'):
+            pytest.skip('Node is required for actual JavaScript contract checks')
+        page = render_html(prediction(), {}, [])
+        script = re.search(r'<script>(.*?)</script>', page, re.S).group(1)
+        # All pure functions above UI listeners, including the actual timebase lookup.
+        script = script.split('window.addEventListener("resize",resizeCanvas);')[0]
+        harness = '''
+    const vm=require('node:vm'),fs=require('node:fs'),input=JSON.parse(fs.readFileSync(0,'utf8'));
+    const context={document:{getElementById:()=>({value:'model'})}};vm.createContext(context);
+    vm.runInContext(input.script,context);
+    const rows=input.times.map(t=>vm.runInContext(`(()=>{const s=signalSnapshot(${t});
+      return {phase:s.phase,reason:s.abstention_reason,physical:s.heads,activity:phaseMovements(s.phase)};})()`,context));
+    process.stdout.write(JSON.stringify(rows));
+    '''
+        result = subprocess.run([shutil.which('node'), '-e', harness],
+            input=json.dumps(dict(script=script, times=times)), text=True, capture_output=True,
+            encoding='utf-8', timeout=10)
+>       assert result.returncode == 0, result.stderr
+E       AssertionError: evalmachine.<anonymous>:6
+E         window.addEventListener("message",function(event){
+E         ^
+E         
+E         ReferenceError: window is not defined
+E             at evalmachine.<anonymous>:6:1
+E             at Script.runInContext (node:vm:149:12)
+E             at Object.runInContext (node:vm:301:6)
+E             at [eval]:4:4
+E             at runScriptInThisContext (node:internal/vm:209:10)
+E             at node:internal/process/execution:446:12
+E             at [eval]-wrapper:6:24
+E             at runScriptInContext (node:internal/process/execution:444:60)
+E             at evalFunction (node:internal/process/execution:279:30)
+E             at evalTypeScript (node:internal/process/execution:291:3)
+E         
+E         Node.js v22.22.3
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\nvm4w\\nodejs\\node.EXE', '-e', "\nconst vm=require('node:vm'),fs=require('node:fs'),input...ternal/process/execution:279:30)\n    at evalTypeScript (node:internal/process/execution:291:3)\n\nNode.js v22.22.3\n').returncode
+
+tests\test_spatial_model_view.py:45: AssertionError
+_ test_gap_and_missing_pre_anchor_phase_have_no_color_and_keep_lamps_unknown __
+
+    def test_gap_and_missing_pre_anchor_phase_have_no_color_and_keep_lamps_unknown():
+>       for row in run_js([0, 15, 16, 25, 35]):
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_spatial_model_view.py:75: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+times = [0, 15, 16, 25, 35]
+
+    def run_js(times):
+        if not shutil.which('node'):
+            pytest.skip('Node is required for actual JavaScript contract checks')
+        page = render_html(prediction(), {}, [])
+        script = re.search(r'<script>(.*?)</script>', page, re.S).group(1)
+        # All pure functions above UI listeners, including the actual timebase lookup.
+        script = script.split('window.addEventListener("resize",resizeCanvas);')[0]
+        harness = '''
+    const vm=require('node:vm'),fs=require('node:fs'),input=JSON.parse(fs.readFileSync(0,'utf8'));
+    const context={document:{getElementById:()=>({value:'model'})}};vm.createContext(context);
+    vm.runInContext(input.script,context);
+    const rows=input.times.map(t=>vm.runInContext(`(()=>{const s=signalSnapshot(${t});
+      return {phase:s.phase,reason:s.abstention_reason,physical:s.heads,activity:phaseMovements(s.phase)};})()`,context));
+    process.stdout.write(JSON.stringify(rows));
+    '''
+        result = subprocess.run([shutil.which('node'), '-e', harness],
+            input=json.dumps(dict(script=script, times=times)), text=True, capture_output=True,
+            encoding='utf-8', timeout=10)
+>       assert result.returncode == 0, result.stderr
+E       AssertionError: evalmachine.<anonymous>:6
+E         window.addEventListener("message",function(event){
+E         ^
+E         
+E         ReferenceError: window is not defined
+E             at evalmachine.<anonymous>:6:1
+E             at Script.runInContext (node:vm:149:12)
+E             at Object.runInContext (node:vm:301:6)
+E             at [eval]:4:4
+E             at runScriptInThisContext (node:internal/vm:209:10)
+E             at node:internal/process/execution:446:12
+E             at [eval]-wrapper:6:24
+E             at runScriptInContext (node:internal/process/execution:444:60)
+E             at evalFunction (node:internal/process/execution:279:30)
+E             at evalTypeScript (node:internal/process/execution:291:3)
+E         
+E         Node.js v22.22.3
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\nvm4w\\nodejs\\node.EXE', '-e', "\nconst vm=require('node:vm'),fs=require('node:fs'),input...ternal/process/execution:279:30)\n    at evalTypeScript (node:internal/process/execution:291:3)\n\nNode.js v22.22.3\n').returncode
+
+tests\test_spatial_model_view.py:45: AssertionError
+============================== warnings summary ===============================
+.web_runtime\release_20261018\venv312\Lib\site-packages\fastapi\testclient.py:1
+  D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\release_20261018\venv312\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_phase_discovery.py::test_discovers_exactly_two_opposing_phase_states
+tests/test_phase_discovery.py::test_single_cycle_delay_outlier_does_not_create_extra_phase
+tests/test_phase_discovery.py::test_phase_intervals_cover_cycle_without_overlap
+tests/test_phase_discovery.py::test_does_not_hardcode_only_one_phase
+  D:\Code\PythonProjects\traffic_phase\audit_checkout\app\core\phase_discovery.py:184: RuntimeWarning: All-NaN slice encountered
+    return np.nanmedian(values, axis=0)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_estimated_signals.py::test_lenina_reference_plan_has_no_w_or_s_additional_section
+FAILED tests/test_estimated_signals.py::test_actual_viewer_js_keeps_main_and_arrows_distinct_and_never_wraps_history
+FAILED tests/test_event_time_artifacts.py::test_outputs_and_inputs_seals - As...
+FAILED tests/test_spatial_model_view.py::test_sparse_signatures_are_visible_and_follow_history_instead_of_periodic_wrap
+FAILED tests/test_spatial_model_view.py::test_shared_movements_and_constant_scores_are_not_forced_to_a_single_phase
+FAILED tests/test_spatial_model_view.py::test_missing_score_is_unknown_not_zero_or_closed_permission
+FAILED tests/test_spatial_model_view.py::test_gap_and_missing_pre_anchor_phase_have_no_color_and_keep_lamps_unknown
+7 failed, 1451 passed, 5 warnings in 296.94s (0:04:56)

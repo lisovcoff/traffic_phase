@@ -1,0 +1,37 @@
+{
+  "cases": [
+    {
+      "k": 2,
+      "training_seeds": [
+        2026101923,
+        2026101943
+      ],
+      "online_seed": 2026101963,
+      "periods": [
+        90,
+        106.2
+      ],
+      "duration_s": 1800,
+      "regime_change": true
+    },
+    {
+      "k": 3,
+      "training_seeds": [
+        2026101924,
+        2026101944
+      ],
+      "online_seed": 2026101964,
+      "periods": [
+        90,
+        106.2
+      ],
+      "duration_s": 1800,
+      "regime_change": true
+    }
+  ],
+  "warmup_s": 180,
+  "video": false,
+  "annotations": false,
+  "metrics": "all four main heads incl UNKNOWN; coverage and conditional accuracy separately; causal issuance",
+  "scope": "first diagnostic online integration; not independently accepted physical accuracy"
+}

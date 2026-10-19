@@ -86,7 +86,7 @@ def _build_view(folder, session_id):
     from scripts.v9_spatial_visualizer import build_spatial_visualization
     model,session,prediction=load_prediction(folder,session_id)
     from app.core.observed_topology import project_observed_topology
-    prediction=project_observed_topology(prediction,model['approaches'])
+    prediction=project_observed_topology(prediction,model['approaches'],repair_missing_phases=model.get('projection_version')=='observed-topology-v2')
     prediction.get('event_extraction',{}).pop('temporal_events',None)
     # Explicitly no filename-selected known hardware in the autonomous product.
     page=build_spatial_visualization(Path(model['input_path_private']),precomputed_result=prediction,

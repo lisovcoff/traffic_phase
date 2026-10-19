@@ -1,0 +1,34 @@
+{
+  "status": "COMPLETED",
+  "results": [
+    {
+      "k": 2,
+      "model_id": "bede16236d7f4311a6589b23b0b406e9",
+      "counts": {
+        "total": 6484,
+        "known": 6396,
+        "correct": 5778
+      },
+      "before": 0.8315854410857495,
+      "after": 0.8911165946946329,
+      "coverage": 0.986428130783467,
+      "conditional_known_accuracy": 0.9033771106941839,
+      "geographic_detections": true
+    },
+    {
+      "k": 3,
+      "model_id": "e0a1cb0836aa47f9b1ac26355859c2ea",
+      "counts": {
+        "total": 6484,
+        "known": 6130,
+        "correct": 5682
+      },
+      "before": 0.8581122763726095,
+      "after": 0.8763109191856878,
+      "coverage": 0.945404071560765,
+      "conditional_known_accuracy": 0.9269168026101142,
+      "geographic_detections": true
+    }
+  ],
+  "scope": "development comparison, revealed data; not independent validation"
+}

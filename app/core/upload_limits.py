@@ -7,6 +7,7 @@ MAX_REQUEST_BYTES = MAX_UPLOAD_BYTES + 1024 * 1024
 UPLOAD_PATHS = frozenset(('/api/v1/v9/analyze', '/visualization/analyze', '/visualization/batch'))
 PROJECT_UPLOAD_PATH = '/api/v1/intersections'
 PROJECT_REQUEST_BYTES = 16 * 1024**3 + 1024 * 1024
+ONLINE_REQUEST_BYTES = 16 * 1024**2
 
 
 class UploadLimitExceeded(HTTPException):
@@ -34,9 +35,10 @@ class UploadLimitMiddleware:
         self.app, self.max_bytes = app, max_bytes
 
     async def __call__(self, scope, receive, send):
-        if scope['type'] != 'http' or scope['method'] != 'POST' or scope['path'] not in UPLOAD_PATHS | {PROJECT_UPLOAD_PATH}:
+        online=scope.get('path','').startswith('/api/v1/intersections/') and '/online/' in scope.get('path','')
+        if scope['type'] != 'http' or scope['method'] != 'POST' or (scope['path'] not in UPLOAD_PATHS | {PROJECT_UPLOAD_PATH} and not online):
             return await self.app(scope, receive, send)
-        limit = PROJECT_REQUEST_BYTES if scope['path'] == PROJECT_UPLOAD_PATH else self.max_bytes
+        limit = ONLINE_REQUEST_BYTES if online else PROJECT_REQUEST_BYTES if scope['path'] == PROJECT_UPLOAD_PATH else self.max_bytes
         headers = dict(scope.get('headers', []))
         try:
             declared = int(headers.get(b'content-length', b'0'))

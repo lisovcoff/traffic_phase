@@ -8,13 +8,15 @@ from copy import deepcopy
 COMPASS=('N','S','E','W')
 
 
-def project_observed_topology(result, approaches):
+def project_observed_topology(result, approaches, *, repair_missing_phases=False):
     value=deepcopy(result)
     active=[a for a in COMPASS if a in approaches]
     value['intersection_geometry']=dict(approaches=active,approach_count=len(active),
         source='whole_archive_observed_origins_and_destinations',
         physical_absence_certified=False)
     plan=value.get('physical_signal_plan',{})
+    if len(active)==4 and plan.get('enabled') and repair_missing_phases:
+        _repair_inherited_turn_phase(value)
     if len(active)!=3 or not plan.get('enabled'):
         return value
     topology={a:deepcopy(h) for a,h in plan.get('topology',{}).items() if a in active}
@@ -91,3 +93,39 @@ def project_observed_topology(result, approaches):
     # Any precomputed estimate belongs to the original, unrestricted projection.
     value.pop('estimated_signals',None)
     return value
+
+
+def _repair_inherited_turn_phase(result):
+    """Do not erase a reciprocal, selective turn phase by through-state inheritance.
+
+    Restricted to explicitly inherited empty phases with no local support for
+    their inherited greens. Other physical mapping decisions remain unchanged.
+    """
+    plan=result['physical_signal_plan'];rows=result['schedule']['stream_activity_by_phase']
+    names=result['schedule']['phase_names'];by_name={g['name']:g for g in plan['phases']};repaired=[]
+    for phase in plan.get('inference',{}).get('inherited_empty_phases',{}):
+        old=by_name[plan['mapping'][phase]]
+        if any(row['stream'] in old['green_movements'] and row['event_probability_by_phase'].get(phase,0)>=.03 for row in rows):continue
+        candidates=[]
+        for row in rows:
+            rates=row['event_probability_by_phase'];p=rates.get(phase,0);other=max((v for n,v in rates.items() if n!=phase),default=0)
+            if p>=.03 and p>=1.25*max(other,.001) and p-other>=.02:candidates.append(row['stream'])
+        if not any('->'.join(reversed(m.split('->'))) in candidates for m in candidates):continue
+        label='RECOVERED_'+phase;plan['mapping'][phase]=label
+        for m in candidates:
+            a=m.split('->')[0];head=plan['topology'][a]
+            if m!=head['main'] and m not in head['arrows']:head['arrows'].append(m)
+        heads={a:dict(main='GREEN' if h['main'] in candidates else 'RED',
+            arrows={m:'GREEN' for m in h['arrows'] if m in candidates}) for a,h in plan['topology'].items()}
+        group=dict(name=label,green_movements=candidates,additional_movements=[m for m in candidates
+            if m in plan['topology'][m.split('->')[0]]['arrows']],source_phase=phase,heads=heads)
+        plan['phases'].append(group);by_name[label]=group;repaired.append(phase)
+    if repaired:
+        plan['stages']=[]
+        for a,b,z in result['schedule'].get('baseline_segments',[]):
+            if a>=result['schedule']['period_s']:break
+            name=names[int(z)];group=by_name[plan['mapping'][name]]
+            plan['stages'].append(dict(stage_id=len(plan['stages'])+1,name=group['name'],source_phase=name,
+                phase_start=a,phase_end=min(b,result['schedule']['period_s']),active_movements=group['green_movements'],
+                additional_movements=group.get('additional_movements',[]),heads=deepcopy(group['heads'])))
+        plan['projection_repair']=dict(resolved_inherited_phases=repaired,hardware_certified=False)

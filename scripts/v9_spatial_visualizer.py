@@ -95,6 +95,7 @@ input[type=range]{width:100%}
 <strong id="timeLabel">—</strong>
 <label>Дата и время (Екб) <input id="seekTime" type="datetime-local" step="0.1" disabled></label>
 <button id="seekGo" disabled>Перейти</button>
+<button id="liveResume" hidden>Прямой эфир</button>
 <span id="seekError" role="status" class="muted"></span>
 <label>Отображение
 <select id="displayMode" aria-label="Режим отображения">
@@ -163,6 +164,15 @@ input[type=range]{width:100%}
 
 <script>
 const RESULT = __RESULT__;
+const ONLINE_MODE = __ONLINE_MODE__;
+let LIVE_SNAPSHOT = null;
+let LIVE_HISTORICAL = false;
+if(ONLINE_MODE)window.addEventListener("message",function(event){
+  if(!ONLINE_MODE || event.source!==parent || event.data?.type!=="traffic-online")return;
+  const value=event.data.snapshot;
+  if(!value || !["causal-intersection-v1","causal-intersection-v2","causal-intersection-v3","causal-intersection-v4"].includes(value.schema) || (!event.data.historical && !LIVE_HISTORICAL && LIVE_SNAPSHOT && value.timestamp_ms<LIVE_SNAPSHOT.timestamp_ms))return;
+  LIVE_SNAPSHOT=value;LIVE_HISTORICAL=Boolean(event.data.historical);stop();render();
+});
 const RECONSTRUCTED = __RECONSTRUCTED__;
 const PRODUCT = __PRODUCT__;
 const ESTIMATED_SIGNALS = __ESTIMATED_SIGNALS__;
@@ -780,7 +790,36 @@ function resizeCanvas(){
 }
 window.addEventListener("resize",resizeCanvas);
 
+function renderLive(snapshot){
+  const canvas=$("scene"),ctx=canvas.getContext("2d");drawRoad(ctx,canvas.width,canvas.height);
+  const heads=snapshot?.heads||Object.fromEntries(ACTIVE_APPROACHES.map(a=>[a,{main:{state:"UNKNOWN"},arrows:[]}]));
+  for(const a of ACTIVE_APPROACHES)drawLight(ctx,LIGHT_POS[a].x,LIGHT_POS[a].y,heads[a]||{main:{state:"UNKNOWN"},arrows:[]},a,canvas.width,canvas.height);
+  for(const v of snapshot?.vehicles||[])drawVehicle(ctx,{pos:v},canvas.width,canvas.height);
+  $("displayMode").value="signals";$("displayMode").disabled=true;
+  renderSignalList({heads:heads,phase:-1});
+  $("phase").textContent=snapshot?snapshot.phase_name+" · "+Math.round(snapshot.phase_confidence*100)+"%":"—";
+  $("vehicles").textContent=String(snapshot?.vehicles.length||0);
+  $("cycle").textContent=snapshot?Number(snapshot.phase_age_estimate_s).toFixed(1)+" s":"—";
+  $("trajectoryCount").textContent=String(snapshot?.retained_track_count||0);$("eventCount").textContent=String(snapshot?.event_count||0);
+  $("period").textContent="Переменный";$("anomaly").textContent=snapshot?.missing_interval_ms?"Разрыв данных":"—";
+  $("timeLabel").textContent=snapshot?new Date(snapshot.timestamp_ms).toLocaleString('ru-RU',{timeZone:'Asia/Yekaterinburg'}):"Ожидание данных";
+  $("sceneBadge").textContent=snapshot?(LIVE_HISTORICAL?"История выдачи · ":"Онлайн · ")+snapshot.status+" · пакет "+snapshot.sequence:"Онлайн · ожидание данных";
+  $("semanticText").textContent="Текущая оценка по уже поступившим машинам. Структура взята из офлайн-модели. Жёлтые переходы — предположение по длительности. Нет данных — UNKNOWN. Отсутствие машин не доказывает красный.";
+  $("phaseList").replaceChildren();$("phaseTimeline").replaceChildren();
+  $("slider").closest("section").hidden=true;
+  $("phaseTimeline").closest("section").hidden=true;
+  if($("phaseList").previousElementSibling?.tagName==="H3")$("phaseList").previousElementSibling.hidden=true;
+  for(const id of ["play","pause","reset","speed"]){$(id).disabled=true;$(id).hidden=true;}
+  $("displayMode").closest("label").hidden=true;
+  $("seekTime").disabled=!snapshot;$("seekGo").disabled=!snapshot;$("liveResume").hidden=false;
+  $("seekTime").removeAttribute("min");$("seekTime").removeAttribute("max");
+  if(snapshot&&!$("seekTime").dataset.onlineBound){$("seekTime").value=localSeekValue(snapshot.timestamp_ms);$("seekTime").dataset.onlineBound="1";}
+  window.__V10_DEBUG__={online:true,timestamp_ms:snapshot?.timestamp_ms||null,sequence:snapshot?.sequence??null,
+    heads:heads,historical:LIVE_HISTORICAL,active_vehicle_count:snapshot?.vehicles.length||0,phase_count:snapshot?.phase_count||null};
+}
+
 function render(){
+  if(ONLINE_MODE){renderLive(LIVE_SNAPSHOT);return;}
   tGlobal=currentTime;
   const observed=signalSnapshot(currentTime);
   const snapshot=estimatedView()?estimatedSnapshot(currentTime):observed;
@@ -868,12 +907,14 @@ function setCurrentTime(value){
 function localSeekValue(ms){return new Date(ms+5*3600000).toISOString().slice(0,23);}
 $("seekGo").addEventListener("click",function(){
   const requested=Date.parse($("seekTime").value+"+05:00");
+  if(ONLINE_MODE){if(Number.isFinite(requested))parent.postMessage({type:"traffic-online-seek",timestamp_ms:requested},parent.location.origin);return;}
   const second=(requested-DISPLAY_BASE_MS)/1000;
   if(!Number.isFinite(second)||second<0||second>RECORDING_DURATION){
     $("seekError").textContent="Выберите время внутри этой записи";return;
   }
   $("seekError").textContent="";stop();setCurrentTime(second);
 });
+$("liveResume").addEventListener("click",()=>parent.postMessage({type:"traffic-online-resume"},parent.location.origin));
 
 function play(){
   stop();
@@ -1196,7 +1237,7 @@ def _physical_visual_model(
 def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
                 red_yellow_duration_seconds=2.0,activity_threshold=0.05,
                 physical_plan=None,time_offset_s=None,display_duration_s=None,
-                display_base_timestamp_ms=None,mode="reconstructed",intersection_profile="auto"):
+                display_base_timestamp_ms=None,mode="reconstructed",intersection_profile="auto",online_mode=False):
     if mode not in {"reconstructed","configured","simulated"}:raise ValueError("invalid report mode")
     signal_model=build_signal_model(result,activity_threshold=activity_threshold,mode=mode)
     product=build_report_payload(result)
@@ -1218,6 +1259,7 @@ def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
     display_base=physical.get("display_base_timestamp_ms",result.get("recording_start_timestamp_ms"))
     history_offset=(float(anchor)-float(display_base))/1000 if anchor is not None and display_base is not None else None
     page=PAGE.replace("__RESULT__",_safe_json(result))
+    page=page.replace("__ONLINE_MODE__",_safe_json(bool(online_mode)))
     page=page.replace("__PRODUCT__",_safe_json(product))
     page=page.replace("__ESTIMATED_SIGNALS__",_safe_json(estimated))
     page=page.replace("__RECONSTRUCTED__",_safe_json(mode=="reconstructed"))

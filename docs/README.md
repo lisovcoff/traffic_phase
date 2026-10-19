@@ -8,6 +8,7 @@
 - [Whole-archive model and panel / Модель и панель](INTERSECTION_PROJECT_RESULTS_20261019.md)
 - [Remaining work / Оставшаяся работа](DELIVERY_GAP_ASSESSMENT_20261019.md)
 - [Online contract / Онлайн-контракт](INTERSECTION_ONLINE_NEXT.md)
+- [Implemented online and results / Онлайн и результаты](INTERSECTION_ONLINE_RESULTS_20261019.md)
 - [Accuracy evidence / Точность](ACCURACY_RECOVERY_RESULTS_20261019.md)
 - [Annotation workbench / Ручная проверка](ANNOTATION_WORKBENCH.md)
 - [Archived README / История](history/README_PRE_CONSOLIDATION_20261019.md)

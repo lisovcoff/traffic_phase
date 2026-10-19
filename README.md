@@ -1,14 +1,14 @@
 # Traffic Phase
 
-**English** ? [???????](README.ru.md)
+**English** · [Русский](README.ru.md)
 
 Infer traffic-signal phases from vehicle trajectories when signals are not directly
 visible. Upload one intersection's JSON or ZIP and inspect vehicles and estimated
 signals in an interactive player. Video and manual labels are evaluation material,
 never production inputs.
 
-**Status:** whole-archive offline analysis is available. Online on the saved model
-and acceptance of changing cycles/regimes are in progress. Signal hardware and
+**Status:** whole-archive offline and causal online inference are implemented.
+Full accuracy acceptance is still in progress. Signal hardware and
 colors remain estimates; trajectories can leave them ambiguous.
 
 ## Run
@@ -53,17 +53,45 @@ of the original upload and players; retain the local project folder for playback
 Interrupted unfinished jobs do not yet resume automatically. Raw datasets, virtual
 environments and runtime logs are excluded from Git.
 
-## Validation and limits
+## Online
 
-The measured offline component processed219 real sources. K matched68/72 synthetic
+Click **Online** in the same panel. The displayed POST endpoint accepts a packet
+each second; for a demo, select JSONL with one packet per line. Switch between
+archive and live view, seek the original online history by time, and resume live.
+Accepted packets and original responses persist transactionally in SQLite and
+restore after restart. Duplicate packets are idempotent; conflicting sequences
+and future detections are rejected. Online never discovers a new K or hardware plan.
+
+Packets contain `sequence`, `timestamp_ms`, and `vehicles`. Each vehicle has `id`,
+`zone_in`, and current `detections`: `millis`, `centroid_x`, `centroid_y`, `zone`,
+and optional `speed`, `lat`, `lng`. Geographic positions help when vendor speed
+is unreliable. Future `zone_out` is forbidden. Empty vehicle arrays are valid
+heartbeats and do not prove red. [API and measured limits](docs/INTERSECTION_ONLINE_RESULTS_20261019.md).
+
+## Accuracy
+
+The measured offline component processed219 real sources. Latent K matched68/72 synthetic
 development cases and24/24 reserved cases; phase-state error was4.01% and2.85%.
 A fresh visible-head video block matched8/9 switches within2s, subject to documented
 clock assumptions. These are conditional results, not universal physical accuracy.
+
+Working head configurations are a separate measure: current projection matches
+54/72 and18/24 already-revealed regression cases. Re-projection lowers main-head
+color error from6.79% to5.99% and9.18% to7.47%, with no regressed cases in that
+96-case comparison. This is not new independent validation.
+
+Two diagnostic online streams with changed durations reach about89% and88% main
+color accuracy including UNKNOWN after180s synchronization. All3 green onsets in
+an already-revealed real window fall within2s, with an extra onset and worse
+yellow/red timing. Same-recording offline training and conditional clock mapping
+limit this evaluation. Model confidence is not calibrated lamp probability.
 
 The product workflow was checked on2 complete real archives/9 sessions, all9 saved
 players, desktop/mobile Edge, and8 T-intersection structural scenarios. Full suite:
 1449 tests PASS. [Workflow evidence](docs/INTERSECTION_PROJECT_RESULTS_20261019.md),
 [accuracy evidence](docs/ACCURACY_RECOVERY_RESULTS_20261019.md).
+The integrated online delivery passes1462 tests, the launch/smoke checks and
+desktop/mobile browser history/recovery checks; see the online report above.
 
 Changing durations, weekend programs, unusual extensions and live synchronization
 still need integrated acceptance. The signature catalogue does not certify controller
@@ -83,7 +111,7 @@ without distinguishing observations.
 | `evidence/`, `benchmarks/`, `validation/`, `diagnostics/` | Research evidence; not runtime inputs |
 | `logs/` | Local uploads, models and output; ignored by Git |
 
-[Documentation](docs/README.md) ? [Roadmap](ROADMAP.md) ? [Status](docs/PROJECT_STATUS.md).
+[Documentation](docs/README.md) | [Roadmap](ROADMAP.md) | [Status](docs/PROJECT_STATUS.md).
 The [previous README](docs/history/README_PRE_CONSOLIDATION_20261019.md) is archived;
 its dated findings do not override current instructions. Research evidence is
 retained, including rejected experiments and their limitations.
@@ -96,5 +124,5 @@ python -m pytest -q
 python -m scripts.e2e_smoke
 ```
 
-CI also checks a Git LFS Lenina fixture; fetch LFS files for that regression.
+Run `git lfs pull` for the large Lenina fixture. Small JSON plans are ordinary Git files.
 Legacy annotation and explicit-profile tools remain separate evaluation utilities.

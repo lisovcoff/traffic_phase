@@ -1,0 +1,25 @@
+{
+  "status": "COMPLETED",
+  "summaries": [
+    {
+      "suite": "development",
+      "cases": 72,
+      "working_k_correct_before": 52,
+      "working_k_correct_after": 54,
+      "main_error_before": 0.06788362455197132,
+      "main_error_after": 0.059866431451612905,
+      "regressed_cases": []
+    },
+    {
+      "suite": "revealed_reserved",
+      "cases": 24,
+      "working_k_correct_before": 15,
+      "working_k_correct_after": 18,
+      "main_error_before": 0.09176118827160494,
+      "main_error_after": 0.07470486111111112,
+      "regressed_cases": []
+    }
+  ],
+  "numerical_refits": false,
+  "scope": "already-revealed regression data; same original four-head assumption, not independent validation or geometry certification"
+}
