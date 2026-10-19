@@ -1,0 +1,53 @@
+{
+  "candidate": "tracks_motion_clock075_signature_hybrid",
+  "primary": true,
+  "selection_before_reserved_evaluation": true,
+  "parameters": {
+    "boundary_sigma_s": 0.75,
+    "clock_max_front_residual_mad_s": 2.0,
+    "same_support_cosine_min": 0.0,
+    "quiet_relative_threshold": 0.25,
+    "quiet_floor": 0.010001,
+    "raw_restart": "exact numeric zero, finite samples, before crossing",
+    "period_refinement": "post-count queue fronts; no feedback into K"
+  },
+  "comparison": "baseline94a0c48 and all72 earlier cases are development;24 unseen-seed cases and fresh video2100..2400 reserved",
+  "files": [
+    {
+      "path": "scripts/accuracy_recovery.py",
+      "sha256": "67320f8e7546300305883773745da38e2ac8a50a6f8018ffe2f1305853bf5861"
+    },
+    {
+      "path": "app/core/v9/events.py",
+      "sha256": "cd583b77b888daf8a4701ff0aba66d0072b7ad6e24dd064f4667e6837bf4f2d1"
+    },
+    {
+      "path": "app/core/v9/fit.py",
+      "sha256": "432fe38176f991d61411f76dad3149ab204808ae5392a47ea7bad65192ae2bb2"
+    },
+    {
+      "path": "app/core/v9/model.py",
+      "sha256": "37f20c8988ebcfa23caa93597de320c673e19658f585dc07e2625a0aeb9bc075"
+    },
+    {
+      "path": "app/experimental/trajectory_phase_recovery.py",
+      "sha256": "6d9f30d7be68f3a1d91cb61b50896f9077d21c438a0d6945146bbeb910ed7681"
+    },
+    {
+      "path": "app/experimental/motion_restart.py",
+      "sha256": "3271339783b1ff100e6ba29f3454824fed9641021d7442cc4e2211dc50472a0d"
+    },
+    {
+      "path": "app/experimental/front_period.py",
+      "sha256": "bec7953973c314fe2241115a3e678365fe501943f5bda7efd79d470660f18b5a"
+    },
+    {
+      "path": "app/experimental/phase_clock.py",
+      "sha256": "2097cdb337a312d08c69f5667abb2fc7bfb9afa74cd9c021e1a5254aa3957ddb"
+    }
+  ],
+  "fresh_video_truth_sha256": "685d008d91aa8d269985dda3f064227e317b50da8fd331c9037accfa43f5a7d0",
+  "reserved_suite_sha256": "f648b2d3c3e77df855c194eec10ce07ca7bbf261444fbd5717183e711e46f201",
+  "branch": "improve/trajectory-only-accuracy-20261019",
+  "baseline_commit": "94a0c48"
+}

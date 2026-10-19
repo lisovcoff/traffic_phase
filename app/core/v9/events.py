@@ -408,7 +408,7 @@ def _load_event_streams_legacy(path: Path):
         int(event_count),
     )
 
-def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _records=None, source_member=None):
+def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _records=None, source_member=None, _event_extractor=None):
     """Keep packed tuple compatibility, with lossless vehicle evidence sidecar.
 
     Legacy policy is explicit and uses the historical extractor/selection rules.
@@ -423,6 +423,7 @@ def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _
     if evidence_policy != "permission_per_stream":
         raise ValueError("unknown evidence policy")
     from .vehicle_evidence import extract_vehicle_evidence
+    extractor = _event_extractor or extract_vehicle_evidence
     temporal, files, seen = [], [], set()
     stats = Counter()
     trajectory_count, recording_start = 0, None
@@ -433,7 +434,7 @@ def load_event_streams(path: Path, *, evidence_policy="permission_per_stream", _
             files.append(source_name)
             for track in records:
                 trajectory_count += 1
-                events, quality_stats = extract_vehicle_evidence(track, source_name=source_name)
+                events, quality_stats = extractor(track, source_name=source_name)
                 if not events:
                     stats.update(quality_stats)
                     stats["tracks_without_usable_events"] += 1

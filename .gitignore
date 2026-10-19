@@ -37,6 +37,14 @@ phase_boundary_*/
 /evidence/all_archives_synthetic_20261019/synthetic/results/
 /evidence/all_archives_synthetic_20261019/synthetic/evaluation_v2/
 
+# Recovery experiment bulk data stay local and are enumerated in manifests.
+/evidence/accuracy_recovery_20261019/pilot/
+/evidence/accuracy_recovery_20261019/holdout/results/
+/evidence/accuracy_recovery_20261019/holdout/sealed/
+/evidence/accuracy_recovery_20261019/video_holdout/coarse/frame_*.png
+/evidence/accuracy_recovery_20261019/zero_speed_audit/
+/evidence/accuracy_recovery_20261019/zero_speed_audit_v2/
+
 # Local pilot media; reproducible manifests remain versioned.
 evidence/video_calibration_pilot_20261015/trajectory_sample/calibration_tracks.json
 evidence/video_calibration_pilot_20261015/**/frame_*.jpg

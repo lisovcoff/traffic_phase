@@ -1,5 +1,19 @@
 # Project status — 2D.1, 2026-10-19
 
+IN PROGRESS, explicit user instruction19.10: improve actual real/synthetic
+accuracy and finish the application. See ACCURACY_RECOVERY_PROTOCOL_20261019.md
+and evidence/accuracy_recovery_20261019/candidate_freeze_01.json. This supersedes
+the earlier validation-only scope. Frozen trajectory-only candidate:
+per-track permission, conditional-mark fallback for unsupported sparse fits,
+same-support discharge-state merging, exact-zero motion restart where observed,
+post-count queue-front clock with0.75s local regularization and nonstationary
+fallback. Reserved24 new-seed cases:24/24 K, state error2.85%. Fresh N-main video
+2100..2400:8/9 within2s versus baseline3/9; same camera/day, conditional clock.
+No source-specific video bias. Integration into the normal application, full
+219-source replay, final tests/report are still pending; do not claim delivered.
+Main unchanged; paused2D.1 remains FAIL/default-off. No further model tuning
+against reserved24/fresh video without a new clearly separated validation set.
+
 Latest delivered task: ALL_ARCHIVES_SYNTHETIC_RESULTS_20261019.md. All219 raw
 sources processed by automatic discovery and frozen learned profiles;216 unique
 JSONs,134,648,606 detections including duplicate loose files. All72 realistic
