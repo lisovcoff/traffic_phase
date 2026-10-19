@@ -1,5 +1,21 @@
 # Project status — Trajectory recovery v1, 2026-10-19
 
+LATEST IMPLEMENTATION: INTERSECTION_PROJECT_RESULTS_20261019.md.
+Whole-archive autonomous ingestion, persistent checksummed model/session outputs,
+source failures/partial results, recurring working-configuration catalogue, and
+one upload/progress/player panel are implemented on the task branch. No known
+hardware profile, manual phases or video in this path. All3 Sverdlovsky sessions
+form one K3 family; automatic T projection and orientation tests added. Precise
+date/time seeking and persisted browser restore work. This supersedes the manual
+source/session and mandatory profile gaps below FOR THE NEW PRODUCT PATH.
+Remaining: validated variable-duration/regime recovery; causal per-second online
+on this artifact; same live visualization, long replay/accuracy/packaging.
+Hardware/T estimates remain hypotheses. Main and numerical recovery fit unchanged.
+Verification:1449 full-suite PASS;30 affected PASS; original3+6-session archives
+complete; all9 saved viewers checked without refit; Edge desktop/mobile and exact
+time selection PASS. T structural regression8/8 (K2/K3,all4 orientations), not
+independent timing/physical accuracy. Evidence: intersection_project_20261019.
+
 FULL PRODUCT NOT DELIVERED. User clarified19.10: one panel, whole-intersection
 ZIP/JSON automatically,3/4 approaches and hardware/K inferred without known
 profiles, variable cycles/regimes, then causal per-second vehicle JSON online

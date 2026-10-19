@@ -235,5 +235,6 @@ def test_sixty_minute_three_phase_pipeline_from_truth_to_renderer() -> None:
     assert "const PHYSICAL = " in html
     assert '"N-\\u003eE"' in html
     assert '"E-\\u003eN"' in html
-    assert 'const ACTIVE_APPROACHES = PHYSICAL.enabled' in html
+    assert 'const ACTIVE_APPROACHES = [3,4].includes(OBSERVED_APPROACHES.length)' in html
+    assert '? OBSERVED_APPROACHES : PHYSICAL.enabled' in html
     assert '"heads":{"N":{"main":"RED"' in html

@@ -1,0 +1,34 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Traffic Phase</title><style>*{box-sizing:border-box}body{margin:0;background:#10151d;color:#edf2fa;font:16px/1.5 system-ui}main{max-width:1300px;margin:24px auto;padding:0 16px}h1{font-size:26px}p{margin:10px 0}.muted{color:#adc0d8}section{border:1px solid #344359;border-radius:12px;padding:18px;background:#18212c;margin-bottom:16px}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}button,input,select{font:inherit;max-width:100%}button,select,input[type=datetime-local]{padding:9px;border-radius:6px;border:1px solid #4a6079}button{cursor:pointer;background:#e8f2ff;color:#10151d}button:disabled{opacity:.5;cursor:wait}input[type=file]{flex:1;min-width:200px}progress{width:100%;margin-top:12px;accent-color:#55d5af}#viewer{width:100%;height:1250px;min-height:800px;background:#0d1015;border:1px solid #344359;border-radius:12px}a{color:#a1cbff}#result-summary,#error{overflow-wrap:anywhere}#error{color:#ffacac}#session{flex:1;min-width:200px}details{margin-top:12px;font-size:13px}pre{white-space:pre-wrap;overflow-wrap:anywhere}#live-note{font-size:13px}</style></head><body><main>
+<h1>Traffic Phase</h1><p class="muted">Фазы и сигналы перекрёстка по движению машин.</p>
+<section><form id="form"><div class="row"><input id="file" type="file" accept=".json,.zip" required aria-label="Архив или JSON одного перекрёстка"><button id="analyze">Анализировать</button></div></form>
+<p class="muted">Один JSON или весь ZIP одного перекрёстка. Файлы и сеансы обрабатываются автоматически; схема и число фаз пользователем не задаются.</p>
+<p id="status" role="status">Выберите файл.</p><progress id="progress" hidden></progress><p id="error" role="alert"></p>
+<div id="result" hidden><p id="result-summary"></p><div class="row"><label for="session">Запись</label><select id="session"></select><button id="open">Показать</button><a id="download">Скачать модель</a></div>
+<p class="muted">Цвета — оценка по траекториям. Тип светофоров и допсекции пока являются гипотезой; точность восстановления всех режимов ещё проверяется.</p>
+<p id="live-note" class="muted">Онлайн на сохранённой модели — следующий этап интеграции.</p></div>
+<details><summary>Ход обработки</summary><pre id="details"></pre></details></section>
+<iframe id="viewer" title="Перекрёсток, машины и сигналы" hidden></iframe>
+</main><script>
+const $=id=>document.getElementById(id);let identifier=null,model=null,pollTimer=null,revision=0;
+const stages={inventory:'Проверка архива',extracting:'Чтение траекторий',discovering:'Определение фаз',catalogue:'Объединение повторяющихся режимов',finished:'Анализ завершён',queued:'Ожидание обработки',upload:'Загрузка файла'};
+const fmt=new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Yekaterinburg',dateStyle:'short',timeStyle:'medium'});
+function clear(){revision++;clearTimeout(pollTimer);$('result').hidden=true;$('viewer').hidden=true;$('viewer').removeAttribute('src');$('error').textContent='';model=null;}
+$('file').onchange=()=>{clear();$('status').textContent='Файл выбран. Нажмите «Анализировать».';};
+async function poll(token){try{const response=await fetch('/api/v1/intersections/'+identifier);if(!response.ok)throw Error('Не удалось получить состояние анализа');const data=await response.json();if(token!==revision)return;
+ $('status').textContent=(stages[data.stage]||data.status)+' · файлов '+(data.sources_done||0)+'/'+(data.sources_total||'?')+' · сеансов '+(data.sessions_done||0);
+ if(data.sources_total){$('progress').max=data.sources_total;$('progress').value=data.sources_done;}
+ $('details').textContent=(data.sources||[]).map(s=>s.source_member+' — '+s.status+(s.reason?' · '+s.reason:'')).join('
+');
+ if(data.status==='FAILED')throw Error(data.reason||'Анализ не завершён');
+ if(data.status==='READY'||data.status==='PARTIAL'){const r=await fetch('/api/v1/intersections/'+identifier+'/model');if(!r.ok)throw Error('Не удалось загрузить модель');model=await r.json();if(token!==revision)return;showModel();$('analyze').disabled=false;$('file').disabled=false;$('progress').hidden=true;return;}
+ pollTimer=setTimeout(()=>poll(token),1000);
+ }catch(error){if(token!==revision)return;$('error').textContent=error.message;$('analyze').disabled=false;$('file').disabled=false;$('progress').hidden=true;}}
+function showModel(){const counts=[...new Set(model.regimes.map(r=>r.phase_count))].sort((a,b)=>a-b);$('result-summary').textContent='Наблюдаемых подходов: '+model.observed_approach_count+' ('+model.approaches.join(', ')+') · записей: '+model.sessions.length+' · групп режимов: '+model.regimes.length+' · K: '+counts.join(', ')+(model.completeness==='PARTIAL'?' · Часть данных не обработана, см. ход обработки':'');
+ $('session').replaceChildren();for(const s of [...model.sessions].sort((a,b)=>a.observation_start_ms-b.observation_start_ms)){let o=new Option(fmt.format(s.observation_start_ms)+' — '+fmt.format(s.observation_end_ms)+' · K='+s.phase_count+' · '+s.source_member,s.session_id);$('session').add(o);}
+ $('result').hidden=false;$('download').href='/api/v1/intersections/'+identifier+'/model';localStorage.setItem('traffic-phase-project',identifier);openSession();}
+function openSession(){if(!model)return;$('viewer').src='/api/v1/intersections/'+identifier+'/sessions/'+$('session').value+'/viewer';$('viewer').hidden=false;}
+$('open').onclick=openSession;$('session').onchange=openSession;
+$('form').onsubmit=e=>{e.preventDefault();if(!$('file').files.length)return;clear();const token=revision;$('analyze').disabled=true;$('file').disabled=true;$('progress').hidden=false;$('progress').removeAttribute('value');$('status').textContent='Загрузка файла…';const body=new FormData();body.append('file',$('file').files[0]);const xhr=new XMLHttpRequest();xhr.open('POST','/api/v1/intersections');xhr.upload.onprogress=e=>{if(e.lengthComputable){$('progress').max=e.total;$('progress').value=e.loaded;$('status').textContent='Загрузка: '+Math.round(100*e.loaded/e.total)+'%';}};xhr.onload=()=>{if(token!==revision)return;let data;try{data=JSON.parse(xhr.responseText);}catch{}if(xhr.status!==202){$('error').textContent=String(data?.detail||'Не удалось загрузить файл');$('analyze').disabled=false;$('file').disabled=false;$('progress').hidden=true;return;}identifier=data.model_id;localStorage.setItem('traffic-phase-project',identifier);$('progress').removeAttribute('value');poll(token);};xhr.onerror=()=>{$('error').textContent='Ошибка связи при загрузке';$('analyze').disabled=false;$('file').disabled=false;$('progress').hidden=true;};xhr.send(body);};
+const previous=new URLSearchParams(location.search).get('project')||localStorage.getItem('traffic-phase-project');if(previous&&/^[a-f0-9]{32}$/.test(previous)){identifier=previous;$('status').textContent='Восстановление последнего анализа…';poll(revision);}
+</script></body></html>

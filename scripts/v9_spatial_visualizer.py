@@ -4,6 +4,7 @@ import argparse
 import base64
 import gzip
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -92,6 +93,9 @@ input[type=range]{width:100%}
 <option value="20">x20</option><option value="100">x100</option>
 </select></label>
 <strong id="timeLabel">—</strong>
+<label>Дата и время (Екб) <input id="seekTime" type="datetime-local" step="0.1" disabled></label>
+<button id="seekGo" disabled>Перейти</button>
+<span id="seekError" role="status" class="muted"></span>
 <label>Отображение
 <select id="displayMode" aria-label="Режим отображения">
 <option value="signals">Сигналы по модели</option>
@@ -193,7 +197,8 @@ const APPROACH_LABELS = {N:"Север",S:"Юг",E:"Восток",W:"Запад"
 // A head always controls its incoming approach; only supported dedicated turn
 // movements are rendered as additional physical sections.
 const HEAD_SECTIONS = RECONSTRUCTED ? {} : (PHYSICAL.enabled ? PHYSICAL.topology : PHYSICAL_TOPOLOGY);
-const ACTIVE_APPROACHES = PHYSICAL.enabled || ESTIMATED_SIGNALS.hardware_confirmed
+const OBSERVED_APPROACHES = ((RESULT.intersection_geometry||{}).approaches||[]);
+const ACTIVE_APPROACHES = [3,4].includes(OBSERVED_APPROACHES.length) ? OBSERVED_APPROACHES : PHYSICAL.enabled || ESTIMATED_SIGNALS.hardware_confirmed
   ? APPROACHES
   : (
       PROJECTION && PROJECTION.anchors &&
@@ -590,10 +595,19 @@ function drawRoad(ctx,w,h){
   ctx.fillStyle="#c9cfd8";
   ctx.font="700 "+(14*canvasScale)+"px Inter,system-ui";
   ctx.textAlign="center";ctx.textBaseline="middle";
-  ctx.fillText("N",w*.5,18*canvasScale);
-  ctx.fillText("S",w*.5,h-18*canvasScale);
-  ctx.fillText("W",18*canvasScale,h*.5);
-  ctx.fillText("E",w-18*canvasScale,h*.5);
+  // Mask only an explicitly exported observed three-approach projection.
+  if(OBSERVED_APPROACHES.length===3){
+    ctx.fillStyle="#222831";
+    if(!ACTIVE_APPROACHES.includes("N"))ctx.fillRect(roadL,0,roadR-roadL,roadT+2);
+    if(!ACTIVE_APPROACHES.includes("S"))ctx.fillRect(roadL,roadB-2,roadR-roadL,h-roadB+2);
+    if(!ACTIVE_APPROACHES.includes("W"))ctx.fillRect(0,roadT,roadL+2,roadB-roadT);
+    if(!ACTIVE_APPROACHES.includes("E"))ctx.fillRect(roadR-2,roadT,w-roadR+2,roadB-roadT);
+  }
+  ctx.fillStyle="#c9cfd8";
+  if(ACTIVE_APPROACHES.includes("N"))ctx.fillText("N",w*.5,18*canvasScale);
+  if(ACTIVE_APPROACHES.includes("S"))ctx.fillText("S",w*.5,h-18*canvasScale);
+  if(ACTIVE_APPROACHES.includes("W"))ctx.fillText("W",18*canvasScale,h*.5);
+  if(ACTIVE_APPROACHES.includes("E"))ctx.fillText("E",w-18*canvasScale,h*.5);
 }
 
 function lampColor(state,which){
@@ -774,7 +788,7 @@ function render(){
   const vehicles=activeVehicles(currentTime);
 
   const debugHeads={};
-  for(const approach of APPROACHES){
+  for(const approach of ACTIVE_APPROACHES){
     const head=snapshot.heads[approach] || {main:{state:"UNKNOWN"},arrows:[]};
     debugHeads[approach]={
       main:String(head.main && head.main.state || "UNKNOWN"),
@@ -837,7 +851,7 @@ function render(){
   $("sceneBadge").textContent=(estimatedView()?"Оценка сигналов · "+snapshot.phaseName+" · ":modelView()?"Оценка движений · фаза "+$("phase").textContent+" · ":RECONSTRUCTED ? "Логическая история; лампы UNKNOWN · " : PHYSICAL.enabled
     ? "V10 · физический план · "
     : "V10 OFF · "+String(PHYSICAL.reason || "physical plan unavailable")+" · ")
-    +"N ↑ · S ↓ · W ← · E → · "+vehicles.length+" машин";
+    +ACTIVE_APPROACHES.map(a=>a+" "+({N:"↑",S:"↓",W:"←",E:"→"})[a]).join(" · ")+" · "+vehicles.length+" машин";
   $("sceneBadge").className="scene-badge"+(anomaly?" warning":"");
   $("semanticText").textContent=estimatedView()?(ESTIMATED_SIGNALS.hardware_confirmed?"Схема: "+ESTIMATED_SIGNALS.profile_name+", задана пользователем. ":"Схема сигналов — гипотеза алгоритма. ")+"Цвета и время переключений оценены по траекториям. Погашенная допсекция обозначена OFF. Жёлтый 3 с перед красным; красный с жёлтым до 2 с перед зелёным — оценка по нормативной модели. Наблюдение ламп: UNKNOWN.":modelView()?"Цвет сравнивает характеристику движения в текущей фазе с его максимумом по фазам. Зелёный — не ниже 70% максимума, серый — ниже, жёлтый — фазы не различаются. Это оценка состава фазы, а не разрешение проезда. "+(snapshot.abstention_reason?"Фаза недоступна: "+snapshot.abstention_reason:""):RECONSTRUCTED ? "Логическая фаза по общей истории; физические лампы и секции UNKNOWN. Отсутствие движения не доказывает RED. Причина UNKNOWN: "+String(snapshot.abstention_reason||"аппаратные состояния не наблюдались") : PHYSICAL.enabled
     ? "зелёный/красный — по V10 physical phase mapping и заданному плану сигналов. Жёлтый и красный+жёлтый — модельные переходы."
@@ -850,6 +864,16 @@ function setCurrentTime(value){
   currentTime=Math.max(0,Math.min(RECORDING_DURATION,Number(value)||0));
   render();
 }
+
+function localSeekValue(ms){return new Date(ms+5*3600000).toISOString().slice(0,23);}
+$("seekGo").addEventListener("click",function(){
+  const requested=Date.parse($("seekTime").value+"+05:00");
+  const second=(requested-DISPLAY_BASE_MS)/1000;
+  if(!Number.isFinite(second)||second<0||second>RECORDING_DURATION){
+    $("seekError").textContent="Выберите время внутри этой записи";return;
+  }
+  $("seekError").textContent="";stop();setCurrentTime(second);
+});
 
 function play(){
   stop();
@@ -885,6 +909,10 @@ async function init(){
     $("eventCount").textContent=String(RESULT.event_count||0);
     $("period").textContent=Number(RESULT.schedule && RESULT.schedule.period_s || 0).toFixed(3)+" s";
     $("slider").max=String(RECORDING_DURATION);
+    $("seekTime").min=localSeekValue(DISPLAY_BASE_MS);
+    $("seekTime").max=localSeekValue(DISPLAY_BASE_MS+RECORDING_DURATION*1000);
+    $("seekTime").value=localSeekValue(DISPLAY_BASE_MS);
+    $("seekTime").disabled=false;$("seekGo").disabled=false;
     $("axisStart").textContent="T+0.0 s · "+new Date(DISPLAY_BASE_MS).toLocaleTimeString();
     $("axisEnd").textContent="T+"+RECORDING_DURATION.toFixed(1)+" s · "+new Date(DISPLAY_BASE_MS+RECORDING_DURATION*1000).toLocaleTimeString();
     $("timelineEnd").textContent=new Date(DISPLAY_BASE_MS+RECORDING_DURATION*1000).toLocaleTimeString();
@@ -1216,6 +1244,8 @@ def build_spatial_visualization(
     session_id: str | None = None,
     intersection_profile: str = "auto",
     algorithm_version: str = "legacy_v9",
+    precomputed_result: dict[str, Any] | None = None,
+    precomputed_projection: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the canonical spatial HTML used by both CLI and Uvicorn."""
     input_path = Path(input_path)
@@ -1232,7 +1262,7 @@ def build_spatial_visualization(
         discover_selected = discover_path
     else:
         raise ValueError("unknown algorithm_version")
-    result = discover_selected(
+    result = deepcopy(precomputed_result) if precomputed_result is not None else discover_selected(
         input_path,
         dt=float(dt),
         **({k: v for k, v in {'source_member': source_member, 'session_id': session_id}.items() if v is not None}),
@@ -1299,7 +1329,7 @@ def build_spatial_visualization(
         if physical_plan_path is not None
         else result.get("physical_signal_plan")
     )
-    projection = build_spatial_projection(tracks)
+    projection = deepcopy(precomputed_projection) if precomputed_projection is not None else build_spatial_projection(tracks)
     result['estimated_signals']=build_estimated_signals(result,profile_id=intersection_profile,input_name=input_path.name,
         yellow_s=yellow_duration_seconds,red_yellow_s=red_yellow_duration_seconds)
     analysis_base_ms = float(result["analysis_base_timestamp_ms"])

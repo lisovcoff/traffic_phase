@@ -1,0 +1,111 @@
+{
+  "scope": "development T-structure regression; no parameter tuning, no independent accuracy claim",
+  "configs": [
+    {
+      "name": "k2_rotation0",
+      "rotation": 0,
+      "config": {
+        "seed": 2026101901,
+        "k": 2,
+        "duration_s": 1200,
+        "period_s": 90,
+        "arrival_rate_s": 0.07,
+        "cycle_jitter": 0.01,
+        "realistic_turns": true
+      }
+    },
+    {
+      "name": "k2_rotation1",
+      "rotation": 1,
+      "config": {
+        "seed": 2026101901,
+        "k": 2,
+        "duration_s": 1200,
+        "period_s": 90,
+        "arrival_rate_s": 0.07,
+        "cycle_jitter": 0.01,
+        "realistic_turns": true
+      }
+    },
+    {
+      "name": "k2_rotation2",
+      "rotation": 2,
+      "config": {
+        "seed": 2026101901,
+        "k": 2,
+        "duration_s": 1200,
+        "period_s": 90,
+        "arrival_rate_s": 0.07,
+        "cycle_jitter": 0.01,
+        "realistic_turns": true
+      }
+    },
+    {
+      "name": "k2_rotation3",
+      "rotation": 3,
+      "config": {
+        "seed": 2026101901,
+        "k": 2,
+        "duration_s": 1200,
+        "period_s": 90,
+        "arrival_rate_s": 0.07,
+        "cycle_jitter": 0.01,
+        "realistic_turns": true
+      }
+    },
+    {
+      "name": "k3_rotation0",
+      "rotation": 0,
+      "config": {
+        "seed": 2026101901,
+        "k": 3,
+        "duration_s": 1200,
+        "period_s": 90,
+        "arrival_rate_s": 0.07,
+        "cycle_jitter": 0.01,
+        "realistic_turns": true
+      }
+    },
+    {
+      "name": "k3_rotation1",
+      "rotation": 1,
+      "config": {
+        "seed": 2026101901,
+        "k": 3,
+        "duration_s": 1200,
+        "period_s": 90,
+        "arrival_rate_s": 0.07,
+        "cycle_jitter": 0.01,
+        "realistic_turns": true
+      }
+    },
+    {
+      "name": "k3_rotation2",
+      "rotation": 2,
+      "config": {
+        "seed": 2026101901,
+        "k": 3,
+        "duration_s": 1200,
+        "period_s": 90,
+        "arrival_rate_s": 0.07,
+        "cycle_jitter": 0.01,
+        "realistic_turns": true
+      }
+    },
+    {
+      "name": "k3_rotation3",
+      "rotation": 3,
+      "config": {
+        "seed": 2026101901,
+        "k": 3,
+        "duration_s": 1200,
+        "period_s": 90,
+        "arrival_rate_s": 0.07,
+        "cycle_jitter": 0.01,
+        "realistic_turns": true
+      }
+    }
+  ],
+  "criteria": "observed approaches equal generated approaches; one family with expected working K",
+  "evaluation_truth_not_passed_to_application": true
+}

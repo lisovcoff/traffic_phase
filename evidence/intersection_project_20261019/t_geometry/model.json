@@ -1,0 +1,295 @@
+{
+  "schema": "traffic-intersection-model-v1",
+  "model_id": "f3b67b9cba2b42598077a02ec699c1c6",
+  "algorithm": "trajectory_recovery_v1",
+  "input": {
+    "name": "input.zip",
+    "sha256": "936251182cef6f77f8930621e78a6142ba88276685dea6e271f390433bd7d7cf",
+    "source_count": 1,
+    "intersection_identity": "declared_single_intersection; namespace consistency not independently certified"
+  },
+  "completeness": "COMPLETE",
+  "sessions": [
+    {
+      "session_id": "6b37fc228e99cfcadac2a426",
+      "source_member": "anonymous.json",
+      "source_index": 0,
+      "observation_start_ms": 1800000000000,
+      "observation_end_ms": 1800001196869,
+      "track_count": 327,
+      "status": "READY",
+      "phase_count": 1,
+      "latent_phase_count": 2,
+      "state_basis": "automatic_estimated_head_configurations",
+      "period_s": 89.90973194444445,
+      "prediction": "sessions/6b37fc228e99cfcadac2a426.json.gz",
+      "prediction_sha256": "1f2b9ac356cbba67c4c00d8bffb67aa133fdf807ac5f44f931f25030b7a35c25",
+      "regime_id": "regime_001"
+    }
+  ],
+  "regimes": [
+    {
+      "regime_id": "regime_001",
+      "phase_count": 1,
+      "phase_names": [
+        "PHASE_A"
+      ],
+      "period_s": 89.90973194444445,
+      "members": [
+        {
+          "session_id": "6b37fc228e99cfcadac2a426",
+          "phase_mapping": {
+            "0": 0
+          },
+          "signature_distance": 0.0
+        }
+      ],
+      "movement_probabilities": {
+        "N->S": [
+          0.06764373754983934
+        ],
+        "S->N": [
+          0.06764373754983934
+        ],
+        "N->E": [
+          0.06075701155472105
+        ],
+        "E->N": [
+          0.045613198241621106
+        ]
+      },
+      "phase_durations": {
+        "PHASE_A": {
+          "samples": 0,
+          "p10_s": null,
+          "median_s": null,
+          "p90_s": null
+        }
+      },
+      "reference_baseline": [
+        [
+          0.0,
+          1189.0,
+          0
+        ]
+      ],
+      "reference_period_s": 89.90973194444445,
+      "signal_topology": {
+        "N": {
+          "main": "N->S",
+          "arrows": []
+        },
+        "S": {
+          "main": "S->N",
+          "arrows": []
+        },
+        "E": {
+          "main": "E->N",
+          "arrows": []
+        }
+      },
+      "phase_head_states": [
+        {
+          "N": {
+            "main": {
+              "state": "GREEN",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "S": {
+            "main": {
+              "state": "GREEN",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          },
+          "E": {
+            "main": {
+              "state": "RED",
+              "source": "TRAJECTORY_PHASE_ESTIMATE"
+            },
+            "arrows": []
+          }
+        }
+      ],
+      "state_basis": "automatic_estimated_head_configurations",
+      "observed_transitions": [],
+      "grouping_semantics": "heuristic recurring observed signatures; NOT certified controller programs",
+      "structure_source": "offline_trajectory_only",
+      "online_structure_frozen": true
+    }
+  ],
+  "source_inventory": [
+    {
+      "source_member": "anonymous.json",
+      "uncompressed_bytes": 18800530,
+      "crc32": "c412bc10",
+      "status": "READY",
+      "sessions": [
+        {
+          "session_id": "6b37fc228e99cfcadac2a426",
+          "source_member": "anonymous.json",
+          "source_index": 0,
+          "observation_start_ms": 1800000000000,
+          "observation_end_ms": 1800001196869,
+          "track_count": 327,
+          "status": "READY",
+          "phase_count": 1,
+          "latent_phase_count": 2,
+          "state_basis": "automatic_estimated_head_configurations",
+          "period_s": 89.90973194444445,
+          "prediction": "sessions/6b37fc228e99cfcadac2a426.json.gz",
+          "prediction_sha256": "1f2b9ac356cbba67c4c00d8bffb67aa133fdf807ac5f44f931f25030b7a35c25",
+          "regime_id": "regime_001"
+        }
+      ],
+      "record_counts": {
+        "trajectory_records": 331,
+        "detections": 92314
+      }
+    }
+  ],
+  "geometries": {
+    "anonymous.json": {
+      "projection": {
+        "method": "heading_aligned_least_squares_affine_partial",
+        "base_method": "least_squares_affine_partial",
+        "anchors": {
+          "N": [
+            0.5237050210760992,
+            0.6065233114248705
+          ],
+          "S": [
+            0.47461509354905546,
+            0.3857379855813299
+          ],
+          "E": [
+            0.6127433494784396,
+            0.47176603352661306
+          ]
+        },
+        "matrix": [
+          [
+            3.3653679632688998,
+            -0.7490715572355219,
+            -0.8082199079567279
+          ],
+          [
+            -0.9100658485180553,
+            -3.4210829487318364,
+            2.6515726230417163
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "base_matrix": [
+          [
+            3.36132821579776,
+            -0.747365604474324,
+            -0.8070498028272343
+          ],
+          [
+            -0.7418741936278131,
+            -3.458479166055345,
+            2.586171476499481
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "heading_alignment": {
+          "available": true,
+          "samples": {
+            "W_to_E": 0,
+            "E_to_W": 0,
+            "S_to_N": 48,
+            "N_to_S": 25,
+            "horizontal_approach_fallback": 48,
+            "vertical_approach_fallback": 0
+          },
+          "source_axes": {
+            "W_to_E": [
+              0.9987504818055947,
+              0.049974744552549445
+            ],
+            "S_to_N": [
+              0.0002226444912337979,
+              -0.999999975214715
+            ]
+          },
+          "heading_angles_deg": {
+            "W_to_E_from_positive_X": 2.8645351407804025,
+            "S_to_N_from_negative_Y": 0.012756589784925979
+          },
+          "observed_axis_angle_deg": 92.85177855099549,
+          "observed_orthogonality_error_deg": 2.8517785509954905,
+          "isotropic_scale": 1.00001109088896,
+          "correction_matrix": [
+            [
+              1.0012510317487135,
+              0.00022292303208621848,
+              -0.0007369773903999066
+            ],
+            [
+              -0.05003726578480644,
+              0.9999999751526609,
+              0.025018645316072785
+            ],
+            [
+              0.0,
+              0.0,
+              1.0
+            ]
+          ]
+        },
+        "canonical_approaches": {
+          "N": [
+            0.5,
+            0.1
+          ],
+          "S": [
+            0.5,
+            0.9
+          ],
+          "E": [
+            0.9,
+            0.5
+          ],
+          "W": [
+            0.1,
+            0.5
+          ]
+        }
+      },
+      "scope": "bounded geometric sample per observed incoming approach; schematic, not calibrated road geometry"
+    }
+  },
+  "approaches": [
+    "N",
+    "S",
+    "E"
+  ],
+  "observed_approach_count": 3,
+  "topology_semantics": "observed origins/destinations; empty approaches may remain unseen; hardware inference not certified",
+  "known_hardware_profile_used": false,
+  "annotations_used": false,
+  "video_used": false,
+  "offline_structure_frozen": true,
+  "history_semantics": "separate source/session histories; no continuity across gaps",
+  "calendar_timezone": "UTC+05:00; source acquisition dates not independently certified",
+  "calendar_observations": [
+    {
+      "session_id": "6b37fc228e99cfcadac2a426",
+      "weekday": 4
+    }
+  ],
+  "regime_selection_semantics": "signature catalogue; weekday programs not yet certified",
+  "errors": [],
+  "fingerprint": "030793fdb326e86cf89dfcc9c6e89c803bf6072d71e3c4ec09e8f6905094c05d"
+}

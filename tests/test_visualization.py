@@ -14,12 +14,12 @@ from app.core.v9.signal_renderer import DEFAULT_ACTIVITY_THRESHOLD
 def test_visualization_page_is_the_unified_v10_entrypoint():
     html = visualization_page()
 
-    assert "V10 — Traffic Phase" in html
-    assert "/visualization/analyze" in html
+    assert "Traffic Phase" in html
+    assert "/api/v1/intersections" in html
     assert 'accept=".json,.zip' in html
-    assert "оценка фаз и движений" in html
-    assert "По умолчанию показана оценка сигналов" in html
-    assert "допсекциями" in html and "UNKNOWN" in html
+    assert "Файлы и сеансы обрабатываются автоматически" in html
+    assert "Цвета — оценка по траекториям" in html
+    assert 'intersection-profile' not in html
 
 
 @pytest.mark.parametrize('profile',['auto','lenina_sverdlovsky'])

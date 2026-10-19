@@ -5,6 +5,8 @@ from starlette.exceptions import HTTPException
 MAX_UPLOAD_BYTES = 512 * 1024 * 1024
 MAX_REQUEST_BYTES = MAX_UPLOAD_BYTES + 1024 * 1024
 UPLOAD_PATHS = frozenset(('/api/v1/v9/analyze', '/visualization/analyze', '/visualization/batch'))
+PROJECT_UPLOAD_PATH = '/api/v1/intersections'
+PROJECT_REQUEST_BYTES = 16 * 1024**3 + 1024 * 1024
 
 
 class UploadLimitExceeded(HTTPException):
@@ -32,8 +34,9 @@ class UploadLimitMiddleware:
         self.app, self.max_bytes = app, max_bytes
 
     async def __call__(self, scope, receive, send):
-        if scope['type'] != 'http' or scope['method'] != 'POST' or scope['path'] not in UPLOAD_PATHS:
+        if scope['type'] != 'http' or scope['method'] != 'POST' or scope['path'] not in UPLOAD_PATHS | {PROJECT_UPLOAD_PATH}:
             return await self.app(scope, receive, send)
+        limit = PROJECT_REQUEST_BYTES if scope['path'] == PROJECT_UPLOAD_PATH else self.max_bytes
         headers = dict(scope.get('headers', []))
         try:
             declared = int(headers.get(b'content-length', b'0'))
@@ -41,7 +44,7 @@ class UploadLimitMiddleware:
                 raise ValueError
         except ValueError:
             return await JSONResponse({'detail': 'INVALID_CONTENT_LENGTH'}, 400)(scope, receive, send)
-        if declared > self.max_bytes:
+        if declared > limit:
             return await JSONResponse({'detail': 'REQUEST_BYTE_BUDGET_EXCEEDED'}, 413)(scope, receive, send)
         size = 0
 
@@ -50,7 +53,7 @@ class UploadLimitMiddleware:
             message = await receive()
             if message['type'] == 'http.request':
                 size += len(message.get('body', b''))
-                if size > self.max_bytes:
+                if size > limit:
                     raise UploadLimitExceeded('REQUEST_BYTE_BUDGET_EXCEEDED')
             return message
 

@@ -1,0 +1,168 @@
+{
+  "status": "PASS",
+  "cases": [
+    {
+      "case": "k2_rotation0",
+      "status": "PASS",
+      "expected_k": 2,
+      "working_k": [
+        2
+      ],
+      "approaches": [
+        "N",
+        "S",
+        "E"
+      ],
+      "expected_approaches": [
+        "E",
+        "N",
+        "S"
+      ],
+      "model_id": "1968441f22f64fa2b906539d11448867",
+      "runtime_s": 7.90599999999904
+    },
+    {
+      "case": "k2_rotation1",
+      "status": "PASS",
+      "expected_k": 2,
+      "working_k": [
+        2
+      ],
+      "approaches": [
+        "S",
+        "E",
+        "W"
+      ],
+      "expected_approaches": [
+        "E",
+        "S",
+        "W"
+      ],
+      "model_id": "b7ab885d0557482a986dacea29525af5",
+      "runtime_s": 6.922000000002299
+    },
+    {
+      "case": "k2_rotation2",
+      "status": "PASS",
+      "expected_k": 2,
+      "working_k": [
+        2
+      ],
+      "approaches": [
+        "N",
+        "S",
+        "W"
+      ],
+      "expected_approaches": [
+        "N",
+        "S",
+        "W"
+      ],
+      "model_id": "c9ab27431f754fb9ac82459455b67788",
+      "runtime_s": 7.0939999999973224
+    },
+    {
+      "case": "k2_rotation3",
+      "status": "PASS",
+      "expected_k": 2,
+      "working_k": [
+        2
+      ],
+      "approaches": [
+        "N",
+        "E",
+        "W"
+      ],
+      "expected_approaches": [
+        "E",
+        "N",
+        "W"
+      ],
+      "model_id": "50683ad4d0094c4bb0aa307c6a880d75",
+      "runtime_s": 6.828000000001339
+    },
+    {
+      "case": "k3_rotation0",
+      "status": "PASS",
+      "expected_k": 3,
+      "working_k": [
+        3
+      ],
+      "approaches": [
+        "N",
+        "S",
+        "E"
+      ],
+      "expected_approaches": [
+        "E",
+        "N",
+        "S"
+      ],
+      "model_id": "de1172f7236340d391993e7ea36ebf11",
+      "runtime_s": 8.203000000001339
+    },
+    {
+      "case": "k3_rotation1",
+      "status": "PASS",
+      "expected_k": 3,
+      "working_k": [
+        3
+      ],
+      "approaches": [
+        "S",
+        "E",
+        "W"
+      ],
+      "expected_approaches": [
+        "E",
+        "S",
+        "W"
+      ],
+      "model_id": "5c11ab593c0045e0ab0eeca149fe9001",
+      "runtime_s": 8.65599999999904
+    },
+    {
+      "case": "k3_rotation2",
+      "status": "PASS",
+      "expected_k": 3,
+      "working_k": [
+        3
+      ],
+      "approaches": [
+        "N",
+        "S",
+        "W"
+      ],
+      "expected_approaches": [
+        "N",
+        "S",
+        "W"
+      ],
+      "model_id": "a21ce3f4cad343f1b5895b105a8ee33a",
+      "runtime_s": 8.420999999998457
+    },
+    {
+      "case": "k3_rotation3",
+      "status": "PASS",
+      "expected_k": 3,
+      "working_k": [
+        3
+      ],
+      "approaches": [
+        "N",
+        "E",
+        "W"
+      ],
+      "expected_approaches": [
+        "E",
+        "N",
+        "W"
+      ],
+      "model_id": "cfc4ee325fd344198c87ca4635c9cc5e",
+      "runtime_s": 8.375
+    }
+  ],
+  "passed": 8,
+  "total": 8,
+  "scope": "development regression, not independent timing/color accuracy"
+}

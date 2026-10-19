@@ -364,7 +364,8 @@ form.addEventListener("submit",async function(event){
 
 @router.get("", response_class=HTMLResponse)
 def visualization_page() -> str:
-    return INDEX_HTML
+    from app.api.intersection_panel import PAGE
+    return PAGE
 
 
 @router.post("/analyze", response_class=HTMLResponse)

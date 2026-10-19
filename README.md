@@ -1,5 +1,11 @@
 # traffic_phase
 
+19.10, первая часовая поставка: **[весь ZIP → сохраняемая модель → одна панель](docs/INTERSECTION_PROJECT_RESULTS_20261019.md)**.
+`START_WEB.cmd` → http://127.0.0.1:8017/visualization. Перезапустите старый сервер.
+Все JSON/сеансы анализируются автоматически, ручной профиль не нужен;
+работают выбор записи, плеер, точное время (Екб), сохранение/возобновление.
+Онлайн на этой модели и приёмка переменных режимов ещё остаются.
+
 Full-product status19.10: **not yet complete** for the requested one-panel,
 automatic whole-archive offline → per-second vehicle JSON online workflow.
 [Remaining work and acceptance criteria](docs/DELIVERY_GAP_ASSESSMENT_20261019.md).

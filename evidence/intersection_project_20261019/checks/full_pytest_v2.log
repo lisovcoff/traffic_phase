@@ -1,0 +1,127 @@
+........................................................................ [  4%]
+........................................................................ [  9%]
+........................................................................ [ 14%]
+........................................................................ [ 19%]
+........................................................................ [ 24%]
+........................................................................ [ 29%]
+........................................................................ [ 34%]
+........................................................................ [ 39%]
+........................................................................ [ 44%]
+........................................................................ [ 49%]
+........................................................................ [ 54%]
+........................................................................ [ 59%]
+........................................................................ [ 64%]
+........................................................................ [ 69%]
+........................................................................ [ 74%]
+........................................................................ [ 79%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 94%]
+........F............................................................... [ 99%]
+.....                                                                    [100%]
+================================== FAILURES ===================================
+________ test_sixty_minute_three_phase_pipeline_from_truth_to_renderer ________
+
+    def test_sixty_minute_three_phase_pipeline_from_truth_to_renderer() -> None:
+        truth = _synthetic_truth()
+        assert len(truth) == 3
+        assert len(_make_tracks(minutes=60)) == 2664
+    
+        tracks = _make_tracks(minutes=60)
+        result = discover_records(
+            tracks,
+            input_name="synthetic_60min_three_phase",
+            dt=1.0,
+        )
+    
+        assert result["phase_model_selection"]["selected_phase_count"] == 3
+    
+        semantic_mapping = _phase_by_signature(result)
+        assert set(semantic_mapping.values()) == {
+            "EW_THROUGH",
+            "NS_THROUGH",
+            "NS_TURN",
+        }
+    
+        physical = result["physical_signal_plan"]
+        assert physical["enabled"] is True
+        by_name = {phase["name"]: phase for phase in physical["phases"]}
+    
+        expected_green = {
+            "EW_THROUGH": {"E->W", "W->E"},
+            "NS_THROUGH": {"N->S", "S->N"},
+            "NS_TURN": {"N->S", "N->E", "E->N"},
+        }
+        for physical_name, expected in expected_green.items():
+            assert set(by_name[physical_name]["green_movements"]) == expected
+    
+        assert physical["topology"]["N"]["main"] == "N->S"
+        assert physical["topology"]["S"]["main"] == "S->N"
+        assert physical["topology"]["E"]["main"] == "E->W"
+        assert physical["topology"]["W"]["main"] == "W->E"
+        assert physical["topology"]["N"]["arrows"] == ["N->E"]
+        assert physical["topology"]["E"]["arrows"] == ["E->N"]
+    
+        visual = _physical_visual_model(result, physical)
+        assert visual["topology"] == physical["topology"]
+        for stage in physical["stages"]:
+            heads = stage["heads"]
+            assert set(heads) == {"N", "S", "E", "W"}
+            for approach in ("N", "S", "E", "W"):
+                assert set(heads[approach]) == {"main", "arrows"}
+                assert all(
+                    state == "GREEN"
+                    for state in heads[approach]["arrows"].values()
+                )
+    
+    
+        ew = _head_states(physical, 10.0)
+        ns = _head_states(physical, 45.0)
+        turn = _head_states(physical, 80.0)
+    
+        assert ew["E"]["main"] == "GREEN"
+        assert ew["W"]["main"] == "GREEN"
+        assert ew["N"]["main"] == "RED"
+        assert ew["S"]["main"] == "RED"
+    
+        assert ns["N"]["main"] == "GREEN"
+        assert ns["S"]["main"] == "GREEN"
+        assert ns["E"]["main"] == "RED"
+        assert ns["W"]["main"] == "RED"
+    
+        assert turn["N"]["main"] == "GREEN"
+        assert turn["N"]["arrows"] == ["N->E"]
+        assert turn["E"]["main"] == "RED"
+        assert turn["E"]["arrows"] == ["E->N"]
+        assert turn["S"]["main"] == "RED"
+        assert turn["W"]["main"] == "RED"
+    
+        html = render_html(
+            result,
+            {},
+            [],
+            physical_plan=physical,
+        )
+        assert "const PHYSICAL = " in html
+        assert '"N-\\u003eE"' in html
+        assert '"E-\\u003eN"' in html
+>       assert 'const ACTIVE_APPROACHES = PHYSICAL.enabled' in html
+E       assert 'const ACTIVE_APPROACHES = PHYSICAL.enabled' in '<!doctype html>\n<html lang="ru">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,...ge||error);\n    $("sceneBadge").textContent="Ошибка загрузки данных";\n  }\n}\ninit();\n</script>\n</body>\n</html>\n'
+
+tests\v10\test_synthetic_v9_three_phase_end_to_end.py:238: AssertionError
+============================== warnings summary ===============================
+.web_runtime\release_20261018\venv312\Lib\site-packages\fastapi\testclient.py:1
+  D:\Code\PythonProjects\traffic_phase\audit_checkout\.web_runtime\release_20261018\venv312\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_phase_discovery.py::test_discovers_exactly_two_opposing_phase_states
+tests/test_phase_discovery.py::test_single_cycle_delay_outlier_does_not_create_extra_phase
+tests/test_phase_discovery.py::test_phase_intervals_cover_cycle_without_overlap
+tests/test_phase_discovery.py::test_does_not_hardcode_only_one_phase
+  D:\Code\PythonProjects\traffic_phase\audit_checkout\app\core\phase_discovery.py:184: RuntimeWarning: All-NaN slice encountered
+    return np.nanmedian(values, axis=0)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/v10/test_synthetic_v9_three_phase_end_to_end.py::test_sixty_minute_three_phase_pipeline_from_truth_to_renderer
+1 failed, 1444 passed, 5 warnings in 270.52s (0:04:30)

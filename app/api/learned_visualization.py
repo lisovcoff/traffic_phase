@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter,File,Form,HTTPException,UploadFile
 from fastapi.responses import HTMLResponse,JSONResponse
-from app.api.visualization import visualization_page,_write_visualization_logs
+from app.api.visualization import INDEX_HTML,_write_visualization_logs
 from app.core.learned_visualization import build_learned_visualization,SITES
 from app.core.upload_limits import copy_upload,UploadLimitExceeded
 from app.core.v9.source_scope import ScopeChoiceRequired
@@ -19,7 +19,7 @@ LOG_ROOT=Path(__file__).resolve().parents[2]/'logs'
 
 @router.get('',response_class=HTMLResponse)
 def learned_page():
-    page=visualization_page().replace('/visualization/analyze','/visualization/learned/analyze')
+    page=INDEX_HTML.replace('/visualization/analyze','/visualization/learned/analyze')
     page=page.replace('V10 — Traffic Phase','Обученная модель — Traffic Phase')
     options=''.join(f'<option value="{key}">{name}</option>' for key,name in SITES.items())
     page=re.sub(r'(<select id="intersection-profile"[^>]*>).*?(</select>)',
