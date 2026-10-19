@@ -1,5 +1,11 @@
 # Project status — Trajectory recovery v1, 2026-10-19
 
+Online replay fix19.10: explicit waiting/processing/EOF feedback, completion
+survives polling, and packet scheduling accounts for request latency. Online
+JSON requests time out after30s.36 affected tests PASS; actual HTTP/Edge replay,
+history/resume/restore and mobile checks in evidence/live_server_lag_20261019.
+Inference and accuracy estimates unchanged.
+
 Input guidance fix19.10: metadata-only JSON/ZIP returns NON_TRAJECTORY_INPUT;
 the panel explains original trajectory inputs versus online JSONL and handles
 older stored failures too. No inference changes.24 affected tests PASS;

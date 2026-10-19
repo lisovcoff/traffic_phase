@@ -66,6 +66,10 @@ Accepted packets and original responses persist transactionally in SQLite and
 restore after restart. Duplicate packets are idempotent; conflicting sequences
 and future detections are rejected. Online never discovers a new K or hardware plan.
 
+A replay file is finite: when it ends, the last packet stays on screen and a
+completion message shows the accepted count. New movement requires more packets.
+Replay timing accounts for request processing time instead of adding it to each pause.
+
 Packets contain `sequence`, `timestamp_ms`, and `vehicles`. Each vehicle has `id`,
 `zone_in`, and current `detections`: `millis`, `centroid_x`, `centroid_y`, `zone`,
 and optional `speed`, `lat`, `lng`. Geographic positions help when vendor speed
