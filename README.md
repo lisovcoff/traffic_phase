@@ -42,6 +42,10 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8017
 3. Select a recording. Use play/pause, speed, timeline seeking, or precise date/time
    in Yekaterinburg time (UTC+05:00). No phase count or hardware profile is required.
 
+Upload the original vehicle data, not `feed_manifest.json` or an analysis report.
+For online replay, open a completed model first and select `real_packets.jsonl`
+in **Test JSONL stream**, not in the offline upload field.
+
 The model stores observed approaches, candidate head configurations, working phase
 count K, recurring signature groups, duration statistics and provenance. Three- and
 four-approach schematic views are supported. Sources retain separate clocks and

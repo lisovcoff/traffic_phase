@@ -1,5 +1,10 @@
 # Project status — Trajectory recovery v1, 2026-10-19
 
+Input guidance fix19.10: metadata-only JSON/ZIP returns NON_TRAJECTORY_INPUT;
+the panel explains original trajectory inputs versus online JSONL and handles
+older stored failures too. No inference changes.24 affected tests PASS;
+real worker + Edge upload/reload/retry/mobile PASS. Evidence: input_guidance_20261019.
+
 LATEST: INTERSECTION_ONLINE_RESULTS_20261019.md. User authorized main publication.
 Whole-archive offline → fixed-structure causal online → common live car/head view,
 immutable issuance history, timestamp seek/resume and journal restoration are built.

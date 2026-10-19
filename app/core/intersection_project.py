@@ -321,6 +321,9 @@ def run_project(input_path, folder, *, on_progress=None, predictor=None):
             finally:
                 state['sources_done'] += 1; checkpoint()
         if not predictions:
+            if state['sources'] and all(row['status']=='SKIPPED_NON_TRAJECTORY_JSON' for row in state['sources']):
+                state.update(reason_code='NON_TRAJECTORY_INPUT',
+                    user_message='No vehicle trajectories were found. Upload the original vehicle JSON or ZIP, not a manifest or report.')
             raise ValueError('No session could produce an intersection model')
         state['stage'] = 'catalogue'; checkpoint()
         approaches = [a for a in COMPASS if compass_counts[a]]

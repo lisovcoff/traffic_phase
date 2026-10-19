@@ -2,13 +2,13 @@
 PAGE = r'''<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Traffic Phase</title><style>*{box-sizing:border-box}body{margin:0;background:#10151d;color:#edf2fa;font:16px/1.5 system-ui}main{max-width:1300px;margin:24px auto;padding:0 16px}h1{font-size:26px}p{margin:10px 0}.muted{color:#adc0d8}section{border:1px solid #344359;border-radius:12px;padding:18px;background:#18212c;margin-bottom:16px}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}button,input,select{font:inherit;max-width:100%}button,select,input[type=datetime-local]{padding:9px;border-radius:6px;border:1px solid #4a6079}button{cursor:pointer;background:#e8f2ff;color:#10151d}button:disabled{opacity:.5;cursor:wait}input[type=file]{flex:1;min-width:200px}progress{width:100%;margin-top:12px;accent-color:#55d5af}#viewer{width:100%;height:1250px;min-height:800px;background:#0d1015;border:1px solid #344359;border-radius:12px}a{color:#a1cbff}#result-summary,#error{overflow-wrap:anywhere}#error{color:#ffacac}#session{flex:1;min-width:200px}details{margin-top:12px;font-size:13px}pre{white-space:pre-wrap;overflow-wrap:anywhere}#live-note{font-size:13px}</style></head><body><main>
 <h1>Traffic Phase</h1><p class="muted">Фазы и сигналы перекрёстка по движению машин.</p>
-<section><form id="form"><div class="row"><input id="file" type="file" accept=".json,.zip" required aria-label="Архив или JSON одного перекрёстка"><button id="analyze">Анализировать</button></div></form>
-<p class="muted">Один JSON или весь ZIP одного перекрёстка. Файлы и сеансы обрабатываются автоматически; схема и число фаз пользователем не задаются.</p>
+<section><form id="form"><label for="file">Офлайн: траектории машин (.json или .zip)</label><div class="row"><input id="file" type="file" accept=".json,.zip" required aria-label="Архив или JSON одного перекрёстка"><button id="analyze">Анализировать</button></div></form>
+<p class="muted">Один JSON или весь ZIP одного перекрёстка с траекториями машин. Файлы и сеансы обрабатываются автоматически; схема и число фаз пользователем не задаются. Манифесты и отчёты не содержат траекторий и не подходят для анализа.</p>
 <p id="status" role="status">Выберите файл.</p><progress id="progress" hidden></progress><p id="error" role="alert"></p>
 <div id="result" hidden><p id="result-summary"></p><div class="row"><label for="session">Запись</label><select id="session"></select><button id="open">Показать</button><a id="download">Скачать модель</a></div>
 <p class="muted">Цвета — оценка по траекториям. Тип светофоров и допсекции пока являются гипотезой; точность восстановления всех режимов ещё проверяется.</p>
 <div class="row"><button id="archiveMode">Архив</button><button id="onlineMode">Онлайн</button><label>Тестовый поток JSONL <input id="liveFile" type="file" accept=".jsonl,.ndjson"></label><label>Скорость потока <select id="liveSpeed"><option value="1">x1</option><option value="10">x10</option><option value="0">Без задержки</option></select></label><button id="liveStop">Остановить повтор</button></div>
-<p id="live-note" class="muted">Онлайн использует структуру сохранённой модели. Для проверки можно воспроизвести секундные пакеты из JSONL.</p><p id="liveEndpoint" class="muted" style="overflow-wrap:anywhere"></p></div>
+<p id="live-note" class="muted">Онлайн использует структуру сохранённой модели. Для проверки выберите файл секундных пакетов (например, real_packets.jsonl) в поле «Тестовый поток JSONL». Файл feed_manifest.json — только описание потока, машин в нём нет.</p><p id="liveEndpoint" class="muted" style="overflow-wrap:anywhere"></p></div>
 <details><summary>Ход обработки</summary><pre id="details"></pre></details></section>
 <iframe id="viewer" title="Перекрёсток, машины и сигналы" hidden></iframe>
 </main><script>
@@ -17,7 +17,7 @@ let onlineStream=null,liveTimer=null,liveToken=0,livePaused=false;
 function stopLive(){liveToken++;clearTimeout(liveTimer);}
 // Follow the inner content size so the user scrolls one page on desktop/mobile.
 $('viewer').addEventListener('load',()=>{viewerResize?.disconnect();const content=$('viewer').contentDocument?.querySelector('main');if(!content)return;const fit=()=>{$('viewer').style.height=Math.max(800,Math.ceil(content.getBoundingClientRect().bottom+20))+'px';};viewerResize=new ResizeObserver(fit);viewerResize.observe(content);fit();});
-const stages={inventory:'Проверка архива',extracting:'Чтение траекторий',discovering:'Определение фаз',catalogue:'Объединение повторяющихся режимов',finished:'Анализ завершён',queued:'Ожидание обработки',upload:'Загрузка файла'};
+const stages={inventory:'Проверка архива',extracting:'Чтение траекторий',discovering:'Определение фаз',catalogue:'Объединение повторяющихся режимов',finished:'Анализ завершён',failed:'Анализ не выполнен',queued:'Ожидание обработки',upload:'Загрузка файла'};
 const fmt=new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Yekaterinburg',dateStyle:'short',timeStyle:'medium'});
 function clear(){revision++;stopLive();clearTimeout(pollTimer);$('result').hidden=true;$('viewer').hidden=true;$('viewer').removeAttribute('src');$('viewer').srcdoc='';$('error').textContent='';model=null;}
 $('file').onchange=()=>{clear();$('status').textContent='Файл выбран. Нажмите «Анализировать».';};
@@ -25,7 +25,7 @@ async function poll(token){try{const response=await fetch('/api/v1/intersections
  $('status').textContent=(stages[data.stage]||data.status)+' · файлов '+(data.sources_done||0)+'/'+(data.sources_total||'?')+' · сеансов '+(data.sessions_done||0);
  if(data.sources_total){$('progress').max=data.sources_total;$('progress').value=data.sources_done;}
  $('details').textContent=(data.sources||[]).map(s=>s.source_member+' — '+s.status+(s.reason?' · '+s.reason:'')).join('\n');
- if(data.status==='FAILED')throw Error(data.reason||'Анализ не завершён');
+ if(data.status==='FAILED'){const metadataOnly=data.reason_code==='NON_TRAJECTORY_INPUT'||data.sources?.length&&data.sources.every(s=>s.status==='SKIPPED_NON_TRAJECTORY_JSON');if(metadataOnly)throw Error('В файле «'+(data.input_name||'JSON')+'» нет траекторий машин. Выберите исходный JSON или ZIP перекрёстка. Для онлайн-повтора откройте готовую модель и выберите real_packets.jsonl в поле «Тестовый поток JSONL».');throw Error(data.user_message||'Не удалось построить модель. Подробности — в разделе «Ход обработки».');}
  if(data.status==='READY'||data.status==='PARTIAL'){const r=await fetch('/api/v1/intersections/'+identifier+'/model');if(!r.ok)throw Error('Не удалось загрузить модель');model=await r.json();if(token!==revision)return;showModel();$('analyze').disabled=false;$('file').disabled=false;$('progress').hidden=true;return;}
  pollTimer=setTimeout(()=>poll(token),1000);
  }catch(error){if(token!==revision)return;$('error').textContent=error.message;$('analyze').disabled=false;$('file').disabled=false;$('progress').hidden=true;}}

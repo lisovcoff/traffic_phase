@@ -96,6 +96,35 @@ def test_failed_source_kept_as_partial_and_metadata_not_used(tmp_path):
     assert statuses=={'broken.json':'FAILED','good.json':'READY','marks.json':'SKIPPED_NON_TRAJECTORY_JSON'}
 
 
+@pytest.mark.parametrize('zipped',[False,True])
+def test_metadata_only_upload_has_actionable_failure_without_running_inference(tmp_path,zipped):
+    source=tmp_path/('input.zip' if zipped else 'feed_manifest.json')
+    metadata=dict(source='source-sha',member='recording.json',start_ms=1000,end_ms=61000,packets=61,future_fields=False)
+    if zipped:
+        source.write_bytes(zip_bytes([('feed_manifest.json',metadata)]))
+    else:
+        source.write_text(json.dumps(metadata),encoding='utf8')
+    def unexpected_fit(*args,**kwargs):
+        pytest.fail('metadata must never reach inference')
+    with pytest.raises(ValueError,match='No session'):
+        project.run_project(source,tmp_path/'out',predictor=unexpected_fit)
+    status=project.read_json(tmp_path/'out/status.json')
+    assert status['status']=='FAILED' and status['reason_code']=='NON_TRAJECTORY_INPUT'
+    assert 'original vehicle JSON or ZIP' in status['user_message']
+    assert status['sources_done']==1 and status['sessions_done']==0
+    assert not (tmp_path/'out/model.json').exists()
+
+
+def test_corrupt_json_is_not_reported_as_metadata(tmp_path):
+    source=tmp_path/'broken.json';source.write_text('[{broken',encoding='utf8')
+    with pytest.raises(ValueError,match='No session'):
+        project.run_project(source,tmp_path/'out')
+    status=project.read_json(tmp_path/'out/status.json')
+    assert status['sources'][0]['status']=='FAILED'
+    assert 'reason_code' not in status
+    assert status['errors']
+
+
 def test_persistent_prediction_checksum_is_checked(tmp_path):
     source=tmp_path/'input.json';source.write_text(json.dumps([track()]))
     model=project.run_project(source,tmp_path/'out',predictor=lambda *a,**kw:prediction())

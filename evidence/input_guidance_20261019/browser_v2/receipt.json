@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "worker_status": {
+    "status": "FAILED",
+    "stage": "failed",
+    "sources_total": 1,
+    "sources_done": 1,
+    "sessions_done": 0,
+    "input_name": "feed_manifest.json",
+    "sources": [
+      {
+        "source_member": "input.json",
+        "uncompressed_bytes": 217,
+        "status": "SKIPPED_NON_TRAJECTORY_JSON",
+        "sessions": [],
+        "record_counts": {}
+      }
+    ],
+    "errors": [],
+    "elapsed_s": 0.0,
+    "current_source": "input.json",
+    "reason_code": "NON_TRAJECTORY_INPUT",
+    "user_message": "No vehicle trajectories were found. Upload the original vehicle JSON or ZIP, not a manifest or report.",
+    "reason": "ValueError: No session could produce an intersection model"
+  },
+  "visible_message": "В файле «feed_manifest.json» нет траекторий машин. Выберите исходный JSON или ZIP перекрёстка. Для онлайн-повтора откройте готовую модель и выберите real_packets.jsonl в поле «Тестовый поток JSONL».",
+  "reload": true,
+  "mobile_no_overflow": true,
+  "retry_enabled": true,
+  "javascript_errors": []
+}
