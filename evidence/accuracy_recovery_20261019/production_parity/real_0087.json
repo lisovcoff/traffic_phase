@@ -1,0 +1,34 @@
+{
+  "key": "real_0087",
+  "status": "PASS",
+  "checks": {
+    "schedule": true,
+    "physical_plan": true,
+    "clock": true,
+    "period": true
+  },
+  "numerical_fit_cache_hits": [
+    "de71f1e27da51508f5a5ad4668e236b12d8ff9186afb37ff4638e425de36865c"
+  ],
+  "cold": false,
+  "k": 5,
+  "period_s": 119.91173333333333,
+  "model": {
+    "version": "trajectory_recovery_v1",
+    "video_used": false,
+    "annotations_received": false,
+    "reference_video_bias_applied": false,
+    "complete_input_processed": true,
+    "full_controller_count_identified": false,
+    "phase_count_scope": "observed_logical_movement_signatures",
+    "settings": {
+      "quiet_relative_threshold": 0.25,
+      "quiet_floor": 0.010001,
+      "merge_same_support": true,
+      "boundary_regularization_sigma_s": 0.75,
+      "clock_stationarity_max_front_mad_s": 2.0
+    }
+  },
+  "source_sessions": 1,
+  "runtime_s": 1.9060000000008586
+}

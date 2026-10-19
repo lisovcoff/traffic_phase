@@ -107,6 +107,7 @@ def test_visualization_analyze_uses_canonical_spatial_builder(monkeypatch, tmp_p
     assert len(calls) == 1
     assert calls[0][0] == ".json"
     assert calls[0][1]["dt"] == 1.0
+    assert calls[0][1]["algorithm_version"] == "trajectory_recovery_v1"
     assert calls[0][1]["yellow_duration_seconds"] == 3.0
     assert calls[0][1]["red_yellow_duration_seconds"] == 2.0
     assert calls[0][1]["activity_threshold"] == DEFAULT_ACTIVITY_THRESHOLD

@@ -600,6 +600,9 @@ def _discover_from_stream_views(
     evidence_policy: str = "permission_per_stream",
     phase_search_config: PhaseSearchConfig | None = None,
     experimental_local_history: bool = False,
+    _search_backend=None,
+    _period_backend=None,
+    _full_recording: bool = False,
 ):
     if not isinstance(experimental_local_history,bool):
         raise ValueError("experimental_local_history requires an explicit boolean")
@@ -617,7 +620,7 @@ def _discover_from_stream_views(
     working_by_stream = by_stream
     working_entry_streams = entry_streams
     working_release_streams = effective_permissions
-    if original_end_s >= 7200.0:
+    if original_end_s >= 7200.0 and not _full_recording:
         regime_payload = _local_regime_selection(
             by_stream,
             entry_streams,
@@ -660,7 +663,7 @@ def _discover_from_stream_views(
         "delta_s": 0.0,
         "final_anchor_s": float(local_start_s),
     }
-    period, period_info = infer_period(working_entry_streams)
+    period, period_info = (_period_backend or infer_period)(working_entry_streams)
     working_event_count = sum(len(ts) for ts in working_by_stream.values())
     phase_evidence, phase_evidence_method = _choose_phase_evidence(
         working_by_stream,
@@ -678,7 +681,7 @@ def _discover_from_stream_views(
         end_s,
         dt=dt,
     )
-    phase_search = discover_phase_count(
+    phase_search = (_search_backend or discover_phase_count)(
         x,
         phase_evidence,
         period,
@@ -1035,7 +1038,7 @@ def discover_path(
     return attach_input_scope(result, chosen_source, selected_session, sessions, source_count=len(sources))
 
 
-def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None, phase_search_config=None, experimental_local_history=False):
+def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, source_files=None, phase_search_config=None, experimental_local_history=False, _search_backend=None, _period_backend=None, _full_recording=False):
     (
         by_stream,
         entry_streams,
@@ -1068,4 +1071,7 @@ def _discover_bundle(bundle, *, input_name, dt, marks_path, evidence_policy, sou
         evidence_diagnostics=getattr(bundle, "diagnostics", None),
         experimental_local_history=experimental_local_history,
         evidence_policy=evidence_policy, phase_search_config=phase_search_config,
+        **({'_search_backend': _search_backend} if _search_backend is not None else {}),
+        **({'_period_backend': _period_backend} if _period_backend is not None else {}),
+        **({'_full_recording': True} if _full_recording else {}),
     )

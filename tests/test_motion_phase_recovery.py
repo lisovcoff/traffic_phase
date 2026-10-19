@@ -3,8 +3,8 @@ import numpy as np
 import pytest
 from types import SimpleNamespace
 
-from app.experimental.motion_restart import restart_from_raw_speed,extract_motion_evidence
-from app.experimental.trajectory_phase_recovery import rate_equivalent_mapping
+from app.core.recovery.motion import restart_from_raw_speed,extract_motion_evidence
+from app.core.recovery.grouping import rate_equivalent_mapping
 
 
 def trajectory(scale=1.):
@@ -88,7 +88,7 @@ def test_boolean_speed_does_not_establish_a_stationary_run():
 
 
 def test_front_period_rejects_discharge_centroid_drift():
-    from app.experimental.front_period import refine_front_period
+    from app.core.recovery.period import refine_front_period
     events=[]
     for movement,offset in [('N->S',10.),('E->W',60.)]:
         for c in range(32):
@@ -103,7 +103,7 @@ def test_front_period_rejects_discharge_centroid_drift():
 
 
 def test_short_record_does_not_invent_a_precise_front_clock():
-    from app.experimental.front_period import refine_front_period
+    from app.core.recovery.period import refine_front_period
     events=[SimpleNamespace(event_type='RELEASE',evidence_quality='MEDIUM',movement='N->S',timestamp_ms=t*1000)
         for t in (10,20,110,120,210,220)]
     period,diagnostic=refine_front_period(events,0.,99.,300.)

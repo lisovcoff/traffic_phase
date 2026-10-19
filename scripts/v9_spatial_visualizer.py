@@ -1215,6 +1215,7 @@ def build_spatial_visualization(
     source_member: str | None = None,
     session_id: str | None = None,
     intersection_profile: str = "auto",
+    algorithm_version: str = "legacy_v9",
 ) -> dict[str, Any]:
     """Build the canonical spatial HTML used by both CLI and Uvicorn."""
     input_path = Path(input_path)
@@ -1225,10 +1226,13 @@ def build_spatial_visualization(
     if not 0 <= activity_threshold <= 1:
         raise ValueError("activity_threshold must be in [0,1]")
 
-    # Use the canonical path-based discovery for JSON and ZIP inputs.
-    # It streams large archives and applies the same large-recording regime
-    # selection as the standalone V9 discovery command.
-    result = discover_path(
+    if algorithm_version == "trajectory_recovery_v1":
+        from app.core.recovery.engine import discover_path as discover_selected
+    elif algorithm_version == "legacy_v9":
+        discover_selected = discover_path
+    else:
+        raise ValueError("unknown algorithm_version")
+    result = discover_selected(
         input_path,
         dt=float(dt),
         **({k: v for k, v in {'source_member': source_member, 'session_id': session_id}.items() if v is not None}),
@@ -1347,6 +1351,8 @@ def main()->int:
     parser.add_argument("--dt",type=float,default=1.0)
     parser.add_argument('--source-member', default=None)
     parser.add_argument('--session-id', default=None)
+    parser.add_argument('--algorithm', choices=['trajectory_recovery_v1', 'legacy_v9'],
+                        default='trajectory_recovery_v1')
     parser.add_argument("--yellow",type=float,default=DEFAULT_YELLOW_DURATION_SECONDS)
     parser.add_argument("--red-yellow",type=float,default=DEFAULT_RED_YELLOW_DURATION_SECONDS)
     parser.add_argument("--activity-threshold",type=float,default=DEFAULT_ACTIVITY_THRESHOLD)
@@ -1368,7 +1374,8 @@ def main()->int:
             args.input, dt=args.dt, yellow_duration_seconds=args.yellow,
             red_yellow_duration_seconds=args.red_yellow,
             activity_threshold=args.activity_threshold, physical_plan_path=args.physical_plan,
-            source_member=args.source_member, session_id=args.session_id)
+            source_member=args.source_member, session_id=args.session_id,
+            algorithm_version=args.algorithm)
     except ScopeChoiceRequired as exc:
         print(json.dumps(exc.to_dict(),ensure_ascii=False,indent=2))
         return 2

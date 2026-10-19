@@ -17,12 +17,14 @@ def main():
     run.add_argument('--max-jobs', type=int, default=4)
     run.add_argument('--total-seconds', type=float, default=180)
     run.add_argument('--source-seconds', type=float, default=90)
+    run.add_argument('--algorithm', choices=['trajectory_recovery_v1', 'legacy_v9'],
+                     default='trajectory_recovery_v1')
     args = parser.parse_args()
     if args.command == '_worker':
         run_source_worker(json.loads(args.request.read_text(encoding='utf-8')))
         return
     config = BatchConfig(max_jobs=args.max_jobs, total_seconds=args.total_seconds, source_seconds=args.source_seconds)
-    manifest = run_archive_batch(args.source, args.out, config=config)
+    manifest = run_archive_batch(args.source, args.out, config=config, algorithm_version=args.algorithm)
     (args.out/'index.html').write_text(render_batch_html(manifest, args.out), encoding='utf-8')
     print(json.dumps({'status': manifest['status'], 'attempted_jobs': manifest['attempted_jobs'],
                       'report': str(args.out/'index.html')}, ensure_ascii=False))

@@ -105,7 +105,12 @@ def run_source_worker(request):
     state = dict(source_member=source, inventory_complete=False, jobs=[])
     write_json(checkpoint, state)
     try:
-        bundle = load_event_streams(Path(request['input']), source_member=source)
+        recovery = request.get('algorithm_version', 'legacy_v9') == 'trajectory_recovery_v1'
+        extractor = {}
+        if recovery:
+            from app.core.recovery.motion import extract_motion_evidence
+            extractor['_event_extractor'] = extract_motion_evidence
+        bundle = load_event_streams(Path(request['input']), source_member=source, **extractor)
         sessions = [s.metadata for s in input_sessions(bundle, source)]
         state.update(inventory_complete=True, extraction_seconds=time.monotonic()-started)
         state['jobs'] = [dict(session=s, status='PLANNED') for s in sessions]
@@ -120,9 +125,13 @@ def run_source_worker(request):
             tick = time.monotonic()
             try:
                 scoped, selected, choices = choose_session(bundle, source, row['session']['session_id'])
-                result = _discover_bundle(scoped, input_name=request['input'], dt=config.dt,
-                    marks_path=None, evidence_policy='permission_per_stream',
-                    source_files=[request['input']], experimental_local_history=False)
+                if recovery:
+                    from app.core.recovery.engine import discover_bundle
+                    result = discover_bundle(scoped, input_name=request['input'], dt=config.dt)
+                else:
+                    result = _discover_bundle(scoped, input_name=request['input'], dt=config.dt,
+                        marks_path=None, evidence_policy='permission_per_stream',
+                        source_files=[request['input']], experimental_local_history=False)
                 attach_input_scope(result, source, selected, choices, source_count=request['source_count'])
                 filename = f'session_{index+1:04d}'
                 predicted = output/(filename+'.json')
@@ -174,9 +183,11 @@ def _run_worker(request_file, timeout):
         return dict(status='TIMEOUT', runtime_s=time.monotonic()-started)
 
 
-def run_archive_batch(path, output, *, config=BatchConfig(), _runner=None):
+def run_archive_batch(path, output, *, config=BatchConfig(), _runner=None, algorithm_version='legacy_v9'):
     """Fresh output directory only. Source inventory is metadata-only, not a union."""
     path, output = Path(path).resolve(), Path(output).resolve()
+    if algorithm_version not in ('legacy_v9', 'trajectory_recovery_v1'):
+        raise ValueError('unknown algorithm_version')
     if not path.is_file() or path.suffix.lower() not in ('.json', '.zip'):
         raise ValueError('batch requires one trajectory JSON or ZIP')
     if path.stat().st_size > config.max_source_bytes:
@@ -194,8 +205,10 @@ def run_archive_batch(path, output, *, config=BatchConfig(), _runner=None):
         code_sha256_lf={str(p.relative_to(ROOT)).replace('\\', '/'): hashlib.sha256(
             p.read_bytes().replace(b'\r\n', b'\n')).hexdigest()
             for p in sorted([*ROOT.glob('app/**/*.py'), ROOT/'scripts/archive_batch.py'])},
-        model_config=dict(evidence_policy='permission_per_stream', seed=0,
-                          phase_search='unchanged_2C_default', experimental_local_history=False),
+        model_config=dict(algorithm_version=algorithm_version, evidence_policy='permission_per_stream', seed=0,
+                          phase_search=('supported_bernoulli_or_conditional_mark_bic_then_permission_signature_merge'
+                                        if algorithm_version == 'trajectory_recovery_v1' else 'unchanged_2C_default'),
+                          experimental_local_history=False),
         semantics='independent source/session estimates; NO global archive K or physical lamp accuracy',
         resource_scope='hard worker wall timeout; byte/job budgets; NO hard RAM limit',
         sources_processed=[], status='RUNNING')
@@ -220,6 +233,7 @@ def run_archive_batch(path, output, *, config=BatchConfig(), _runner=None):
             folder = output/f'source_{index+1:04d}'
             folder.mkdir()
             request = dict(input=str(path), output=str(folder), source_member=source['source_member'],
+                           algorithm_version=algorithm_version,
                            source_count=len(sources), remaining_jobs=config.max_jobs-attempted,
                            # Reserve room for the self-contained index (it embeds reports)
                            # and manifests. Download ZIP is a separately bounded copy.

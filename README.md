@@ -1,5 +1,24 @@
 # traffic_phase
 
+2026-10-19: **[trajectory-only algorithm improved and connected to the app](docs/ACCURACY_RECOVERY_RESULTS_20261019.md).**
+Run `START_WEB.cmd`, then open http://127.0.0.1:8017/visualization. Restart an
+existing server to load the new backend. Prediction uses JSON/ZIP trajectories;
+video is evaluation material only. The normal page now selects
+`trajectory_recovery_v1`, as do web batch and the spatial/batch CLI.
+
+Open **[the ready report and three real viewers](evidence/accuracy_recovery_20261019/report_v2.html)**
+without a server. All219 real sources processed; production parity315/315;
+real HTTP upload3/3 and isolated desktop/mobile browser checks PASS.
+Full test suite1433 PASS; `START_WEB.cmd --check` PASS.
+Development72 cases: K13/72→68/72, phase-state error42.13%→4.01%.
+Reserved24 new-seed cases: K24/24, phase-state error2.85%.
+Fresh visible N-main block:3/9→8/9 switching times within2s, no video bias.
+This is measured improvement, not universal physical-lamp accuracy. Manual
+strict timing regresses7/13→6/13; declared0–3s reaction compatibility improves
+6/13→9/13. Full local-deviation acceptance2D.1 remains FAIL/default-off.
+
+The entries below describe earlier results and retained diagnostic viewers.
+
 2026-10-19: [all archives and realistic synthetic validation](docs/ALL_ARCHIVES_SYNTHETIC_RESULTS_20261019.md).
 Open `evidence/all_archives_synthetic_20261019/report.html` for the complete
 219-source audit and72 scenarios (62 simulated hours), with interactive timelines

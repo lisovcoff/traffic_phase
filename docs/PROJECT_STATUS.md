@@ -1,18 +1,26 @@
-# Project status — 2D.1, 2026-10-19
+# Project status — Trajectory recovery v1, 2026-10-19
 
-IN PROGRESS, explicit user instruction19.10: improve actual real/synthetic
-accuracy and finish the application. See ACCURACY_RECOVERY_PROTOCOL_20261019.md
-and evidence/accuracy_recovery_20261019/candidate_freeze_01.json. This supersedes
-the earlier validation-only scope. Frozen trajectory-only candidate:
-per-track permission, conditional-mark fallback for unsupported sparse fits,
-same-support discharge-state merging, exact-zero motion restart where observed,
-post-count queue-front clock with0.75s local regularization and nonstationary
-fallback. Reserved24 new-seed cases:24/24 K, state error2.85%. Fresh N-main video
-2100..2400:8/9 within2s versus baseline3/9; same camera/day, conditional clock.
-No source-specific video bias. Integration into the normal application, full
-219-source replay, final tests/report are still pending; do not claim delivered.
-Main unchanged; paused2D.1 remains FAIL/default-off. No further model tuning
-against reserved24/fresh video without a new clearly separated validation set.
+DELIVERED: ACCURACY_RECOVERY_RESULTS_20261019.md and
+evidence/accuracy_recovery_20261019/report_v2.html. Latest explicit user instruction
+authorized improvement of real/synthetic accuracy and completion of the app.
+Normal web upload, web batch and spatial/batch CLI now select trajectory_recovery_v1.
+Per-track permission, conditional-mark fallback for unsupported sparse fits,
+same-support state merging, exact-zero observed restart, post-count queue-front
+clock with0.75s local regularization and nonstationary fallback. No reference-video
+bias, annotations or source-name K at prediction. Known hardware remains an
+explicitly conditional projection, not proof of the hidden controller.
+All219 real sources processed;315/315 production/frozen-candidate parity checks.
+Three fresh real ZIP multipart uploads and isolated Edge desktop/mobile QA PASS.
+Full suite1433 PASS (259.81s,5 existing warnings); targeted63 PASS. Launch check PASS.
+Development72 cases: K13/72->68/72, state error42.13%->4.01%, automatic main-head
+color error36.40%->6.79%. Reserved24 new-seed cases:24/24 K, state error2.85%,
+main-head color error9.18%. Fresh N-main video2100..2400:8/9 within2s versus3/9;
+same camera/day, conditional car-based clock, one green onset still beyond2s.
+Manual development strict timing regresses7/13->6/13; declared0..3s reaction
+compatibility improves6/13->9/13. No universal or maximum physical accuracy claim.
+Main unchanged; paused2D.1 remains FAIL/default-off. No more tuning against
+reserved24/fresh video without a new separated validation set. Prior entries
+below are history, not a reason to revert the delivered default.
 
 Latest delivered task: ALL_ARCHIVES_SYNTHETIC_RESULTS_20261019.md. All219 raw
 sources processed by automatic discovery and frozen learned profiles;216 unique

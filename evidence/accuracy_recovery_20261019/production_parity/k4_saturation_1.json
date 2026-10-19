@@ -1,0 +1,809 @@
+{
+  "key": "k4_saturation_1",
+  "status": "PASS",
+  "checks": {
+    "schedule": true,
+    "physical_plan": true,
+    "clock": true,
+    "period": true
+  },
+  "numerical_fit_cache_hits": [
+    "6ef218ab58d53333145b616b3571afda7ac16b17c97ae82dcdfc405a55d4bd4b"
+  ],
+  "cold": false,
+  "k": 4,
+  "period_s": 127.99639375000001,
+  "model": {
+    "version": "trajectory_recovery_v1",
+    "video_used": false,
+    "annotations_received": false,
+    "reference_video_bias_applied": false,
+    "complete_input_processed": true,
+    "full_controller_count_identified": false,
+    "phase_count_scope": "observed_logical_movement_signatures",
+    "settings": {
+      "quiet_relative_threshold": 0.25,
+      "quiet_floor": 0.010001,
+      "merge_same_support": true,
+      "boundary_regularization_sigma_s": 0.75,
+      "clock_stationarity_max_front_mad_s": 2.0
+    }
+  },
+  "score": {
+    "evaluation_schema": "full-recording-including-unknown-v2",
+    "expected_k": 4,
+    "predicted_k": 4,
+    "k_correct": true,
+    "period_s": 127.99639375000001,
+    "nominal_period_s": 128,
+    "period_error_s": 0.003606249999990041,
+    "phase_state_error_fraction": 0.01902777777777778,
+    "evaluated_s": 3600.0,
+    "coverage_fraction": 0.9972222222222222,
+    "permutation_alignment": {
+      "0": 0,
+      "1": 1,
+      "2": 2,
+      "3": 3
+    },
+    "movement_assignment_accuracy": 1.0,
+    "complete_movement_membership_accuracy": 1.0,
+    "composition_semantics": "dominant probability phase per stream; shared membership incompleteness reported separately",
+    "transition_metrics": {
+      "0.5": {
+        "matched": 49,
+        "predicted": 112,
+        "expected": 112,
+        "precision": 0.4375,
+        "recall": 0.4375,
+        "mae_s": 0.4572847101426514
+      },
+      "1": {
+        "matched": 112,
+        "predicted": 112,
+        "expected": 112,
+        "precision": 1.0,
+        "recall": 1.0,
+        "mae_s": 0.5664888169981258
+      },
+      "2": {
+        "matched": 112,
+        "predicted": 112,
+        "expected": 112,
+        "precision": 1.0,
+        "recall": 1.0,
+        "mae_s": 0.5664888169981258
+      },
+      "3": {
+        "matched": 112,
+        "predicted": 112,
+        "expected": 112,
+        "precision": 1.0,
+        "recall": 1.0,
+        "mae_s": 0.5664888169981258
+      }
+    },
+    "movement_colors": {
+      "N->S": {
+        "evaluated_s": 3600.0,
+        "error_fraction": 0.03388888888888889,
+        "coverage_fraction": 0.9972222222222222,
+        "semantics": "diagnostic dominant-phase movement projection, NOT the app hardware projection; see production_main_heads for actual automatic projection",
+        "per_color": {
+          "GREEN": {
+            "seconds": 632.0,
+            "error_fraction": 0.015822784810126583
+          },
+          "YELLOW": {
+            "seconds": 84.0,
+            "error_fraction": 0.5
+          },
+          "RED": {
+            "seconds": 2828.0,
+            "error_fraction": 0.019801980198019802
+          },
+          "RED_YELLOW": {
+            "seconds": 56.0,
+            "error_fraction": 0.25
+          }
+        }
+      },
+      "E->W": {
+        "evaluated_s": 3600.0,
+        "error_fraction": 0.01638888888888889,
+        "coverage_fraction": 0.9972222222222222,
+        "semantics": "diagnostic dominant-phase movement projection, NOT the app hardware projection; see production_main_heads for actual automatic projection",
+        "per_color": {
+          "GREEN": {
+            "seconds": 959.0,
+            "error_fraction": 0.014598540145985401
+          },
+          "YELLOW": {
+            "seconds": 84.0,
+            "error_fraction": 0.125
+          },
+          "RED": {
+            "seconds": 2501.0,
+            "error_fraction": 0.00819672131147541
+          },
+          "RED_YELLOW": {
+            "seconds": 56.0,
+            "error_fraction": 0.25
+          }
+        }
+      },
+      "S->N": {
+        "evaluated_s": 3600.0,
+        "error_fraction": 0.035277777777777776,
+        "coverage_fraction": 0.9972222222222222,
+        "semantics": "diagnostic dominant-phase movement projection, NOT the app hardware projection; see production_main_heads for actual automatic projection",
+        "per_color": {
+          "GREEN": {
+            "seconds": 532.0,
+            "error_fraction": 0.0
+          },
+          "YELLOW": {
+            "seconds": 84.0,
+            "error_fraction": 0.4880952380952381
+          },
+          "RED": {
+            "seconds": 2928.0,
+            "error_fraction": 0.0233948087431694
+          },
+          "RED_YELLOW": {
+            "seconds": 56.0,
+            "error_fraction": 0.3125
+          }
+        }
+      },
+      "W->E": {
+        "evaluated_s": 3600.0,
+        "error_fraction": 0.017777777777777778,
+        "coverage_fraction": 0.9972222222222222,
+        "semantics": "diagnostic dominant-phase movement projection, NOT the app hardware projection; see production_main_heads for actual automatic projection",
+        "per_color": {
+          "GREEN": {
+            "seconds": 1029.0,
+            "error_fraction": 0.012633624878522837
+          },
+          "YELLOW": {
+            "seconds": 84.0,
+            "error_fraction": 0.16666666666666666
+          },
+          "RED": {
+            "seconds": 2431.0,
+            "error_fraction": 0.009872480460715755
+          },
+          "RED_YELLOW": {
+            "seconds": 56.0,
+            "error_fraction": 0.23214285714285715
+          }
+        }
+      }
+    },
+    "movement_color_onsets_at_2s": {
+      "N->S": {
+        "GREEN": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 0.5
+        },
+        "YELLOW": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 1.5
+        },
+        "RED": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 1.5
+        }
+      },
+      "E->W": {
+        "GREEN": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 0.5
+        },
+        "YELLOW": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 0.375
+        },
+        "RED": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 0.375
+        }
+      },
+      "S->N": {
+        "GREEN": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 0.625
+        },
+        "YELLOW": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 1.4642857142857142
+        },
+        "RED": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 1.4642857142857142
+        }
+      },
+      "W->E": {
+        "GREEN": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 0.4642857142857143
+        },
+        "YELLOW": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 0.5
+        },
+        "RED": {
+          "matched": 28,
+          "predicted": 28,
+          "expected": 28,
+          "precision": 1.0,
+          "recall": 1.0,
+          "mae_s": 0.5
+        }
+      }
+    },
+    "production_main_heads": {
+      "mapping_available": true,
+      "mapping_reason": null,
+      "heads": {
+        "N": {
+          "evaluated_s": 3600.0,
+          "error_fraction": 0.03388888888888889,
+          "coverage_fraction": 0.9972222222222222,
+          "onsets": {
+            "GREEN": {
+              "0.5": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "1": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              }
+            },
+            "YELLOW": {
+              "0.5": {
+                "matched": 0,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mae_s": null
+              },
+              "1": {
+                "matched": 0,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mae_s": null
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 1.5
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 1.5
+              }
+            },
+            "RED": {
+              "0.5": {
+                "matched": 0,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mae_s": null
+              },
+              "1": {
+                "matched": 0,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mae_s": null
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 1.5
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 1.5
+              }
+            }
+          },
+          "per_color": {
+            "GREEN": {
+              "seconds": 632.0,
+              "error_fraction": 0.015822784810126583
+            },
+            "YELLOW": {
+              "seconds": 84.0,
+              "error_fraction": 0.5
+            },
+            "RED": {
+              "seconds": 2828.0,
+              "error_fraction": 0.019801980198019802
+            },
+            "RED_YELLOW": {
+              "seconds": 56.0,
+              "error_fraction": 0.25
+            }
+          }
+        },
+        "S": {
+          "evaluated_s": 3600.0,
+          "error_fraction": 0.035277777777777776,
+          "coverage_fraction": 0.9972222222222222,
+          "onsets": {
+            "GREEN": {
+              "0.5": {
+                "matched": 14,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 0.5,
+                "recall": 0.5,
+                "mae_s": 0.5
+              },
+              "1": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.625
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.625
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.625
+              }
+            },
+            "YELLOW": {
+              "0.5": {
+                "matched": 0,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mae_s": null
+              },
+              "1": {
+                "matched": 0,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mae_s": null
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 1.4642857142857142
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 1.4642857142857142
+              }
+            },
+            "RED": {
+              "0.5": {
+                "matched": 0,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mae_s": null
+              },
+              "1": {
+                "matched": 0,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 0.0,
+                "recall": 0.0,
+                "mae_s": null
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 1.4642857142857142
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 1.4642857142857142
+              }
+            }
+          },
+          "per_color": {
+            "GREEN": {
+              "seconds": 532.0,
+              "error_fraction": 0.0
+            },
+            "YELLOW": {
+              "seconds": 84.0,
+              "error_fraction": 0.4880952380952381
+            },
+            "RED": {
+              "seconds": 2928.0,
+              "error_fraction": 0.0233948087431694
+            },
+            "RED_YELLOW": {
+              "seconds": 56.0,
+              "error_fraction": 0.3125
+            }
+          }
+        },
+        "E": {
+          "evaluated_s": 3600.0,
+          "error_fraction": 0.01638888888888889,
+          "coverage_fraction": 0.9972222222222222,
+          "onsets": {
+            "GREEN": {
+              "0.5": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "1": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              }
+            },
+            "YELLOW": {
+              "0.5": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.375
+              },
+              "1": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.375
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.375
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.375
+              }
+            },
+            "RED": {
+              "0.5": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.375
+              },
+              "1": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.375
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.375
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.375
+              }
+            }
+          },
+          "per_color": {
+            "GREEN": {
+              "seconds": 959.0,
+              "error_fraction": 0.014598540145985401
+            },
+            "YELLOW": {
+              "seconds": 84.0,
+              "error_fraction": 0.125
+            },
+            "RED": {
+              "seconds": 2501.0,
+              "error_fraction": 0.00819672131147541
+            },
+            "RED_YELLOW": {
+              "seconds": 56.0,
+              "error_fraction": 0.25
+            }
+          }
+        },
+        "W": {
+          "evaluated_s": 3600.0,
+          "error_fraction": 0.017777777777777778,
+          "coverage_fraction": 0.9972222222222222,
+          "onsets": {
+            "GREEN": {
+              "0.5": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.4642857142857143
+              },
+              "1": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.4642857142857143
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.4642857142857143
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.4642857142857143
+              }
+            },
+            "YELLOW": {
+              "0.5": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "1": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              }
+            },
+            "RED": {
+              "0.5": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "1": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "2": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              },
+              "3": {
+                "matched": 28,
+                "predicted": 28,
+                "expected": 28,
+                "precision": 1.0,
+                "recall": 1.0,
+                "mae_s": 0.5
+              }
+            }
+          },
+          "per_color": {
+            "GREEN": {
+              "seconds": 1029.0,
+              "error_fraction": 0.012633624878522837
+            },
+            "YELLOW": {
+              "seconds": 84.0,
+              "error_fraction": 0.16666666666666666
+            },
+            "RED": {
+              "seconds": 2431.0,
+              "error_fraction": 0.009872480460715755
+            },
+            "RED_YELLOW": {
+              "seconds": 56.0,
+              "error_fraction": 0.23214285714285715
+            }
+          }
+        }
+      },
+      "scope": "actual production automatic physical-plan mapping plus shared transitions; no known-site profile, no truth at prediction; straight main heads only, assumed simulator hardware"
+    },
+    "observability": "demand_present_NOT_guaranteed_identifiable",
+    "scope": "independent synthetic truth; label permutation alignment only; no solver tuning"
+  },
+  "runtime_s": 2.04700000000048
+}

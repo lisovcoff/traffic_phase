@@ -43,7 +43,7 @@ def batch_page():
 
 
 def _build_batch(source, output):
-    manifest = run_archive_batch(source, output)
+    manifest = run_archive_batch(source, output, algorithm_version='trajectory_recovery_v1')
     page = render_batch_html(manifest, output)
     (output/'index.html').write_text(page, encoding='utf-8')
     # ZIP contains only this run's generated artifacts; never the user's media.

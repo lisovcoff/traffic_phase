@@ -256,6 +256,7 @@ button:disabled{opacity:.45;cursor:default}
 <main>
 <section class="panel">
 <h1>V10 — Traffic Phase</h1>
+<p class="muted">Обновлённый алгоритм: фазы по траекториям и началу движения очереди. Видео для анализа не требуется.</p>
 <p class="muted">
 Анализ JSON/ZIP → оценка фаз и движений → интерактивная схема и временная шкала.
 </p>
@@ -413,6 +414,7 @@ async def visualization_analyze(
 
             built = build_spatial_visualization(
                 source_path,
+                algorithm_version="trajectory_recovery_v1",
                 dt=dt_value,
                 yellow_duration_seconds=yellow_value,
                 red_yellow_duration_seconds=red_yellow_value,
@@ -462,6 +464,7 @@ async def visualization_analyze(
                 physical_plan=physical_plan,
                 html=html,
                 request_params={
+                    "algorithm_version": "trajectory_recovery_v1",
                     "dt": dt_value,
                     "yellow": yellow_value,
                     "red_yellow": red_yellow_value,

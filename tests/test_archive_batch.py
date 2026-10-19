@@ -317,7 +317,8 @@ def test_multipart_batch_download_is_limited_to_run_artifacts(monkeypatch, tmp_p
     monkeypatch.setattr(api, 'BATCH_ROOT', tmp_path/'results')
     original = batch.run_archive_batch
 
-    def run(path, out):
+    def run(path, out, **kwargs):
+        assert kwargs['algorithm_version'] == 'trajectory_recovery_v1'
         def runner(request_path, timeout):
             batch.run_source_worker(json.loads(request_path.read_text()))
             return dict(status='EXITED', returncode=0)

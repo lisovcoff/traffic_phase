@@ -1,0 +1,50 @@
+{
+  "status": "PASS",
+  "key": "real_0206",
+  "endpoint": "/visualization/analyze",
+  "actual_multipart_upload": true,
+  "fresh_raw_extraction": true,
+  "numerical_fit_cache": false,
+  "sealed_schedule_identical": true,
+  "k": 2,
+  "rendered_html_bytes": 7731307,
+  "runtime_s": 49.46899999999914,
+  "viewer_sha256": "e8af01b07f9d617f8e9ac28f4636c64f3e2335bcfe5392ac015c7010759b163b",
+  "input_scope": {
+    "status": "SELECTED_SESSION_ONLY",
+    "source_member": "19_2025_2_24_16.json",
+    "selected_session": {
+      "session_id": "97f42d916216d9ccaef55655",
+      "session_number": 1,
+      "source_member": "19_2025_2_24_16.json",
+      "track_count": 1104,
+      "observation_start_ms": 1740397207758,
+      "observation_end_ms": 1740398399961,
+      "split_gap_seconds": 1800.0,
+      "semantics": "trajectory-support partition_NOT_camera_coverage_or_signal_regime"
+    },
+    "source_count": 1,
+    "source_session_count": 1,
+    "other_sources_analysed": false,
+    "other_sessions_analysed": false,
+    "complete_intersection_identity": "UNKNOWN",
+    "analysis_scope": "SELECTED_SESSION",
+    "semantics": "input partition; not proof of signal regime or camera coverage"
+  },
+  "recovery_model": {
+    "version": "trajectory_recovery_v1",
+    "video_used": false,
+    "annotations_received": false,
+    "reference_video_bias_applied": false,
+    "complete_input_processed": true,
+    "full_controller_count_identified": false,
+    "phase_count_scope": "observed_logical_movement_signatures",
+    "settings": {
+      "quiet_relative_threshold": 0.25,
+      "quiet_floor": 0.010001,
+      "merge_same_support": true,
+      "boundary_regularization_sigma_s": 0.75,
+      "clock_stationarity_max_front_mad_s": 2.0
+    }
+  }
+}

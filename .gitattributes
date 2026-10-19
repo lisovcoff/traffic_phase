@@ -110,6 +110,7 @@ docs/ALL_ARCHIVES_SYNTHETIC_RESULTS_20261019.md -text
 app/core/learned_visualization.py -text
 app/api/learned_visualization.py -text
 app/core/recovery/** -text
+app/core/recovery/__init__.py whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 app/experimental/motion_restart.py -text
 app/experimental/front_period.py -text
 app/experimental/phase_clock.py -text
@@ -117,6 +118,13 @@ app/experimental/trajectory_phase_recovery.py -text
 scripts/accuracy_recovery.py -text
 scripts/audit_zero_speed.py -text
 scripts/collect_accuracy_holdout_video.py -text
+scripts/verify_recovery_release.py -text
+scripts/check_recovery_application.py -text
+scripts/recovery_release_report.py -text
+scripts/qa_recovery_release.py -text
+scripts/finalize_recovery_release.py -text
+tests/test_recovery_production.py -text
+docs/ACCURACY_RECOVERY_RESULTS_20261019.md -text
 tests/test_motion_phase_recovery.py -text
 docs/ACCURACY_RECOVERY_PROTOCOL_20261019.md -text
 evidence/accuracy_recovery_20261019/** -text -whitespace

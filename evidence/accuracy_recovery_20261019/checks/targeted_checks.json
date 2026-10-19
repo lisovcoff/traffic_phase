@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "passed": 63,
+  "runtime_s": 23.88,
+  "tests": [
+    "tests/test_recovery_production.py",
+    "tests/test_motion_phase_recovery.py",
+    "tests/test_visualization.py",
+    "tests/test_archive_batch.py",
+    "tests/v9/test_v9_spatial_visualizer.py"
+  ],
+  "evidence": "Observed tool output; full suite log/receipt independently retained in checks/"
+}
