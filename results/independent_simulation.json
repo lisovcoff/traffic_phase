@@ -1,0 +1,655 @@
+{
+  "schema": "independent-simulation-validation-summary-v1",
+  "date": "2026-10-20",
+  "simulator": "Eclipse SUMO 1.28.0",
+  "production_algorithm": "causal-intersection-v7 unchanged",
+  "training": "Separate generated vehicle JSON; automatic product discovery; no supplied K, colors or signal schedule",
+  "scope": "Controlled right-hand lane networks, not calibrated replicas of the real intersections",
+  "cases": [
+    {
+      "name": "k2_normal",
+      "physics": {
+        "collision_count": 0,
+        "teleport_warning": false,
+        "min_acceleration_mps2": -3.0000000000010303,
+        "max_acceleration_mps2": 2.000000000000684,
+        "minimum_same_lane_bumper_gap_m": 2.499999999999986,
+        "conflicting_green_states": [],
+        "missing_tls_times": [],
+        "red_entry_candidates": [],
+        "tracks": 560,
+        "detections": 102994,
+        "physics_status": "PASS"
+      },
+      "evaluation": {
+        "schema": "sumo-independent-evaluation-v1",
+        "case_config": {
+          "seed": 202610211,
+          "k": 2,
+          "approaches": 4,
+          "duration_s": 900,
+          "period_s": 100,
+          "extension_s": 0,
+          "regime_change": false
+        },
+        "scored_seconds": [
+          180,
+          890
+        ],
+        "counts": {
+          "total": 2840,
+          "correct": 2558,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1196,
+          "RED_total": 1476,
+          "RED_correct": 1336,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 26
+        },
+        "confusion": {
+          "GREEN->GREEN": 1196,
+          "RED->RED": 1336,
+          "YELLOW->GREEN": 84,
+          "RED->GREEN": 54,
+          "RED->YELLOW": 62,
+          "RED_YELLOW->RED": 26,
+          "RED_YELLOW->RED_YELLOW": 26,
+          "RED->UNKNOWN": 24,
+          "GREEN->UNKNOWN": 20,
+          "GREEN->RED_YELLOW": 8,
+          "RED_YELLOW->UNKNOWN": 4
+        },
+        "per_head": {
+          "E": {
+            "total": 710,
+            "correct": 640,
+            "GREEN_total": 311,
+            "GREEN_correct": 304,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0,
+            "RED_total": 364,
+            "RED_correct": 329,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 7
+          },
+          "N": {
+            "total": 710,
+            "correct": 639,
+            "RED_total": 374,
+            "RED_correct": 339,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 6,
+            "GREEN_total": 301,
+            "GREEN_correct": 294,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0
+          },
+          "S": {
+            "total": 710,
+            "correct": 639,
+            "RED_total": 374,
+            "RED_correct": 339,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 6,
+            "GREEN_total": 301,
+            "GREEN_correct": 294,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0
+          },
+          "W": {
+            "total": 710,
+            "correct": 640,
+            "GREEN_total": 311,
+            "GREEN_correct": 304,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0,
+            "RED_total": 364,
+            "RED_correct": 329,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 7
+          }
+        },
+        "accuracy": 0.9007042253521127,
+        "macro_color_recall": 0.5866397371956913,
+        "automatic_phase_counts": [
+          2
+        ],
+        "automatic_approaches": [
+          "N",
+          "S",
+          "E",
+          "W"
+        ],
+        "model_sha256": "3fb0083b09b8027226adb486b3f3df0157792e95b8a497690902d5f6dd518937",
+        "truth_sha256": "8868deadd6e922cc57bd5a21c6efeec446f04f8a67cb423b43b1dbea9002e69a",
+        "vehicles_sha256": "54fc467f4f615cd635a0cb8b1779b8ef2a3960aeca8fcd5ca4acf07aef8fa7b1",
+        "video_or_signal_truth_supplied_to_inference": false,
+        "real_road_accuracy_claim": false
+      }
+    },
+    {
+      "name": "k2_extension",
+      "physics": {
+        "collision_count": 0,
+        "teleport_warning": false,
+        "min_acceleration_mps2": -3.0000000000010303,
+        "max_acceleration_mps2": 2.000000000000684,
+        "minimum_same_lane_bumper_gap_m": 2.499999999999986,
+        "conflicting_green_states": [],
+        "missing_tls_times": [],
+        "red_entry_candidates": [],
+        "tracks": 561,
+        "detections": 103157,
+        "physics_status": "PASS"
+      },
+      "evaluation": {
+        "schema": "sumo-independent-evaluation-v1",
+        "case_config": {
+          "seed": 202610211,
+          "k": 2,
+          "approaches": 4,
+          "duration_s": 900,
+          "period_s": 100,
+          "extension_s": 12,
+          "regime_change": false
+        },
+        "scored_seconds": [
+          180,
+          890
+        ],
+        "counts": {
+          "total": 2840,
+          "correct": 2534,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1184,
+          "RED_total": 1476,
+          "RED_correct": 1326,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 24
+        },
+        "confusion": {
+          "GREEN->GREEN": 1184,
+          "RED->RED": 1326,
+          "YELLOW->GREEN": 78,
+          "RED->GREEN": 56,
+          "RED->YELLOW": 60,
+          "RED_YELLOW->RED": 24,
+          "RED_YELLOW->RED_YELLOW": 24,
+          "RED->UNKNOWN": 30,
+          "GREEN->UNKNOWN": 22,
+          "GREEN->RED_YELLOW": 10,
+          "RED_YELLOW->UNKNOWN": 4,
+          "GREEN->YELLOW": 6,
+          "RED->RED_YELLOW": 4,
+          "GREEN->RED": 2,
+          "YELLOW->UNKNOWN": 4,
+          "YELLOW->RED": 2,
+          "RED_YELLOW->GREEN": 4
+        },
+        "per_head": {
+          "E": {
+            "total": 710,
+            "correct": 630,
+            "GREEN_total": 299,
+            "GREEN_correct": 293,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0,
+            "RED_total": 376,
+            "RED_correct": 331,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 6
+          },
+          "N": {
+            "total": 710,
+            "correct": 637,
+            "RED_total": 362,
+            "RED_correct": 332,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 6,
+            "GREEN_total": 313,
+            "GREEN_correct": 299,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0
+          },
+          "S": {
+            "total": 710,
+            "correct": 637,
+            "RED_total": 362,
+            "RED_correct": 332,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 6,
+            "GREEN_total": 313,
+            "GREEN_correct": 299,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0
+          },
+          "W": {
+            "total": 710,
+            "correct": 630,
+            "GREEN_total": 299,
+            "GREEN_correct": 293,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0,
+            "RED_total": 376,
+            "RED_correct": 331,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 6
+          }
+        },
+        "accuracy": 0.8922535211267606,
+        "macro_color_recall": 0.5735664184372936,
+        "automatic_phase_counts": [
+          2
+        ],
+        "automatic_approaches": [
+          "N",
+          "S",
+          "E",
+          "W"
+        ],
+        "model_sha256": "3fb0083b09b8027226adb486b3f3df0157792e95b8a497690902d5f6dd518937",
+        "truth_sha256": "a7367fb7c5ac4c02feb4aea287e68722fce4e8fea8cf0c238786fab7e2bb8989",
+        "vehicles_sha256": "0ee8c3b267b0b6d279d52a3be6cef441eae7e39ab3edd9bea0f8a58d84125590",
+        "video_or_signal_truth_supplied_to_inference": false,
+        "real_road_accuracy_claim": false
+      }
+    },
+    {
+      "name": "k2_regime",
+      "physics": {
+        "collision_count": 0,
+        "teleport_warning": false,
+        "min_acceleration_mps2": -3.0000000000010303,
+        "max_acceleration_mps2": 2.000000000000684,
+        "minimum_same_lane_bumper_gap_m": 2.499999999999986,
+        "conflicting_green_states": [],
+        "missing_tls_times": [],
+        "red_entry_candidates": [],
+        "tracks": 561,
+        "detections": 102537,
+        "physics_status": "PASS"
+      },
+      "evaluation": {
+        "schema": "sumo-independent-evaluation-v1",
+        "case_config": {
+          "seed": 202610211,
+          "k": 2,
+          "approaches": 4,
+          "duration_s": 900,
+          "period_s": 100,
+          "extension_s": 0,
+          "regime_change": true
+        },
+        "scored_seconds": [
+          180,
+          890
+        ],
+        "counts": {
+          "total": 2840,
+          "correct": 2496,
+          "GREEN_total": 1238,
+          "GREEN_correct": 1186,
+          "RED_total": 1472,
+          "RED_correct": 1298,
+          "YELLOW_total": 78,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 52,
+          "RED_YELLOW_correct": 12
+        },
+        "confusion": {
+          "GREEN->GREEN": 1186,
+          "RED->RED": 1298,
+          "YELLOW->GREEN": 42,
+          "RED->GREEN": 26,
+          "RED->YELLOW": 30,
+          "RED_YELLOW->RED": 12,
+          "RED_YELLOW->RED_YELLOW": 12,
+          "RED->UNKNOWN": 96,
+          "GREEN->UNKNOWN": 14,
+          "GREEN->RED_YELLOW": 4,
+          "RED_YELLOW->UNKNOWN": 24,
+          "GREEN->YELLOW": 34,
+          "RED->RED_YELLOW": 22,
+          "YELLOW->RED": 22,
+          "YELLOW->UNKNOWN": 14,
+          "RED_YELLOW->GREEN": 4
+        },
+        "per_head": {
+          "E": {
+            "total": 710,
+            "correct": 623,
+            "GREEN_total": 294,
+            "GREEN_correct": 282,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0,
+            "RED_total": 383,
+            "RED_correct": 338,
+            "RED_YELLOW_total": 12,
+            "RED_YELLOW_correct": 3
+          },
+          "N": {
+            "total": 710,
+            "correct": 625,
+            "RED_total": 353,
+            "RED_correct": 311,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 3,
+            "GREEN_total": 325,
+            "GREEN_correct": 311,
+            "YELLOW_total": 18,
+            "YELLOW_correct": 0
+          },
+          "S": {
+            "total": 710,
+            "correct": 625,
+            "RED_total": 353,
+            "RED_correct": 311,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 3,
+            "GREEN_total": 325,
+            "GREEN_correct": 311,
+            "YELLOW_total": 18,
+            "YELLOW_correct": 0
+          },
+          "W": {
+            "total": 710,
+            "correct": 623,
+            "GREEN_total": 294,
+            "GREEN_correct": 282,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0,
+            "RED_total": 383,
+            "RED_correct": 338,
+            "RED_YELLOW_total": 12,
+            "RED_YELLOW_correct": 3
+          }
+        },
+        "accuracy": 0.8788732394366198,
+        "macro_color_recall": 0.5176398695030824,
+        "automatic_phase_counts": [
+          2
+        ],
+        "automatic_approaches": [
+          "N",
+          "S",
+          "E",
+          "W"
+        ],
+        "model_sha256": "3fb0083b09b8027226adb486b3f3df0157792e95b8a497690902d5f6dd518937",
+        "truth_sha256": "b450f97736b6f84b1c23c14293c4965d9de6ad8546807f6056fe979bbda68aa9",
+        "vehicles_sha256": "5506b4ca9b163560b411e6d6cc8fc1761bb8ed864b366fcff21abe759e27b4e7",
+        "video_or_signal_truth_supplied_to_inference": false,
+        "real_road_accuracy_claim": false
+      }
+    },
+    {
+      "name": "k3_control",
+      "physics": {
+        "collision_count": 0,
+        "teleport_warning": false,
+        "min_acceleration_mps2": -3.0500000000001735,
+        "max_acceleration_mps2": 2.000000000000684,
+        "minimum_same_lane_bumper_gap_m": 2.499999999999986,
+        "conflicting_green_states": [],
+        "missing_tls_times": [],
+        "red_entry_candidates": [],
+        "tracks": 565,
+        "detections": 168499,
+        "physics_status": "PASS"
+      },
+      "evaluation": {
+        "schema": "sumo-independent-evaluation-v1",
+        "case_config": {
+          "seed": 202610213,
+          "k": 3,
+          "approaches": 4,
+          "duration_s": 900,
+          "period_s": 100,
+          "extension_s": 0,
+          "regime_change": false
+        },
+        "scored_seconds": [
+          180,
+          890
+        ],
+        "counts": {
+          "total": 2840,
+          "correct": 2569,
+          "GREEN_total": 755,
+          "GREEN_correct": 734,
+          "RED_total": 1945,
+          "RED_correct": 1802,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 14,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 19
+        },
+        "confusion": {
+          "GREEN->GREEN": 734,
+          "RED->RED": 1802,
+          "YELLOW->GREEN": 70,
+          "YELLOW->YELLOW": 14,
+          "RED->YELLOW": 59,
+          "RED->RED_YELLOW": 14,
+          "RED->UNKNOWN": 48,
+          "RED_YELLOW->UNKNOWN": 16,
+          "GREEN->UNKNOWN": 17,
+          "RED->GREEN": 22,
+          "RED_YELLOW->RED_YELLOW": 19,
+          "RED_YELLOW->RED": 21,
+          "GREEN->RED_YELLOW": 2,
+          "GREEN->RED": 2
+        },
+        "per_head": {
+          "E": {
+            "total": 710,
+            "correct": 646,
+            "GREEN_total": 192,
+            "GREEN_correct": 185,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 7,
+            "RED_total": 483,
+            "RED_correct": 450,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 4
+          },
+          "N": {
+            "total": 710,
+            "correct": 626,
+            "RED_total": 486,
+            "RED_correct": 444,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 0,
+            "GREEN_total": 189,
+            "GREEN_correct": 182,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0
+          },
+          "S": {
+            "total": 710,
+            "correct": 651,
+            "RED_total": 493,
+            "RED_correct": 458,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 11,
+            "GREEN_total": 182,
+            "GREEN_correct": 182,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0
+          },
+          "W": {
+            "total": 710,
+            "correct": 646,
+            "GREEN_total": 192,
+            "GREEN_correct": 185,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 7,
+            "RED_total": 483,
+            "RED_correct": 450,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 4
+          }
+        },
+        "accuracy": 0.9045774647887324,
+        "macro_color_recall": 0.6011539901290536,
+        "automatic_phase_counts": [
+          3
+        ],
+        "automatic_approaches": [
+          "N",
+          "S",
+          "E",
+          "W"
+        ],
+        "model_sha256": "15dd36ad54b682ccff3929505e8b92eb7e132fac67d9b2ea2e2286822e90758a",
+        "truth_sha256": "d52e2c0fcb2270ca43bf5ff75e8c030ff434b70eb08c5d60dbb98cf11f3b8127",
+        "vehicles_sha256": "bc738cdefcac8deff0f8c9b91af603eb3ca92de949c73828e7f70d13ab1a4b4c",
+        "video_or_signal_truth_supplied_to_inference": false,
+        "real_road_accuracy_claim": false
+      }
+    },
+    {
+      "name": "t3_control_v2",
+      "physics": {
+        "collision_count": 0,
+        "teleport_warning": false,
+        "represented_approaches": [
+          "E",
+          "N",
+          "S"
+        ],
+        "expected_approaches": [
+          "E",
+          "N",
+          "S"
+        ],
+        "min_acceleration_mps2": -3.050000000000175,
+        "max_acceleration_mps2": 2.000000000000684,
+        "minimum_same_lane_bumper_gap_m": 2.499999999999986,
+        "conflicting_green_states": [],
+        "missing_tls_times": [],
+        "red_entry_candidates": [],
+        "tracks": 381,
+        "detections": 122655,
+        "physics_status": "PASS"
+      },
+      "evaluation": {
+        "schema": "sumo-independent-evaluation-v1",
+        "case_config": {
+          "seed": 202610215,
+          "k": 3,
+          "approaches": 3,
+          "duration_s": 900,
+          "period_s": 100,
+          "extension_s": 0,
+          "regime_change": false
+        },
+        "scored_seconds": [
+          180,
+          890
+        ],
+        "counts": {
+          "total": 2130,
+          "correct": 1933,
+          "GREEN_total": 563,
+          "GREEN_correct": 549,
+          "RED_total": 1462,
+          "RED_correct": 1360,
+          "YELLOW_total": 63,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 42,
+          "RED_YELLOW_correct": 24
+        },
+        "confusion": {
+          "GREEN->GREEN": 549,
+          "RED->RED": 1360,
+          "YELLOW->GREEN": 63,
+          "RED->GREEN": 24,
+          "RED->YELLOW": 49,
+          "RED_YELLOW->RED": 7,
+          "RED_YELLOW->RED_YELLOW": 24,
+          "RED->UNKNOWN": 25,
+          "GREEN->UNKNOWN": 14,
+          "RED_YELLOW->UNKNOWN": 11,
+          "RED->RED_YELLOW": 4
+        },
+        "per_head": {
+          "E": {
+            "total": 710,
+            "correct": 637,
+            "GREEN_total": 192,
+            "GREEN_correct": 185,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0,
+            "RED_total": 483,
+            "RED_correct": 445,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 7
+          },
+          "N": {
+            "total": 710,
+            "correct": 647,
+            "RED_total": 486,
+            "RED_correct": 458,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 7,
+            "GREEN_total": 189,
+            "GREEN_correct": 182,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0
+          },
+          "S": {
+            "total": 710,
+            "correct": 649,
+            "RED_total": 493,
+            "RED_correct": 457,
+            "RED_YELLOW_total": 14,
+            "RED_YELLOW_correct": 10,
+            "GREEN_total": 182,
+            "GREEN_correct": 182,
+            "YELLOW_total": 21,
+            "YELLOW_correct": 0
+          }
+        },
+        "accuracy": 0.9075117370892019,
+        "macro_color_recall": 0.6191985861220444,
+        "automatic_phase_counts": [
+          3
+        ],
+        "automatic_approaches": [
+          "N",
+          "S",
+          "E"
+        ],
+        "model_sha256": "3d16cba29de508cd3608df69e7dd2462951223f4ffcb3b62910868edd91e29dc",
+        "truth_sha256": "f9518700af64decab28115eda7bc401033a2703f1a354272371b5bfc3f2d3626",
+        "vehicles_sha256": "b9521ff5fda3cb717fe7cd7199340810cde43b641d6176ff7ffffadcebb0042d",
+        "video_or_signal_truth_supplied_to_inference": false,
+        "real_road_accuracy_claim": false
+      }
+    }
+  ],
+  "invalid_preserved_cases": [
+    "t3_training v1",
+    "t3_control v1"
+  ],
+  "invalid_reason": "SUMO normalized T-network coordinates. Initial exporter used pre-normalization center and omitted N/S from field of view. Fixed before fitting/scoring T case; originals retained.",
+  "limitations": [
+    "Constant ideal sensor observations; no missing detections, identity switches or camera perspective distortion",
+    "No arrows/permissive turns, obstruction or emergency priority implemented in this generator yet",
+    "No proof of real-road accuracy; the five evaluation cases are now revealed development controls"
+  ],
+  "physics_checks": [
+    "collision and teleport output",
+    "native-step acceleration",
+    "same-lane bumper separation",
+    "protected-green geometric conflict matrix",
+    "red/red-yellow junction entry",
+    "TLS coverage",
+    "exported approach coverage"
+  ]
+}

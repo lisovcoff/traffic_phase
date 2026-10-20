@@ -5,6 +5,10 @@
 **Status: research prototype; universal 95% physical-signal accuracy is not
 established. The theoretical maximum on these six archives is unknown.**
 This folder summarizes existing measurements, not a new algorithm run.
+The [2026-10-20 physical-validation follow-up](physical_validation.md) adds
+independent SUMO controls and original-video brackets. It identifies limitations
+in the old custom simulator; the historical synthetic scores below are software
+stress checks, not sufficient evidence of real-road fidelity.
 [Machine-readable counts and provenance](summary.json) identify the frozen
 source receipts in revision `9924a35`; full saved runs remain local and in that
 Git revision. The application never receives validation videos or lamp labels.

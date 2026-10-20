@@ -14,6 +14,12 @@ and [validation](results/README.md) before choosing model work.
 5. **Open:** candidate promotion only after separated regression/holdout gates,
    then integration and operational acceptance. Universal 95% is not established.
 
+Validation milestone (2026-10-20): independent SUMO generator, lane/physics
+gates, five separately scored controls and five new native-video brackets.
+The fresh real replay confirms a 3.416s GREEN delay. Old custom-simulator
+fidelity limitations are documented; transition fixes must pass the new checks.
+See [physical validation](results/physical_validation.md).
+
 Historical 2D.1 remains FAIL/default-off and is not implicitly restarted.
 Generated evidence, rejected attempts and the former detailed roadmap remain
 locally preserved; pre-cleanup evidence is also in Git revision `9924a35`.

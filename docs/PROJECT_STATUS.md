@@ -4,6 +4,18 @@ The application is a **research prototype**, not an accepted universal physical
 signal estimator. Python inference and one offline/online panel are implemented.
 The default is v7; no inference change accompanies the repository cleanup.
 
+The [physical-validation follow-up](../results/physical_validation.md) added
+an independent SUMO generator with physics gates and five separate online
+controls. V7 scores 87.89–90.75%, with zero yellow recall in four controls.
+The legacy custom simulator has geometric/kinematic limitations and its earlier
+scores must not serve alone as a realism or promotion gate.
+
+Five new original-video brackets are sealed. An additional vehicle at 90min
+supports the frozen Sverdlovsky clock mapping without refitting. A fresh
+cross-day replay is 3.416s late on GREEN and 1.349s late on RED, relative to the
+conditional clock envelope. Enthusiasts labels remain video-only pending clock
+association. This follow-up does not change production inference.
+
 ## Delivered
 
 - Whole-intersection JSON/ZIP ingestion, separated sources/sessions, recurring
