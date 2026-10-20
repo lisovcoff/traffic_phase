@@ -11,7 +11,14 @@ never production inputs.
 Full accuracy acceptance is still in progress. Signal hardware and
 colors remain estimates; trajectories can leave them ambiguous.
 
-**Latest acceptance check (October20): 95% is not established.** A copied real
+**Latest work (October20):** a joint phase/duration/color model with explicit
+transitions, offline queue-front observations and separately labelled10s delayed
+history is implemented and remains default-off. It retained12/12 added green
+seconds, but ordinary yellow and K2 controls regressed. Twelve new physical
+streams:85.18% instantaneous versus86.50% for v7; delayed history87.73%.
+[Interactive comparison and implementation results](docs/COHERENT_SIGNAL_RESULTS_20261020.md).
+
+**Earlier acceptance check (October20): 95% is not established.** A copied real
 JSON with a12s longer green exposed premature yellow/red:89.09% on labelled
 N-green/yellow seconds, versus96.08% in the original narrow window. Six new
 paired physical controls scored85.68% across all main-head colors. Production

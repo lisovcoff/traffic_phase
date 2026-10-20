@@ -1,0 +1,606 @@
+{
+  "status": "VERIFIED_DEFAULT_OFF_IMPLEMENTATION_ACCEPTANCE_FAIL",
+  "production_enabled": false,
+  "production_sources_unchanged": [
+    {
+      "path": "app/core/intersection_online.py",
+      "sha256": "f6738036065bcfe1ef0c9b5b1221d4be8804a3788bbbd0fe8fe18fff42dade1e"
+    },
+    {
+      "path": "app/core/intersection_project.py",
+      "sha256": "90d41a0601fff21240dba1083eb8e5da2bd3cc2548a3185afa456b653d24a7ca"
+    },
+    {
+      "path": "app/api/intersection_online.py",
+      "sha256": "c6b0ceb43a4b209194b0beaa3fef62cb20dc314a3e4566fa2d0f6616bc505cab"
+    }
+  ],
+  "packet_inputs_unchanged": [
+    {
+      "case": "baseline",
+      "path": ".web_runtime\\incident_validation_20261020\\baseline.jsonl",
+      "sha256": "61a1fa900a564c5eb7d2a71e170843de29382c44b4967206d000fdb6ea121aba"
+    },
+    {
+      "case": "extended",
+      "path": ".web_runtime\\incident_validation_20261020\\extended.jsonl",
+      "sha256": "c583326c86417a5ebde196f6b61cc9931d54c5b60944e97afec3efb0a448c1cf"
+    }
+  ],
+  "verified_frozen_sources": [
+    {
+      "version": "v1",
+      "source": "app/core/intersection_signal_filter.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v1\\intersection_signal_filter.py",
+      "sha256": "535919b96d257039cebf27edf39208378bbf586206562364ab472e0be765bbe3"
+    },
+    {
+      "version": "v1",
+      "source": "scripts/check_coherent_signal.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v1\\check_coherent_signal.py",
+      "sha256": "5297d677559839b15cda9f590b9791c4b8c4c903fbd12bb33deb7e1fb6706856"
+    },
+    {
+      "version": "v2",
+      "source": "app/core/intersection_signal_filter.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v2\\intersection_signal_filter.py",
+      "sha256": "4dbe65dfe4e19a1008f3fe19af62e8be935609081f0f4bdb2f63bbe5030af4b9"
+    },
+    {
+      "version": "v2",
+      "source": "scripts/check_coherent_signal.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v2\\check_coherent_signal.py",
+      "sha256": "db3d0c291826188007af36aced17ae86f812ccd67877be01232285fc7a128b83"
+    },
+    {
+      "version": "v3",
+      "source": "app/core/intersection_signal_filter.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v3\\intersection_signal_filter.py",
+      "sha256": "107347b865025428f9d17ee3b68b99ec9f5a31bc9179abeb4342d8bc3c5f972d"
+    },
+    {
+      "version": "v3",
+      "source": "app/core/intersection_queue_observations.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v3\\intersection_queue_observations.py",
+      "sha256": "108933c59082a526ba03769a95e0f1791f8d402c882cb2803d2c8c3e23b213e3"
+    },
+    {
+      "version": "v3",
+      "source": "scripts/check_coherent_queue.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v3\\check_coherent_queue.py",
+      "sha256": "5b58dbf2a269988ade0b248e3d1ce3e6044df216410cd76bd14ea4babc8a90a7"
+    },
+    {
+      "version": "v4",
+      "source": "app/core/intersection_signal_filter.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v4\\intersection_signal_filter.py",
+      "sha256": "72df137c7b78ce0c5f98ff23ed2a2dae973960aca9e739fa46dad0224c4bfce7"
+    },
+    {
+      "version": "v4",
+      "source": "app/core/intersection_queue_observations.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v4\\intersection_queue_observations.py",
+      "sha256": "482c6a33d150cd98b5dfbe9d5b18c63ba935e1563aff260e940cda0a8dcfca13"
+    },
+    {
+      "version": "v4",
+      "source": "scripts/check_coherent_queue.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v4\\check_coherent_queue.py",
+      "sha256": "a591e8fc1d3791961001ed831c582f0b416c0caf54ccc531528638778321db37"
+    },
+    {
+      "version": "v5",
+      "source": "app/core/intersection_signal_filter.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\app\\core\\intersection_signal_filter.py",
+      "sha256": "25be6324b96aeddf82d1cff307a5dea476106769c45f1be32ee6408642f99367"
+    },
+    {
+      "version": "v5",
+      "source": "app/core/intersection_signal_smoothing.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\app\\core\\intersection_signal_smoothing.py",
+      "sha256": "6ea09e6c5348ff1f1a70c947e7263246e31a736ebd2f6dc7b719d74915e0865c"
+    },
+    {
+      "version": "v5",
+      "source": "app/core/intersection_queue_observations.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\app\\core\\intersection_queue_observations.py",
+      "sha256": "482c6a33d150cd98b5dfbe9d5b18c63ba935e1563aff260e940cda0a8dcfca13"
+    },
+    {
+      "version": "v5",
+      "source": "scripts/check_coherent_queue.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\scripts\\check_coherent_queue.py",
+      "sha256": "5e35fa1ddd178a25bc266aebf65edda79b063ead3916b107f20d00eef66ec0c2"
+    },
+    {
+      "version": "path_v1",
+      "source": "app/core/intersection_signal_filter.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\app\\core\\intersection_signal_filter.py",
+      "sha256": "25be6324b96aeddf82d1cff307a5dea476106769c45f1be32ee6408642f99367"
+    },
+    {
+      "version": "path_v1",
+      "source": "app/core/intersection_signal_smoothing.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\app\\core\\intersection_signal_smoothing.py",
+      "sha256": "6ea09e6c5348ff1f1a70c947e7263246e31a736ebd2f6dc7b719d74915e0865c"
+    },
+    {
+      "version": "path_v1",
+      "source": "app/core/intersection_queue_observations.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\app\\core\\intersection_queue_observations.py",
+      "sha256": "482c6a33d150cd98b5dfbe9d5b18c63ba935e1563aff260e940cda0a8dcfca13"
+    },
+    {
+      "version": "path_v1",
+      "source": "scripts/check_coherent_queue.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\scripts\\check_coherent_queue.py",
+      "sha256": "5e35fa1ddd178a25bc266aebf65edda79b063ead3916b107f20d00eef66ec0c2"
+    },
+    {
+      "version": "path_v1",
+      "source": "app/core/intersection_signal_path.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\path_v1\\app\\core\\intersection_signal_path.py",
+      "sha256": "7d3586d3b60354cbb42a3312196401afd244ec271ad6b4fa3716528bf73d4123"
+    },
+    {
+      "version": "path_v1",
+      "source": "app/experimental/intersection_signal_path.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\path_v1\\app\\experimental\\intersection_signal_path.py",
+      "sha256": "ddab1d089e0322a32fcbc7ec15839f6f519f0dfe11a1a1603b74e122ee6e3493"
+    },
+    {
+      "version": "path_v1",
+      "source": "scripts/check_coherent_path.py",
+      "snapshot": "evidence\\coherent_signal_20261020\\source_snapshots\\path_v1\\scripts\\check_coherent_path.py",
+      "sha256": "e4e1916c2f925c21be7807337545153e4101c4a181691b523d287ad14b538120"
+    }
+  ],
+  "source_files": [
+    {
+      "path": "app/core/intersection_signal_filter.py",
+      "sha256": "25be6324b96aeddf82d1cff307a5dea476106769c45f1be32ee6408642f99367"
+    },
+    {
+      "path": "app/core/intersection_signal_smoothing.py",
+      "sha256": "6ea09e6c5348ff1f1a70c947e7263246e31a736ebd2f6dc7b719d74915e0865c"
+    },
+    {
+      "path": "app/core/intersection_signal_path.py",
+      "sha256": "7d3586d3b60354cbb42a3312196401afd244ec271ad6b4fa3716528bf73d4123"
+    },
+    {
+      "path": "app/core/intersection_queue_observations.py",
+      "sha256": "482c6a33d150cd98b5dfbe9d5b18c63ba935e1563aff260e940cda0a8dcfca13"
+    },
+    {
+      "path": "app/experimental/intersection_signal_path.py",
+      "sha256": "b0c9b145639f1dad140d1114da2a30a8aa465ca6ac6a49145b46dc62051fe1fd"
+    },
+    {
+      "path": "scripts/check_coherent_signal.py",
+      "sha256": "db3d0c291826188007af36aced17ae86f812ccd67877be01232285fc7a128b83"
+    },
+    {
+      "path": "scripts/check_coherent_queue.py",
+      "sha256": "5e35fa1ddd178a25bc266aebf65edda79b063ead3916b107f20d00eef66ec0c2"
+    },
+    {
+      "path": "scripts/check_coherent_synthetic.py",
+      "sha256": "2f5040d185d05926ffc53e723564c24ecdc7eb89f19daa90c02bb5b64c970160"
+    },
+    {
+      "path": "scripts/check_coherent_path.py",
+      "sha256": "e4e1916c2f925c21be7807337545153e4101c4a181691b523d287ad14b538120"
+    },
+    {
+      "path": "scripts/find_crash_uturn.py",
+      "sha256": "90c85e5b90fcc61aba6bd0f9371e3100925e20646553661611367ae652ab1b43"
+    },
+    {
+      "path": "scripts/trace_crash_car_video.py",
+      "sha256": "204b44d7e5373e4ad8d01add21cad65b2b119b75807e75245ae653d3bea1006e"
+    },
+    {
+      "path": "scripts/report_coherent_signals.py",
+      "sha256": "a316c563599d0799be4e8461883cf460e8dbe1e64ae3f84690b112046f1298b2"
+    },
+    {
+      "path": "scripts/qa_coherent_report.py",
+      "sha256": "db7e28edcfbe81a44e87d0e0205ba9e78d58de7ca4e66442e52f31e02204214d"
+    },
+    {
+      "path": "scripts/seal_coherent_delivery.py",
+      "sha256": "d45343921e62d494ec28ff1dc41485e048ac08769ea6b852b2967592119da253"
+    },
+    {
+      "path": "tests/test_intersection_signal_filter.py",
+      "sha256": "31e5276147169daa923c04fbfa4160bbdb55837e7b08352bd958b55141c225e1"
+    },
+    {
+      "path": "tests/test_intersection_signal_path.py",
+      "sha256": "e3a6f31ec6e3533dbfb35289dd752198d4e7e7699ae00e9caa61545649ce3948"
+    },
+    {
+      "path": "tests/test_intersection_queue_observations.py",
+      "sha256": "3464ebf800580880481445bd3058535dd28ea4a6f0501c9aa432af9f3fe59543"
+    }
+  ],
+  "evidence_files": [
+    {
+      "path": "evidence\\coherent_signal_20261020\\browser_check.json",
+      "sha256": "f16dd2807dee55d26df0640c75da8137f95e20f0a43ca54207a05ae407749b06",
+      "bytes": 378
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\comparison.html",
+      "sha256": "7e44021d89c924a77847455fed3a7de6bc42901a7dafc39048e64e9b87026c40",
+      "bytes": 1115180
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\extended_result.json",
+      "sha256": "e98683808bb7985a964c7a646c4c0f5ec59caa5ad0bcd54aca4cbc639b801dd6",
+      "bytes": 1345
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\path_v1\\baseline_result.json",
+      "sha256": "86be65ffa01c527fac8d493e58333efde1d3fb8837fc06592e4bc97e144d4477",
+      "bytes": 1118
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\path_v1\\extended_result.json",
+      "sha256": "00894797a7d26299e4ef40457f96ad00ca6274134dc6a15c733f3f32a687b139",
+      "bytes": 1228
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\path_v1\\protocol.json",
+      "sha256": "88a2182c23d5811bfa41b7f672319a9e8a7cd108315f81927bb554c52ad3fe93",
+      "bytes": 3396
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\protocol.json",
+      "sha256": "cda0cc8e3d64a20b61d0abe6bdf69c00a12cec3d48c7cc22dd2155ecb62147db",
+      "bytes": 921
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\path_v1\\app\\core\\intersection_signal_path.py",
+      "sha256": "7d3586d3b60354cbb42a3312196401afd244ec271ad6b4fa3716528bf73d4123",
+      "bytes": 4431
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\path_v1\\app\\experimental\\intersection_signal_path.py",
+      "sha256": "ddab1d089e0322a32fcbc7ec15839f6f519f0dfe11a1a1603b74e122ee6e3493",
+      "bytes": 1922
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\path_v1\\scripts\\check_coherent_path.py",
+      "sha256": "e4e1916c2f925c21be7807337545153e4101c4a181691b523d287ad14b538120",
+      "bytes": 1526
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v1\\check_coherent_signal.py",
+      "sha256": "5297d677559839b15cda9f590b9791c4b8c4c903fbd12bb33deb7e1fb6706856",
+      "bytes": 3796
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v1\\intersection_signal_filter.py",
+      "sha256": "535919b96d257039cebf27edf39208378bbf586206562364ab472e0be765bbe3",
+      "bytes": 12612
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v2\\check_coherent_signal.py",
+      "sha256": "db3d0c291826188007af36aced17ae86f812ccd67877be01232285fc7a128b83",
+      "bytes": 3899
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v2\\intersection_signal_filter.py",
+      "sha256": "4dbe65dfe4e19a1008f3fe19af62e8be935609081f0f4bdb2f63bbe5030af4b9",
+      "bytes": 13484
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v3\\check_coherent_queue.py",
+      "sha256": "5b58dbf2a269988ade0b248e3d1ce3e6044df216410cd76bd14ea4babc8a90a7",
+      "bytes": 5581
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v3\\intersection_queue_observations.py",
+      "sha256": "108933c59082a526ba03769a95e0f1791f8d402c882cb2803d2c8c3e23b213e3",
+      "bytes": 6421
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v3\\intersection_signal_filter.py",
+      "sha256": "107347b865025428f9d17ee3b68b99ec9f5a31bc9179abeb4342d8bc3c5f972d",
+      "bytes": 17268
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v3\\model.json.gz",
+      "sha256": "9db98ef7d96162008c1022129d92bef241becaea5c081deb07ab7561f7916eaf",
+      "bytes": 98953
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v4\\check_coherent_queue.py",
+      "sha256": "a591e8fc1d3791961001ed831c582f0b416c0caf54ccc531528638778321db37",
+      "bytes": 5581
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v4\\intersection_queue_observations.py",
+      "sha256": "482c6a33d150cd98b5dfbe9d5b18c63ba935e1563aff260e940cda0a8dcfca13",
+      "bytes": 7314
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v4\\intersection_signal_filter.py",
+      "sha256": "72df137c7b78ce0c5f98ff23ed2a2dae973960aca9e739fa46dad0224c4bfce7",
+      "bytes": 17716
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v4\\model.json.gz",
+      "sha256": "ff5c31b40b9e588016764219449bb18603334da6f54caafea3a558ce3ff080b7",
+      "bytes": 98954
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\app\\core\\intersection_queue_observations.py",
+      "sha256": "482c6a33d150cd98b5dfbe9d5b18c63ba935e1563aff260e940cda0a8dcfca13",
+      "bytes": 7314
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\app\\core\\intersection_signal_filter.py",
+      "sha256": "25be6324b96aeddf82d1cff307a5dea476106769c45f1be32ee6408642f99367",
+      "bytes": 19046
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\app\\core\\intersection_signal_smoothing.py",
+      "sha256": "6ea09e6c5348ff1f1a70c947e7263246e31a736ebd2f6dc7b719d74915e0865c",
+      "bytes": 2996
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\model.json.gz",
+      "sha256": "e8c9d056776e1bd57ee1fb95c830f5881185cbd128ec8f899075da0376d32cf7",
+      "bytes": 98953
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\scripts\\check_coherent_queue.py",
+      "sha256": "5e35fa1ddd178a25bc266aebf65edda79b063ead3916b107f20d00eef66ec0c2",
+      "bytes": 5953
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\source_snapshots\\v5\\scripts\\check_coherent_synthetic.py",
+      "sha256": "2f5040d185d05926ffc53e723564c24ecdc7eb89f19daa90c02bb5b64c970160",
+      "bytes": 6147
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\summary.json",
+      "sha256": "eb5cdd2e329c132c192e74f784f5e8cfacdbdda186ab2bfe8bf9614cd25489b2",
+      "bytes": 2317
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v2\\extended_result.json",
+      "sha256": "811013ec49f48e5ac071558715e0537ae619bc74836673d5ee6eeb78d7b98784",
+      "bytes": 1856
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v2\\protocol.json",
+      "sha256": "754dab318f1edf5bc782ab04bcf68c64116c24ebb1765d4ce1f9d7f58ef1d3c2",
+      "bytes": 1015
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v3\\baseline_result.json",
+      "sha256": "4d635d018c8531e052efb7ea2a31146afda072abe05d134e8ba5aa8066a1e9f1",
+      "bytes": 1475
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v3\\extended_result.json",
+      "sha256": "34d36de2fb5401401e6388486c2dcd865986c9678c2cea477763c0bd859e5031",
+      "bytes": 1525
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v3\\protocol.json",
+      "sha256": "8879b1fd9b25e2fad20bcf1cf3f4bf81d33b35fcc8b41ad3209cbfd569202113",
+      "bytes": 2788
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v4\\baseline_result.json",
+      "sha256": "0718af13ea0e1680c3562c99786cf08c2aa23e0f8a126a9fb6f50b72a45966c9",
+      "bytes": 1494
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v4\\extended_result.json",
+      "sha256": "3dc14e9e284a27c7feb52618173e2d6b96934119dbb04841d69a1ec2047d109c",
+      "bytes": 1468
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v4\\protocol.json",
+      "sha256": "dbc5a7d191120b1199052db6f89ba3d21a36494f0b583a344307e965cb120cb9",
+      "bytes": 2788
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\baseline_result.json",
+      "sha256": "dbe0462419b41ae01e327770bf1298b1a2ace9cd84baf459bd369eaeb4fd648f",
+      "bytes": 1722
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\extended_result.json",
+      "sha256": "5f694a3b4ee3245efddde4d9f684bf4ecf9b7fc69d074322fba3428ab1673739",
+      "bytes": 1745
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\protocol.json",
+      "sha256": "fbe4f0f7378a02aa56bedd0417ed6c7a48260791f6f6fa89a20f17119287381e",
+      "bytes": 2928
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k2_blocked_N\\result.json",
+      "sha256": "9a4b9f03f2b83037e79bd9f25985b6e19f5f7911f2f7869341269e04ead7d5bc",
+      "bytes": 2903
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k2_blocked_N\\truth.json",
+      "sha256": "e7f9980899c57c11ad29923ec67bf46528ba9dd4fb201873e82011837eb83cee",
+      "bytes": 116608
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k2_extended_12s\\result.json",
+      "sha256": "119751d623786ccc158994878a467870be1e2d8579c215c3014972d53edfa6ab",
+      "bytes": 2789
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k2_extended_12s\\truth.json",
+      "sha256": "395b03008e2417c698e66b34d67bf49aff39d8e1b8787831b13c12afbbf03424",
+      "bytes": 118614
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k2_normal\\result.json",
+      "sha256": "ca90d3a476bc99e4ffb8e630ec95c39898389d921ecbdb2e91282733f43902f3",
+      "bytes": 2733
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k2_normal\\truth.json",
+      "sha256": "29660d8ceae9617935dff8ecef139979d713a777370aa738b1f98e38a0e206eb",
+      "bytes": 118682
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k2_queue_references.json",
+      "sha256": "0caea7b2ec0f69c16b1c929070a26705889b8ddb721e920f89e6ba73e31784a2",
+      "bytes": 1651
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k3_blocked_N\\result.json",
+      "sha256": "03fd317e33667594b296f09d43e0a64562e9cf8408474b277d5bf510d3856022",
+      "bytes": 2926
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k3_blocked_N\\truth.json",
+      "sha256": "e7d624b7a9ed21b19552b370daeff4fd3931f3a9c08da796694cfdf855874708",
+      "bytes": 123351
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k3_extended_12s\\result.json",
+      "sha256": "8740eff30ffa9db0916e7f820031e8419d46bd49f68141ac90fa42f70b00169c",
+      "bytes": 2850
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k3_extended_12s\\truth.json",
+      "sha256": "2d4a823bca6639bdda9e11fde36581f5219bb5194bf331952b69531f83a85b44",
+      "bytes": 123220
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k3_normal\\result.json",
+      "sha256": "f9f950afc4cbbfb9fc34199bef2f4c1faf25364381935776175c8860a95e8340",
+      "bytes": 2890
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k3_normal\\truth.json",
+      "sha256": "f8220fa9c71ae53103aaf2ae18f933dae1e338216f3ed1c2b954d82230bc4ac0",
+      "bytes": 123654
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k3_queue_references.json",
+      "sha256": "6adc5c3e321e0147c9876d616a5af5b37d907d7626be92283c091ebbfc8d71f8",
+      "bytes": 1656
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k4_blocked_N\\result.json",
+      "sha256": "eb8f6a654a8a9878959c3ab42d990d331a3f5a1de299911749ec6c1ac241a978",
+      "bytes": 3336
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k4_blocked_N\\truth.json",
+      "sha256": "97f1883c7a9768d289ba04b6611e8a6354073cae352880c010d92ebc046c00d2",
+      "bytes": 75556
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k4_extended_12s\\result.json",
+      "sha256": "dd1b1a933f11ecda0b9c8e814596436e08aa3a0cf49d610f28388e8cfe231da6",
+      "bytes": 3354
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k4_extended_12s\\truth.json",
+      "sha256": "37786a76ad801c74ccad7bc38ffa6e0bc14ea4acb7c84666a67690f7089d0cab",
+      "bytes": 75095
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k4_normal\\result.json",
+      "sha256": "e940f5025a490bfdb367be8b889b23c57f194bc7691943b8d137407bb4faa621",
+      "bytes": 3332
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k4_normal\\truth.json",
+      "sha256": "3807deeeafe8d649e3b55c8fc174480aa610fa9cca1b49e7172bfd4644d9430d",
+      "bytes": 75811
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k4_queue_references.json",
+      "sha256": "b109b229226b430a3b3303cc24fddf7686b79ad1cb74249b99a2fc7588c3eefa",
+      "bytes": 1574
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k5_blocked_N\\result.json",
+      "sha256": "b0e3643dfeed405f24e14db4492f39013c2492adff4d7ac872db77d936f56222",
+      "bytes": 3303
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k5_blocked_N\\truth.json",
+      "sha256": "0da52fb5aa16f6e0c2d5bc8aa4938723fdbf4209681bff396e266d5ac3c4e294",
+      "bytes": 79758
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k5_extended_12s\\result.json",
+      "sha256": "231e70f4eacb75be89ef674dea6c8b0e95b3442180f24d609eec154615f407a9",
+      "bytes": 3378
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k5_extended_12s\\truth.json",
+      "sha256": "195128a403612e9e29f0eab7334b1813036436e1c3aa0c4c8570baf4458b4b47",
+      "bytes": 79629
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k5_normal\\result.json",
+      "sha256": "9a5024e596e0598172458748a02e7d975bc650a35c57c18ef9f495f9ce45ebf6",
+      "bytes": 3298
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k5_normal\\truth.json",
+      "sha256": "31703396c76931fed7f8cce45c564d00dd72a0e14dd4dce478b9b28acb08060b",
+      "bytes": 79622
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\k5_queue_references.json",
+      "sha256": "0934ed5189d28d046183b6723d720c0e58689b38d64526e8ed4a6bffb7f13855",
+      "bytes": 1576
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\v5\\synthetic\\protocol.json",
+      "sha256": "c59ea2668842094878c4f0d348a78ec05a0b3791bbc64edd62884ed1f3db3931",
+      "bytes": 1364
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\video_link\\collision_flow_review.jpg",
+      "sha256": "9d9a7993ad8ff65fab68b28598667d8656580d15ecdfee87a2eaf332b695b1e7",
+      "bytes": 1360429
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\video_link\\preimpact_flow_contact.jpg",
+      "sha256": "d245522937fa3e24b4feca6b09817551dbe225edb07dcfabf837b8d1a919f8c6",
+      "bytes": 1453125
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\video_link\\preimpact_video_points.json",
+      "sha256": "8ec040de5cb45373c94fc539b0a95d1fe13f7ee88d97615f0b4831603e08b816",
+      "bytes": 104817
+    },
+    {
+      "path": "evidence\\coherent_signal_20261020\\video_link\\uturn_inventory.json",
+      "sha256": "051b305034b47a577bd158731b7ac32d4ae8439ded3278ae5411005820c2cbd4",
+      "bytes": 1063305
+    }
+  ],
+  "tests": {
+    "passed": 69,
+    "command": "python -m pytest -q -p no:cacheprovider tests/test_intersection_signal_filter.py tests/test_intersection_queue_observations.py tests/test_intersection_signal_path.py tests/test_intersection_online.py tests/test_intersection_emissions.py tests/test_intersection_project.py tests/test_incident_counterfactual.py tests/test_archive_online_packets.py",
+    "warning": "existing Starlette/httpx deprecation",
+    "full_suite_rerun": false
+  },
+  "browser": "comparison HTML actual Edge seek/case/play/pause/speed/mobile PASS",
+  "prior_experiments_deleted": false,
+  "original_archives_modified": false,
+  "accuracy_95_accepted": false,
+  "video_clock_accepted": false
+}

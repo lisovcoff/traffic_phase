@@ -1,5 +1,17 @@
 # Project status — Trajectory recovery v1, 2026-10-20
 
+LATEST20.10: [joint color/duration implementation](COHERENT_SIGNAL_RESULTS_20261020.md).
+Joint semi-Markov phase/age/explicit transition graph, offline queue-front
+observations, braking/obstruction,10s fixed-lag reconstruction and committed-path
+probe implemented. Default-off; production remains v7. Real copied+12s: added
+GREEN12/12 vs2/12; ordinary YELLOW regresses.12 new paired K2–5 streams:
+instant65827/77280=85.18% vs v766848/77280=86.50%;10s history67800=87.73%.
+K2 regression persists;95% acceptance FAIL.69 affected tests and standalone
+comparison player/seek/play/mobile Edge PASS. User identifies crash car W->_W;
+all6 raw JSON reread,23 U-turn candidates, no accepted identity/clock. Next:
+joint local-observation latency learning and yellow/K2 gates, then fresh controls,
+other real archives and production integration. No old2D.1 restart or rollback.
+
 LATEST20.10: [Enthusiasts crash located](ENTHUSIASTS_CRASH_REFERENCE_20261020.md).
 User clock13:03:50 maps to videoPTS3832s. Bus blocks N on sampled3840–4260s;
 visible E/W continues cycling.1197 native ROI frames,12 video-only GREEN/RED

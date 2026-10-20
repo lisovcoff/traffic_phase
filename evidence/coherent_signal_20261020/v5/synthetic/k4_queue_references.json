@@ -1,0 +1,79 @@
+{
+  "version": "offline-queue-reference-v1",
+  "references": {
+    "N": {
+      "anchor_lat_lng": [
+        55.0,
+        61.0
+      ],
+      "point_m": [
+        0.0,
+        0.12199190344830413
+      ],
+      "heading": [
+        0.0,
+        -1.0
+      ],
+      "lateral_radius_m": 4.0,
+      "stopping_runs": 20,
+      "straight_tracks": 217,
+      "semantics": "observed_queue_front_NOT_verified_stop_line"
+    },
+    "E": {
+      "anchor_lat_lng": [
+        55.0,
+        61.0
+      ],
+      "point_m": [
+        0.14581741297500894,
+        0.0
+      ],
+      "heading": [
+        -1.0,
+        0.0
+      ],
+      "lateral_radius_m": 4.0,
+      "stopping_runs": 17,
+      "straight_tracks": 213,
+      "semantics": "observed_queue_front_NOT_verified_stop_line"
+    },
+    "W": {
+      "anchor_lat_lng": [
+        55.0,
+        61.0
+      ],
+      "point_m": [
+        -0.14475948192171023,
+        0.0
+      ],
+      "heading": [
+        1.0,
+        0.0
+      ],
+      "lateral_radius_m": 4.0,
+      "stopping_runs": 6,
+      "straight_tracks": 185,
+      "semantics": "observed_queue_front_NOT_verified_stop_line"
+    },
+    "S": {
+      "anchor_lat_lng": [
+        55.0,
+        61.0
+      ],
+      "point_m": [
+        0.0,
+        -0.1358211890369887
+      ],
+      "heading": [
+        0.0,
+        1.0
+      ],
+      "lateral_radius_m": 4.0,
+      "stopping_runs": 6,
+      "straight_tracks": 190,
+      "semantics": "observed_queue_front_NOT_verified_stop_line"
+    }
+  },
+  "input_scope": "offline trajectories only",
+  "physical_stop_line_verified": false
+}

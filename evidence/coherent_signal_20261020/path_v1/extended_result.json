@@ -1,0 +1,59 @@
+{
+  "case": "extended",
+  "counts": {
+    "total": 165,
+    "correct": 155,
+    "GREEN_total": 156,
+    "GREEN_correct": 155,
+    "added_total": 12,
+    "added_correct": 12,
+    "YELLOW_total": 9,
+    "YELLOW_correct": 0
+  },
+  "accuracy": 0.9393939393939394,
+  "channels": {
+    "restarts": 353,
+    "passages": 2059,
+    "stops": 405,
+    "braking": 255
+  },
+  "transitions": [
+    {
+      "timestamp_ms": 1740634517000,
+      "color": "GREEN"
+    },
+    {
+      "timestamp_ms": 1740634579000,
+      "color": "RED"
+    },
+    {
+      "timestamp_ms": 1740634628000,
+      "color": "GREEN"
+    },
+    {
+      "timestamp_ms": 1740634681000,
+      "color": "RED"
+    },
+    {
+      "timestamp_ms": 1740634728000,
+      "color": "GREEN"
+    }
+  ],
+  "history_counts": {
+    "total": 165,
+    "correct": 157,
+    "GREEN_total": 156,
+    "GREEN_correct": 153,
+    "added_total": 12,
+    "added_correct": 10,
+    "YELLOW_total": 9,
+    "YELLOW_correct": 4
+  },
+  "history_accuracy": 0.9515151515151515,
+  "history_lag_s": 10,
+  "packets": 3660,
+  "runtime_s": 148.51600000000053,
+  "tick_p95_s": 0.05883123999983581,
+  "model_sha256": "cf8015b7069733352d843b3414c93f9da16be9001b1e4acef14feecf523c9033",
+  "production_enabled": false
+}

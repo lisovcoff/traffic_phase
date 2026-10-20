@@ -1,0 +1,88 @@
+{
+  "source_sha256": {
+    "app/core/intersection_signal_filter.py": "25be6324b96aeddf82d1cff307a5dea476106769c45f1be32ee6408642f99367",
+    "app/core/intersection_signal_smoothing.py": "6ea09e6c5348ff1f1a70c947e7263246e31a736ebd2f6dc7b719d74915e0865c",
+    "app/core/intersection_queue_observations.py": "482c6a33d150cd98b5dfbe9d5b18c63ba935e1563aff260e940cda0a8dcfca13",
+    "scripts/check_coherent_queue.py": "5e35fa1ddd178a25bc266aebf65edda79b063ead3916b107f20d00eef66ec0c2"
+  },
+  "geometry_training_source": "D:\\Code\\PythonProjects\\traffic_phase\\data\\17_2025_2_12_7.json",
+  "geometry_source_sha256": "c03bef20e70a6d2997b1c82901f0c819e27f4fd25aeb5851041c21a621ab8d82",
+  "geometry_scope": "one earlier offline hourly recording; no target-day geometry fit",
+  "source_counts": {
+    "tracks": 3641,
+    "detections": 581175
+  },
+  "sampled_detection_extent_ms": [
+    1739325550213,
+    1739329199805
+  ],
+  "parent_model": "44ae19132cc145758452d13b3eab55d3",
+  "parent_fingerprint": "e907b1919a3aa39e00279947069e1ba007fd62e5c1841fa1c2d3b173d1023a5e",
+  "candidate_model_sha256": "cf8015b7069733352d843b3414c93f9da16be9001b1e4acef14feecf523c9033",
+  "reference": {
+    "version": "offline-queue-reference-v1",
+    "references": {
+      "N": {
+        "anchor_lat_lng": [
+          55.16040780906194,
+          61.38872788771154
+        ],
+        "point_m": [
+          -0.6337369058873359,
+          -6.520963951921033
+        ],
+        "heading": [
+          0.09824164057986645,
+          -0.9951625897591692
+        ],
+        "lateral_radius_m": 4.542236213352958,
+        "stopping_runs": 18,
+        "straight_tracks": 1184,
+        "semantics": "observed_queue_front_NOT_verified_stop_line"
+      },
+      "S": {
+        "anchor_lat_lng": [
+          55.16040780906194,
+          61.38872788771154
+        ],
+        "point_m": [
+          26.586215181277005,
+          -89.99885672150754
+        ],
+        "heading": [
+          -0.02914015949780179,
+          0.9995753353822026
+        ],
+        "lateral_radius_m": 6.662590229902941,
+        "stopping_runs": 596,
+        "straight_tracks": 851,
+        "semantics": "observed_queue_front_NOT_verified_stop_line"
+      },
+      "E": {
+        "anchor_lat_lng": [
+          55.16040780906194,
+          61.38872788771154
+        ],
+        "point_m": [
+          52.49216500422923,
+          -47.19778058461799
+        ],
+        "heading": [
+          -0.9983357378536333,
+          0.057669355157151256
+        ],
+        "lateral_radius_m": 4.671787796643031,
+        "stopping_runs": 64,
+        "straight_tracks": 304,
+        "semantics": "observed_queue_front_NOT_verified_stop_line"
+      }
+    },
+    "input_scope": "offline trajectories only",
+    "physical_stop_line_verified": false
+  },
+  "clearance_s": 4,
+  "point_estimator": "joint_state",
+  "history_lag_s": 10,
+  "lamp_truth_supplied_to_training": false,
+  "production_enabled": false
+}

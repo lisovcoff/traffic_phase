@@ -1,0 +1,25 @@
+{
+  "source_sha256": {
+    "app/core/intersection_signal_filter.py": "4dbe65dfe4e19a1008f3fe19af62e8be935609081f0f4bdb2f63bbe5030af4b9",
+    "scripts/check_coherent_signal.py": "db3d0c291826188007af36aced17ae86f812ccd67877be01232285fc7a128b83"
+  },
+  "baseline": "causal-intersection-v7",
+  "candidate": "coherent-v1",
+  "point_estimator": "joint state MAP; report physical color marginal confidence separately",
+  "priors": {
+    "yellow_s": 3,
+    "red_yellow_s": 2,
+    "clearance_s": 4,
+    "calibration": "generic uncalibrated prior"
+  },
+  "real_development": "known original/+12s N-main green/yellow; then two known video windows, all colors/onsets available",
+  "acceptance": {
+    "added_green_min": 10,
+    "baseline_labelled_seconds_no_loss": true,
+    "no_yellow_loss": true,
+    "no_extra_yellow_to_green_reversals": true,
+    "new_synthetic_controls_no_regression": true
+  },
+  "inference": "offline model plus chronological vehicle events only",
+  "no_production_promotion_without_acceptance": true
+}

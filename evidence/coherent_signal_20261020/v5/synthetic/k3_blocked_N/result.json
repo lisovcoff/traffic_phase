@@ -1,0 +1,109 @@
+{
+  "k": 3,
+  "case": "blocked_N",
+  "counts": {
+    "v7_instant": {
+      "total": 6440,
+      "correct": 5538,
+      "unknown": 64,
+      "GREEN_total": 1696,
+      "GREEN_correct": 1498,
+      "RED_total": 4394,
+      "RED_correct": 4040,
+      "YELLOW_total": 210,
+      "YELLOW_correct": 0,
+      "RED_YELLOW_total": 140,
+      "RED_YELLOW_correct": 0,
+      "blocked_window_N_green_total": 82,
+      "blocked_window_N_green_correct": 69
+    },
+    "joint_instant": {
+      "total": 6440,
+      "correct": 5468,
+      "unknown": 68,
+      "GREEN_total": 1696,
+      "GREEN_correct": 1602,
+      "RED_total": 4394,
+      "RED_correct": 3858,
+      "YELLOW_total": 210,
+      "YELLOW_correct": 6,
+      "RED_YELLOW_total": 140,
+      "RED_YELLOW_correct": 2,
+      "blocked_window_N_green_total": 82,
+      "blocked_window_N_green_correct": 70
+    },
+    "joint_history_10s": {
+      "total": 6440,
+      "correct": 5572,
+      "unknown": 120,
+      "GREEN_total": 1696,
+      "GREEN_correct": 1602,
+      "RED_total": 4394,
+      "RED_correct": 3892,
+      "YELLOW_total": 210,
+      "YELLOW_correct": 78,
+      "RED_YELLOW_total": 140,
+      "RED_YELLOW_correct": 0,
+      "blocked_window_N_green_total": 82,
+      "blocked_window_N_green_correct": 70
+    }
+  },
+  "confusion": {
+    "v7_instant": {
+      "GREEN->GREEN": 1498,
+      "RED->RED": 4040,
+      "YELLOW->GREEN": 210,
+      "RED->GREEN": 258,
+      "RED_YELLOW->RED": 138,
+      "GREEN->RED": 142,
+      "GREEN->UNKNOWN": 20,
+      "RED->UNKNOWN": 42,
+      "RED->YELLOW": 54,
+      "GREEN->RED_YELLOW": 36,
+      "RED_YELLOW->UNKNOWN": 2
+    },
+    "joint_instant": {
+      "GREEN->GREEN": 1602,
+      "RED->RED": 3858,
+      "YELLOW->GREEN": 204,
+      "RED->GREEN": 258,
+      "RED->YELLOW": 162,
+      "RED->RED_YELLOW": 52,
+      "RED->UNKNOWN": 64,
+      "RED_YELLOW->GREEN": 72,
+      "RED_YELLOW->RED": 66,
+      "GREEN->RED": 48,
+      "GREEN->RED_YELLOW": 42,
+      "GREEN->UNKNOWN": 4,
+      "YELLOW->YELLOW": 6,
+      "RED_YELLOW->RED_YELLOW": 2
+    },
+    "joint_history_10s": {
+      "GREEN->GREEN": 1602,
+      "RED->RED": 3892,
+      "YELLOW->GREEN": 132,
+      "RED->YELLOW": 214,
+      "RED->RED_YELLOW": 104,
+      "RED->GREEN": 82,
+      "RED_YELLOW->GREEN": 72,
+      "RED_YELLOW->RED": 68,
+      "YELLOW->YELLOW": 78,
+      "GREEN->RED": 26,
+      "GREEN->RED_YELLOW": 50,
+      "GREEN->UNKNOWN": 18,
+      "RED->UNKNOWN": 102
+    }
+  },
+  "accuracy": {
+    "v7_instant": 0.8599378881987577,
+    "joint_instant": 0.8490683229813665,
+    "joint_history_10s": 0.8652173913043478
+  },
+  "tracks": 1214,
+  "model_sha256": "aa720fef026c8cf6a07a87a253f54d3e94047bcc7c6762c4dd08f92c0b4c611b",
+  "truth_sha256": "e7d624b7a9ed21b19552b370daeff4fd3931f3a9c08da796694cfdf855874708",
+  "elapsed_s": 222.92199999999957,
+  "joint_tick_p95_s": 0.10206200000084209,
+  "production_enabled": false,
+  "video_and_lamp_labels_supplied_to_inference": false
+}

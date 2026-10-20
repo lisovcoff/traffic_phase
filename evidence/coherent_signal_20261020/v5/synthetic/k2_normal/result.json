@@ -1,0 +1,103 @@
+{
+  "k": 2,
+  "case": "normal",
+  "counts": {
+    "v7_instant": {
+      "total": 6440,
+      "correct": 5592,
+      "unknown": 8,
+      "GREEN_total": 2940,
+      "GREEN_correct": 2726,
+      "RED_total": 3150,
+      "RED_correct": 2866,
+      "YELLOW_total": 210,
+      "YELLOW_correct": 0,
+      "RED_YELLOW_total": 140,
+      "RED_YELLOW_correct": 0,
+      "blocked_window_N_green_total": 205,
+      "blocked_window_N_green_correct": 193
+    },
+    "joint_instant": {
+      "total": 6440,
+      "correct": 5372,
+      "unknown": 156,
+      "GREEN_total": 2940,
+      "GREEN_correct": 2618,
+      "RED_total": 3150,
+      "RED_correct": 2754,
+      "YELLOW_total": 210,
+      "YELLOW_correct": 0,
+      "RED_YELLOW_total": 140,
+      "RED_YELLOW_correct": 0,
+      "blocked_window_N_green_total": 205,
+      "blocked_window_N_green_correct": 193
+    },
+    "joint_history_10s": {
+      "total": 6440,
+      "correct": 5462,
+      "unknown": 280,
+      "GREEN_total": 2940,
+      "GREEN_correct": 2638,
+      "RED_total": 3150,
+      "RED_correct": 2792,
+      "YELLOW_total": 210,
+      "YELLOW_correct": 32,
+      "RED_YELLOW_total": 140,
+      "RED_YELLOW_correct": 0,
+      "blocked_window_N_green_total": 205,
+      "blocked_window_N_green_correct": 193
+    }
+  },
+  "confusion": {
+    "v7_instant": {
+      "GREEN->GREEN": 2726,
+      "RED->RED": 2866,
+      "YELLOW->GREEN": 210,
+      "RED_YELLOW->RED": 140,
+      "RED->GREEN": 246,
+      "GREEN->RED": 198,
+      "RED->UNKNOWN": 4,
+      "GREEN->UNKNOWN": 4,
+      "RED->YELLOW": 34,
+      "GREEN->RED_YELLOW": 12
+    },
+    "joint_instant": {
+      "GREEN->GREEN": 2618,
+      "RED->RED": 2754,
+      "YELLOW->GREEN": 206,
+      "RED_YELLOW->RED": 140,
+      "RED->GREEN": 318,
+      "GREEN->RED": 248,
+      "GREEN->UNKNOWN": 74,
+      "RED->UNKNOWN": 78,
+      "YELLOW->UNKNOWN": 4
+    },
+    "joint_history_10s": {
+      "GREEN->GREEN": 2638,
+      "RED->RED": 2792,
+      "YELLOW->GREEN": 170,
+      "YELLOW->YELLOW": 32,
+      "RED_YELLOW->RED": 138,
+      "RED->YELLOW": 212,
+      "GREEN->RED": 88,
+      "GREEN->RED_YELLOW": 84,
+      "GREEN->UNKNOWN": 130,
+      "RED->UNKNOWN": 140,
+      "RED_YELLOW->UNKNOWN": 2,
+      "YELLOW->UNKNOWN": 8,
+      "RED->GREEN": 6
+    }
+  },
+  "accuracy": {
+    "v7_instant": 0.8683229813664596,
+    "joint_instant": 0.8341614906832299,
+    "joint_history_10s": 0.848136645962733
+  },
+  "tracks": 1229,
+  "model_sha256": "c44f6ddb3e986f7cbd348b566a6f24e1d66e88991d282442b0ec8e89e4f781f9",
+  "truth_sha256": "29660d8ceae9617935dff8ecef139979d713a777370aa738b1f98e38a0e206eb",
+  "elapsed_s": 133.0,
+  "joint_tick_p95_s": 0.06236640000042826,
+  "production_enabled": false,
+  "video_and_lamp_labels_supplied_to_inference": false
+}
