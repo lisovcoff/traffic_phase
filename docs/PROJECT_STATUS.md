@@ -4,6 +4,16 @@ The application is a **research prototype**, not an accepted universal physical
 signal estimator. Python inference and one offline/online panel are implemented.
 The default is v7; no inference change accompanies the repository cleanup.
 
+Latest [queue-front timing stage](../results/front_release_timing.md): front
+release ages and continued waiting are now causal experimental observations.
+Persistent-change GREEN recall equals v7 (1186/1238), and false GREEN decreases
+from the earlier candidate's 122 to 94 head-seconds. Five of seven known SUMO
+controls exceed 95%, and known visible-N interiors reach 148/153. Promotion
+still FAILS: false GREEN remains above v7's 78, and a separate real GREEN onset
+regresses by 1s against the previous candidate. 54 targeted tests pass; the
+application remains on v7. These development results are not new holdouts or
+six-archive all-head accuracy.
+
 The subsequent [joint timing stage](../results/transition_timing.md) implements
 intergreen/color hypotheses, leading braking and causal adaptation from repeated
 completed intervals. The experimental model learns a 100s to 115s period change
@@ -58,9 +68,10 @@ regress. Sensor-delay correction retains added green but regresses synthetic K2.
 Repeated-completed-interval duration adaptation is now implemented experimentally;
 isolated extensions retain the ordinary duration. It has not passed product
 acceptance. Lost known real-video seconds have been recovered; the remaining
-algorithm work is the physical transition/survival likelihood during persistent
-timing changes. Retain the K4 transition gain, restore GREEN recall and reduce
-false GREEN, then freeze new controls and integrate only if acceptance passes.
+algorithm work is physical intergreen/age uncertainty during persistent timing
+changes. GREEN recall has been restored on the known period-change control;
+false GREEN and a separate onset regression remain. Retain K4 short colors,
+then freeze new controls and integrate only if acceptance passes.
 Video remains evaluation-only.
 
 Enthusiasts crash is located around video 13:03:50 with a bus obstructing N;

@@ -35,6 +35,16 @@ the physical transition/survival likelihood under that change, followed by new
 reserved controls only after development gates pass.
 See [section-support stage](results/section_consensus.md).
 
+Queue-front follow-up (2026-10-20): causal front-release age correction and
+conditional waiting survival restore persistent-change GREEN recall to v7's
+1186/1238 and reduce false GREEN from 122 to 94 head-seconds. Five of seven
+known SUMO controls exceed 95%; the known visible-N interior score is 148/153.
+Promotion still FAIL: v7 has 78 false GREEN seconds in the period-change case,
+and one real GREEN onset is 1s later than the previous candidate. Default v7
+is retained. Next gate is physical intergreen/age uncertainty and the
+onset/false-GREEN tradeoff, before new reserved controls and app integration.
+See [queue-front timing stage](results/front_release_timing.md).
+
 Historical 2D.1 remains FAIL/default-off and is not implicitly restarted.
 Generated evidence, rejected attempts and the former detailed roadmap remain
 locally preserved; pre-cleanup evidence is also in Git revision `9924a35`.

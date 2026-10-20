@@ -94,7 +94,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', required=True, type=Path)
     parser.add_argument('--case', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
-    parser.add_argument('--estimator', choices=['v7','leading_brake','adaptive'], default='v7')
+    parser.add_argument('--estimator', choices=['v7','leading_brake','adaptive','front_release','front_waiting'], default='v7')
     args = parser.parse_args()
     os.environ.update(OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1', MKL_NUM_THREADS='1')
     from scripts.corpus_validation import prepare_worker_environment
@@ -106,4 +106,10 @@ if __name__ == '__main__':
     elif args.estimator=='adaptive':
         from app.experimental.intersection_adaptive_timing import AdaptiveRobustTimingIntersection
         factory=AdaptiveRobustTimingIntersection
+    elif args.estimator=='front_release':
+        from app.experimental.intersection_front_release import FrontReleaseTimingIntersection
+        factory=FrontReleaseTimingIntersection
+    elif args.estimator=='front_waiting':
+        from app.experimental.intersection_front_waiting import FrontWaitingTimingIntersection
+        factory=FrontWaitingTimingIntersection
     score(args.model, args.case, args.output,engine_factory=factory)

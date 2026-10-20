@@ -6,6 +6,9 @@
 established. The theoretical maximum on these six archives is unknown.**
 This page summarizes earlier production measurements. Dated follow-ups describe
 new validation and experimental algorithm runs.
+The latest [queue-front timing stage](front_release_timing.md) restores the
+period-change GREEN recall and improves five known SUMO controls beyond 95%,
+but excess false GREEN and a real onset regression still block promotion.
 The [section-support follow-up](section_consensus.md) recovers the four real
 seconds lost in the [joint timing stage](transition_timing.md), but persistent
 timing changes still fail GREEN-recall/false-GREEN gates; default v7 is retained.
