@@ -48,6 +48,7 @@ class TimingEnsembleIntersection:
     VERSION='experimental-joint-timing-ensemble-v1'
     DURATION_TAIL_PROBABILITY=.02
     USE_TRAJECTORY_AGE_PRIOR=True
+    SECTION_CONSENSUS_SUPPORT=.65
 
     def __init__(self,model,*,point_estimator='configuration'):
         if point_estimator not in ('configuration','joint_state'):raise ValueError('invalid point estimator')
@@ -84,6 +85,7 @@ class TimingEnsembleIntersection:
 
     def _summarize(self,base,results,q,blocked):
         configurations={};color_marginals={a:{} for a in self.source.motion.model['approaches']}
+        arrow_marginals={a:{} for a in color_marginals}
         best_point=(-1,None,None)
         for hypothesis,(weight,f) in enumerate(zip(self.weights,self.filters)):
             votes=np.zeros(len(f.configurations))
@@ -97,6 +99,9 @@ class TimingEnsembleIntersection:
                 mass=float(weight*vote);configurations[key][1]+=mass
                 for a,h in c.items():
                     state=h['main']['state'];color_marginals[a][state]=color_marginals[a].get(state,0.)+mass
+                    for arrow in h['arrows']:
+                        votes_for_arrow=arrow_marginals[a].setdefault(arrow['movement'],{})
+                        state=arrow['state'];votes_for_arrow[state]=votes_for_arrow.get(state,0.)+mass
         selected,mass=max(configurations.values(),key=lambda pair:pair[1])
         best=results[int(self.weights.argmax())]
         if self.point_estimator=='joint_state':
@@ -106,17 +111,30 @@ class TimingEnsembleIntersection:
         heads=deepcopy(selected)
         recent=best['status']=='TRACKING'
         supported=recent and (best['phase_confidence']>=.5 if self.point_estimator=='joint_state' else mass>=.5)
+        recoveries=[]
         for a,h in heads.items():
             color=h['main']['state'];confidence=color_marginals[a].get(color,0.)
-            h['main'].update(state=color if supported else 'UNKNOWN',confidence=confidence,
-                             source='JOINT_TIMING_HYPOTHESES' if supported else 'INSUFFICIENT_CURRENT_EVIDENCE')
+            # Competing logical phases can agree on a physical section, e.g. a
+            # continuing main GREEN during an arrow change. Only restore the
+            # section chosen by the same joint configuration, never synthesize
+            # an independently chosen (possibly conflicting) head combination.
+            consensus=recent and not supported and color!='UNKNOWN' and confidence>=self.SECTION_CONSENSUS_SUPPORT
+            if consensus:recoveries.append(dict(approach=a,section='main',state=color,confidence=confidence))
+            h['main'].update(state=color if supported or consensus else 'UNKNOWN',confidence=confidence,
+                             source=('JOINT_TIMING_HYPOTHESES' if supported else
+                                     'JOINT_TIMING_SECTION_CONSENSUS' if consensus else 'INSUFFICIENT_CURRENT_EVIDENCE'))
             for arrow in h['arrows']:
-                if not supported:arrow['state']='UNKNOWN'
-                arrow.update(confidence=mass,source='JOINT_TIMING_HYPOTHESES')
+                state=arrow['state'];confidence=arrow_marginals[a][arrow['movement']].get(state,0.)
+                consensus=recent and not supported and state!='UNKNOWN' and confidence>=self.SECTION_CONSENSUS_SUPPORT
+                if consensus:recoveries.append(dict(approach=a,section=arrow['movement'],state=state,confidence=confidence))
+                if not supported and not consensus:arrow['state']='UNKNOWN'
+                arrow.update(confidence=confidence,source=('JOINT_TIMING_HYPOTHESES' if supported else
+                             'JOINT_TIMING_SECTION_CONSENSUS' if consensus else 'INSUFFICIENT_CURRENT_EVIDENCE'))
         base.update(best)
         base.update(schema=self.VERSION,heads=heads,production_enabled=False,
             point_estimator=self.point_estimator,
             joint_configuration_confidence=mass,
+            section_consensus_recoveries=recoveries,
             intergreen_hypotheses=[dict(clearance_s=f.prior.clearance_s,probability=float(w))
                                   for w,f in zip(self.weights,self.filters)],
             duration_basis='TRAJECTORY_QUANTILES_AND_LATENT_INTERGREEN',

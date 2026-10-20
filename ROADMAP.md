@@ -23,9 +23,17 @@ See [physical validation](results/physical_validation.md).
 Algorithm milestone (2026-10-20): joint timing hypotheses and robust completed-
 interval adaptation are implemented and measured, default-off. Learned timing
 change: 100s to 115s. Known real GREEN delay: 3.416s to 1.416s. Promotion FAIL
-because another real window loses four correct seconds. Next acceptance work is
-the observation-time likelihood and logical/physical age correspondence.
+in that stage because another real window lost four correct seconds.
 See [joint timing stage](results/transition_timing.md).
+
+Section-support follow-up (2026-10-20): the four lost real seconds were caused
+by phase ambiguity hiding an agreed main GREEN. Section marginals recover them:
+147/153 on the original window and 154/165 on its +12s copy. Ten SUMO controls
+and 45 targeted tests were checked. Promotion still FAIL: persistent timing
+change loses GREEN recall and increases false GREEN against v7. Next work is
+the physical transition/survival likelihood under that change, followed by new
+reserved controls only after development gates pass.
+See [section-support stage](results/section_consensus.md).
 
 Historical 2D.1 remains FAIL/default-off and is not implicitly restarted.
 Generated evidence, rejected attempts and the former detailed roadmap remain

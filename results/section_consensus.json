@@ -1,0 +1,1229 @@
+{
+  "schema": "traffic-phase-section-consensus-stage-v1",
+  "date": "2026-10-20",
+  "baseline_commit": "041d2da",
+  "candidate": "AdaptiveRobustTimingIntersection",
+  "candidate_version": "experimental-joint-adaptive-timing-v2",
+  "production": "v7 unchanged",
+  "promoted": false,
+  "change": "Restore only UNKNOWN sections supported by the same selected joint configuration, recent observations and marginal >= 0.65; no latent update changes",
+  "code_sha256": {
+    "app/core/intersection_signal_filter.py": "9d8c9e5a9fb152a8e498a3277ba7b142bc8c0bcaf2ace80c60102601a9df3e6c",
+    "app/experimental/intersection_timing_ensemble.py": "15033a0b0c682b8cf67d0a48ac2512a66ba8c934023745d47647c7bec2cd8395",
+    "app/experimental/intersection_adaptive_timing.py": "15074673e65120d297860aecc6b94a116be0a17e3a8c01a29889b4dfcde5557c",
+    "app/experimental/intersection_leading_brake.py": "32a51f133d0f3ac22945de4aeb1487a9afca78da753094cca0df0f9425d00f8b",
+    "scripts/score_sumo_validation.py": "59e4c108ca20a70f4c14370d66f1b6d42dbcdadc7a8aa1ae608c29d1e9162b20",
+    "scripts/compare_transition_timing.py": "fb821dfce75967cdccdfa2a75408379c9a3b8b0cc32fa9969afef2dc555cc752",
+    "scripts/sumo_validation.py": "5a57c78c8f224905ac97550698c67776a705055ce43ba845bbec746e8b6b2b4f",
+    "tests/test_intersection_section_consensus.py": "f5c6e49b757e31b62432fea3e3bc178f1d89caf4a394accffb1f71f8f31f4e04"
+  },
+  "local_evidence_folder": ".web_runtime/observation_time_20261020",
+  "scope": "Known development controls and video windows; not new holdout or six-archive physical-head accuracy",
+  "video_or_labels_supplied_to_inference": false,
+  "real_known_intervals": [
+    {
+      "case": "baseline",
+      "counts": {
+        "baseline": {
+          "total": 153,
+          "correct": 147,
+          "GREEN_total": 144,
+          "GREEN_correct": 142,
+          "YELLOW_total": 9,
+          "YELLOW_correct": 5
+        },
+        "candidate": {
+          "total": 153,
+          "correct": 147,
+          "GREEN_total": 144,
+          "GREEN_correct": 141,
+          "YELLOW_total": 9,
+          "YELLOW_correct": 6
+        }
+      },
+      "accuracy": {
+        "baseline": 0.9607843137254902,
+        "candidate": 0.9607843137254902
+      },
+      "scope": "Known N GREEN/YELLOW intervals only; warmup PTS1980 onward; same packets supplied to both estimators",
+      "red_not_scored": true,
+      "video_to_inference": false,
+      "receipt_sha256": "0996fee0e57f8f1e8a9703a9115d3f814d6d82166cce07e86ffd8918141854ea",
+      "issued_sha256": "312746e7d2b7d03276fdca348ec0e61e6fd9e9495d7526252a14517c6296196f"
+    },
+    {
+      "case": "extended",
+      "counts": {
+        "baseline": {
+          "total": 165,
+          "correct": 148,
+          "GREEN_total": 156,
+          "GREEN_correct": 145,
+          "added_total": 12,
+          "added_correct": 3,
+          "YELLOW_total": 9,
+          "YELLOW_correct": 3
+        },
+        "candidate": {
+          "total": 165,
+          "correct": 154,
+          "GREEN_total": 156,
+          "GREEN_correct": 149,
+          "added_total": 12,
+          "added_correct": 7,
+          "YELLOW_total": 9,
+          "YELLOW_correct": 5
+        }
+      },
+      "accuracy": {
+        "baseline": 0.896969696969697,
+        "candidate": 0.9333333333333333
+      },
+      "scope": "Known N GREEN/YELLOW intervals only; warmup PTS1980 onward; same packets supplied to both estimators",
+      "red_not_scored": true,
+      "video_to_inference": false,
+      "receipt_sha256": "a5fa8eaf6d96aec4a38b5aa80ef33a9bc03bac6b0a07af67bbdb50c04283082f",
+      "issued_sha256": "72c9a6db5e64eb066f6d84060c90edd806b337f987b815db7ec4e10fd4cdc67b"
+    }
+  ],
+  "real_90min": {
+    "estimator": "AdaptiveRobustTimingIntersection",
+    "metrics": {
+      "baseline": [
+        {
+          "color": "GREEN",
+          "video_bracket_s": [
+            5418.233333333334,
+            5418.3
+          ],
+          "nearest": {
+            "timestamp_ms": 1740637818000,
+            "color": "GREEN"
+          },
+          "distance_to_conditional_clock_envelope_s": 3.41591796875
+        },
+        {
+          "color": "RED",
+          "video_bracket_s": [
+            5469.266666666666,
+            5469.366666666667
+          ],
+          "nearest": {
+            "timestamp_ms": 1740637867000,
+            "color": "RED"
+          },
+          "distance_to_conditional_clock_envelope_s": 1.34925146484375
+        }
+      ],
+      "candidate": [
+        {
+          "color": "GREEN",
+          "video_bracket_s": [
+            5418.233333333334,
+            5418.3
+          ],
+          "nearest": {
+            "timestamp_ms": 1740637816000,
+            "color": "GREEN"
+          },
+          "distance_to_conditional_clock_envelope_s": 1.41591796875
+        },
+        {
+          "color": "RED",
+          "video_bracket_s": [
+            5469.266666666666,
+            5469.366666666667
+          ],
+          "nearest": {
+            "timestamp_ms": 1740637867000,
+            "color": "RED"
+          },
+          "distance_to_conditional_clock_envelope_s": 1.34925146484375
+        }
+      ]
+    },
+    "onsets": {
+      "baseline": [
+        {
+          "timestamp_ms": 1740637817000,
+          "color": "UNKNOWN"
+        },
+        {
+          "timestamp_ms": 1740637818000,
+          "color": "GREEN"
+        },
+        {
+          "timestamp_ms": 1740637864000,
+          "color": "YELLOW"
+        },
+        {
+          "timestamp_ms": 1740637866000,
+          "color": "UNKNOWN"
+        },
+        {
+          "timestamp_ms": 1740637867000,
+          "color": "RED"
+        },
+        {
+          "timestamp_ms": 1740637914000,
+          "color": "RED_YELLOW"
+        },
+        {
+          "timestamp_ms": 1740637916000,
+          "color": "RED"
+        }
+      ],
+      "candidate": [
+        {
+          "timestamp_ms": 1740637814000,
+          "color": "RED_YELLOW"
+        },
+        {
+          "timestamp_ms": 1740637816000,
+          "color": "GREEN"
+        },
+        {
+          "timestamp_ms": 1740637863000,
+          "color": "YELLOW"
+        },
+        {
+          "timestamp_ms": 1740637867000,
+          "color": "RED"
+        },
+        {
+          "timestamp_ms": 1740637914000,
+          "color": "RED_YELLOW"
+        }
+      ]
+    },
+    "scored_seconds": {
+      "baseline": 120,
+      "candidate": 120
+    },
+    "leading_brake_observations": 11,
+    "scope": "Known development window, conditional vehicle-based clock; not full-head color accuracy",
+    "production_enabled": false
+  },
+  "real_90min_protocol": {
+    "warmup_pts_s": [
+      5200,
+      5400
+    ],
+    "scored_pts_s": [
+      5400,
+      5520
+    ],
+    "estimator": "AdaptiveRobustTimingIntersection",
+    "model_sha256": "ca051c0e99d332a844bda622f076ccf9390e34ae050310b34b2dca3200019542",
+    "candidate_model_sha256": "cf8015b7069733352d843b3414c93f9da16be9001b1e4acef14feecf523c9033",
+    "truth_sha256": "4b95572980eac3e3c4a8dd9b985b9c812e1389c4faa044d6899dd26874096906",
+    "inference_inputs": "offline model and chronological current/past vehicle packets only",
+    "code_sha256": {
+      "app/core/intersection_online.py": "f6738036065bcfe1ef0c9b5b1221d4be8804a3788bbbd0fe8fe18fff42dade1e",
+      "app/core/intersection_signal_filter.py": "9d8c9e5a9fb152a8e498a3277ba7b142bc8c0bcaf2ace80c60102601a9df3e6c",
+      "app/experimental/intersection_timing_ensemble.py": "15033a0b0c682b8cf67d0a48ac2512a66ba8c934023745d47647c7bec2cd8395",
+      "app/experimental/intersection_leading_brake.py": "32a51f133d0f3ac22945de4aeb1487a9afca78da753094cca0df0f9425d00f8b",
+      "app/experimental/intersection_adaptive_timing.py": "15074673e65120d297860aecc6b94a116be0a17e3a8c01a29889b4dfcde5557c"
+    }
+  },
+  "synthetic": [
+    {
+      "case": "k2_normal",
+      "config": {
+        "seed": 2026102171,
+        "k": 2,
+        "approaches": 4,
+        "duration_s": 900,
+        "period_s": 100,
+        "extension_s": 0,
+        "regime_change": false,
+        "downstream_stop_s": 0
+      },
+      "physics_status": "PASS",
+      "development_control": true,
+      "scored_seconds": [
+        180,
+        890
+      ],
+      "baseline": {
+        "counts": {
+          "total": 2840,
+          "correct": 2556,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1196,
+          "RED_total": 1476,
+          "RED_correct": 1336,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 24
+        },
+        "confusion": {
+          "GREEN->GREEN": 1196,
+          "RED->RED": 1336,
+          "YELLOW->GREEN": 84,
+          "RED->GREEN": 56,
+          "RED->YELLOW": 66,
+          "RED_YELLOW->RED": 30,
+          "RED_YELLOW->RED_YELLOW": 24,
+          "GREEN->RED_YELLOW": 12,
+          "RED->UNKNOWN": 18,
+          "GREEN->UNKNOWN": 16,
+          "RED_YELLOW->UNKNOWN": 2
+        },
+        "accuracy": 0.9,
+        "false_green_head_seconds": 140
+      },
+      "candidate": {
+        "counts": {
+          "total": 2840,
+          "correct": 2668,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1224,
+          "RED_total": 1476,
+          "RED_correct": 1392,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 14,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 38
+        },
+        "confusion": {
+          "GREEN->GREEN": 1224,
+          "RED->RED": 1392,
+          "YELLOW->GREEN": 70,
+          "YELLOW->YELLOW": 14,
+          "RED->YELLOW": 66,
+          "RED->RED_YELLOW": 18,
+          "RED_YELLOW->RED_YELLOW": 38,
+          "RED_YELLOW->GREEN": 14,
+          "RED_YELLOW->UNKNOWN": 4
+        },
+        "accuracy": 0.9394366197183098,
+        "false_green_head_seconds": 84
+      },
+      "projection_ablation": {
+        "recoveries": {
+          "RED->RED": 4
+        },
+        "recovered_correct": 4,
+        "recovered_incorrect": 0,
+        "added_false_green": 0,
+        "without_consensus_correct": 2664,
+        "total": 2840
+      },
+      "provenance": {
+        "model_sha256": "09af38dc1a8f0c876f5546509615a34b6f180655b3549b49552b410098ec1bdc",
+        "truth_sha256": "db57985a3d1db17001c640ad68347d1c13089d449f14824f5265449a417481e6",
+        "vehicles_sha256": "9fad184c7baaf982422e3fe4f3bfc0d2a19758bdc89ae1102f52a4bb2c96ba8d",
+        "baseline_receipt_sha256": "a109ce31ceaf94769db5a0fc31f455fc95ab81041611197474d6790d06c54bfc",
+        "candidate_receipt_sha256": "d76ed8a1d39c870d7994bcf81acc1b026cb13d228c4093f260d9f0a56fe317ea",
+        "case_folder": ".web_runtime/transition_timing_next/fresh/k2_normal"
+      }
+    },
+    {
+      "case": "k2_extension",
+      "config": {
+        "seed": 2026102171,
+        "k": 2,
+        "approaches": 4,
+        "duration_s": 900,
+        "period_s": 100,
+        "extension_s": 12,
+        "regime_change": false,
+        "downstream_stop_s": 0
+      },
+      "physics_status": "PASS",
+      "development_control": true,
+      "scored_seconds": [
+        180,
+        890
+      ],
+      "baseline": {
+        "counts": {
+          "total": 2840,
+          "correct": 2532,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1184,
+          "RED_total": 1476,
+          "RED_correct": 1324,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 24
+        },
+        "confusion": {
+          "GREEN->GREEN": 1184,
+          "RED->RED": 1324,
+          "YELLOW->GREEN": 78,
+          "RED->GREEN": 54,
+          "RED->YELLOW": 64,
+          "RED_YELLOW->RED": 28,
+          "RED_YELLOW->RED_YELLOW": 24,
+          "GREEN->RED_YELLOW": 14,
+          "RED->UNKNOWN": 32,
+          "GREEN->UNKNOWN": 16,
+          "GREEN->YELLOW": 4,
+          "RED->RED_YELLOW": 2,
+          "GREEN->RED": 6,
+          "YELLOW->UNKNOWN": 6,
+          "RED_YELLOW->UNKNOWN": 2,
+          "RED_YELLOW->GREEN": 2
+        },
+        "accuracy": 0.8915492957746479,
+        "false_green_head_seconds": 134
+      },
+      "candidate": {
+        "counts": {
+          "total": 2840,
+          "correct": 2588,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1184,
+          "RED_total": 1476,
+          "RED_correct": 1358,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 14,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 32
+        },
+        "confusion": {
+          "GREEN->GREEN": 1184,
+          "RED->RED": 1358,
+          "YELLOW->GREEN": 64,
+          "YELLOW->YELLOW": 14,
+          "RED->YELLOW": 58,
+          "RED->RED_YELLOW": 32,
+          "RED_YELLOW->RED_YELLOW": 32,
+          "RED_YELLOW->GREEN": 18,
+          "GREEN->YELLOW": 22,
+          "GREEN->RED": 14,
+          "RED->UNKNOWN": 6,
+          "RED->GREEN": 22,
+          "RED_YELLOW->RED": 4,
+          "GREEN->UNKNOWN": 4,
+          "YELLOW->RED": 6,
+          "RED_YELLOW->UNKNOWN": 2
+        },
+        "accuracy": 0.9112676056338028,
+        "false_green_head_seconds": 104
+      },
+      "projection_ablation": {
+        "recoveries": {
+          "GREEN->RED": 2,
+          "RED->RED": 2
+        },
+        "recovered_correct": 2,
+        "recovered_incorrect": 2,
+        "added_false_green": 0,
+        "without_consensus_correct": 2586,
+        "total": 2840
+      },
+      "provenance": {
+        "model_sha256": "09af38dc1a8f0c876f5546509615a34b6f180655b3549b49552b410098ec1bdc",
+        "truth_sha256": "96dad803592ac4600a542b1919755a77b86f570fca9248375e247f3cb7ed6c43",
+        "vehicles_sha256": "faca4704b00a648b3472dd76b7c0986badc437b98f183e4fbba80018ca15907c",
+        "baseline_receipt_sha256": "e8a7e3bfd79a7e3f950ed34aa9ff7e428b691b2b78d593bebeedc96b68fd2a94",
+        "candidate_receipt_sha256": "afd38019edf62f61c86c02a421291144759dbb2ae620ddef9d4e9e6890b8b703",
+        "case_folder": ".web_runtime/transition_timing_next/fresh/k2_extension"
+      }
+    },
+    {
+      "case": "k2_regime",
+      "config": {
+        "seed": 2026102171,
+        "k": 2,
+        "approaches": 4,
+        "duration_s": 900,
+        "period_s": 100,
+        "extension_s": 0,
+        "regime_change": true,
+        "downstream_stop_s": 0
+      },
+      "physics_status": "PASS",
+      "development_control": true,
+      "scored_seconds": [
+        180,
+        890
+      ],
+      "baseline": {
+        "counts": {
+          "total": 2840,
+          "correct": 2518,
+          "GREEN_total": 1238,
+          "GREEN_correct": 1186,
+          "RED_total": 1472,
+          "RED_correct": 1320,
+          "YELLOW_total": 78,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 52,
+          "RED_YELLOW_correct": 12
+        },
+        "confusion": {
+          "GREEN->GREEN": 1186,
+          "RED->RED": 1320,
+          "YELLOW->GREEN": 42,
+          "RED->GREEN": 30,
+          "RED->YELLOW": 36,
+          "RED_YELLOW->RED": 18,
+          "RED_YELLOW->RED_YELLOW": 12,
+          "GREEN->RED_YELLOW": 10,
+          "RED->UNKNOWN": 68,
+          "GREEN->UNKNOWN": 12,
+          "GREEN->YELLOW": 30,
+          "RED->RED_YELLOW": 18,
+          "YELLOW->UNKNOWN": 12,
+          "YELLOW->RED": 24,
+          "RED_YELLOW->UNKNOWN": 16,
+          "RED_YELLOW->GREEN": 6
+        },
+        "accuracy": 0.8866197183098592,
+        "false_green_head_seconds": 78
+      },
+      "candidate": {
+        "counts": {
+          "total": 2840,
+          "correct": 2544,
+          "GREEN_total": 1238,
+          "GREEN_correct": 1172,
+          "RED_total": 1472,
+          "RED_correct": 1336,
+          "YELLOW_total": 78,
+          "YELLOW_correct": 18,
+          "RED_YELLOW_total": 52,
+          "RED_YELLOW_correct": 18
+        },
+        "confusion": {
+          "GREEN->GREEN": 1172,
+          "RED->RED": 1336,
+          "YELLOW->GREEN": 44,
+          "YELLOW->YELLOW": 18,
+          "RED->YELLOW": 36,
+          "RED->RED_YELLOW": 42,
+          "RED_YELLOW->RED_YELLOW": 18,
+          "RED_YELLOW->GREEN": 26,
+          "GREEN->YELLOW": 40,
+          "GREEN->RED": 24,
+          "RED->UNKNOWN": 6,
+          "RED->GREEN": 52,
+          "RED_YELLOW->RED": 8,
+          "GREEN->UNKNOWN": 2,
+          "YELLOW->RED": 14,
+          "YELLOW->UNKNOWN": 2
+        },
+        "accuracy": 0.895774647887324,
+        "false_green_head_seconds": 122
+      },
+      "projection_ablation": {
+        "recoveries": {
+          "GREEN->RED": 2
+        },
+        "recovered_correct": 0,
+        "recovered_incorrect": 2,
+        "added_false_green": 0,
+        "without_consensus_correct": 2544,
+        "total": 2840
+      },
+      "provenance": {
+        "model_sha256": "09af38dc1a8f0c876f5546509615a34b6f180655b3549b49552b410098ec1bdc",
+        "truth_sha256": "24ef767318910f267978b098f88e87a9f5ec3da5a30e4f953df6d6da384b51cb",
+        "vehicles_sha256": "0d998b61beab34a44ec40623ebda37acac38a7d55eb0d4ee0015ad5ccb65e916",
+        "baseline_receipt_sha256": "cd914359cc511ecd51228564d5e9d9a7d8a0025977348b01a2fc22940da2248a",
+        "candidate_receipt_sha256": "6362858afa341ebf7c966ce3a3d432f3ab05fed9cd0f9c81d657e5cc8de30e97",
+        "case_folder": ".web_runtime/transition_timing_next/fresh/k2_regime"
+      }
+    },
+    {
+      "case": "k2_blocked",
+      "config": {
+        "seed": 2026102171,
+        "k": 2,
+        "approaches": 4,
+        "duration_s": 900,
+        "period_s": 100,
+        "extension_s": 0,
+        "regime_change": false,
+        "downstream_stop_s": 180
+      },
+      "physics_status": "PASS",
+      "development_control": true,
+      "scored_seconds": [
+        180,
+        890
+      ],
+      "baseline": {
+        "counts": {
+          "total": 2840,
+          "correct": 2556,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1196,
+          "RED_total": 1476,
+          "RED_correct": 1336,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 24
+        },
+        "confusion": {
+          "GREEN->GREEN": 1196,
+          "RED->RED": 1336,
+          "YELLOW->GREEN": 84,
+          "RED->GREEN": 62,
+          "RED->YELLOW": 64,
+          "RED_YELLOW->RED": 30,
+          "RED_YELLOW->RED_YELLOW": 24,
+          "RED->UNKNOWN": 14,
+          "GREEN->UNKNOWN": 12,
+          "GREEN->RED_YELLOW": 14,
+          "GREEN->RED": 2,
+          "RED_YELLOW->UNKNOWN": 2
+        },
+        "accuracy": 0.9,
+        "false_green_head_seconds": 146
+      },
+      "candidate": {
+        "counts": {
+          "total": 2840,
+          "correct": 2666,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1222,
+          "RED_total": 1476,
+          "RED_correct": 1390,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 4,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 50
+        },
+        "confusion": {
+          "GREEN->GREEN": 1222,
+          "RED->RED": 1390,
+          "YELLOW->GREEN": 80,
+          "YELLOW->YELLOW": 4,
+          "RED->YELLOW": 76,
+          "RED->RED_YELLOW": 4,
+          "RED_YELLOW->RED_YELLOW": 50,
+          "RED_YELLOW->GREEN": 4,
+          "RED->GREEN": 6,
+          "RED_YELLOW->RED": 2,
+          "GREEN->RED_YELLOW": 2
+        },
+        "accuracy": 0.9387323943661972,
+        "false_green_head_seconds": 90
+      },
+      "projection_ablation": {
+        "recoveries": {},
+        "recovered_correct": 0,
+        "recovered_incorrect": 0,
+        "added_false_green": 0,
+        "without_consensus_correct": 2666,
+        "total": 2840
+      },
+      "provenance": {
+        "model_sha256": "09af38dc1a8f0c876f5546509615a34b6f180655b3549b49552b410098ec1bdc",
+        "truth_sha256": "8f91e93a3452cbafc56e52086a3a3c02f97d9f190b94c5faebe5d45406369561",
+        "vehicles_sha256": "4e76089f51d41af44f92a12f7d37ac49ec39e046dd3d666d09e937e11afe8e41",
+        "baseline_receipt_sha256": "3f602ca17174355e43537d60d5f2f86fa5c676e6dc73eb55cd4e7a835eb12943",
+        "candidate_receipt_sha256": "7fb2b3d2660ee30a627645f4b6724a17c47e1be583a21571dce4cf9fbcecbdcd",
+        "case_folder": ".web_runtime/transition_timing_next/fresh/k2_blocked"
+      }
+    },
+    {
+      "case": "k3_normal",
+      "config": {
+        "seed": 2026102172,
+        "k": 3,
+        "approaches": 4,
+        "duration_s": 900,
+        "period_s": 100,
+        "extension_s": 0,
+        "regime_change": false,
+        "downstream_stop_s": 0
+      },
+      "physics_status": "PASS",
+      "development_control": true,
+      "scored_seconds": [
+        180,
+        890
+      ],
+      "baseline": {
+        "counts": {
+          "total": 2840,
+          "correct": 2557,
+          "GREEN_total": 755,
+          "GREEN_correct": 734,
+          "RED_total": 1945,
+          "RED_correct": 1800,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 14,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 9
+        },
+        "confusion": {
+          "GREEN->GREEN": 734,
+          "RED->RED": 1800,
+          "YELLOW->GREEN": 70,
+          "YELLOW->YELLOW": 14,
+          "RED->YELLOW": 56,
+          "RED->RED_YELLOW": 14,
+          "RED->UNKNOWN": 49,
+          "RED_YELLOW->UNKNOWN": 22,
+          "GREEN->UNKNOWN": 9,
+          "RED->GREEN": 26,
+          "RED_YELLOW->RED_YELLOW": 9,
+          "RED_YELLOW->RED": 25,
+          "GREEN->RED_YELLOW": 12
+        },
+        "accuracy": 0.9003521126760563,
+        "false_green_head_seconds": 96
+      },
+      "candidate": {
+        "counts": {
+          "total": 2840,
+          "correct": 2675,
+          "GREEN_total": 755,
+          "GREEN_correct": 755,
+          "RED_total": 1945,
+          "RED_correct": 1862,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 33,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 25
+        },
+        "confusion": {
+          "GREEN->GREEN": 755,
+          "RED->RED": 1862,
+          "YELLOW->YELLOW": 33,
+          "RED->YELLOW": 51,
+          "RED->RED_YELLOW": 31,
+          "RED_YELLOW->GREEN": 31,
+          "YELLOW->GREEN": 51,
+          "RED_YELLOW->RED_YELLOW": 25,
+          "RED->GREEN": 1
+        },
+        "accuracy": 0.9419014084507042,
+        "false_green_head_seconds": 83
+      },
+      "projection_ablation": {
+        "recoveries": {},
+        "recovered_correct": 0,
+        "recovered_incorrect": 0,
+        "added_false_green": 0,
+        "without_consensus_correct": 2675,
+        "total": 2840
+      },
+      "provenance": {
+        "model_sha256": "5c797daa1aef21f051904717fcce535b74d33f90988bda958cda1745045f1043",
+        "truth_sha256": "de569311d826e49bc39997203306a66e36502d3c2364d522d88984c667aa050d",
+        "vehicles_sha256": "6b1ede405e0c5e1746d94fc5872929816546c45565c24c1e85f7ded001867189",
+        "baseline_receipt_sha256": "384da0a4ab274b0949642faef341c453baa2892c4059ca3ff833b3b931011c0e",
+        "candidate_receipt_sha256": "902c6bd30d0667e258e4c4360bef7e0bdab635abd0fc8172d53cf474ccdf30d2",
+        "case_folder": ".web_runtime/transition_timing_next/fresh/k3_normal"
+      }
+    },
+    {
+      "case": "t3_normal",
+      "config": {
+        "seed": 2026102173,
+        "k": 3,
+        "approaches": 3,
+        "duration_s": 900,
+        "period_s": 100,
+        "extension_s": 0,
+        "regime_change": false,
+        "downstream_stop_s": 0
+      },
+      "physics_status": "PASS",
+      "development_control": true,
+      "scored_seconds": [
+        180,
+        890
+      ],
+      "baseline": {
+        "counts": {
+          "total": 2130,
+          "correct": 1938,
+          "GREEN_total": 563,
+          "GREEN_correct": 549,
+          "RED_total": 1462,
+          "RED_correct": 1363,
+          "YELLOW_total": 63,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 42,
+          "RED_YELLOW_correct": 26
+        },
+        "confusion": {
+          "GREEN->GREEN": 549,
+          "RED->RED": 1363,
+          "YELLOW->GREEN": 63,
+          "RED->GREEN": 25,
+          "RED->YELLOW": 50,
+          "RED_YELLOW->RED": 7,
+          "RED_YELLOW->RED_YELLOW": 26,
+          "RED->UNKNOWN": 23,
+          "GREEN->UNKNOWN": 14,
+          "RED_YELLOW->UNKNOWN": 9,
+          "RED->RED_YELLOW": 1
+        },
+        "accuracy": 0.9098591549295775,
+        "false_green_head_seconds": 88
+      },
+      "candidate": {
+        "counts": {
+          "total": 2130,
+          "correct": 2022,
+          "GREEN_total": 563,
+          "GREEN_correct": 561,
+          "RED_total": 1462,
+          "RED_correct": 1412,
+          "YELLOW_total": 63,
+          "YELLOW_correct": 18,
+          "RED_YELLOW_total": 42,
+          "RED_YELLOW_correct": 31
+        },
+        "confusion": {
+          "GREEN->GREEN": 561,
+          "RED->RED": 1412,
+          "YELLOW->GREEN": 45,
+          "YELLOW->YELLOW": 18,
+          "RED->YELLOW": 43,
+          "RED_YELLOW->RED_YELLOW": 31,
+          "RED->RED_YELLOW": 7,
+          "RED_YELLOW->GREEN": 6,
+          "RED_YELLOW->UNKNOWN": 4,
+          "GREEN->UNKNOWN": 1,
+          "RED_YELLOW->RED": 1,
+          "GREEN->RED_YELLOW": 1
+        },
+        "accuracy": 0.9492957746478873,
+        "false_green_head_seconds": 51
+      },
+      "projection_ablation": {
+        "recoveries": {
+          "RED->RED": 10
+        },
+        "recovered_correct": 10,
+        "recovered_incorrect": 0,
+        "added_false_green": 0,
+        "without_consensus_correct": 2012,
+        "total": 2130
+      },
+      "provenance": {
+        "model_sha256": "7ba100cd8b5546ff57ee7d968b85fb0e22672e1b39dbd09f25b6a8f014912c07",
+        "truth_sha256": "a67135dd1aeb92d1d1600c79338510a9a8dc58d2fc14ab9a1c3df46aaf75321b",
+        "vehicles_sha256": "9093b136c64f1ce39d1cf56b1d6eda2ba363ba35af64100cc6eb93a5e04c80f8",
+        "baseline_receipt_sha256": "1b7997ac6be6a3d0660be6fca71712c39198cac189105ce2d1df367543e78810",
+        "candidate_receipt_sha256": "be162b076108815a8679a00b6d663e46c9d5c9fef437743ac31b6cacdc0e352f",
+        "case_folder": ".web_runtime/transition_timing_next/fresh/t3_normal"
+      }
+    },
+    {
+      "case": "k4_normal",
+      "config": {
+        "seed": 2026102175,
+        "k": 4,
+        "approaches": 4,
+        "duration_s": 900,
+        "period_s": 100,
+        "extension_s": 0,
+        "regime_change": false,
+        "downstream_stop_s": 0
+      },
+      "physics_status": "PASS",
+      "development_control": true,
+      "scored_seconds": [
+        180,
+        890
+      ],
+      "baseline": {
+        "counts": {
+          "total": 2840,
+          "correct": 2560,
+          "RED_total": 2186,
+          "RED_correct": 2046,
+          "GREEN_total": 514,
+          "GREEN_correct": 486,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 28
+        },
+        "confusion": {
+          "RED->RED": 2046,
+          "GREEN->GREEN": 486,
+          "YELLOW->GREEN": 84,
+          "RED->GREEN": 56,
+          "RED_YELLOW->RED": 28,
+          "RED->YELLOW": 59,
+          "RED_YELLOW->RED_YELLOW": 28,
+          "GREEN->UNKNOWN": 25,
+          "RED->UNKNOWN": 25,
+          "GREEN->RED_YELLOW": 3
+        },
+        "accuracy": 0.9014084507042254,
+        "false_green_head_seconds": 140
+      },
+      "candidate": {
+        "counts": {
+          "total": 2840,
+          "correct": 2668,
+          "RED_total": 2186,
+          "RED_correct": 2103,
+          "GREEN_total": 514,
+          "GREEN_correct": 514,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 22,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 29
+        },
+        "confusion": {
+          "RED->RED": 2103,
+          "GREEN->GREEN": 514,
+          "YELLOW->GREEN": 62,
+          "YELLOW->YELLOW": 22,
+          "RED->YELLOW": 58,
+          "RED->RED_YELLOW": 25,
+          "RED_YELLOW->RED_YELLOW": 29,
+          "RED_YELLOW->GREEN": 26,
+          "RED_YELLOW->UNKNOWN": 1
+        },
+        "accuracy": 0.9394366197183098,
+        "false_green_head_seconds": 88
+      },
+      "projection_ablation": {
+        "recoveries": {
+          "RED->RED": 3
+        },
+        "recovered_correct": 3,
+        "recovered_incorrect": 0,
+        "added_false_green": 0,
+        "without_consensus_correct": 2665,
+        "total": 2840
+      },
+      "provenance": {
+        "model_sha256": "f2064331acf8f712797b21b7ac0ff8507d2cbe5dc028993f93f8ba3ca698f789",
+        "truth_sha256": "cfa7ac4b08d3f469428afbea4bf0282ae421d6fb9d6ff83fead7b1d73d528475",
+        "vehicles_sha256": "4e5269d13190278c7673c0355b9157b4371f6415630dcdeca4dd109b462b4d6d",
+        "baseline_receipt_sha256": "4a10cf1b37c989158d9d555f8ed547933d2675ace114a6be01cbd8b9ab48f9be",
+        "candidate_receipt_sha256": "5b6f95a10bfbd182a199264dac789675a8e5befd8e8ee329269c5ffbbc782853",
+        "case_folder": ".web_runtime/transition_timing_next/fresh/k4_normal"
+      }
+    },
+    {
+      "case": "old_k2_normal",
+      "config": {
+        "seed": 202610211,
+        "k": 2,
+        "approaches": 4,
+        "duration_s": 900,
+        "period_s": 100,
+        "extension_s": 0,
+        "regime_change": false
+      },
+      "physics_status": "PASS",
+      "development_control": true,
+      "scored_seconds": [
+        180,
+        890
+      ],
+      "baseline": {
+        "counts": {
+          "total": 2840,
+          "correct": 2558,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1196,
+          "RED_total": 1476,
+          "RED_correct": 1336,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 26
+        },
+        "confusion": {
+          "GREEN->GREEN": 1196,
+          "RED->RED": 1336,
+          "YELLOW->GREEN": 84,
+          "RED->GREEN": 54,
+          "RED->YELLOW": 62,
+          "RED_YELLOW->RED": 26,
+          "RED_YELLOW->RED_YELLOW": 26,
+          "RED->UNKNOWN": 24,
+          "GREEN->UNKNOWN": 20,
+          "GREEN->RED_YELLOW": 8,
+          "RED_YELLOW->UNKNOWN": 4
+        },
+        "accuracy": 0.9007042253521127,
+        "false_green_head_seconds": 138
+      },
+      "candidate": {
+        "counts": {
+          "total": 2840,
+          "correct": 2656,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1224,
+          "RED_total": 1476,
+          "RED_correct": 1386,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 14,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 32
+        },
+        "confusion": {
+          "GREEN->GREEN": 1224,
+          "RED->RED": 1386,
+          "YELLOW->GREEN": 70,
+          "RED->YELLOW": 66,
+          "RED->RED_YELLOW": 22,
+          "RED->UNKNOWN": 2,
+          "RED_YELLOW->UNKNOWN": 4,
+          "RED_YELLOW->GREEN": 20,
+          "RED_YELLOW->RED_YELLOW": 32,
+          "YELLOW->YELLOW": 14
+        },
+        "accuracy": 0.9352112676056338,
+        "false_green_head_seconds": 90
+      },
+      "projection_ablation": {
+        "recoveries": {
+          "RED->RED": 2
+        },
+        "recovered_correct": 2,
+        "recovered_incorrect": 0,
+        "added_false_green": 0,
+        "without_consensus_correct": 2654,
+        "total": 2840
+      },
+      "provenance": {
+        "model_sha256": "09af38dc1a8f0c876f5546509615a34b6f180655b3549b49552b410098ec1bdc",
+        "truth_sha256": "8868deadd6e922cc57bd5a21c6efeec446f04f8a67cb423b43b1dbea9002e69a",
+        "vehicles_sha256": "54fc467f4f615cd635a0cb8b1779b8ef2a3960aeca8fcd5ca4acf07aef8fa7b1",
+        "baseline_receipt_sha256": "8f3e4e54012aff55d7ca607c8a50d57dd79f48fe32ab8dd5b8d453c79d774fb8",
+        "candidate_receipt_sha256": "d3a87529f42e5d342f8e3658a424d2049a8caca74141a76df62aefec046fb213",
+        "case_folder": ".web_runtime/sumo_validation_20261020/k2_normal"
+      }
+    },
+    {
+      "case": "old_k2_extension",
+      "config": {
+        "seed": 202610211,
+        "k": 2,
+        "approaches": 4,
+        "duration_s": 900,
+        "period_s": 100,
+        "extension_s": 12,
+        "regime_change": false
+      },
+      "physics_status": "PASS",
+      "development_control": true,
+      "scored_seconds": [
+        180,
+        890
+      ],
+      "baseline": {
+        "counts": {
+          "total": 2840,
+          "correct": 2534,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1184,
+          "RED_total": 1476,
+          "RED_correct": 1326,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 24
+        },
+        "confusion": {
+          "GREEN->GREEN": 1184,
+          "RED->RED": 1326,
+          "YELLOW->GREEN": 78,
+          "RED->GREEN": 56,
+          "RED->YELLOW": 60,
+          "RED_YELLOW->RED": 24,
+          "RED_YELLOW->RED_YELLOW": 24,
+          "RED->UNKNOWN": 30,
+          "GREEN->UNKNOWN": 22,
+          "GREEN->RED_YELLOW": 10,
+          "RED_YELLOW->UNKNOWN": 4,
+          "GREEN->YELLOW": 6,
+          "RED->RED_YELLOW": 4,
+          "GREEN->RED": 2,
+          "YELLOW->UNKNOWN": 4,
+          "YELLOW->RED": 2,
+          "RED_YELLOW->GREEN": 4
+        },
+        "accuracy": 0.8922535211267606,
+        "false_green_head_seconds": 138
+      },
+      "candidate": {
+        "counts": {
+          "total": 2840,
+          "correct": 2586,
+          "GREEN_total": 1224,
+          "GREEN_correct": 1192,
+          "RED_total": 1476,
+          "RED_correct": 1354,
+          "YELLOW_total": 84,
+          "YELLOW_correct": 16,
+          "RED_YELLOW_total": 56,
+          "RED_YELLOW_correct": 24
+        },
+        "confusion": {
+          "GREEN->GREEN": 1192,
+          "RED->RED": 1354,
+          "YELLOW->GREEN": 62,
+          "RED->YELLOW": 56,
+          "RED->RED_YELLOW": 30,
+          "RED->UNKNOWN": 10,
+          "RED_YELLOW->UNKNOWN": 8,
+          "RED_YELLOW->GREEN": 22,
+          "RED_YELLOW->RED_YELLOW": 24,
+          "YELLOW->YELLOW": 16,
+          "GREEN->YELLOW": 12,
+          "GREEN->RED": 16,
+          "RED->GREEN": 26,
+          "YELLOW->RED": 6,
+          "GREEN->UNKNOWN": 4,
+          "RED_YELLOW->RED": 2
+        },
+        "accuracy": 0.9105633802816901,
+        "false_green_head_seconds": 110
+      },
+      "projection_ablation": {
+        "recoveries": {
+          "GREEN->RED": 2,
+          "RED->RED": 4
+        },
+        "recovered_correct": 4,
+        "recovered_incorrect": 2,
+        "added_false_green": 0,
+        "without_consensus_correct": 2582,
+        "total": 2840
+      },
+      "provenance": {
+        "model_sha256": "09af38dc1a8f0c876f5546509615a34b6f180655b3549b49552b410098ec1bdc",
+        "truth_sha256": "a7367fb7c5ac4c02feb4aea287e68722fce4e8fea8cf0c238786fab7e2bb8989",
+        "vehicles_sha256": "0ee8c3b267b0b6d279d52a3be6cef441eae7e39ab3edd9bea0f8a58d84125590",
+        "baseline_receipt_sha256": "eb663971028ca3f40833fa0a24f9b61748521865041903ccc0deb11f20bc57de",
+        "candidate_receipt_sha256": "98cdf80c6a5407cd1bf1d25f4792de4de4e0074ef89023a5475df179e0d32799",
+        "case_folder": ".web_runtime/sumo_validation_20261020/k2_extension"
+      }
+    },
+    {
+      "case": "old_k2_regime",
+      "config": {
+        "seed": 202610211,
+        "k": 2,
+        "approaches": 4,
+        "duration_s": 900,
+        "period_s": 100,
+        "extension_s": 0,
+        "regime_change": true
+      },
+      "physics_status": "PASS",
+      "development_control": true,
+      "scored_seconds": [
+        180,
+        890
+      ],
+      "baseline": {
+        "counts": {
+          "total": 2840,
+          "correct": 2496,
+          "GREEN_total": 1238,
+          "GREEN_correct": 1186,
+          "RED_total": 1472,
+          "RED_correct": 1298,
+          "YELLOW_total": 78,
+          "YELLOW_correct": 0,
+          "RED_YELLOW_total": 52,
+          "RED_YELLOW_correct": 12
+        },
+        "confusion": {
+          "GREEN->GREEN": 1186,
+          "RED->RED": 1298,
+          "YELLOW->GREEN": 42,
+          "RED->GREEN": 26,
+          "RED->YELLOW": 30,
+          "RED_YELLOW->RED": 12,
+          "RED_YELLOW->RED_YELLOW": 12,
+          "RED->UNKNOWN": 96,
+          "GREEN->UNKNOWN": 14,
+          "GREEN->RED_YELLOW": 4,
+          "RED_YELLOW->UNKNOWN": 24,
+          "GREEN->YELLOW": 34,
+          "RED->RED_YELLOW": 22,
+          "YELLOW->RED": 22,
+          "YELLOW->UNKNOWN": 14,
+          "RED_YELLOW->GREEN": 4
+        },
+        "accuracy": 0.8788732394366198,
+        "false_green_head_seconds": 72
+      },
+      "candidate": {
+        "counts": {
+          "total": 2840,
+          "correct": 2510,
+          "GREEN_total": 1238,
+          "GREEN_correct": 1164,
+          "RED_total": 1472,
+          "RED_correct": 1316,
+          "YELLOW_total": 78,
+          "YELLOW_correct": 14,
+          "RED_YELLOW_total": 52,
+          "RED_YELLOW_correct": 16
+        },
+        "confusion": {
+          "GREEN->GREEN": 1164,
+          "RED->RED": 1316,
+          "YELLOW->GREEN": 42,
+          "RED->YELLOW": 36,
+          "RED->RED_YELLOW": 46,
+          "RED->UNKNOWN": 26,
+          "RED_YELLOW->UNKNOWN": 2,
+          "RED_YELLOW->GREEN": 30,
+          "RED_YELLOW->RED_YELLOW": 16,
+          "YELLOW->YELLOW": 14,
+          "GREEN->YELLOW": 44,
+          "GREEN->RED": 20,
+          "RED->GREEN": 48,
+          "YELLOW->RED": 14,
+          "GREEN->UNKNOWN": 10,
+          "RED_YELLOW->RED": 4,
+          "YELLOW->UNKNOWN": 8
+        },
+        "accuracy": 0.8838028169014085,
+        "false_green_head_seconds": 120
+      },
+      "projection_ablation": {
+        "recoveries": {
+          "GREEN->RED": 2
+        },
+        "recovered_correct": 0,
+        "recovered_incorrect": 2,
+        "added_false_green": 0,
+        "without_consensus_correct": 2510,
+        "total": 2840
+      },
+      "provenance": {
+        "model_sha256": "09af38dc1a8f0c876f5546509615a34b6f180655b3549b49552b410098ec1bdc",
+        "truth_sha256": "b450f97736b6f84b1c23c14293c4965d9de6ad8546807f6056fe979bbda68aa9",
+        "vehicles_sha256": "5506b4ca9b163560b411e6d6cc8fc1761bb8ed864b366fcff21abe759e27b4e7",
+        "baseline_receipt_sha256": "5543a5c115af0cca244d476ae171a14ebf8af31fa2a6ff1acd2b07b09d20e2c3",
+        "candidate_receipt_sha256": "d3f18bc815dd3c60e3a03b81b4a66e99c457f556b227c08e492fa662d3a94067",
+        "case_folder": ".web_runtime/sumo_validation_20261020/k2_regime"
+      }
+    }
+  ],
+  "tests": {
+    "passed": 45,
+    "warning": "Existing Starlette/httpx deprecation",
+    "native_sumo_integration": true
+  },
+  "promotion_gate": {
+    "status": "FAIL",
+    "repaired": "Four previously lost known real GREEN seconds recovered",
+    "remaining": [
+      "Persistent-period-change GREEN recall remains below v7",
+      "Persistent-period-change false GREEN remains above v7",
+      "No accepted Enthusiasts JSON/video clock association or complete six-archive all-head truth"
+    ],
+    "new_reserved_controls": "Deferred until development gates pass"
+  }
+}

@@ -48,7 +48,7 @@ class CompletedPhaseDurations:
 
 
 class AdaptiveRobustTimingIntersection(RobustTimingIntersection):
-    VERSION='experimental-joint-adaptive-timing-v1'
+    VERSION='experimental-joint-adaptive-timing-v2'
     REQUIRE_STOP_TARGET=True
     # Fitted logical phase age includes unknown transition offsets. Applying
     # that histogram to GREEN age shifts the clock; do not equate the two.

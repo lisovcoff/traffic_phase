@@ -8,8 +8,13 @@ The subsequent [joint timing stage](../results/transition_timing.md) implements
 intergreen/color hypotheses, leading braking and causal adaptation from repeated
 completed intervals. The experimental model learns a 100s to 115s period change
 and reduces a known real GREEN onset delay from 3.416s to 1.416s. Promotion
-remains FAIL: another known real window regresses from 147/153 to 143/153.
-57 targeted checks passed. These changes are not enabled in the application.
+failed that stage because another known real window regressed from 147/153 to
+143/153. The [section-support follow-up](../results/section_consensus.md) recovers
+the four lost seconds by preserving a main color shared by ambiguous logical
+phases. Results are now 147/153 on the original and 154/165 on its +12s copy.
+Ten SUMO controls and 45 targeted tests passed their execution/physics checks;
+algorithm promotion still FAILS: persistent timing change reduces GREEN recall
+and increases false GREEN against v7. These changes remain disabled in the app.
 
 The [physical-validation follow-up](../results/physical_validation.md) added
 an independent SUMO generator with physics gates and five separate online
@@ -52,10 +57,11 @@ regress. Sensor-delay correction retains added green but regresses synthetic K2.
 
 Repeated-completed-interval duration adaptation is now implemented experimentally;
 isolated extensions retain the ordinary duration. It has not passed product
-acceptance. Next algorithm work is the observation-time likelihood linking motion
-confirmation, fitted logical ages and physical colors. Retain the K4 transition
-gain, recover lost real-video seconds, then freeze new controls and integrate
-only if acceptance passes. Video remains evaluation-only.
+acceptance. Lost known real-video seconds have been recovered; the remaining
+algorithm work is the physical transition/survival likelihood during persistent
+timing changes. Retain the K4 transition gain, restore GREEN recall and reduce
+false GREEN, then freeze new controls and integrate only if acceptance passes.
+Video remains evaluation-only.
 
 Enthusiasts crash is located around video 13:03:50 with a bus obstructing N;
 visible E continues cycling. JSON/video clock link remains unaccepted, and the
