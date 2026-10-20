@@ -1,6 +1,15 @@
 # Project status — Trajectory recovery v1, 2026-10-20
 
-LATEST20.10: [incident/extension acceptance](INCIDENT_VALIDATION_RESULTS_20261020.md).
+LATEST20.10: [Enthusiasts crash located](ENTHUSIASTS_CRASH_REFERENCE_20261020.md).
+User clock13:03:50 maps to videoPTS3832s. Bus blocks N on sampled3840–4260s;
+visible E/W continues cycling.1197 native ROI frames,12 video-only GREEN/RED
+appearance brackets saved; some wider than1s. Physical N is not visible and
+JSON clock remains unaccepted. All6 JSON read:10117 tracks,213bus, no motorcycle
+category; car8341 is an unconfirmed long-stop candidate. Next: independent
+same-car clock controls, then causal incident replay. No new accuracy claim,
+production/decoder unchanged; previous95% acceptance failure remains.
+
+Earlier20.10: [incident/extension acceptance](INCIDENT_VALIDATION_RESULTS_20261020.md).
 95% NOT accepted. A +12s green in a COPY of a real Feb27 JSON exposes v7's
 phase-posterior/median-color-forecast conflict:147/153→147/165 labelled N
 GREEN/YELLOW seconds; only2/12 added greens correct.2178 exact unchanged-prefix

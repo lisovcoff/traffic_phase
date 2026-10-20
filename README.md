@@ -18,6 +18,10 @@ paired physical controls scored85.68% across all main-head colors. Production
 remains v7; simple workarounds were rejected for yellow errors.
 [Comparison, modified inputs, players and next work](docs/INCIDENT_VALIDATION_RESULTS_20261020.md).
 
+The Enthusiasts motorcycle/car crash and bus obstruction are now located at
+video clock13:03:50. Additional video-only references are saved; JSON/video clock
+alignment is still unverified. [Incident evidence](docs/ENTHUSIASTS_CRASH_REFERENCE_20261020.md).
+
 **Earlier correction (October20):** comparable mode likelihoods, preserved selective
 turn states/sections, and online renderer compatibility. On two previously revealed
 N-main video windows, cross-day onsets improved from12/18 to18/18 within5s, with
