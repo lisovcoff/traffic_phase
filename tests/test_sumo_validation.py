@@ -24,14 +24,14 @@ def test_geometric_conflict_gate_does_not_trust_intended_groups():
     assert conflicting_greens(network, ['rGG']) == [dict(state='rGG', requests=[0,1])]
 
 
-@pytest.mark.parametrize('approaches', [3, 4])
-def test_native_simulation_export_and_physics(tmp_path, approaches):
+@pytest.mark.parametrize('approaches,stop_seconds', [(3,0),(4,0),(4,60)])
+def test_native_simulation_export_and_physics(tmp_path, approaches, stop_seconds):
     home = os.environ.get('TRAFFIC_TEST_SUMO_HOME')
     if not home:
         pytest.skip('Optional SUMO integration: set TRAFFIC_TEST_SUMO_HOME')
     target = tmp_path/'case'
     audit = run(dict(seed=101, k=3, approaches=approaches, duration_s=220,
-                     period_s=100), target, Path(home))
+                     period_s=100,downstream_stop_s=stop_seconds), target, Path(home))
     assert audit['physics_status'] == 'PASS'
     assert len(audit['represented_approaches']) == approaches
     records = json.loads((target/'vehicles.json').read_text())

@@ -8,9 +8,10 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import time
 
 
-def score(model_path, case, output):
+def score(model_path, case, output, *, engine_factory=None):
     os.environ.update(OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1', MKL_NUM_THREADS='1')
     from scripts.corpus_validation import prepare_worker_environment
     prepare_worker_environment()
@@ -32,7 +33,7 @@ def score(model_path, case, output):
     tracks = json.loads(raw)
     if {r['zone_in'] for r in tracks} != set(truth['link_indices']):
         raise ValueError('Vehicle export omitted an approach; invalid fixture')
-    engine = CausalIntersection(model)  # Only the learned model enters inference.
+    engine = (engine_factory or CausalIntersection)(model)  # No truth enters inference.
     counts, confusion, per_head = Counter(), Counter(), {}
     times = [r['time_s'] for r in truth['actual_tls_states']]
     states = [r['state'] for r in truth['actual_tls_states']]
@@ -41,8 +42,13 @@ def score(model_path, case, output):
     warmup, end = 180, duration-10
     if end <= warmup:
         raise ValueError('No scored interval')
+    diagnostics=Counter();latencies=[]
     for packet in packets_from_tracks(tracks, start_ms=base, end_ms=base+duration*1000):
+        began=time.perf_counter()
         response = engine.ingest(packet)
+        latencies.append(time.perf_counter()-began)
+        diagnostics['leading_brakes']+=len(response.get('leading_brake_observations',[]))
+        diagnostics['duration_updates']+=len(response.get('completed_interval_updates',[]))
         second = (packet['timestamp_ms']-base)/1000
         if not warmup <= second < end:
             continue
@@ -69,8 +75,11 @@ def score(model_path, case, output):
         automatic_phase_counts=[r['phase_count'] for r in model['regimes']],
         automatic_approaches=model['approaches'],
         model_sha256=hashlib.sha256(model_path.read_bytes()).hexdigest(),
+        estimator=type(engine).__name__,
         truth_sha256=hashlib.sha256((case/'truth.json').read_bytes()).hexdigest(),
         vehicles_sha256=hashlib.sha256(raw).hexdigest(),
+        diagnostics=dict(diagnostics),tick_p95_s=sorted(latencies)[int(len(latencies)*.95)],
+        final_phase_medians_s=response.get('adapted_phase_medians_s'),
         video_or_signal_truth_supplied_to_inference=False,
         real_road_accuracy_claim=False)
     with output.open('x',encoding='utf8') as handle:
@@ -85,5 +94,16 @@ if __name__ == '__main__':
     parser.add_argument('--model', required=True, type=Path)
     parser.add_argument('--case', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--estimator', choices=['v7','leading_brake','adaptive'], default='v7')
     args = parser.parse_args()
-    score(args.model, args.case, args.output)
+    os.environ.update(OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1', MKL_NUM_THREADS='1')
+    from scripts.corpus_validation import prepare_worker_environment
+    prepare_worker_environment()
+    factory=None
+    if args.estimator=='leading_brake':
+        from app.experimental.intersection_leading_brake import LeadingBrakePointTimingIntersection
+        factory=LeadingBrakePointTimingIntersection
+    elif args.estimator=='adaptive':
+        from app.experimental.intersection_adaptive_timing import AdaptiveRobustTimingIntersection
+        factory=AdaptiveRobustTimingIntersection
+    score(args.model, args.case, args.output,engine_factory=factory)

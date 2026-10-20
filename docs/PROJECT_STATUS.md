@@ -4,6 +4,13 @@ The application is a **research prototype**, not an accepted universal physical
 signal estimator. Python inference and one offline/online panel are implemented.
 The default is v7; no inference change accompanies the repository cleanup.
 
+The subsequent [joint timing stage](../results/transition_timing.md) implements
+intergreen/color hypotheses, leading braking and causal adaptation from repeated
+completed intervals. The experimental model learns a 100s to 115s period change
+and reduces a known real GREEN onset delay from 3.416s to 1.416s. Promotion
+remains FAIL: another known real window regresses from 147/153 to 143/153.
+57 targeted checks passed. These changes are not enabled in the application.
+
 The [physical-validation follow-up](../results/physical_validation.md) added
 an independent SUMO generator with physics gates and five separate online
 controls. V7 scores 87.89–90.75%, with zero yellow recall in four controls.
@@ -43,10 +50,11 @@ implemented, measured and **default-off**. Learned 10s history reaches 92.79%
 on four controls fresh at freeze, but real colors and some instantaneous cases
 regress. Sensor-delay correction retains added green but regresses synthetic K2.
 
-Next algorithm work: causal period/duration adaptation using multiple completed
-cycles, distinguishing isolated extension from persistent timing change. Prior
-naive median updates were rejected for yellow regression. Freeze candidates and
-new controls, retain ordinary-yellow/K2/K3/blocked-queue checks, then integrate
+Repeated-completed-interval duration adaptation is now implemented experimentally;
+isolated extensions retain the ordinary duration. It has not passed product
+acceptance. Next algorithm work is the observation-time likelihood linking motion
+confirmation, fitted logical ages and physical colors. Retain the K4 transition
+gain, recover lost real-video seconds, then freeze new controls and integrate
 only if acceptance passes. Video remains evaluation-only.
 
 Enthusiasts crash is located around video 13:03:50 with a bus obstructing N;

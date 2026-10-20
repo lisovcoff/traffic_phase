@@ -4,7 +4,11 @@
 
 **Status: research prototype; universal 95% physical-signal accuracy is not
 established. The theoretical maximum on these six archives is unknown.**
-This folder summarizes existing measurements, not a new algorithm run.
+This page summarizes earlier production measurements. Dated follow-ups describe
+new validation and experimental algorithm runs.
+The [joint timing and adaptation stage](transition_timing.md) implements and
+measures a candidate, but its real-video promotion gate remains FAIL; default v7
+is retained.
 The [2026-10-20 physical-validation follow-up](physical_validation.md) adds
 independent SUMO controls and original-video brackets. It identifies limitations
 in the old custom simulator; the historical synthetic scores below are software

@@ -117,6 +117,11 @@ def run(config, out, sumo_home):
         ET.SubElement(routes,'route',id=a,edges=a+'_in '+targets[a]+'_out')
         ET.SubElement(routes,'flow',id=a,type='car',route=a,begin='0',end=str(config['duration_s']),
                       period='exp('+str(config.get('arrival_rate_s',.16))+')',departLane='best',departSpeed='max')
+    if config.get('downstream_stop_s'):
+        blocker=ET.SubElement(routes,'vehicle',id='N.blocker',type='car',route='N',
+                              depart=str(config['duration_s']/3),departSpeed='max')
+        ET.SubElement(blocker,'stop',lane=targets['N']+'_out_0',endPos='12',
+                      duration=str(config['downstream_stop_s']))
     xml(out/'routes.xml',routes)
     additional=ET.Element('additional')
     ET.SubElement(additional,'timedEvent',type='SaveTLSStates',source='C',dest=str(out/'tls.xml'))

@@ -20,6 +20,13 @@ The fresh real replay confirms a 3.416s GREEN delay. Old custom-simulator
 fidelity limitations are documented; transition fixes must pass the new checks.
 See [physical validation](results/physical_validation.md).
 
+Algorithm milestone (2026-10-20): joint timing hypotheses and robust completed-
+interval adaptation are implemented and measured, default-off. Learned timing
+change: 100s to 115s. Known real GREEN delay: 3.416s to 1.416s. Promotion FAIL
+because another real window loses four correct seconds. Next acceptance work is
+the observation-time likelihood and logical/physical age correspondence.
+See [joint timing stage](results/transition_timing.md).
+
 Historical 2D.1 remains FAIL/default-off and is not implicitly restarted.
 Generated evidence, rejected attempts and the former detailed roadmap remain
 locally preserved; pre-cleanup evidence is also in Git revision `9924a35`.

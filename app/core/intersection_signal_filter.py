@@ -57,6 +57,8 @@ class JointSignalFilter:
     def __init__(self,model,*,transition_prior=None,point_estimator='joint_state',history_lag_s=10):
         if point_estimator not in ('joint_state','configuration'):raise ValueError('unknown point estimator')
         self.model=model;self.prior=transition_prior or TransitionPrior();self.point_estimator=point_estimator
+        self.log_evidence=0.
+        self.use_restart_age_prior=True
         self.marks=MovementMarks(model['regimes'],contamination=.2)
         self.age_cap=min(1800,max(180,int(max(r['period_s'] for r in model['regimes'])*4)))
         self.green=[];self.edge=[];self.hazards=[];self.transitions=[];self.initial=[];self.medians=[]
@@ -140,7 +142,7 @@ class JointSignalFilter:
                     # A near-front passage is more current than an exit-zone
                     # observation. Coasting stays possible during yellow.
                     self.edge[i]*=(.2+.8*np.exp(-np.arange(self.prior.clearance_s)/1.5))[None,None,:]**weight
-                if weight>=1:
+                if weight>=1 and self.use_restart_age_prior:
                     r=self.model['regimes'][i]
                     hist=[np.array(h) for m,h in r.get('restart_age_histograms',{}).items()
                           if m.replace('_','').split('->')[0]==origin and
@@ -151,8 +153,12 @@ class JointSignalFilter:
                             bins=np.minimum(15,(np.arange(self.age_cap+1)/(median+self.prior.clearance_s)*16).astype(int))
                             self.green[i][z]*=.5+.5*histogram[z,bins]
                             self.edge[i][z]*=.5+.5*histogram[z,-1]
-            total=sum(float(g.sum()+e.sum()) for g,e in zip(self.green,self.edge))
-            for g,e in zip(self.green,self.edge):g/=max(total,1e-300);e/=max(total,1e-300)
+            self._normalize_observation()
+
+    def _normalize_observation(self):
+        total=sum(float(g.sum()+e.sum()) for g,e in zip(self.green,self.edge))
+        self.log_evidence+=math.log(max(total,1e-300))
+        for g,e in zip(self.green,self.edge):g/=max(total,1e-300);e/=max(total,1e-300)
 
     def observe_stops(self,origins,blocked,*,braking=False):
         for origin in origins:
@@ -173,8 +179,7 @@ class JointSignalFilter:
                         for second in range(self.prior.clearance_s):
                             h=transition_heads(configurations[z],configurations[nxt],second,self.prior)
                             self.edge[i][z,nxt,second]*=likelihood(h.get(origin,{}).get('main',{}).get('state','UNKNOWN'))**(.4 if braking else .6)
-            total=sum(float(g.sum()+e.sum()) for g,e in zip(self.green,self.edge))
-            for g,e in zip(self.green,self.edge):g/=max(total,1e-300);e/=max(total,1e-300)
+            self._normalize_observation()
 
     def tick(self,now,events,*,near_restarts=(),passages=(),stops=(),braking=(),blocked=None):
         if type(now) is not int or now<0:raise ValueError('invalid observation time')
