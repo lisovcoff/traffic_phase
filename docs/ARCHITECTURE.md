@@ -27,10 +27,21 @@ marks across regimes. K and hardware are not rediscovered online.
 `intersection_online_store.py` journals packets and issued responses for replay
 and restart recovery. The same panel displays offline and online cars/signals.
 
-The default remains v7. Experimental joint-color, observation-delay and duration
-models are not enabled: they improved some extension/history cases but regressed
-other cases. Fixed-lag retrospective estimates are distinct from live output.
-Persistent new durations and unusual extensions remain acceptance gaps.
+`intersection_engine.py` selects v8 for fresh offline models with queue geometry.
+The selected implementation reuses the joint timing, front-release, waiting and
+change-point modules under `app/experimental/`; unrelated experiments remain
+disabled. An unexpected completed queue-front interval creates a competing
+duration program; observations select it while the ordinary program remains.
+The number of hypotheses is bounded at 16. Missing traffic is not negative GREEN
+evidence, and waiting on an approach with an arrow does not identify the main
+section's color. Offline discovery learns queue geometry from raw trajectories.
+
+Old models without references use v7. Each journal records its engine version;
+recovery uses that exact version and verifies previously issued responses.
+Transactional copies retain their own observation callbacks. Live output and
+retrospective history remain distinct. V8 improves aggregate measurements but
+has not passed the strict all-color/false-GREEN regression gate; see the
+[acceptance record](../results/causal_v8.md).
 
 ## Repository layout
 

@@ -94,13 +94,16 @@ if __name__ == '__main__':
     parser.add_argument('--model', required=True, type=Path)
     parser.add_argument('--case', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
-    parser.add_argument('--estimator', choices=['v7','leading_brake','adaptive','front_release','front_waiting'], default='v7')
+    parser.add_argument('--estimator', choices=['v7','v8','leading_brake','adaptive','front_release','front_waiting','change_point'], default='v7')
     args = parser.parse_args()
     os.environ.update(OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1', MKL_NUM_THREADS='1')
     from scripts.corpus_validation import prepare_worker_environment
     prepare_worker_environment()
     factory=None
-    if args.estimator=='leading_brake':
+    if args.estimator in ('v8','change_point'):
+        from app.core.intersection_engine import AdaptiveIntersection
+        factory=AdaptiveIntersection
+    elif args.estimator=='leading_brake':
         from app.experimental.intersection_leading_brake import LeadingBrakePointTimingIntersection
         factory=LeadingBrakePointTimingIntersection
     elif args.estimator=='adaptive':

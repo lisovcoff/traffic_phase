@@ -12,6 +12,7 @@ from app.experimental.intersection_timing_ensemble import TimingEnsembleIntersec
 class LeadingBrakeTimingIntersection(TimingEnsembleIntersection):
     VERSION='experimental-joint-leading-brake-timing-v1'
     REQUIRE_STOP_TARGET=False
+    LEADING_BRAKE_WEIGHT=.4
 
     def __init__(self,model):
         super().__init__(model);self.brake_flags={};self.brake_observations=[]
@@ -62,6 +63,8 @@ class LeadingBrakeTimingIntersection(TimingEnsembleIntersection):
 
     def _tick_hypotheses(self,now,q,legacy,blocked):
         self.brake_observations=self._leading_brakes(now)
+        for f in self.filters:
+            f.braking_weights={r['origin']:self.LEADING_BRAKE_WEIGHT for r in self.brake_observations}
         q['braking']=sorted(set(q['braking'])|{r['origin'] for r in self.brake_observations})
         return super()._tick_hypotheses(now,q,legacy,blocked)
 

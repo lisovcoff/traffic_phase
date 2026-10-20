@@ -91,8 +91,11 @@ def run(config, out, sumo_home):
     # One explicit finite program, independent of vehicle generation and inference.
     # All-red clearance and red+yellow are distinct and do not authorize entry.
     cursor = 0.; schedule = []; cycle = 0; extension_used = False
+    program_changes=sorted(config.get('program_changes',[]),key=lambda row:row['at_s'])
     while cursor < config['duration_s'] + config['period_s']:
         period = config['period_s'] * (1.15 if config.get('regime_change') and cursor >= config['duration_s']/2 else 1)
+        for change in program_changes:
+            if cursor>=change['at_s']:period=change['period_s']
         green = period / len(groups) - 7
         if green < 8:
             raise ValueError('Insufficient green duration')

@@ -804,7 +804,8 @@ function renderLive(snapshot){
   $("trajectoryCount").textContent=String(snapshot?.retained_track_count||0);$("eventCount").textContent=String(snapshot?.event_count||0);
   $("period").textContent="Переменный";$("anomaly").textContent=snapshot?.missing_interval_ms?"Разрыв данных":"—";
   $("timeLabel").textContent=snapshot?new Date(snapshot.timestamp_ms).toLocaleString('ru-RU',{timeZone:'Asia/Yekaterinburg'}):"Ожидание данных";
-  $("sceneBadge").textContent=snapshot?(LIVE_HISTORICAL?"История выдачи · ":"Онлайн · ")+snapshot.status+" · пакет "+snapshot.sequence:"Онлайн · ожидание данных";
+  const hasColor=Object.values(heads).some(h=>h.main.state!=="UNKNOWN");
+  $("sceneBadge").textContent=snapshot?(LIVE_HISTORICAL?"История выдачи · ":"Онлайн · ")+(hasColor?"оценка по движению":"синхронизация по движению")+" · пакет "+snapshot.sequence:"Онлайн · ожидание данных";
   $("semanticText").textContent="Текущая оценка по уже поступившим машинам. Структура взята из офлайн-модели. Жёлтые переходы — предположение по длительности. Нет данных — UNKNOWN. Отсутствие машин не доказывает красный.";
   $("phaseList").replaceChildren();$("phaseTimeline").replaceChildren();
   $("slider").closest("section").hidden=true;
@@ -1261,7 +1262,7 @@ def render_html(result,projection,trajectories,*,yellow_duration_seconds=3.0,
     history_offset=(float(anchor)-float(display_base))/1000 if anchor is not None and display_base is not None else None
     page=PAGE.replace("__RESULT__",_safe_json(result))
     page=page.replace("__ONLINE_MODE__",_safe_json(bool(online_mode)))
-    from app.core.intersection_online import VERSION as online_version
+    from app.core.intersection_engine import VERSION as online_version
     versions=[f'causal-intersection-v{i}' for i in range(1,int(online_version.rsplit('v',1)[1])+1)]
     page=page.replace("__SUPPORTED_ONLINE_SCHEMAS__",_safe_json(versions))
     page=page.replace("__PRODUCT__",_safe_json(product))

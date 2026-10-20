@@ -4,8 +4,9 @@
 
 This delivery contains the Python application, source, tests and compact
 validation results. It is a working research prototype. Physical signal
-accuracy on all six archives is not independently established. Production uses
-v7; the experimental estimators are available to the evaluation CLIs only.
+accuracy on all six archives is not independently established. New offline
+models with queue references use the integrated v8 estimator. Older models
+without that geometry and existing v7 journals retain their original engine.
 
 ## Start
 
@@ -61,9 +62,24 @@ Five known experimental SUMO controls exceed 95%; that is not the production
 application's accuracy on six real archives. The visible-N score is limited
 to known GREEN/YELLOW intervals with a conditional clock mapping.
 
-The remaining experimental blockers are excess false GREEN during a persistent
-period change and a real onset regression. Enthusiasts JSON/video association
+The latest [v8 report](results/causal_v8.md) supersedes those experimental
+measurements: eight fresh-at-freeze controls reach 93.51% versus 89.57%, and the
+known real GREEN onset delay falls from 3.42s to 1.42s. Strict acceptance still
+fails: one period-change false-GREEN count and T-junction RED_YELLOW regress.
+Enthusiasts JSON/video association
 and full all-head reference histories remain unresolved. Empty demand,
 obstructions and permissive turns can make colors/sections ambiguous.
 The [current status](docs/PROJECT_STATUS.md) is the acceptance record; tests and
 a verified ZIP do not establish that every inferred signal is correct.
+
+To update a saved model without refitting or overwriting its streams, create a
+new folder from its own original offline input:
+
+```sh
+python -m scripts.enrich_intersection_model logs/intersection_projects/OLD_ID --output logs/intersection_projects/NEW_32_HEX_ID
+```
+
+Alternatively, analyze the original archive again. Queue geometry is now learned
+automatically. No online recording, video, lamp labels or manually supplied plan
+are needed. At stream startup, `?` means insufficient movement evidence; allow
+time to synchronize. Empty traffic alone cannot identify a physical color.

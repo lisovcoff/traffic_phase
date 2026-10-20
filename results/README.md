@@ -4,6 +4,10 @@
 
 **Status: research prototype; universal 95% physical-signal accuracy is not
 established. The theoretical maximum on these six archives is unknown.**
+Latest: [integrated v8](causal_v8.md), 93.51% on eight independent SUMO controls,
+with explicit strict-gate failures and real/browser receipts. Earlier v7 and
+experimental measurements below remain historical.
+
 This page summarizes earlier production measurements. Dated follow-ups describe
 new validation and experimental algorithm runs.
 The [delivery receipt](delivery_readiness.json) records real HTTP replay and cold

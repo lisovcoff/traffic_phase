@@ -1,57 +1,27 @@
 # Delivery roadmap
 
 Read [current status](docs/PROJECT_STATUS.md), [product goal](docs/PRODUCT_GOAL.md)
-and [validation](results/README.md) before choosing model work.
+and [measurements](results/causal_v8.md) before selecting further work.
 
-1. **Implemented:** whole-intersection JSON/ZIP ingestion, session isolation,
-   saved models, observed topology/phase hypotheses and one offline/online panel.
-2. **Implemented:** bounded causal observations, fixed offline structure online,
-   packet journal, playback and restart recovery. Default inference is v7.
-3. **Open:** causal adaptation to persistent new periods/durations while separating
-   one-off extensions; preserve ordinary yellow, K2/K3 and blocked-queue behavior.
-4. **Open:** independent clock-supported physical-head validation. Six archives
-   are available, but full lamp truth and a numeric theoretical ceiling are not.
-5. **Open:** candidate promotion only after separated regression/holdout gates,
-   then integration and operational acceptance. Universal 95% is not established.
+1. **Delivered:** one JSON/ZIP intersection panel, automatic observed approaches,
+   K/section hypotheses, saved session histories, variable durations and players.
+2. **Delivered:** automatically learned queue geometry and integrated causal v8
+   for new models with references. Old v7 journals remain deterministic.
+3. **Delivered:** bounded competing duration programs, arrow-ambiguity guard,
+   transactional callback repair, real HTTP and headless-browser acceptance.
+4. **Not accepted:** universal 95% or maximum physical-color accuracy. Latest
+   independent controlled-road score is 93.51%; strict no-regression gate FAILS
+   on one period-change false-GREEN count and T3 RED_YELLOW recall. Application
+   integration is not a claim that this gate passed.
+5. **Open data/validation:** accepted Enthusiasts JSON/video clock association,
+   additional independent physical-head truth, and fresh reserved controls
+   before any further tuning. Invisible heads cannot be labelled from guesses.
 
-Delivery check (2026-10-20): source-package instructions and ZIP/JSON replay CLI
-are supplied. A saved real offline model, 120 real packets, historical seek and
-cold journal continuation pass functional checks. New waiting-motion consistency
-fix is tested, but physical acceptance remains open. See [delivery guide](DELIVERY.md)
-and [separate functional/accuracy receipt](results/delivery_readiness.json).
+Current known real N interiors reach 148/153; a +12s counterfactual reaches
+153/165. Separate GREEN onset delay is 1.416s. Video remains evaluation-only.
+See [source receipts and exact denominators](results/causal_v8.json).
 
-Validation milestone (2026-10-20): independent SUMO generator, lane/physics
-gates, five separately scored controls and five new native-video brackets.
-The fresh real replay confirms a 3.416s GREEN delay. Old custom-simulator
-fidelity limitations are documented; transition fixes must pass the new checks.
-See [physical validation](results/physical_validation.md).
-
-Algorithm milestone (2026-10-20): joint timing hypotheses and robust completed-
-interval adaptation are implemented and measured, default-off. Learned timing
-change: 100s to 115s. Known real GREEN delay: 3.416s to 1.416s. Promotion FAIL
-in that stage because another real window lost four correct seconds.
-See [joint timing stage](results/transition_timing.md).
-
-Section-support follow-up (2026-10-20): the four lost real seconds were caused
-by phase ambiguity hiding an agreed main GREEN. Section marginals recover them:
-147/153 on the original window and 154/165 on its +12s copy. Ten SUMO controls
-and 45 targeted tests were checked. Promotion still FAIL: persistent timing
-change loses GREEN recall and increases false GREEN against v7. Next work is
-the physical transition/survival likelihood under that change, followed by new
-reserved controls only after development gates pass.
-See [section-support stage](results/section_consensus.md).
-
-Queue-front follow-up (2026-10-20): causal front-release age correction and
-conditional waiting survival restore persistent-change GREEN recall to v7's
-1186/1238 and reduce false GREEN from 122 to 94 head-seconds. Five of seven
-known SUMO controls exceed 95%; the known visible-N interior score is 148/153.
-Promotion still FAIL: v7 has 78 false GREEN seconds in the period-change case,
-and one real GREEN onset is 1s later than the previous candidate. Default v7
-is retained. Next gate is physical intergreen/age uncertainty and the
-onset/false-GREEN tradeoff, before new reserved controls and app integration.
-See [queue-front timing stage](results/front_release_timing.md).
-
-Historical 2D.1 remains FAIL/default-off and is not implicitly restarted.
-Generated evidence, rejected attempts and the former detailed roadmap remain
-locally preserved; pre-cleanup evidence is also in Git revision `9924a35`.
-The public repository contains compact measurements under `results/`.
+The application is usable for research and demonstration. Hardware, colors,
+regimes and confidence are estimates. See the [delivery guide](DELIVERY.md).
+Historical failed stages and generated evidence are preserved locally and in
+Git history; historical 2D.1 remains FAIL/disabled.

@@ -82,6 +82,32 @@ def test_journal_idempotency_restart_and_original_history(tmp_path):
     assert store.stream_history(folder,stream)['snapshots']==issued+[result]
 
 
+def test_v8_journal_transaction_cache_cold_restore_and_legacy_stream(tmp_path):
+    from app.core.intersection_engine import AdaptiveIntersection,VERSION
+    from tests.test_intersection_queue_observations import reference
+    legacy=tmp_path/'legacy';write_json(legacy/'model.json',model())
+    old=store.create_stream(legacy)
+    assert old['engine']=='causal-intersection-v7'
+    prior=store.accept_packet(legacy,old['stream_id'],packet(0))
+    m=model();m['queue_observations']=reference();m['fingerprint']=model_fingerprint(m)
+    folder=tmp_path/'adaptive';write_json(folder/'model.json',m)
+    manifest=store.create_stream(folder);assert manifest['engine']==VERSION
+    stream=manifest['stream_id'];direct=AdaptiveIntersection(m);issued=[]
+    for second in range(14):
+        if second in (5,10):store._cache.clear()
+        expected=direct.ingest(packet(second))
+        actual=store.accept_packet(folder,stream,packet(second))
+        assert actual==expected and actual['schema']==VERSION
+        issued.append(actual)
+    assert store.accept_packet(folder,stream,packet(0))==issued[0]
+    assert store.stream_history(folder,stream)['snapshots']==issued
+    assert store.snapshot_at(folder,stream,3500)['snapshot']==issued[3]
+    store._cache.clear()
+    old_next=store.accept_packet(legacy,old['stream_id'],packet(1))
+    baseline=CausalIntersection(model());assert baseline.ingest(packet(0))==prior
+    assert baseline.ingest(packet(1))==old_next
+
+
 def test_api_accepts_current_batches_rejects_future_fields_and_restores(monkeypatch,tmp_path):
     from app.api import intersection_projects as api
     from app.main import app

@@ -6,6 +6,7 @@ labels, site names or future online destinations are accepted by this module.
 """
 from collections import defaultdict
 import math
+import random
 import numpy as np
 
 
@@ -15,27 +16,51 @@ def metric_xy(d,anchor):
     return np.array([(lng-anchor[1])*111_000*math.cos(math.radians(anchor[0])),(lat-anchor[0])*111_000])
 
 
-def learn_queue_references(records):
-    anchor=None;directions=defaultdict(list);stops=defaultdict(list);counts=defaultdict(int)
-    for track in records:
+class QueueReferenceLearner:
+    """Bounded offline accumulation; no completed online track is needed."""
+    def __init__(self,*,capacity=4096,min_cluster_fraction=0.,incoming_prefix=False):
+        self.anchor=None;self.directions=defaultdict(list);self.stops=defaultdict(list)
+        self.counts=defaultdict(int);self.seen=defaultdict(int)
+        self.capacity=capacity;self.min_cluster_fraction=min_cluster_fraction
+        self.random=random.Random(0)
+        self.incoming_prefix=incoming_prefix
+
+    def _sample(self,collection,origin,value,kind):
+        key=(kind,origin);self.seen[key]+=1;values=collection[origin]
+        if len(values)<self.capacity:values.append(value)
+        else:
+            index=self.random.randrange(self.seen[key])
+            if index<self.capacity:values[index]=value
+
+    def add(self,track):
         origin=str(track.get('zone_in','')).replace('_','')
-        if origin not in ('N','S','E','W'):continue
-        ds=[d for d in track.get('detections',[]) if d.get('lat') is not None and d.get('lng') is not None]
-        if len(ds)<8:continue
-        if anchor is None:anchor=[ds[0]['lat'],ds[0]['lng']]
-        xy=np.array([metric_xy(d,anchor) for d in ds])
-        if xy.dtype==object or not np.isfinite(xy).all():continue
+        if origin not in ('N','S','E','W'):return
+        ds=[d for d in track.get('detections',[]) if isinstance(d,dict) and all(
+            isinstance(d.get(k),(int,float)) and not isinstance(d.get(k),bool) and math.isfinite(d[k])
+            for k in ('lat','lng','millis')) and -90<=d['lat']<=90 and -180<=d['lng']<=180]
+        if len(ds)<8:return
+        if self.anchor is None:self.anchor=[ds[0]['lat'],ds[0]['lng']]
+        xy=np.array([metric_xy(d,self.anchor) for d in ds])
+        if xy.dtype==object or not np.isfinite(xy).all():return
         times=np.array([d['millis'] for d in ds]);dt=np.diff(times)/1000
-        if np.any(dt<=0):continue
+        if np.any(dt<=0):return
+        if self.incoming_prefix:
+            velocity=np.linalg.norm(np.diff(xy,axis=0),axis=1)/dt;run=[];cut=None
+            for i,v in enumerate(velocity,1):
+                if v<.8 and dt[i-1]<=2 and str(ds[i].get('zone'))==origin:run.append(i)
+                else:run=[]
+                if run and times[run[-1]]-times[run[0]]>=1500:cut=i+1;break
+            if cut is None:return
+            ds=ds[:cut];xy=xy[:cut];times=times[:cut];dt=dt[:cut-1]
         chord=xy[-1]-xy[0];length=float(np.linalg.norm(chord))
         path=float(np.linalg.norm(np.diff(xy,axis=0),axis=1).sum())
-        if length<25 or path>1.25*length:continue
+        if length<25 or path>1.25*length:return
         heading=chord/length
         # Reject strongly curved turns; the learned main queue reference must
         # not become an interior waiting point for a permissive left/U-turn.
         lateral=np.abs((xy-xy[0])@np.array([-heading[1],heading[0]]))
-        if float(np.quantile(lateral,.9))>4:continue
-        counts[origin]+=1;directions[origin].append(heading)
+        if float(np.quantile(lateral,.9))>4:return
+        self.counts[origin]+=1;self._sample(self.directions,origin,heading,'heading')
         speed=np.linalg.norm(np.diff(xy,axis=0),axis=1)/dt;run=[]
         for i,v in enumerate(speed,1):
             zone=str(ds[i].get('zone','')).replace('_','')
@@ -43,26 +68,72 @@ def learn_queue_references(records):
             if v<.8 and dt[i-1]<=2 and incoming:run.append(i)
             else:
                 if run and (times[run[-1]]-times[run[0]])>=1500:
-                    stops[origin].append(np.median(xy[run],axis=0))
+                    self._sample(self.stops,origin,np.median(xy[run],axis=0),'stop')
                 run=[]
-        if run and (times[run[-1]]-times[run[0]])>=1500:stops[origin].append(np.median(xy[run],axis=0))
-    references={}
-    for origin,points in stops.items():
-        if len(points)<8:continue
-        heading=np.median(directions[origin],axis=0);heading/=max(1e-9,np.linalg.norm(heading))
-        xy=np.array(points);progress=xy@heading
-        bins=np.floor(progress/3).astype(int);minimum=max(5,int(len(points)*.05))
-        eligible=[b for b in set(bins) if np.sum(np.abs(bins-b)<=1)>=minimum]
-        if not eligible:continue
-        # Furthest sufficiently populated stopping cluster, not furthest car.
-        selected=max(eligible);mask=np.abs(bins-selected)<=1
-        center=np.median(xy[mask],axis=0);normal=np.array([-heading[1],heading[0]])
-        references[origin]=dict(anchor_lat_lng=anchor,point_m=center.tolist(),heading=heading.tolist(),
-            lateral_radius_m=max(4.,float(np.quantile(np.abs((xy[mask]-center)@normal),.9))+1),
-            stopping_runs=int(mask.sum()),straight_tracks=counts[origin],
-            semantics='observed_queue_front_NOT_verified_stop_line')
-    return dict(version='offline-queue-reference-v1',references=references,
-                input_scope='offline trajectories only',physical_stop_line_verified=False)
+        if run and (times[run[-1]]-times[run[0]])>=1500:
+            self._sample(self.stops,origin,np.median(xy[run],axis=0),'stop')
+
+    def finish(self):
+        references={}
+        for origin,points in self.stops.items():
+            if len(points)<8:continue
+            heading=np.median(self.directions[origin],axis=0);heading/=max(1e-9,np.linalg.norm(heading))
+            xy=np.array(points);progress=xy@heading
+            bins=np.floor(progress/3).astype(int);minimum=max(5,int(len(points)*self.min_cluster_fraction))
+            eligible=[b for b in set(bins) if np.sum(np.abs(bins-b)<=1)>=minimum]
+            if not eligible:continue
+            selected=max(eligible);mask=np.abs(bins-selected)<=1
+            center=np.median(xy[mask],axis=0);normal=np.array([-heading[1],heading[0]])
+            references[origin]=dict(anchor_lat_lng=self.anchor,point_m=center.tolist(),heading=heading.tolist(),
+                lateral_radius_m=max(4.,float(np.quantile(np.abs((xy[mask]-center)@normal),.9))+1),
+                stopping_runs=int(mask.sum()),straight_tracks=self.counts[origin],
+                semantics='observed_queue_front_NOT_verified_stop_line')
+        return dict(version='offline-queue-reference-v1',references=references,
+                    input_scope='offline trajectories only',physical_stop_line_verified=False)
+
+
+def learn_queue_references(records):
+    learner=QueueReferenceLearner()
+    for track in records:learner.add(track)
+    return learner.finish()
+
+
+class IntersectionQueueLearner:
+    """Learn straight fronts, then eligible incoming curved-main approaches.
+
+    A T junction's main route may turn after its stop line. Whole-track
+    straightness must not erase that approach. Curved prefixes are admitted
+    only for the main route inferred offline, never an arbitrary waiting turn.
+    """
+    def __init__(self,capacity=4096):
+        self.straight=QueueReferenceLearner(capacity=capacity)
+        self.routes={};self.capacity=capacity;self.counts=self.straight.counts
+
+    def add(self,track):
+        self.straight.add(track)
+        origin=str(track.get('zone_in','')).replace('_','')
+        target=str(track.get('zone_out','')).replace('_','')
+        if origin not in ('N','S','E','W') or target not in ('N','S','E','W') or origin==target:return
+        key=origin+'->'+target
+        if key not in self.routes:self.routes[key]=QueueReferenceLearner(capacity=self.capacity,incoming_prefix=True)
+        self.routes[key].add(track)
+
+    def finish(self,regimes):
+        learned=self.straight.finish();references=learned['references']
+        candidates=defaultdict(set)
+        for regime in regimes:
+            for origin,head in regime.get('signal_topology',{}).items():
+                movement=head.get('main')
+                if isinstance(movement,str):candidates[origin].add(movement.replace('_',''))
+        for origin,movements in candidates.items():
+            if origin in references or len(movements)!=1:continue
+            movement=next(iter(movements));learner=self.routes.get(movement)
+            if learner is None:continue
+            ref=learner.finish()['references'].get(origin)
+            if ref is not None:
+                references[origin]=dict(ref,training_route=movement,
+                    geometry_source='INCOMING_PREFIX_OF_OFFLINE_INFERRED_MAIN_ROUTE')
+        return learned
 
 
 class QueueObservations:

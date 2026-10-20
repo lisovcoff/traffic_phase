@@ -163,6 +163,7 @@ class JointSignalFilter:
     def observe_stops(self,origins,blocked,*,braking=False):
         for origin in origins:
             obstruction=blocked.get(origin,.03)
+            strength=getattr(self,'braking_weights',{}).get(origin,.4) if braking else .6
             def likelihood(state):
                 if braking:
                     return (.08+.8*obstruction) if state=='GREEN' else (.9 if state=='YELLOW' else (
@@ -172,13 +173,13 @@ class JointSignalFilter:
             for i,r in enumerate(self.model['regimes']):
                 configurations=r.get('phase_head_states') or [{}]*r['phase_count']
                 for z,h in enumerate(configurations):
-                    self.green[i][z]*=likelihood(h.get(origin,{}).get('main',{}).get('state','UNKNOWN'))**(.4 if braking else .6)
+                    self.green[i][z]*=likelihood(h.get(origin,{}).get('main',{}).get('state','UNKNOWN'))**strength
                 for z in range(r['phase_count']):
                     for nxt in range(r['phase_count']):
                         if not self.transitions[i][z,nxt]:continue
                         for second in range(self.prior.clearance_s):
                             h=transition_heads(configurations[z],configurations[nxt],second,self.prior)
-                            self.edge[i][z,nxt,second]*=likelihood(h.get(origin,{}).get('main',{}).get('state','UNKNOWN'))**(.4 if braking else .6)
+                            self.edge[i][z,nxt,second]*=likelihood(h.get(origin,{}).get('main',{}).get('state','UNKNOWN'))**strength
             self._normalize_observation()
 
     def tick(self,now,events,*,near_restarts=(),passages=(),stops=(),braking=(),blocked=None):

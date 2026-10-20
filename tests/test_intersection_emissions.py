@@ -9,9 +9,10 @@ from tests.test_intersection_online import model
 
 def test_panel_uses_current_backend_engine_and_preserves_explicit_history():
     from app.api.intersection_panel import PAGE
-    from app.core.intersection_online import VERSION
+    from app.core.intersection_engine import VERSION
     assert 'const ONLINE_ENGINE="'+VERSION+'";' in PAGE
-    assert "state.engine!==ONLINE_ENGINE&&!explicitHistory" in PAGE
+    assert "!SUPPORTED_ENGINES.includes(state.engine)&&!explicitHistory" in PAGE
+    assert 'causal-intersection-v7' in PAGE
     assert "state.engine!=='causal-intersection-v4'" not in PAGE
 
 
@@ -19,7 +20,7 @@ def test_online_renderer_accepts_current_and_historical_schemas():
     import json
     import re
     from scripts.v9_spatial_visualizer import render_html
-    from app.core.intersection_online import VERSION
+    from app.core.intersection_engine import VERSION
     from tests.test_intersection_project import prediction
     page=render_html(prediction(),{'matrix':[[1,0,0],[0,1,0],[0,0,1]]},[],intersection_profile='none',online_mode=True)
     schemas=json.loads(re.search(r'const SUPPORTED_ONLINE_SCHEMAS = (.*);',page).group(1))

@@ -1,8 +1,9 @@
 from copy import deepcopy
 import math
 import numpy as np
+import pytest
 
-from app.core.intersection_queue_observations import QueueObservations,learn_queue_references,metric_xy
+from app.core.intersection_queue_observations import QueueObservations,learn_queue_references,metric_xy,QueueReferenceLearner,IntersectionQueueLearner
 
 
 def point(ms,x,y=0,zone='N'):
@@ -28,6 +29,38 @@ def test_offline_reference_uses_repeated_front_stops_not_upstream_queue():
     rows=offline_tracks();original=deepcopy(rows);r=learn_queue_references(rows)['references']['N']
     assert np.linalg.norm(np.array(r['point_m'])-metric_xy(point(0,0),r['anchor_lat_lng']))<1 and r['heading'][0]>.99
     assert r['stopping_runs']>=20 and rows==original
+
+
+def test_long_queues_do_not_erase_a_repeated_but_rare_front_cluster():
+    rows=offline_tracks()
+    # A long queue contains many more upstream stops than head-of-queue stops.
+    # Population percentage is not evidence that the first car stops upstream.
+    rows=rows[:20]+rows[20:]*100
+    r=learn_queue_references(rows)['references']['N']
+    assert np.linalg.norm(np.array(r['point_m'])-metric_xy(point(0,0),r['anchor_lat_lng']))<1
+
+
+def test_offline_learner_is_bounded_and_skips_malformed_coordinate_samples():
+    learner=QueueReferenceLearner(capacity=32)
+    rows=offline_tracks()*4
+    for row in rows:learner.add(row)
+    assert all(len(v)<=32 for v in learner.stops.values())
+    assert all(len(v)<=32 for v in learner.directions.values())
+    learner.add(dict(zone_in='N',detections=[None,dict(lat='bad',lng=61,millis=0)]*10))
+    assert learner.finish()['references']
+
+
+def test_curved_main_route_uses_its_incoming_prefix_not_an_interior_turn_wait():
+    learner=IntersectionQueueLearner()
+    for i in range(20):
+        xy=[(float(x),0.) for x in np.linspace(60,0,25)]+[(0.,0.)]*20+[(0.,float(y)) for y in np.linspace(0,60,25)]
+        ds=[point(j*200,x,y,zone='E' if y<=3 else '_N') for j,(x,y) in enumerate(xy)]
+        learner.add(dict(id=i,zone_in='E',zone_out='_N',detections=ds))
+    assert learner.straight.finish()['references']=={}
+    result=learner.finish([dict(signal_topology={'E':dict(main='E->N',arrows=[])})])
+    assert result['references']['E']['heading']==pytest.approx([-1,0])
+    assert result['references']['E']['training_route']=='E->N'
+    assert learner.finish([dict(signal_topology={'E':dict(main='E->W',arrows=[])})])['references']=={}
 
 
 def test_current_passage_is_emitted_once_without_future_target():

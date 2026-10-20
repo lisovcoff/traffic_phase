@@ -243,6 +243,8 @@ def run_project(input_path, folder, *, on_progress=None, predictor=None, _source
             raise ValueError('JSON total exceeds 64 GiB budget')
         state['sources_total'] = len(sources)
         predictions, sessions, compass_counts, geometries = [], [], Counter(), {}
+        from app.core.intersection_queue_observations import IntersectionQueueLearner
+        queue_learner=IntersectionQueueLearner()
         for index, source in enumerate(sources):
             member = source['source_member']
             row = dict(**source, status='RUNNING', sessions=[])
@@ -253,6 +255,7 @@ def run_project(input_path, folder, *, on_progress=None, predictor=None, _source
                 samples=defaultdict(list); counts=Counter()
                 def extractor(track,**kwargs):
                     if isinstance(track,dict) and isinstance(track.get('detections'),list):
+                        queue_learner.add(track)
                         counts['trajectory_records']+=1; counts['detections']+=len(track['detections'])
                         origin=_compass(track.get('zone_in'));ds=track['detections']
                         if origin and len(samples[origin])<48 and ds:
@@ -366,6 +369,10 @@ def run_project(input_path, folder, *, on_progress=None, predictor=None, _source
             input_path_private=str(input_path), errors=state['errors'])
         from app.core.intersection_age_prior import attach_age_priors
         attach_age_priors(model,folder)
+        model['queue_observations']=queue_learner.finish(catalogue)
+        model['queue_observations']['training']=dict(method='bounded_offline_reservoir',
+            sample_limit_per_approach=queue_learner.capacity,
+            straight_tracks=sum(queue_learner.counts.values()),lamp_labels_used=False)
         model['fingerprint'] = model_fingerprint(model)
         write_json(folder/'model.json', model)
         state.update(status='READY' if complete else 'PARTIAL', stage='finished', model_id=model['model_id'],

@@ -23,7 +23,9 @@ Video and manual lamp labels are evaluation-only inputs, never inference inputs.
 
 Physical hardware and colors remain estimates. Empty approaches, permissive
 turns and obstructed traffic can be ambiguous. Persistent new timings and unusual
-extensions still need acceptance; the current default is v7.
+extensions remain uncertain. Fresh models with learned queue geometry use v8:
+joint color/age hypotheses and competing duration programs. Old models and
+existing v7 journals remain compatible. Strict physical acceptance is still open.
 
 ## Quick start
 
@@ -66,11 +68,19 @@ See [input and API guide](docs/API.md); interactive API documentation is at `/do
 
 ## Validation
 
+The latest [v8 evaluation](results/causal_v8.md) scores **20,582/22,010 = 93.51%**
+on eight separately seeded SUMO controls, versus v7's 89.57%. All eight improve
+in total accuracy; the strict no-regression gate **fails** on one false-GREEN
+comparison and T-junction RED_YELLOW recall. A known real N GREEN/YELLOW window
+scores **148/153 = 96.73%**, and its +12s counterfactual scores 153/165 = 92.73%.
+These are different denominators and do not establish universal 95% accuracy.
+
 The real corpus includes six archives and three loose JSONs (219 sources).
 On 24 reserved synthetic offline cases, K matched 24/24; this is simulation,
 not video-confirmed hardware accuracy. Production online color accuracy was
 86.50% on 12 synthetic streams. One narrow known N-head GREEN/YELLOW window
 scored 96.08%, falling to 89.09% after a copied input's green was extended.
+Those are historical v7 measurements, retained for comparison.
 
 **95% across the six real archives is not proven.** Video coverage, clock
 limitations, rejected candidates and exact denominators are documented in

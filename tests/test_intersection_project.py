@@ -28,6 +28,15 @@ def test_catalogue_aligns_rotated_labels_and_does_not_mutate_inputs():
     assert result[0]['online_structure_frozen']
 
 
+def test_project_learns_queue_geometry_from_the_uploaded_raw_records(tmp_path):
+    from tests.test_intersection_queue_observations import offline_tracks
+    source=tmp_path/'input.json';source.write_text(json.dumps(offline_tracks()))
+    model=project.run_project(source,tmp_path/'project',predictor=lambda *a,**kw:prediction())
+    assert 'N' in model['queue_observations']['references']
+    assert model['queue_observations']['training']['lamp_labels_used'] is False
+    assert project.read_model(tmp_path/'project')==model
+
+
 def test_catalogue_keeps_different_counts_periods_and_signatures_separate():
     a,b,c,d=prediction(),prediction(k=3),prediction(),prediction()
     c['schedule']['period_s']=120

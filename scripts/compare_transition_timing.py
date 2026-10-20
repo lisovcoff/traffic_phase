@@ -19,8 +19,10 @@ def compare(model_path,candidate_model_path,packet_path,truth_path,out,*,start=5
     from app.experimental.intersection_adaptive_timing import AdaptiveRobustTimingIntersection
     from app.experimental.intersection_front_release import FrontReleaseTimingIntersection
     from app.experimental.intersection_front_waiting import FrontWaitingTimingIntersection
+    from app.core.intersection_engine import AdaptiveIntersection
     factory={'leading_brake':LeadingBrakePointTimingIntersection,'adaptive':AdaptiveRobustTimingIntersection,
-             'front_release':FrontReleaseTimingIntersection,'front_waiting':FrontWaitingTimingIntersection}[estimator]
+             'front_release':FrontReleaseTimingIntersection,'front_waiting':FrontWaitingTimingIntersection,
+             'v8':AdaptiveIntersection,'change_point':AdaptiveIntersection}[estimator]
 
     paths=list(map(Path,[model_path,candidate_model_path,packet_path,truth_path]));mp,cp,pp,tp=paths
     model=json.loads(mp.read_text(encoding='utf8'));candidate=json.loads(cp.read_text(encoding='utf8'))
@@ -43,7 +45,9 @@ def compare(model_path,candidate_model_path,packet_path,truth_path,out,*,start=5
                       'app/core/intersection_online.py','app/core/intersection_signal_filter.py',
                       'app/experimental/intersection_timing_ensemble.py','app/experimental/intersection_leading_brake.py',
                       'app/experimental/intersection_adaptive_timing.py',
-                      'app/experimental/intersection_front_release.py','app/experimental/intersection_front_waiting.py']})
+                      'app/experimental/intersection_front_release.py','app/experimental/intersection_front_waiting.py',
+                      'app/experimental/intersection_change_point.py','app/core/intersection_engine.py',
+                      'app/core/intersection_queue_observations.py']})
     (out/'protocol.json').write_text(json.dumps(protocol,indent=2),encoding='utf8',newline='\n')
     engines=dict(baseline=CausalIntersection(model),candidate=factory(candidate))
     previous={};onsets={name:[] for name in engines};brakes=0;counts={name:0 for name in engines}
@@ -87,6 +91,6 @@ if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('model','candidate-model','packets','truth','output'):p.add_argument('--'+name,required=True,type=Path)
     p.add_argument('--start',type=float,default=5400);p.add_argument('--end',type=float,default=5520)
-    p.add_argument('--estimator',choices=['leading_brake','adaptive','front_release','front_waiting'],default='adaptive')
+    p.add_argument('--estimator',choices=['leading_brake','adaptive','front_release','front_waiting','v8','change_point'],default='adaptive')
     p.add_argument('--warmup',type=float,default=200);a=p.parse_args()
     compare(a.model,a.candidate_model,a.packets,a.truth,a.output,start=a.start,end=a.end,warmup=a.warmup,estimator=a.estimator)

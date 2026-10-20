@@ -28,7 +28,8 @@ def waiting_survival(age,reaction_bound,contamination):
 
 
 class FrontWaitingTimingIntersection(FrontReleaseTimingIntersection):
-    VERSION='experimental-front-waiting-timing-v3'
+    VERSION='experimental-front-waiting-timing-v4'
+    LEADING_BRAKE_WEIGHT=1.
 
     def __init__(self,model):
         super().__init__(model)
@@ -43,6 +44,10 @@ class FrontWaitingTimingIntersection(FrontReleaseTimingIntersection):
         origins=set()
         for track in self.source.motion.tracks.values():
             origin=track['origin'];reference=self.source.queues.references.get(origin)
+            # Unknown destinations on a head with additional permissions cannot
+            # identify which section the waiting driver needs. Do not turn an
+            # arrow queue into negative evidence for the main GREEN.
+            if self.source.motion.topology.get(origin,{}).get('arrows'):continue
             if (reference is None or now-track['last_ms']>1000
                     or now-track.get('last_restart_ms',-100000)<8000
                     or blocked.get(origin,.03)>=.5):continue

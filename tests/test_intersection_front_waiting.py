@@ -51,3 +51,17 @@ def test_absence_of_vehicles_does_not_become_a_waiting_or_red_observation():
         assert result['continued_front_waiting']==[]
         assert result['status']=='AWAITING_EVIDENCE'
         assert all(h['main']['state']=='UNKNOWN' for h in result['heads'].values())
+
+
+def test_waiting_for_unknown_arrow_is_not_negative_evidence_for_main_green(monkeypatch):
+    m=model();m['queue_observations']=reference()
+    m['regimes'][0]['signal_topology']['N']['arrows']=['N->E']
+    e=FrontWaitingTimingIntersection(m);e.last_waiting_ms=3000
+    e.source.motion.tracks={'x':dict(origin='N',last_ms=4000,
+        points=[point(t,0) for t in range(500,4500,500)])}
+    results=[f.summarize(4000,f.green,f.edge,None) for f in e.filters]
+    before=[f.green[0].copy() for f in e.filters]
+    monkeypatch.setattr(FrontReleaseTimingIntersection,'_tick_hypotheses',lambda *args:(results,np.zeros(8)))
+    e._tick_hypotheses(4000,{},[],{})
+    assert e.waiting_origins==[]
+    for old,f in zip(before,e.filters):np.testing.assert_array_equal(old,f.green[0])
