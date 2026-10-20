@@ -1,0 +1,118 @@
+{
+  "schema": "traffic-phase-release-audit-v1",
+  "audit_date": "2026-10-21",
+  "release": "0.13.0",
+  "baseline_commit": "0568b9588d481f68fd00536fe50acba75cad3886",
+  "verdict": "READY_FOR_LOCAL_RESEARCH_DEMONSTRATION_AND_CODE_SUBMISSION",
+  "scope": {
+    "python_files_checked": 553,
+    "all_tracked_python_parsed": true,
+    "critical_inference_modules": 131,
+    "manual_review": [
+      "automatic ZIP/JSON pipeline",
+      "input/time validation",
+      "selected causal estimator and transition semantics",
+      "online journal/checkpoints",
+      "renderer and bookmarks",
+      "install/container/CI manifests",
+      "public metrics and provenance"
+    ]
+  },
+  "checks": {
+    "python_syntax_issues": [],
+    "undefined_name_findings": [],
+    "heuristic_secret_file_hits": [],
+    "bandit": {
+      "high": 0,
+      "medium": 23,
+      "errors": [],
+      "app_medium": 2,
+      "disposition": "Reviewed: private application-owned pickle storage; fixed-loopback/source-controlled QA calls; generated SUMO XML. No external pickle or Python source upload is accepted."
+    },
+    "dependencies": {
+      "packages": 42,
+      "known_advisories": 0,
+      "skipped_packages": 0,
+      "pip": "26.2.2",
+      "certifi": "2026.10.19",
+      "pip_check": "PASS"
+    }
+  },
+  "inference": {
+    "numerical_decoder_changed": false,
+    "critical_ast_changes": [],
+    "format_only_changes": [
+      "app/core/intersection_project.py"
+    ],
+    "canonical_ast_sha256": "f76319bf98690884b0945ba7c73f9817b69fd6d9c0617f41d94e0fcf50381a6e",
+    "old_issued_colors_preserved": true,
+    "new_accuracy_claim": false
+  },
+  "short_colors": {
+    "accuracy_issue_eliminated": false,
+    "action": "Explicit timing-estimate annotation; show existing model support in tooltip without relabelling it a calibrated probability; preserve all predicted colors and confidences.",
+    "yellow_recall_pct": 22.635658914728683,
+    "red_yellow_recall_pct": 56.51162790697675,
+    "existing_strict_gate": "FAIL"
+  },
+  "fixes": [
+    "Clear stale project/stream URL parameters after a new analysis and retain the selected model on reload",
+    "Mark YELLOW and RED_YELLOW as timing estimates, without decoder or journal changes",
+    "Update certifi CA bundle and pip installation floor; align install/container/CI dependency versions",
+    "Split valid soft-keyword assignment for static-parser compatibility; mark Git SHA1 as non-security hashing"
+  ],
+  "validation": {
+    "full_suite": {
+      "passed": 1578,
+      "skipped": 4,
+      "warnings": 5,
+      "duration_s": 298.15,
+      "note": "Collected before final statistics consistency test; subsequent targeted 50-test run including that test passed"
+    },
+    "targeted_passed": 50,
+    "e2e_smoke": "PASS",
+    "browser": {
+      "status": "PASS",
+      "project": "57c5f06f2eda475d9c55c314a7f08b5f",
+      "stream": "474d74d7f49c4eab934a1fcada48d632",
+      "engine": "causal-intersection-v8",
+      "packets": 120,
+      "session_count": 88,
+      "history_seek": true,
+      "resume": true,
+      "reload": true,
+      "offline_play_seek": true,
+      "mobile_no_overflow": true,
+      "javascript_errors": []
+    },
+    "browser_review": {
+      "status": "PASS",
+      "transition_packet_sequence": 136,
+      "transition_heads_unchanged": true,
+      "stale_live_packet_rejected": true,
+      "historical_seek_allowed": true,
+      "actual_upload_model_id": "3784e7eeabe5434482567348ade0f2ec",
+      "new_analysis_bookmark_restored": true,
+      "javascript_errors": [],
+      "screenshot": "results/figures/player.png",
+      "screenshot_real_issued_packet": true
+    }
+  },
+  "statistics": {
+    "source": "results/causal_v8.json",
+    "source_sha256": "39db96f78942ac4dd44ad3dbcf4c561eb8cb1620afa9993132a97aad71eda1ec",
+    "output": "results/statistics.json",
+    "reporting_script": ".web_runtime/audit_release_20261021/build_statistics.py",
+    "reporting_script_published": false
+  },
+  "remaining_limits": [
+    "Short-color timing is not independently calibrated for all sites",
+    "Strict per-scenario no-regression gate remains failed in the frozen benchmark",
+    "Complete independent lamp truth is unavailable for all six archives",
+    "Application reviewed for local use; no public multi-user service/authentication acceptance or macOS/container execution claim"
+  ],
+  "advisory_sources": [
+    "https://github.com/advisories/GHSA-6q48-6c7w-9gw2",
+    "https://github.com/pypa/advisory-database/blob/main/vulns/pip/PYSEC-2026-3721.yaml"
+  ]
+}

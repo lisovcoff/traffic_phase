@@ -6,6 +6,8 @@
 - [Inputs and online API](API.md)
 - [Product goal](PRODUCT_GOAL.md)
 - [Current status](PROJECT_STATUS.md)
+- [Release audit](../results/release_audit.md)
+- [Benchmark statistics](../results/statistics.json)
 - [Delivery roadmap](../ROADMAP.md)
 - [Validation, provenance and limits](../results/README.md)
 - [Предел точности: по-русски](../results/accuracy_limits.ru.md)

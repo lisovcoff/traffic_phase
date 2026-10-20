@@ -102,7 +102,7 @@ def _cached_view(folder,session_id):
     with _view_lock:
         model=read_model(folder)
         if not any(s['session_id']==session_id for s in model['sessions']):raise KeyError('unknown session')
-        cached=folder/'viewers'/(session_id+'.v5.html')
+        cached=folder/'viewers'/(session_id+'.v6.html')
         if not cached.is_file():
             page=_build_view(folder,session_id)
             cached.parent.mkdir(exist_ok=True)

@@ -14,7 +14,7 @@ from app.api.intersection_online import router as intersection_online_router
 
 app = FastAPI(
     title="Traffic Phase Estimator",
-    version="0.12.0",
+    version="0.13.0",
     description="Estimate recurring traffic-light phase structure from vehicle trajectories.",
 )
 
@@ -41,7 +41,7 @@ def health() -> dict[str, str]:
 def root() -> dict[str, str]:
     return {
         "service": "traffic-phase",
-        "version": "0.12.0",
+        "version": "0.13.0",
         "visualization": "/visualization",
         "learned_visualization": "/visualization/learned",
         "annotation": "/annotation",

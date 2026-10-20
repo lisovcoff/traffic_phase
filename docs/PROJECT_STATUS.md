@@ -1,4 +1,12 @@
-# Project status - 2026-10-20
+# Project status - 2026-10-21
+
+Version 0.13.0 passes the [release audit](../results/release_audit.md) for local
+demonstration and code submission within the published accuracy scope. The audit
+adds short-transition annotations, fixes stale model bookmarks and updates
+installation dependencies. Numerical inference is unchanged from 0568b95.
+The short-color weakness remains measured, not hidden or declared fixed. Both
+READMEs now include pandas-aggregated statistics and actual player imagery;
+the reporting script remains local and ignored.
 
 The offline/online Python application is implemented and checked through its
 actual HTTP and browser paths. New models with automatically learned queue

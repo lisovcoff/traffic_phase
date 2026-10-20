@@ -696,6 +696,12 @@ function anomalyAt(t){
   return null;
 }
 
+function transitionAnnotation(main){
+  if(!["YELLOW","RED_YELLOW"].includes(main.state))return null;
+  const support=Number.isFinite(main.confidence)?" Поддержка модели: "+Math.round(main.confidence*100)+"%; это не калиброванная вероятность цвета.":"";
+  return {note:"Оценка времени перехода",title:"Момент переключения восстановлен по движению и предположениям о длительности. Лампа непосредственно не наблюдалась."+support};
+}
+
 function renderSignalList(snapshot){
   const holder=$("signalList");holder.innerHTML="";
   $("signalTitle").textContent=estimatedView()?"Оценка сигналов":modelView()?"Движения текущей фазы":"Состояние светофоров";
@@ -729,6 +735,12 @@ function renderSignalList(snapshot){
     }).join(" · ");
     right.textContent=(estimatedView()?"Основной ":RECONSTRUCTED?(ESTIMATED_SIGNALS.hardware_confirmed?"Состояние ламп ":"Секции не установлены; состояние "):"основной ")+head.main.state+(RECONSTRUCTED||PHYSICAL.enabled?"":" · activity score="+Number(head.main.probability||0).toFixed(3))+(arrowText?" · "+arrowText:"");
     right.style.color=head.main.state==="UNKNOWN"?"var(--muted)":head.main.state==="GREEN"?"var(--green)":head.main.state==="YELLOW"?"var(--yellow)":head.main.state==="RED_YELLOW"?"var(--orange)":"var(--red)";
+    const transition=(ONLINE_MODE||estimatedView())?transitionAnnotation(head.main):null;
+    if(transition){
+      const note=document.createElement("small");note.textContent=transition.note;
+      note.style.cssText="display:block;color:var(--muted);font-size:11px";
+      right.appendChild(note);row.title=transition.title;row.dataset.estimatedTransition=head.main.state;
+    }
     row.append(left,right);holder.appendChild(row);
   }
 }
@@ -806,7 +818,7 @@ function renderLive(snapshot){
   $("timeLabel").textContent=snapshot?new Date(snapshot.timestamp_ms).toLocaleString('ru-RU',{timeZone:'Asia/Yekaterinburg'}):"Ожидание данных";
   const hasColor=Object.values(heads).some(h=>h.main.state!=="UNKNOWN");
   $("sceneBadge").textContent=snapshot?(LIVE_HISTORICAL?"История выдачи · ":"Онлайн · ")+(hasColor?"оценка по движению":"синхронизация по движению")+" · пакет "+snapshot.sequence:"Онлайн · ожидание данных";
-  $("semanticText").textContent="Текущая оценка по уже поступившим машинам. Структура взята из офлайн-модели. Жёлтые переходы — предположение по длительности. Нет данных — UNKNOWN. Отсутствие машин не доказывает красный.";
+  $("semanticText").textContent="Текущая оценка по уже поступившим машинам. Структура взята из офлайн-модели. Жёлтый и красно-жёлтый отмечены как оценка времени перехода: лампа непосредственно не наблюдается. Нет данных — UNKNOWN. Отсутствие машин не доказывает красный.";
   $("phaseList").replaceChildren();$("phaseTimeline").replaceChildren();
   $("slider").closest("section").hidden=true;
   $("phaseTimeline").closest("section").hidden=true;

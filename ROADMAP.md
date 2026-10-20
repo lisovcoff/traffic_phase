@@ -3,6 +3,11 @@
 Read [current status](docs/PROJECT_STATUS.md), [product goal](docs/PRODUCT_GOAL.md)
 and [measurements](results/causal_v8.md) before selecting further work.
 
+Release 0.13.0: the [21 October audit](results/release_audit.md) confirms the local
+workflow. Short colors are annotated without changing inference, stale bookmarks
+are fixed, dependencies are updated, and both READMEs publish measured statistics.
+No new accuracy claim is made.
+
 1. **Delivered:** one JSON/ZIP intersection panel, automatic observed approaches,
    K/section hypotheses, saved session histories, variable durations and players.
 2. **Delivered:** automatically learned queue geometry and integrated causal v8

@@ -27,6 +27,11 @@ marks across regimes. K and hardware are not rediscovered online.
 `intersection_online_store.py` journals packets and issued responses for replay
 and restart recovery. The same panel displays offline and online cars/signals.
 
+The player annotates YELLOW and RED_YELLOW as timing estimates. It preserves the
+issued state and model support; no presentation correction feeds back into the
+filter. Project/stream selection is reflected in the URL to keep reloads and
+bookmarks attached to the current model.
+
 `intersection_engine.py` selects v8 for fresh offline models with queue geometry.
 The selected implementation reuses the joint timing, front-release, waiting and
 change-point modules under `app/experimental/`; unrelated experiments remain

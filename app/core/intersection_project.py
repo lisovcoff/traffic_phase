@@ -166,7 +166,8 @@ def build_catalogue(predictions):
         matches = [(index, match) for index, match in matches if match is not None]
         matches.sort(key=lambda row: row[1]['distance'])
         if matches and (len(matches)==1 or matches[1][1]['distance']-matches[0][1]['distance'] >= .03):
-            group = groups[matches[0][0]]; match = matches[0][1]
+            group = groups[matches[0][0]]
+            match = matches[0][1]
         else:
             group = dict(reference=result, members=[]); groups.append(group)
             match = dict(distance=0., mapping={z:z for z in range(result['schedule']['phase_count'])})

@@ -1,5 +1,9 @@
 # Validation and accuracy limits
 
+The [21 October release audit](release_audit.md) covers code, dependencies and
+the working application. [Pandas-aggregated statistics](statistics.json) retain
+the existing measurement counts; the decoder was not retuned in that audit.
+
 [English](README.md) · [Русский: предел точности](accuracy_limits.ru.md)
 
 **Status: research prototype; universal 95% physical-signal accuracy is not

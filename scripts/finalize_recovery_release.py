@@ -59,7 +59,7 @@ def main():
     code=[]
     for path in source_files:
         relative=path.relative_to(ROOT).as_posix();data=path.read_bytes();normal=data.replace(b'\r\n',b'\n')
-        blob=lambda data:hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()
+        blob=lambda data:hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data,usedforsecurity=False).hexdigest()
         assert relative in index,relative+' must be staged first'
         assert index[relative] in (blob(data),blob(normal)),relative+' staged content differs'
         code.append(dict(**entry(path),sha256_lf=hashlib.sha256(normal).hexdigest(),staged_blob=index[relative]))
