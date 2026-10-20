@@ -1,0 +1,40 @@
+{
+  "baseline_commit": "ca6e734a147c7cab288f23f06cb617d38887aed4",
+  "model_id": "44ae19132cc145758452d13b3eab55d3",
+  "code_sha256": {
+    "app/core/intersection_online.py": "f6738036065bcfe1ef0c9b5b1221d4be8804a3788bbbd0fe8fe18fff42dade1e",
+    "app/core/intersection_emissions.py": "b03947c5cf82b60d3e2b7c6c340833ab18783c853eb7098b91c13705e300324f",
+    "app/core/intersection_project.py": "90d41a0601fff21240dba1083eb8e5da2bd3cc2548a3185afa456b653d24a7ca",
+    "app/core/observed_topology.py": "af2b436b1f50b91afc6a9333a8fcd1411fda70aa107a12cfa629d8170ae964fe"
+  },
+  "source": {
+    "path": "D:\\Code\\PythonProjects\\traffic_phase\\data\\Ленина-Свердловский 27.02.25.zip",
+    "member": "17_2025_2_27_10.json",
+    "bytes": 272972956,
+    "crc32": "6f4afe03",
+    "archive_bytes": 180555021,
+    "id": "0091",
+    "source_name": "17_2025_2_27_10.json",
+    "site": "lenina_sverdlovsky"
+  },
+  "truth_path": "D:\\Code\\PythonProjects\\traffic_phase\\audit_checkout\\evidence\\accuracy_recovery_20261019\\video_holdout\\truth_sealed.json",
+  "truth_sha256": "685d008d91aa8d269985dda3f064227e317b50da8fd331c9037accfa43f5a7d0",
+  "warp": {
+    "start_ms": 1740634530303.8381,
+    "end_ms": 1740634550303.8381,
+    "extension_ms": 12000
+  },
+  "intent": "12s longer first N green, subsequent schedule shifted by 12s",
+  "limitations": [
+    "Controlled time-warp of observed trajectories; not a real emergency measurement",
+    "Known development video and conditional vehicle clock, N main only",
+    "No assertion of 95% for all physical lamps or unseen dates"
+  ],
+  "metrics": [
+    "known N-green and yellow interior seconds, UNKNOWN counts as wrong",
+    "green persistence in added interval, transition errors, exact unchanged prefix"
+  ],
+  "real_red_not_scored": "RED_YELLOW onsets not independently labelled; do not invent exact red intervals",
+  "video_input_to_engine": false,
+  "original_archive_modified": false
+}

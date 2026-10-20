@@ -1,0 +1,34 @@
+{
+  "k": 3,
+  "case": "blocked_N",
+  "counts": {
+    "total": 6484,
+    "correct": 5564,
+    "unknown": 16,
+    "incident_N_total": 395,
+    "incident_N_correct": 341,
+    "incident_other_total": 1185,
+    "incident_other_correct": 1015,
+    "incident_N_green_total": 97,
+    "incident_N_green_correct": 86
+  },
+  "accuracy": 0.8581122763726095,
+  "confusion": {
+    "RED->RED": 4002,
+    "YELLOW->GREEN": 220,
+    "RED_YELLOW->RED": 144,
+    "RED->GREEN": 308,
+    "GREEN->RED": 222,
+    "GREEN->GREEN": 1562,
+    "GREEN->UNKNOWN": 6,
+    "RED->UNKNOWN": 10,
+    "RED->YELLOW": 8,
+    "GREEN->RED_YELLOW": 2
+  },
+  "model_sha256": "aa720fef026c8cf6a07a87a253f54d3e94047bcc7c6762c4dd08f92c0b4c611b",
+  "truth_sha256": "53b3168f7a0cd335b724dc10796d9c1448cbd595578329236ac34f93d780315c",
+  "tracks": 1293,
+  "runtime_s": 72.82799999999975,
+  "same_signal_as_normal": true,
+  "video_and_annotations_used": false
+}

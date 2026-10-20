@@ -1,0 +1,37 @@
+{
+  "k": 3,
+  "case": "extended_12s",
+  "counts": {
+    "total": 6484,
+    "correct": 5584,
+    "unknown": 48,
+    "incident_N_total": 395,
+    "incident_N_correct": 337,
+    "incident_N_green_total": 102,
+    "incident_N_green_correct": 92,
+    "incident_other_total": 1185,
+    "incident_other_correct": 1031
+  },
+  "accuracy": 0.8611967921036398,
+  "confusion": {
+    "RED->RED": 3994,
+    "YELLOW->GREEN": 216,
+    "RED_YELLOW->RED": 134,
+    "RED->GREEN": 300,
+    "GREEN->RED": 176,
+    "GREEN->GREEN": 1590,
+    "GREEN->UNKNOWN": 26,
+    "RED->UNKNOWN": 12,
+    "RED->RED_YELLOW": 16,
+    "RED_YELLOW->UNKNOWN": 10,
+    "GREEN->YELLOW": 2,
+    "RED->YELLOW": 6,
+    "GREEN->RED_YELLOW": 2
+  },
+  "model_sha256": "aa720fef026c8cf6a07a87a253f54d3e94047bcc7c6762c4dd08f92c0b4c611b",
+  "truth_sha256": "fee3893d2a3c858067d6c7ac21e3a5a2f91a1dafef58c6e6c4c7415d09fd3bb8",
+  "tracks": 1288,
+  "runtime_s": 65.625,
+  "same_signal_as_normal": false,
+  "video_and_annotations_used": false
+}

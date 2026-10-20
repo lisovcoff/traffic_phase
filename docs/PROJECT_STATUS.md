@@ -1,6 +1,21 @@
-# Project status — Trajectory recovery v1, 2026-10-19
+# Project status — Trajectory recovery v1, 2026-10-20
 
-LATEST20.10: CROSS_DAY_RECOVERY_RESULTS_20261020.md. v7 mode-mark normalization,
+LATEST20.10: [incident/extension acceptance](INCIDENT_VALIDATION_RESULTS_20261020.md).
+95% NOT accepted. A +12s green in a COPY of a real Feb27 JSON exposes v7's
+phase-posterior/median-color-forecast conflict:147/153→147/165 labelled N
+GREEN/YELLOW seconds; only2/12 added greens correct.2178 exact unchanged-prefix
+packets,3648/3660 causal replay packets; original data preserved. Three isolated
+forecast workarounds rejected for yellow errors; production remains v7.
+Six new paired FIFO controls, independent per-lane RNG and identical unaffected
+crossings:33332/38904=85.68% all main-head seconds.29 targeted PASS; actual HTTP
+24-packet parity and both saved players/interactive report verified in Edge.
+Enthusiasts:40 context frames, all6 JSON read,213 bus records located; bus-block
+episode/accepted video clock still open, so no new real lamp accuracy claimed.
+Next implementation: coherent physical-color/variable-duration observation model,
+event confirmation latency and obstruction; independent clock/truth controls.
+Historical2D.1 and failed evidence untouched; see report_paired.html locally.
+
+Earlier20.10: CROSS_DAY_RECOVERY_RESULTS_20261020.md. v7 mode-mark normalization,
 stable yellow forecast, archive-wide section union, v3 isolated turn repair, and
 current-schema panel/renderer are delivered. Week→February27 raw causal replay:
 18/18 N-main onsets within5s vs12/18, one extra red; previously revealed windows,

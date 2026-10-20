@@ -11,7 +11,14 @@ never production inputs.
 Full accuracy acceptance is still in progress. Signal hardware and
 colors remain estimates; trajectories can leave them ambiguous.
 
-**Latest correction (October20):** comparable mode likelihoods, preserved selective
+**Latest acceptance check (October20): 95% is not established.** A copied real
+JSON with a12s longer green exposed premature yellow/red:89.09% on labelled
+N-green/yellow seconds, versus96.08% in the original narrow window. Six new
+paired physical controls scored85.68% across all main-head colors. Production
+remains v7; simple workarounds were rejected for yellow errors.
+[Comparison, modified inputs, players and next work](docs/INCIDENT_VALIDATION_RESULTS_20261020.md).
+
+**Earlier correction (October20):** comparable mode likelihoods, preserved selective
 turn states/sections, and online renderer compatibility. On two previously revealed
 N-main video windows, cross-day onsets improved from12/18 to18/18 within5s, with
 one extra red onset. Working-K regressions improved54/72→70/72 and18/24→24/24.

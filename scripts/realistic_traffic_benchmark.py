@@ -93,12 +93,16 @@ def signal_plan(config):
     proportions = np.asarray([rng.uniform(.7,1.3) for _ in range(k)])
     if config.get('phase_weights'):proportions=np.asarray(config['phase_weights'],dtype=float)
     proportions /= proportions.sum()
-    rows=[];cursor=-2*nominal;cycle=0
+    rows=[];cursor=-2*nominal;cycle=0;extension_used=False
     while cursor<duration+nominal:
         multiplier = 1.18 if config.get('regime_change') and cursor>=duration/2 else 1.
         period=nominal*multiplier*(1+rng.uniform(-config.get('cycle_jitter',0),config.get('cycle_jitter',0)))
         for phase in range(k):
             end=cursor+period*float(proportions[phase])
+            extension=config.get('single_extension')
+            if (extension and not extension_used and phase==extension['phase']
+                    and cursor>=extension['after_s']):
+                end+=extension['seconds'];extension_used=True
             all_red=float(config.get('all_red_s',1.))
             rows.append(dict(start_s=cursor,end_s=end,phase=phase,
                              green_end_s=end-3-all_red,yellow_end_s=end-all_red,cycle=cycle))
@@ -180,6 +184,13 @@ def generate(config, environment):
         for lane,movement in enumerate(group):
             phases={p for p,other in enumerate(groups) if movement in other}
             if phase!=min(phases):continue
+            if config.get('independent_lane_rng'):
+                # Paired incident controls need identical unaffected lanes.
+                # Without this option, exporting a longer blocked trajectory
+                # consumes more RNG draws and changes later lanes' arrivals.
+                # Legacy cases keep their original random sequence by default.
+                lane_seed=config['seed'] ^ int.from_bytes(hashlib.sha256(movement.encode()).digest()[:8],'little')
+                rng=random.Random(lane_seed);nrng=np.random.default_rng(lane_seed)
             lamp_runs=movement_signal_plan(plan,phases)
             zin,zout=movement.split('->');uturn=zin==zout.lstrip('_')
             lane_rate=config['arrival_rate_s']*rng.uniform(.75,1.25)
@@ -227,7 +238,8 @@ def generate(config, environment):
                         elif old_x<0:allowed=False
                     if not allowed and old_x<=0:gap=min(gap,max(0.,-old_x))
                     # Downstream queue blocks the lane independently of lamps.
-                    if blocked and second%duration>duration*.42 and second%duration<duration*(.42+blocked) and old_x<35:
+                    block_this_approach=zin in config.get('block_approaches',DIRECTIONS)
+                    if blocked and block_this_approach and second%duration>duration*.42 and second%duration<duration*(.42+blocked) and old_x<35:
                         gap=min(gap,max(0.,35-old_x))
                     desired=min(car['desired'],math.sqrt(max(0.,6*gap)))
                     if leader:desired=min(desired,max(0.,gap)/car['headway'])
