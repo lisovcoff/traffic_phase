@@ -6,6 +6,21 @@ The same uncertain reaction interval governs release ages and waiting survival.
 import numpy as np
 
 from app.experimental.intersection_front_release import FrontReleaseTimingIntersection,stopped_front
+from app.core.intersection_queue_observations import metric_xy
+
+
+def currently_waiting_front(track,reference,now):
+    """The newest motion sample must agree with the preceding stationary run."""
+    points=track['points']
+    if len(points)<2 or now-points[-1]['millis']>1000:return False
+    a,b=points[-2:];dt=(b['millis']-a['millis'])/1000
+    if not 0<dt<=2 or str(b.get('zone'))!=track['origin']:return False
+    xy=[metric_xy(d,reference['anchor_lat_lng']) for d in (a,b)]
+    if any(p is None for p in xy):return False
+    # Use the same geographic movement floor as the shared restart extractor;
+    # vendor speed may remain stale when a vehicle stops or starts.
+    if float(np.linalg.norm(xy[1]-xy[0]))/dt>=.8:return False
+    return stopped_front(track,reference,now)
 
 
 def waiting_survival(age,reaction_bound,contamination):
@@ -13,7 +28,7 @@ def waiting_survival(age,reaction_bound,contamination):
 
 
 class FrontWaitingTimingIntersection(FrontReleaseTimingIntersection):
-    VERSION='experimental-front-waiting-timing-v2'
+    VERSION='experimental-front-waiting-timing-v3'
 
     def __init__(self,model):
         super().__init__(model)
@@ -31,7 +46,7 @@ class FrontWaitingTimingIntersection(FrontReleaseTimingIntersection):
             if (reference is None or now-track['last_ms']>1000
                     or now-track.get('last_restart_ms',-100000)<8000
                     or blocked.get(origin,.03)>=.5):continue
-            if stopped_front(track,reference,now):origins.add(origin)
+            if currently_waiting_front(track,reference,now):origins.add(origin)
         for index,f in enumerate(self.filters):
             before=f.log_evidence
             for origin in origins:

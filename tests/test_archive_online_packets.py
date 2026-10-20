@@ -1,5 +1,8 @@
 import json
 import zipfile
+import subprocess
+import sys
+from pathlib import Path
 
 from scripts.archive_online_packets import prepare
 
@@ -21,3 +24,20 @@ def test_archive_packets_merge_arrivals_without_future_fields_and_keep_namespace
         for vehicle in packet['vehicles']:
             assert set(vehicle)=={'id','zone_in','detections'}
             assert all(d['millis']<=packet['timestamp_ms'] for d in vehicle['detections'])
+
+
+def test_conversion_cli_produces_a_feed_and_preserves_existing_outputs(tmp_path):
+    source=tmp_path/'source.json';output=tmp_path/'feed.jsonl';spool=tmp_path/'spool.sqlite3'
+    source.write_text(json.dumps([dict(id=1,zone_in='N',zone_out='_S',
+        detections=[dict(millis=1001,zone='N'),dict(millis=3000,zone='_S')])]))
+    command=[sys.executable,'-m','scripts.archive_online_packets',str(source),
+             '--output',str(output),'--spool',str(spool)]
+    run=subprocess.run(command,cwd=Path(__file__).resolve().parents[1],capture_output=True,timeout=30)
+    assert run.returncode==0,run.stderr.decode(errors='replace')
+    rows=[json.loads(line) for line in output.read_text().splitlines()]
+    assert len(rows)==2 and rows[0]['timestamp_ms']==2000
+    assert 'zone_out' not in rows[0]['vehicles'][0]
+    before=(source.read_bytes(),output.read_bytes(),spool.read_bytes())
+    repeated=subprocess.run(command,cwd=Path(__file__).resolve().parents[1],capture_output=True,timeout=30)
+    assert repeated.returncode!=0
+    assert before==(source.read_bytes(),output.read_bytes(),spool.read_bytes())

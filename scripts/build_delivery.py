@@ -1,6 +1,6 @@
 """Create and verify a source delivery from a clean, tracked working tree.
 
-Includes hydrated Git LFS files, tests and historical evidence; excludes local
+Includes hydrated Git LFS files, tests and public results; excludes local
 untracked media and runtime folders. Does not alter tracked source files.
 """
 from __future__ import annotations
@@ -52,7 +52,7 @@ def build(path: Path) -> dict:
     manifest = {'format': 1, 'commit': git('rev-parse', 'HEAD').decode().strip(),
         'branch': git('branch', '--show-current').decode().strip(),
         'scope': 'tracked working files including hydrated LFS; no local media or runtime',
-        'acceptance': 'See docs/DELIVERY_20261018.md; tests are not independent accuracy proof',
+        'acceptance': 'See DELIVERY.md and docs/PROJECT_STATUS.md; tests are not independent accuracy proof',
         'files': {}}
     path.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive creation preserves any existing delivery, even if another process creates it.

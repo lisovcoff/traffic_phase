@@ -27,6 +27,9 @@ extensions still need acceptance; the current default is v7.
 
 ## Quick start
 
+For submission, migration and a repeatable functional check, see the
+[delivery guide](DELIVERY.md) ([Русский](DELIVERY.ru.md)).
+
 Python **3.12** is tested. On Windows, from the repository root:
 
 ```bat

@@ -2,9 +2,19 @@ import numpy as np
 import pytest
 
 from app.experimental.intersection_front_release import FrontReleaseTimingIntersection
-from app.experimental.intersection_front_waiting import FrontWaitingTimingIntersection,waiting_survival
+from app.experimental.intersection_front_waiting import FrontWaitingTimingIntersection,waiting_survival,currently_waiting_front
 from tests.test_intersection_online import model
 from tests.test_intersection_queue_observations import reference,point
+
+
+def test_newest_motion_is_not_relabelled_as_continued_waiting():
+    ref=reference()['references']['N']
+    track=dict(origin='N',points=[point(t,0) for t in range(500,4500,500)])
+    assert currently_waiting_front(track,ref,4000)
+    track['points'][-1]=point(4000,1)
+    assert not currently_waiting_front(track,ref,4000)
+    track['points'][-1]=point(4000,0,zone='_S')
+    assert not currently_waiting_front(track,ref,4000)
 
 
 def test_conditional_waiting_factors_do_not_repeatedly_count_the_same_survival():

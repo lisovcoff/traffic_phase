@@ -4,6 +4,15 @@ The application is a **research prototype**, not an accepted universal physical
 signal estimator. Python inference and one offline/online panel are implemented.
 The default is v7; no inference change accompanies the repository cleanup.
 
+Delivery check: the saved seven-day Sverdlovsky model and 120 real February 27
+packets pass HTTP player/journal/seek/validation checks; p95 request time is
+0.478s. A cold independent process reconstructs the journal and continues it.
+The [delivery guide](../DELIVERY.md) includes installation, replay conversion
+and source-package verification. 75 targeted checks pass. The experimental
+waiting detector now rejects a newly moving latest sample; K3 gains two correct
+seconds, but the known real onset and period-change blockers remain. Functional
+readiness is not physical-estimator acceptance. See [receipt](../results/delivery_readiness.json).
+
 Latest [queue-front timing stage](../results/front_release_timing.md): front
 release ages and continued waiting are now causal experimental observations.
 Persistent-change GREEN recall equals v7 (1186/1238), and false GREEN decreases

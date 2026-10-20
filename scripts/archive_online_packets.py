@@ -70,3 +70,15 @@ def prepare(source,spool,output,on_progress=None):
     return dict(source=str(source.resolve()),members=members,counts=dict(counts),packets=packet_count,
         first_ms=first,last_ms=last,sha256=digest.hexdigest(),output=str(output.resolve()),
         future_fields=False,vehicle_identity='source-member + raw ID + first observed timestamp; no association across file namespaces')
+
+
+if __name__=='__main__':
+    import argparse
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('source',type=Path,help='Original trajectory JSON or ZIP')
+    parser.add_argument('--spool',required=True,type=Path,help='New temporary SQLite path; retained after conversion')
+    parser.add_argument('--output',required=True,type=Path,help='New per-second JSONL path')
+    args=parser.parse_args()
+    result=prepare(args.source,args.spool,args.output,
+                   on_progress=lambda member:print(json.dumps(member,ensure_ascii=True),flush=True))
+    print(json.dumps(result,indent=2,ensure_ascii=True))

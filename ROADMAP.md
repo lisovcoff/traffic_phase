@@ -14,6 +14,12 @@ and [validation](results/README.md) before choosing model work.
 5. **Open:** candidate promotion only after separated regression/holdout gates,
    then integration and operational acceptance. Universal 95% is not established.
 
+Delivery check (2026-10-20): source-package instructions and ZIP/JSON replay CLI
+are supplied. A saved real offline model, 120 real packets, historical seek and
+cold journal continuation pass functional checks. New waiting-motion consistency
+fix is tested, but physical acceptance remains open. See [delivery guide](DELIVERY.md)
+and [separate functional/accuracy receipt](results/delivery_readiness.json).
+
 Validation milestone (2026-10-20): independent SUMO generator, lane/physics
 gates, five separately scored controls and five new native-video brackets.
 The fresh real replay confirms a 3.416s GREEN delay. Old custom-simulator

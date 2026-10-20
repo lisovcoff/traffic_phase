@@ -1,5 +1,7 @@
 # Traffic Phase
 
+[Запуск и проверка перед сдачей](DELIVERY.ru.md) · [English delivery guide](DELIVERY.md)
+
 [English](README.md) · **Русский**
 
 Восстановление фаз светофора по траекториям автомобилей при отсутствии прямой

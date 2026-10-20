@@ -6,6 +6,8 @@
 established. The theoretical maximum on these six archives is unknown.**
 This page summarizes earlier production measurements. Dated follow-ups describe
 new validation and experimental algorithm runs.
+The [delivery receipt](delivery_readiness.json) records real HTTP replay and cold
+journal recovery separately from the still-failed physical-estimator acceptance.
 The latest [queue-front timing stage](front_release_timing.md) restores the
 period-change GREEN recall and improves five known SUMO controls beyond 95%,
 but excess false GREEN and a real onset regression still block promotion.
