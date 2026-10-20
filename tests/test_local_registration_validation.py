@@ -90,6 +90,7 @@ def test_existing_restart_proxy_can_precede_generated_vehicle_motion():
     # This test demonstrates an early heuristic proxy; no signal truth is inferred.
 
 
+@pytest.mark.local_evidence
 def test_saved_fit_seal_and_validation_account_for_all_points():
     import hashlib
     import json

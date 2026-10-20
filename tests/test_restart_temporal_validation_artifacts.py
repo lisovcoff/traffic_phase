@@ -1,3 +1,4 @@
+import pytest
 """Read-only checks: never reruns source extraction or real inference."""
 import hashlib
 import json
@@ -80,3 +81,6 @@ def test_actual_adapter_does_not_double_count_reference_events_or_claim_exposure
         assert query['physical_section']['estimated_state']=='UNKNOWN'
     assert artifact['legacy_likelihood_adapter']['phase_count'] is None
     assert artifact['legacy_likelihood_adapter']['reason_code']=='METHOD_DEPENDENCE_AND_EVENT_SIGNAL_DELAY_UNMODELLED'
+
+
+pytestmark = pytest.mark.local_evidence

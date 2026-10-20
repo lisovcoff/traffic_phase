@@ -104,6 +104,7 @@ def test_unknown_roles_or_alias_session_ids_refused():
         assess_pilot(data)
 
 
+@pytest.mark.local_evidence
 def test_saved_real_intake_has_no_synthetic_parameters_and_reproducible_seals():
     root = Path(__file__).resolve().parents[1]
     folder = root / 'evidence/real_pilot_readiness_20261016'

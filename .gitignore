@@ -1,64 +1,40 @@
-# Python
+# Python and local environments
 .venv/
 __pycache__/
 .pytest_cache/
 *.py[cod]
 *.pyd
 
-# Environment / local files
+# Secrets and machine-local files
 .env
 .env.*
 .DS_Store
+/core_v*.txt
+/current_core_code.txt
 
-# Local datasets
-data/
-
-# Local manifests and generated validation output
-validation/manifest.local.json
-validation_output/
-validation_output_local/
-
-# Generated audit / phase-analysis output
-audit_*/
-phase_boundary_*/
-.annotation_runtime/
-.web_runtime/
+# Private inputs, uploads, models and generated playback assets
+/data/
 /logs/
+/.web_runtime/
+/.annotation_runtime/
+/audit_*/
+/phase_boundary_*/
 
-# Retained HTTP integration inputs; do not redistribute raw user uploads.
-/evidence/learned_release_20261018/http/runs/
+# Local research runs: retain on disk, publish compact results/ summaries
+/evidence/
+/benchmarks/
+/diagnostics/
+/validation/
+/validation_output/
+/validation_output_local/
+/EXTERNAL_REVIEW_PROMPT.md
+/config/calibration_acceptance_v1.json
+/config/frame_clock_links_template.json
 
-# Full local validation reservoirs/products remain on disk. Compact summaries,
-# source hashes and a manifest are versioned instead of duplicating large data.
-/evidence/all_archives_synthetic_20261019/ingest/
-/evidence/all_archives_synthetic_20261019/results/
-/evidence/all_archives_synthetic_20261019/learned_replay/
-/evidence/all_archives_synthetic_20261019/synthetic/sealed/
-/evidence/all_archives_synthetic_20261019/synthetic/results/
-/evidence/all_archives_synthetic_20261019/synthetic/evaluation_v2/
-
-# Recovery experiment bulk data stay local and are enumerated in manifests.
-/evidence/accuracy_recovery_20261019/pilot/
-/evidence/accuracy_recovery_20261019/holdout/results/
-/evidence/accuracy_recovery_20261019/holdout/sealed/
-/evidence/accuracy_recovery_20261019/video_holdout/coarse/frame_*.png
-/evidence/accuracy_recovery_20261019/zero_speed_audit/
-/evidence/accuracy_recovery_20261019/zero_speed_audit_v2/
-/evidence/accuracy_recovery_20261019/application_checks/*/logs/
-
-# Local pilot media; reproducible manifests remain versioned.
-evidence/video_calibration_pilot_20261015/trajectory_sample/calibration_tracks.json
-evidence/video_calibration_pilot_20261015/**/frame_*.jpg
-evidence/video_calibration_pilot_20261015/frames/
-evidence/video_calibration_pilot_20261015/frames_v2/
-evidence/video_calibration_pilot_20261015/frames_v3/
-evidence/video_boundary_verification_20261015/*montage*.png
-evidence/vehicle_clock_alignment_20261015/frames/*.jpg
-evidence/vehicle_clock_alignment_20261015/*_panel.png
-evidence/vehicle_clock_alignment_20261015/*_detail.png
-
-# Large generated players stay available locally; hashes/manifests are versioned.
-/evidence/intersection_project_20261019/*/viewer.html
-
-# Raw replay packets remain local; manifests and scores retain provenance.
-/evidence/intersection_online_20261019/**/*.jsonl
+# Public documentation allowlist; historical reports remain local
+/docs/*
+!/docs/README.md
+!/docs/ARCHITECTURE.md
+!/docs/API.md
+!/docs/PROJECT_STATUS.md
+!/docs/PRODUCT_GOAL.md

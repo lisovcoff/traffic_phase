@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "date": "2026-10-20",
+  "inference_changed": false,
+  "clean_export": {
+    "passed": 1485,
+    "skipped_local_evidence": 34,
+    "warnings": 5,
+    "duration_s": 305.65,
+    "compile_import_HTTP_smoke": "PASS"
+  },
+  "local_evidence_checks": {
+    "passed": 34,
+    "scope": "checks saved receipts and seals; not a new inference accuracy measurement"
+  },
+  "preserved_local_artifacts": {
+    "files": 7802,
+    "bytes": 676310900,
+    "before_after_SHA256_equal": true
+  },
+  "tested_runtime_files": 558,
+  "tested_runtime_manifest_sha256": "c8ab07685aedf44d61559d7f2a56c05368af63c3f792e96a167b6763bbd433dd",
+  "runtime_index_equals_clean_tested_export": true,
+  "working_files_equal_after_newline_normalization": true,
+  "language_statistics_not_overridden": true,
+  "scope": "Repository isolation, documentation and provenance validation; no additional archive replay or model tuning"
+}

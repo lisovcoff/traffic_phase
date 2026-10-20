@@ -11,7 +11,7 @@ from app.experimental.restart_localization import localize_restart
 from tests.restart_localization_cases import generate_case
 
 
-PLAN=json.loads((Path(__file__).resolve().parents[1]/'evidence/restart_localization_20261015/plan.json').read_text())
+PLAN=json.loads((Path(__file__).resolve().parent/'fixtures/restart_localization_plan.json').read_text())
 
 
 def legacy_event(track):

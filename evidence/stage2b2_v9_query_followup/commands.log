@@ -1,8 +1,0 @@
-git switch -c fix/stage2b2-v9-query-contract-20261014 (from 8bb7ca1a9d8137001028f2c6b6e8e6af98d42201)
-python -m pytest -q -p no:cacheprovider tests/test_v9_query_contract_followup.py tests/v9/test_v9_signal_renderer.py tests/test_state_contract_2b2.py tests/test_signal_renderer.py tests/v10/test_v10_semantic_mapping.py tests/test_offline_benchmark.py tests/test_temporal_evidence_contract_diagnostics.py
-python -m scripts.verify_v9_query_contract_followup
-After eliminating configured V10 mutable-history rescan:
-python -m pytest -q -p no:cacheprovider tests/test_v9_query_contract_followup.py tests/v10/test_v10_semantic_mapping.py
-git diff --exit-code BASE -- protected paths from manifest.json
-git diff --check BASE
-No fitting/benchmark/parameter search. No raw trajectories, phase annotations or recording-6 diagnostics.

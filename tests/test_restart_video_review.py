@@ -70,6 +70,7 @@ def test_bijective_movement_rename_preserves_result():
         k:v for k,v in b.items() if k != 'movement'}
 
 
+@pytest.mark.local_evidence
 def test_actual_sealed_review_has_entire_preregistered_cohort():
     import hashlib
     import json

@@ -1,3 +1,4 @@
+import pytest
 import json
 import hashlib
 from pathlib import Path
@@ -24,3 +25,6 @@ def test_saved_predictions_and_adapters_match_hashes_without_new_decoding():
         assert result['proposed_published_history']['segments']==[]
         assert result['physical_section']['estimated_state']=='UNKNOWN'
         assert result['physical_section']['calibrated_lamp_probability'] is None
+
+
+pytestmark = pytest.mark.local_evidence

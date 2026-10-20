@@ -153,6 +153,7 @@ def test_cli_export_needs_no_raw_trajectories_and_does_not_modify_prediction(tmp
     assert out['queries'][0]['logical_phase']['estimated_state'] == 'UNKNOWN'
 
 
+@pytest.mark.local_evidence
 def test_three_saved_exports_preserve_accepted_model_and_seals():
     root = Path(__file__).resolve().parents[1]
     manifest = json.loads((root/'evidence/product_result_20261016/invariants.json').read_text(encoding='utf-8'))

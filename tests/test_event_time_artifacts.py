@@ -1,3 +1,4 @@
+import pytest
 """Sealed-artifact checks only: no new inference calls."""
 import hashlib
 import json
@@ -55,3 +56,6 @@ def test_prior_dependence_preserved_without_winner():
     assert all(r['same_feasible_sets'] for r in comp['prior_dependence'])
     for prior in ['uniform','nominal10']:
         assert any(r['point_core_gate']=='FAIL' for r in comp['rows'] if r['prior']==prior)
+
+
+pytestmark = pytest.mark.local_evidence

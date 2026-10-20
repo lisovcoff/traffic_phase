@@ -68,3 +68,6 @@ def test_synthetic_truth_separate_and_gate_not_replaced_with_real_score():
     inputs=load(OUT/'synthetic_inputs.json')
     assert all(set(row)=={'name','track'} for row in inputs)
     assert all('independent_world_onset_ms' not in row['track'] for row in inputs)
+
+
+pytestmark = pytest.mark.local_evidence

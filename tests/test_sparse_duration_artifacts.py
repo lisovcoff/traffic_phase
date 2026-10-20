@@ -53,3 +53,6 @@ def test_conditional_intervals_do_not_replace_count_or_point_gate():
     for r in c['rows']:
         assert r['published_logical_unknown_fraction']==r['physical_unknown_fraction']==1
         assert len(r['conditional_intervals'])==r['truth']
+
+
+pytestmark = pytest.mark.local_evidence

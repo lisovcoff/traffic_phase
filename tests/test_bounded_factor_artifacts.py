@@ -43,3 +43,6 @@ def test_posterior_count_and_boundary_marginals_are_consistent():
         assert sum(b['model_conditioned_existence_probability'] for b in result['boundary_existence'])==pytest.approx(expected)
         assert len(result['boundary_existence'])==31
         assert result['diagnostic_segments'][-1][1]==64
+
+
+pytestmark = pytest.mark.local_evidence

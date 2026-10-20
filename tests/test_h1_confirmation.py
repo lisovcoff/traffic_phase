@@ -72,6 +72,7 @@ def test_supplier_warning_kept_separate_from_a_clock_source_certificate():
     assert excerpt['top_level_millis']=='departure'
 
 
+@pytest.mark.local_evidence
 def test_real_artifact_source_and_output_seals():
     root=Path(__file__).resolve().parents[1];folder=root/'evidence/h1_confirmation_20261016'
     manifest=json.loads((folder/'manifest.json').read_text(encoding='utf-8'))

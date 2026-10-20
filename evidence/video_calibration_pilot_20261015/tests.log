@@ -1,8 +1,0 @@
-........................                                                 [100%]
-============================== warnings summary ===============================
-C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\_pytest\cacheprovider.py:469
-  C:\Users\sheld\AppData\Roaming\Python\Python314\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: cache could not write path D:\Code\PythonProjects\traffic_phase\audit_checkout\.pytest_cache\v\cache\nodeids: [Errno 13] Permission denied: 'D:\\Code\\PythonProjects\\traffic_phase\\audit_checkout\\.pytest_cache\\v\\cache\\nodeids'
-    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-24 passed, 1 warning in 2.83s

@@ -46,3 +46,6 @@ def test_all_alternatives_and_count_conditionals_normalized():
             assert sum(result['transition_count_posterior'].values())==pytest.approx(1)
             for ordinals in result['boundary_posteriors_conditioned_on_count'].values():
                 for mass in ordinals.values():assert sum(mass.values())==pytest.approx(1)
+
+
+pytestmark = pytest.mark.local_evidence

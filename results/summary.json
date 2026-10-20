@@ -1,0 +1,189 @@
+{
+  "schema": "traffic-phase-validation-summary-v1",
+  "as_of": "2026-10-20",
+  "production": "v7",
+  "algorithm_modified_by_this_cleanup": false,
+  "universal_95_percent_established": false,
+  "theoretical_maximum_accuracy": null,
+  "archives": [
+    {
+      "archive": "Ленина-Свердловский 11.02.25-19.02.25.zip",
+      "bytes": 5317162967,
+      "json_members": 88,
+      "video_lamp_evaluation_scope": "unavailable",
+      "complete_intersection_lamp_accuracy": null,
+      "theoretical_maximum_accuracy": null
+    },
+    {
+      "archive": "Ленина-Свердловский 27.02.25.zip",
+      "bytes": 180555021,
+      "json_members": 3,
+      "video_lamp_evaluation_scope": "one_N_main_head_two_revealed_windows_conditional_clock",
+      "complete_intersection_lamp_accuracy": null,
+      "theoretical_maximum_accuracy": null
+    },
+    {
+      "archive": "Ленина-Энтузиастов 05.10.24.zip",
+      "bytes": 180248829,
+      "json_members": 6,
+      "video_lamp_evaluation_scope": "visible_E_video_labels_exist_JSON_clock_unaccepted",
+      "complete_intersection_lamp_accuracy": null,
+      "theoretical_maximum_accuracy": null
+    },
+    {
+      "archive": "Ленина-Энтузиастов 10.02.25-17.02.25.zip",
+      "bytes": 3815283633,
+      "json_members": 106,
+      "video_lamp_evaluation_scope": "unavailable",
+      "complete_intersection_lamp_accuracy": null,
+      "theoretical_maximum_accuracy": null
+    },
+    {
+      "archive": "Чичерина-40 Лет Победы 12.04.24.zip",
+      "bytes": 491320876,
+      "json_members": 6,
+      "video_lamp_evaluation_scope": "unavailable",
+      "complete_intersection_lamp_accuracy": null,
+      "theoretical_maximum_accuracy": null
+    },
+    {
+      "archive": "Чичерина-40 Лет Победы 19.04.24.zip",
+      "bytes": 616888766,
+      "json_members": 7,
+      "video_lamp_evaluation_scope": "unavailable",
+      "complete_intersection_lamp_accuracy": null,
+      "theoretical_maximum_accuracy": null
+    }
+  ],
+  "processed_sources_including_three_loose_jsons": 219,
+  "synthetic_12_development_streams": {
+    "head_seconds": 77280,
+    "production_instant": {
+      "counts": {
+        "total": 77280,
+        "correct": 66848,
+        "unknown": 1646,
+        "GREEN_total": 21069,
+        "GREEN_correct": 18284,
+        "RED_total": 51962,
+        "RED_correct": 48148,
+        "YELLOW_total": 2550,
+        "YELLOW_correct": 337,
+        "RED_YELLOW_total": 1699,
+        "RED_YELLOW_correct": 79,
+        "blocked_window_N_green_total": 1272,
+        "blocked_window_N_green_correct": 1114
+      },
+      "accuracy": 0.8650103519668737
+    },
+    "experimental_local_history_10s": {
+      "counts": {
+        "total": 77280,
+        "correct": 72592,
+        "unknown": 992,
+        "GREEN_total": 21069,
+        "GREEN_correct": 20165,
+        "RED_total": 51962,
+        "RED_correct": 49741,
+        "YELLOW_total": 2550,
+        "YELLOW_correct": 1945,
+        "RED_YELLOW_total": 1699,
+        "RED_YELLOW_correct": 741
+      },
+      "accuracy": 0.9393374741200828
+    },
+    "scope": "automatic offline models then fixed-structure causal replay; simulation truth, not video validation",
+    "production_per_color_recall": {
+      "GREEN": 0.8678152736247567,
+      "RED": 0.9266002078441938,
+      "YELLOW": 0.13215686274509805,
+      "RED_YELLOW": 0.04649793996468511
+    },
+    "production_macro_color_recall": 0.49326757104468344
+  },
+  "synthetic_4_fresh_streams_at_candidate_freeze": {
+    "v7": {
+      "counts": {
+        "total": 25760,
+        "correct": 22297,
+        "RED_YELLOW_total": 568,
+        "RED_YELLOW_correct": 66,
+        "RED_total": 17388,
+        "RED_correct": 16140,
+        "GREEN_total": 6955,
+        "GREEN_correct": 6014,
+        "YELLOW_total": 849,
+        "YELLOW_correct": 77
+      },
+      "accuracy": 0.8655667701863354
+    },
+    "local_instant": {
+      "counts": {
+        "total": 25760,
+        "correct": 21976,
+        "RED_YELLOW_total": 568,
+        "RED_YELLOW_correct": 45,
+        "RED_total": 17388,
+        "RED_correct": 15717,
+        "GREEN_total": 6955,
+        "GREEN_correct": 6165,
+        "YELLOW_total": 849,
+        "YELLOW_correct": 49
+      },
+      "accuracy": 0.8531055900621118
+    },
+    "local_history_10s": {
+      "counts": {
+        "total": 25760,
+        "correct": 23903,
+        "RED_YELLOW_total": 568,
+        "RED_YELLOW_correct": 235,
+        "RED_total": 17388,
+        "RED_correct": 16504,
+        "GREEN_total": 6955,
+        "GREEN_correct": 6537,
+        "YELLOW_total": 849,
+        "YELLOW_correct": 627
+      },
+      "accuracy": 0.9279114906832299
+    }
+  },
+  "real_revealed_N_GREEN_YELLOW_seconds": {
+    "production_original": {
+      "correct": 147,
+      "total": 153
+    },
+    "production_12s_modified_copy": {
+      "correct": 147,
+      "total": 165
+    },
+    "scope": "conditional fixed clock; excludes RED/RED_YELLOW and other heads; modified copy is counterfactual, not real emergency"
+  },
+  "evidence_revision": "9924a35abd666306d5972c5fadc929878ba7234b",
+  "provenance": [
+    {
+      "path": "evidence/all_archives_synthetic_20261019/inventory.json",
+      "sha256": "2bf5cbb233a3fcf1727230132e877dae174a0c21f465da8ad8b8d0d327ab9e81"
+    },
+    {
+      "path": "evidence/all_archives_synthetic_20261019/nonidentifiability_witness.json",
+      "sha256": "55c986a60ec4fd48ac6dc6bd0d917fdc6172028b645c920b545cc6e2558aaed3"
+    },
+    {
+      "path": "evidence/coherent_signal_20261020/summary.json",
+      "sha256": "eb5cdd2e329c132c192e74f784f5e8cfacdbdda186ab2bfe8bf9614cd25489b2"
+    },
+    {
+      "path": "evidence/local_observation_age_20261020/summary.json",
+      "sha256": "2591ac4e0c45e5209d7bcb9822292bf16442731a2ebcb40291617ea7c555db68"
+    },
+    {
+      "path": "evidence/incident_validation_20261020/protocol.json",
+      "sha256": "886e109340f9b3481dd06774b4de4e7d88b1d542c5dd04bf30b6fde4773e075d"
+    },
+    {
+      "path": "evidence/accuracy_recovery_20261019/video_holdout/truth_sealed.json",
+      "sha256": "685d008d91aa8d269985dda3f064227e317b50da8fd331c9037accfa43f5a7d0"
+    }
+  ]
+}

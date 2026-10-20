@@ -1,7 +1,0 @@
-python -m scripts.calibration_review_intake --review ../data/calibration_tracks_review.json --manifest evidence/video_calibration_pilot_20261015/trajectory_sample/sample_manifest.json --out evidence/video_calibration_intake_20261015
-Result: 5 annotations, 1 overlap, source identity/time extent matched.
-python -m pytest tests/test_annotation_workbench.py -q -p no:cacheprovider
-16 passed in 2.55s
-Additional targeted assertions: input immutability, overlap duration, media binding conversion, UNKNOWN semantics, rejected source mismatch: PASS
-Inference/fitting/replay runs: 0; source export unchanged.
-Operator clarification checks: source hash unchanged; exactly one authorized start corrected; all ends and video bindings unchanged; overlap removed; yellow remains tentative; no continuous lamp history inferred: PASS. No inference/replay.

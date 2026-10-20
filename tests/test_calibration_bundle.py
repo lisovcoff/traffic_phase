@@ -114,6 +114,7 @@ def test_preparation_cannot_import_fitting_or_inference():
     assert all(not name.startswith('app.') for name in imports)
 
 
+@pytest.mark.local_evidence
 def test_saved_real_bundle_and_source_seals():
     root=Path(__file__).resolve().parents[1];folder=root/'evidence/calibration_bundle_20261016'
     bundle=json.loads((folder/'calibration_bundle.json').read_text(encoding='utf-8'))

@@ -1,9 +1,0 @@
-..................xxxxxx........                                         [100%]
-=========================== short test summary info ===========================
-XFAIL tests/test_v9_independent_review.py::test_ensemble_invariant_to_common_time_origin - sorted zip and linear mean are not circular-origin equivariant
-XFAIL tests/test_v9_independent_review.py::test_ensemble_cannot_discard_arbitrarily_better_release_fit - ensemble unconditionally suppresses unrefined release and entry
-XFAIL tests/test_v9_independent_review.py::test_distinct_shared_signatures_are_not_multiple_unsupported_phases - distinct shared-movement combinations need not have exclusive streams
-XFAIL tests/test_v9_independent_review.py::test_redundancy_rank_feature_invariant_to_stream_permutation - argsort(argsort) gives unequal ranks to ties
-XFAIL tests/test_v9_independent_review.py::test_redundancy_decision_invariant_on_binary_shared_occupancy - tied ranks change redundancy decision after mere column permutation
-XFAIL tests/test_v9_independent_review.py::test_periodic_baseline_ignores_censored_start - left-censored segment start is counted as a phase onset
-26 passed, 6 xfailed in 7.97s

@@ -1,4 +1,0 @@
-Captured initial run summary: 1 failed, 107 passed in 3.50s.
-Failure: tests/test_offline_benchmark.py::test_no_vehicle_demand_cannot_be_scored_as_red_or_lamp_accuracy
-IndexError at signal_state_at(pred, 70)["streams"][0]. Synthetic prediction lacked phase_names.
-Correction: fixture explicitly supplies PHASE_A/PHASE_B; renderer preserves stream identity even when history scores are unavailable. No detector, threshold, evaluator implementation or source predictions changed.

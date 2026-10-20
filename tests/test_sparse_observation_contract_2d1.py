@@ -1,3 +1,4 @@
+import pytest
 import json
 from pathlib import Path
 import numpy as np
@@ -53,6 +54,7 @@ def test_no_demand_and_blockage_are_indistinguishable_but_missing_input_is_expli
     assert not np.any(coverage[90:180]) and np.all(coverage[180:-1])
 
 
+@pytest.mark.local_evidence
 def test_suite_truth_preexists_decoder_and_config_seeds_are_frozen():
     root=Path(__file__).resolve().parents[1]/'evidence/stage2d1_sparse_review'
     suite=json.loads((root/'sparse_suite.json').read_text())

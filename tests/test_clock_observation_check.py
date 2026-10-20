@@ -105,6 +105,7 @@ def test_input_immutability_and_resource_limit():
         associate_same_video([motion()] * 1001, [], [])
 
 
+@pytest.mark.local_evidence
 def test_saved_inputs_retain_all_motions_and_existing_video_differences():
     root = Path(__file__).resolve().parents[1]
     bundle = json.loads((root/'evidence/calibration_bundle_20261016/calibration_bundle.json').read_text(encoding='utf-8'))
