@@ -11,7 +11,14 @@ never production inputs.
 Full accuracy acceptance is still in progress. Signal hardware and
 colors remain estimates; trajectories can leave them ambiguous.
 
-**Latest work (October20):** a joint phase/duration/color model with explicit
+**Latest check (October20):** causal confirmation-age learning, detector-onset
+correction and revised duration priors are implemented and tested, all default-off.
+Delayed history improved on simulation (93.93% development;92.79% four fresh
+controls), but real colors and some instantaneous cases regressed. Detector-onset
+correction preserved12/12 added green seconds; it still failed K2 controls.
+[Measured results and comparison player](docs/LOCAL_OBSERVATION_AGE_RESULTS_20261020.md).
+
+**Previous work (October20):** a joint phase/duration/color model with explicit
 transitions, offline queue-front observations and separately labelled10s delayed
 history is implemented and remains default-off. It retained12/12 added green
 seconds, but ordinary yellow and K2 controls regressed. Twelve new physical

@@ -1,0 +1,123 @@
+{
+  "case": "extended",
+  "counts": {
+    "total": 165,
+    "correct": 148,
+    "GREEN_total": 156,
+    "GREEN_correct": 145,
+    "added_total": 12,
+    "added_correct": 4,
+    "YELLOW_total": 9,
+    "YELLOW_correct": 3
+  },
+  "accuracy": 0.896969696969697,
+  "channels": {
+    "restarts": 353,
+    "passages": 2059,
+    "stops": 405,
+    "braking": 255
+  },
+  "transitions": [
+    {
+      "timestamp_ms": 1740634517000,
+      "color": "GREEN"
+    },
+    {
+      "timestamp_ms": 1740634536000,
+      "color": "UNKNOWN"
+    },
+    {
+      "timestamp_ms": 1740634537000,
+      "color": "GREEN"
+    },
+    {
+      "timestamp_ms": 1740634566000,
+      "color": "YELLOW"
+    },
+    {
+      "timestamp_ms": 1740634568000,
+      "color": "RED"
+    },
+    {
+      "timestamp_ms": 1740634569000,
+      "color": "UNKNOWN"
+    },
+    {
+      "timestamp_ms": 1740634570000,
+      "color": "RED"
+    },
+    {
+      "timestamp_ms": 1740634574000,
+      "color": "GREEN"
+    },
+    {
+      "timestamp_ms": 1740634577000,
+      "color": "UNKNOWN"
+    },
+    {
+      "timestamp_ms": 1740634578000,
+      "color": "RED"
+    },
+    {
+      "timestamp_ms": 1740634625000,
+      "color": "RED_YELLOW"
+    },
+    {
+      "timestamp_ms": 1740634627000,
+      "color": "UNKNOWN"
+    },
+    {
+      "timestamp_ms": 1740634628000,
+      "color": "GREEN"
+    },
+    {
+      "timestamp_ms": 1740634676000,
+      "color": "YELLOW"
+    },
+    {
+      "timestamp_ms": 1740634677000,
+      "color": "RED"
+    },
+    {
+      "timestamp_ms": 1740634678000,
+      "color": "YELLOW"
+    },
+    {
+      "timestamp_ms": 1740634679000,
+      "color": "RED"
+    },
+    {
+      "timestamp_ms": 1740634727000,
+      "color": "UNKNOWN"
+    },
+    {
+      "timestamp_ms": 1740634728000,
+      "color": "GREEN"
+    },
+    {
+      "timestamp_ms": 1740634775000,
+      "color": "YELLOW"
+    },
+    {
+      "timestamp_ms": 1740634777000,
+      "color": "UNKNOWN"
+    }
+  ],
+  "history_counts": {
+    "total": 165,
+    "correct": 151,
+    "GREEN_total": 156,
+    "GREEN_correct": 149,
+    "added_total": 12,
+    "added_correct": 9,
+    "YELLOW_total": 9,
+    "YELLOW_correct": 2
+  },
+  "history_accuracy": 0.9151515151515152,
+  "history_lag_s": 10,
+  "packets": 3660,
+  "runtime_s": 186.32799999999952,
+  "tick_p95_s": 0.06464349000052604,
+  "model_sha256": "078b90ac19210eca87e374820c81455c8e08fd9bbb6a47d7be62877d22fc4dde",
+  "production_enabled": false
+}

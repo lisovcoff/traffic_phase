@@ -1,0 +1,84 @@
+{
+  "k": 5,
+  "case": "extended_12s",
+  "counts": {
+    "instant": {
+      "total": 6440,
+      "correct": 5643,
+      "unknown": 200,
+      "RED_YELLOW_total": 143,
+      "RED_YELLOW_correct": 41,
+      "RED_total": 5015,
+      "RED_correct": 4709,
+      "GREEN_total": 1069,
+      "GREEN_correct": 849,
+      "YELLOW_total": 213,
+      "YELLOW_correct": 44
+    },
+    "history_10s": {
+      "total": 6440,
+      "correct": 6104,
+      "unknown": 76,
+      "RED_YELLOW_total": 143,
+      "RED_YELLOW_correct": 76,
+      "RED_total": 5015,
+      "RED_correct": 4915,
+      "GREEN_total": 1069,
+      "GREEN_correct": 958,
+      "YELLOW_total": 213,
+      "YELLOW_correct": 155
+    }
+  },
+  "accuracy": {
+    "instant": 0.8762422360248447,
+    "history_10s": 0.9478260869565217
+  },
+  "confusion": {
+    "instant": {
+      "RED_YELLOW->RED": 66,
+      "RED->RED": 4709,
+      "GREEN->RED_YELLOW": 27,
+      "GREEN->GREEN": 849,
+      "YELLOW->GREEN": 67,
+      "RED->GREEN": 90,
+      "GREEN->RED": 80,
+      "GREEN->YELLOW": 90,
+      "RED->RED_YELLOW": 59,
+      "YELLOW->RED": 81,
+      "RED->UNKNOWN": 150,
+      "YELLOW->UNKNOWN": 21,
+      "RED_YELLOW->RED_YELLOW": 41,
+      "RED_YELLOW->GREEN": 30,
+      "YELLOW->YELLOW": 44,
+      "RED->YELLOW": 7,
+      "GREEN->UNKNOWN": 23,
+      "RED_YELLOW->UNKNOWN": 6
+    },
+    "history_10s": {
+      "RED_YELLOW->RED_YELLOW": 76,
+      "RED->RED": 4915,
+      "GREEN->RED_YELLOW": 33,
+      "GREEN->GREEN": 958,
+      "YELLOW->GREEN": 11,
+      "YELLOW->YELLOW": 155,
+      "RED_YELLOW->RED": 38,
+      "RED->YELLOW": 26,
+      "GREEN->YELLOW": 70,
+      "RED->RED_YELLOW": 20,
+      "YELLOW->RED": 41,
+      "RED_YELLOW->GREEN": 21,
+      "RED->UNKNOWN": 54,
+      "RED_YELLOW->UNKNOWN": 8,
+      "GREEN->UNKNOWN": 8,
+      "YELLOW->UNKNOWN": 6
+    }
+  },
+  "previous": {
+    "v7_instant": 0.8700310559006211,
+    "joint_instant": 0.8791925465838509,
+    "joint_history_10s": 0.9108695652173913
+  },
+  "original_truth_sha256": "195128a403612e9e29f0eab7334b1813036436e1c3aa0c4c8570baf4458b4b47",
+  "runtime_s": 106.29700000000048,
+  "production_enabled": false
+}

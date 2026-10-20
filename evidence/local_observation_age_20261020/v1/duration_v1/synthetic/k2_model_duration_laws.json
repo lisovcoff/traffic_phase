@@ -1,0 +1,75 @@
+{
+  "sources": [
+    {
+      "session_id": "5ea844db31c156f20b87863a",
+      "sha256": "88ff10ea1ab5e2f7120f01405f95ce788dd1066fda1b23455d3a6b9247ed6af4"
+    },
+    {
+      "session_id": "ba4e08c2b0ac446b43998d63",
+      "sha256": "e54674c1c0b5b2fae3e8db673df8edc7aff740fb6ece4f0571f2d4c55119dd2d"
+    }
+  ],
+  "laws": {
+    "regime_001": [
+      {
+        "schema": "offline-robust-duration-v1",
+        "samples": 16,
+        "phase_median_s": 47.47545193491828,
+        "green_median_s": 43.47545193491828,
+        "ordinary_scale_s": 1.0,
+        "log_sigma": 0.023001486022433446,
+        "tail_count": 0,
+        "tail_cutoff_s": 50.47545193491828,
+        "tail_probability": 0.05555555555555555,
+        "tail_probability_floor": 0.02,
+        "tail_mean_s": 173.90180773967313,
+        "timing_basis": "offline trajectory phase fits, NOT measured physical green durations"
+      },
+      {
+        "schema": "offline-robust-duration-v1",
+        "samples": 16,
+        "phase_median_s": 42.953382886510326,
+        "green_median_s": 38.953382886510326,
+        "ordinary_scale_s": 1.0,
+        "log_sigma": 0.025671711309733333,
+        "tail_count": 0,
+        "tail_cutoff_s": 45.953382886510326,
+        "tail_probability": 0.05555555555555555,
+        "tail_probability_floor": 0.02,
+        "tail_mean_s": 155.8135315460413,
+        "timing_basis": "offline trajectory phase fits, NOT measured physical green durations"
+      }
+    ],
+    "regime_002": [
+      {
+        "schema": "offline-robust-duration-v1",
+        "samples": 13,
+        "phase_median_s": 69.44600036541044,
+        "green_median_s": 65.44600036541044,
+        "ordinary_scale_s": 1.0,
+        "log_sigma": 0.015279772551670255,
+        "tail_count": 0,
+        "tail_cutoff_s": 72.44600036541044,
+        "tail_probability": 0.06666666666666667,
+        "tail_probability_floor": 0.02,
+        "tail_mean_s": 261.78400146164176,
+        "timing_basis": "offline trajectory phase fits, NOT measured physical green durations"
+      },
+      {
+        "schema": "offline-robust-duration-v1",
+        "samples": 13,
+        "phase_median_s": 38.855477015541965,
+        "green_median_s": 34.855477015541965,
+        "ordinary_scale_s": 1.0,
+        "log_sigma": 0.028689895695706666,
+        "tail_count": 0,
+        "tail_cutoff_s": 41.855477015541965,
+        "tail_probability": 0.06666666666666667,
+        "tail_probability_floor": 0.02,
+        "tail_mean_s": 139.42190806216786,
+        "timing_basis": "offline trajectory phase fits, NOT measured physical green durations"
+      }
+    ]
+  },
+  "physical_lamp_labels_used": false
+}

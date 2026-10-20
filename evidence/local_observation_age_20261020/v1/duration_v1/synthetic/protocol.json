@@ -1,0 +1,27 @@
+{
+  "source_sha256": {
+    "app/core/intersection_local_emissions.py": "acf08b48d4ebf3bb209a92f5a78b85559c24100842da4dbffba4072e98c848ac",
+    "app/experimental/intersection_local_filter.py": "6e0e84dd05ab0ec801d13ca9961df08ee3620b2c62dc90f25285b00e7ffd2e4a",
+    "app/core/intersection_signal_filter.py": "25be6324b96aeddf82d1cff307a5dea476106769c45f1be32ee6408642f99367",
+    "app/core/intersection_queue_observations.py": "482c6a33d150cd98b5dfbe9d5b18c63ba935e1563aff260e940cda0a8dcfca13",
+    "app/core/intersection_signal_smoothing.py": "6ea09e6c5348ff1f1a70c947e7263246e31a736ebd2f6dc7b719d74915e0865c",
+    "app/core/intersection_online.py": "f6738036065bcfe1ef0c9b5b1221d4be8804a3788bbbd0fe8fe18fff42dade1e",
+    "scripts/train_causal_local_ages.py": "7779ce84ab1290a2089a7989f7e771d93e8b2af584b9937f34ec5f613b0ca32b",
+    "scripts/check_local_age_synthetic.py": "c6d016099ef8474e2f038e49d00e3c7f105633206b8c71cbe7f511d882f54fcf",
+    "app/core/intersection_duration_learning.py": "d0d11bf19d54c863154889082192fa34d7e7ef1f2320555cec8101266f656eb6",
+    "app/experimental/intersection_learned_duration.py": "82d07fc16ec740d85d4d0b118fa362ee6f03cb195443852f761a9b07ba622020",
+    "scripts/learn_local_duration_laws.py": "fa5a1a0c25dd2cc4db9ca98e7a25c1a3eb3c2cec0cad1b283feb26e6ca5cfe8b",
+    "scripts/check_local_duration_synthetic.py": "b8bda5c5502bbd417a6a2ade223e2207515f9b38921c440633dc880c6a3d607b"
+  },
+  "cases": "same twelve revealed paired streams from coherent v5; development, NOT fresh holdout",
+  "previous_protocol_sha256": "c59ea2668842094878c4f0d348a78ec05a0b3791bbc64edd62884ed1f3db3931",
+  "training_inputs": "two earlier synthetic training recordings, no test vehicles/lamps",
+  "queue_geometry": "frozen previous offline queue references",
+  "scored_seconds": [
+    180,
+    1790
+  ],
+  "history_lag_s": 10,
+  "production_enabled": false,
+  "duration_basis": "offline fitted durations; 1s grid spread floor; 2% minimum exception component; no video tuning"
+}

@@ -1,0 +1,83 @@
+{
+  "k": 3,
+  "case": "normal",
+  "counts": {
+    "instant": {
+      "total": 6440,
+      "correct": 5512,
+      "unknown": 112,
+      "GREEN_total": 1696,
+      "GREEN_correct": 1604,
+      "RED_total": 4394,
+      "RED_correct": 3876,
+      "YELLOW_total": 210,
+      "YELLOW_correct": 16,
+      "RED_YELLOW_total": 140,
+      "RED_YELLOW_correct": 16
+    },
+    "history_10s": {
+      "total": 6440,
+      "correct": 5838,
+      "unknown": 156,
+      "GREEN_total": 1696,
+      "GREEN_correct": 1654,
+      "RED_total": 4394,
+      "RED_correct": 3946,
+      "YELLOW_total": 210,
+      "YELLOW_correct": 198,
+      "RED_YELLOW_total": 140,
+      "RED_YELLOW_correct": 40
+    }
+  },
+  "accuracy": {
+    "instant": 0.8559006211180125,
+    "history_10s": 0.9065217391304348
+  },
+  "confusion": {
+    "instant": {
+      "GREEN->UNKNOWN": 22,
+      "RED->UNKNOWN": 84,
+      "GREEN->GREEN": 1604,
+      "RED->RED": 3876,
+      "YELLOW->GREEN": 188,
+      "RED->GREEN": 352,
+      "RED->RED_YELLOW": 64,
+      "RED_YELLOW->GREEN": 72,
+      "RED_YELLOW->RED": 48,
+      "GREEN->RED_YELLOW": 36,
+      "RED->YELLOW": 18,
+      "YELLOW->YELLOW": 16,
+      "GREEN->RED": 8,
+      "RED_YELLOW->RED_YELLOW": 16,
+      "GREEN->YELLOW": 26,
+      "YELLOW->RED": 4,
+      "RED_YELLOW->UNKNOWN": 4,
+      "YELLOW->UNKNOWN": 2
+    },
+    "history_10s": {
+      "GREEN->GREEN": 1654,
+      "RED->RED": 3946,
+      "YELLOW->YELLOW": 198,
+      "RED->YELLOW": 46,
+      "RED->RED_YELLOW": 54,
+      "RED->UNKNOWN": 148,
+      "RED->GREEN": 200,
+      "RED_YELLOW->GREEN": 70,
+      "YELLOW->GREEN": 12,
+      "RED_YELLOW->RED": 28,
+      "RED_YELLOW->RED_YELLOW": 40,
+      "GREEN->RED_YELLOW": 20,
+      "GREEN->YELLOW": 16,
+      "GREEN->UNKNOWN": 6,
+      "RED_YELLOW->UNKNOWN": 2
+    }
+  },
+  "previous": {
+    "v7_instant": 0.8642857142857143,
+    "joint_instant": 0.8506211180124224,
+    "joint_history_10s": 0.8645962732919255
+  },
+  "original_truth_sha256": "f8220fa9c71ae53103aaf2ae18f933dae1e338216f3ed1c2b954d82230bc4ac0",
+  "runtime_s": 84.65600000000086,
+  "production_enabled": false
+}

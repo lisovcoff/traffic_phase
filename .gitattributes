@@ -207,3 +207,20 @@ scripts/trace_crash_car_video.py -text
 tests/test_intersection_queue_observations.py -text
 tests/test_intersection_signal_*.py -text
 docs/COHERENT_SIGNAL_RESULTS_20261020.md -text
+evidence/local_observation_age_20261020/** -text -whitespace
+app/core/intersection_local_emissions.py -text
+app/core/intersection_duration_learning.py -text
+app/experimental/intersection_*local*.py -text
+app/experimental/intersection_learned_duration.py -text
+app/experimental/intersection_sensor_delay.py -text
+scripts/*local*age*.py -text
+scripts/check_local_duration_synthetic.py -text
+scripts/check_conditioned_local_synthetic.py -text
+scripts/learn_local_duration_laws.py -text
+scripts/check_sensor_delay_*.py -text
+tests/test_intersection_local_emissions.py -text
+tests/test_intersection_conditioned_local.py -text
+tests/test_intersection_duration_learning.py -text
+tests/test_intersection_sensor_delay.py -text
+tests/test_local_age_spool.py -text
+docs/LOCAL_OBSERVATION_AGE_RESULTS_20261020.md -text

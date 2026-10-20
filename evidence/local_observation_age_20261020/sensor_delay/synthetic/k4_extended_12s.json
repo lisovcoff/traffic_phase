@@ -1,0 +1,85 @@
+{
+  "k": 4,
+  "case": "extended_12s",
+  "counts": {
+    "instant": {
+      "total": 6440,
+      "correct": 5548,
+      "unknown": 176,
+      "GREEN_total": 1326,
+      "GREEN_correct": 1092,
+      "RED_total": 4759,
+      "RED_correct": 4408,
+      "YELLOW_total": 213,
+      "YELLOW_correct": 32,
+      "RED_YELLOW_total": 142,
+      "RED_YELLOW_correct": 16
+    },
+    "history_10s": {
+      "total": 6440,
+      "correct": 5875,
+      "unknown": 124,
+      "GREEN_total": 1326,
+      "GREEN_correct": 1186,
+      "RED_total": 4759,
+      "RED_correct": 4533,
+      "YELLOW_total": 213,
+      "YELLOW_correct": 115,
+      "RED_YELLOW_total": 142,
+      "RED_YELLOW_correct": 41
+    }
+  },
+  "accuracy": {
+    "instant": 0.8614906832298137,
+    "history_10s": 0.9122670807453416
+  },
+  "confusion": {
+    "instant": {
+      "GREEN->RED_YELLOW": 55,
+      "RED->RED": 4408,
+      "RED->YELLOW": 88,
+      "GREEN->GREEN": 1092,
+      "YELLOW->GREEN": 147,
+      "YELLOW->YELLOW": 32,
+      "RED_YELLOW->RED_YELLOW": 16,
+      "RED->GREEN": 100,
+      "RED_YELLOW->RED": 109,
+      "RED->UNKNOWN": 123,
+      "GREEN->UNKNOWN": 24,
+      "GREEN->YELLOW": 59,
+      "RED->RED_YELLOW": 40,
+      "YELLOW->RED": 20,
+      "RED_YELLOW->UNKNOWN": 15,
+      "GREEN->RED": 96,
+      "YELLOW->UNKNOWN": 14,
+      "RED_YELLOW->GREEN": 2
+    },
+    "history_10s": {
+      "GREEN->UNKNOWN": 26,
+      "RED->UNKNOWN": 92,
+      "GREEN->GREEN": 1186,
+      "RED->RED": 4533,
+      "YELLOW->GREEN": 84,
+      "YELLOW->YELLOW": 115,
+      "RED_YELLOW->RED": 83,
+      "RED->YELLOW": 120,
+      "RED_YELLOW->RED_YELLOW": 41,
+      "GREEN->RED_YELLOW": 60,
+      "GREEN->YELLOW": 17,
+      "RED->RED_YELLOW": 14,
+      "YELLOW->RED": 13,
+      "RED_YELLOW->GREEN": 13,
+      "GREEN->RED": 37,
+      "RED_YELLOW->UNKNOWN": 5,
+      "YELLOW->UNKNOWN": 1
+    }
+  },
+  "previous": {
+    "v7_instant": 0.8677018633540373,
+    "joint_instant": 0.8672360248447205,
+    "joint_history_10s": 0.9040372670807454
+  },
+  "original_truth_sha256": "37786a76ad801c74ccad7bc38ffa6e0bc14ea4acb7c84666a67690f7089d0cab",
+  "runtime_s": 61.46899999999914,
+  "production_enabled": false
+}

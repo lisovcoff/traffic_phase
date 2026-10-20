@@ -1,0 +1,27 @@
+{
+  "source_sha256": {
+    "app/core/intersection_local_emissions.py": "acf08b48d4ebf3bb209a92f5a78b85559c24100842da4dbffba4072e98c848ac",
+    "app/experimental/intersection_local_filter.py": "6e0e84dd05ab0ec801d13ca9961df08ee3620b2c62dc90f25285b00e7ffd2e4a",
+    "app/core/intersection_signal_filter.py": "25be6324b96aeddf82d1cff307a5dea476106769c45f1be32ee6408642f99367",
+    "app/core/intersection_queue_observations.py": "482c6a33d150cd98b5dfbe9d5b18c63ba935e1563aff260e940cda0a8dcfca13",
+    "app/core/intersection_signal_smoothing.py": "6ea09e6c5348ff1f1a70c947e7263246e31a736ebd2f6dc7b719d74915e0865c",
+    "app/core/intersection_online.py": "f6738036065bcfe1ef0c9b5b1221d4be8804a3788bbbd0fe8fe18fff42dade1e",
+    "scripts/train_causal_local_ages.py": "7779ce84ab1290a2089a7989f7e771d93e8b2af584b9937f34ec5f613b0ca32b",
+    "scripts/train_local_age_ram.py": "509df8c717bf731b026c3602fa25dbb51e5f7fa95e45d886ec3d7dfc308010c0",
+    "scripts/check_local_age_real.py": "bc69c430d9f15132e9a006d2762f22eda2e5d1d5e63e04a934265108c37faeac",
+    "scripts/check_coherent_queue.py": "5e35fa1ddd178a25bc266aebf65edda79b063ead3916b107f20d00eef66ec0c2",
+    "app/experimental/intersection_conditioned_local.py": "031df726c0a0cf2a3a5d961090e4c19e034273982316b2899ae12b0dbe46309d"
+  },
+  "candidate_model_sha256": "078b90ac19210eca87e374820c81455c8e08fd9bbb6a47d7be62877d22fc4dde",
+  "variant": "conditioned_v1",
+  "sampled_detection_extent_ms": [
+    1739249920000,
+    1739538000000
+  ],
+  "extent_semantics": "legacy field name; actual complete causal training packet extent, not a sample",
+  "history_lag_s": 10,
+  "training_regimes": 8,
+  "video_supplied_to_training": false,
+  "source_comparison": "same known original and +12s copies as previous experiments; conditional clock; development only",
+  "production_enabled": false
+}

@@ -1,0 +1,53 @@
+{
+  "case": {
+    "k": 5,
+    "seed": 20261021746,
+    "scenario": "normal"
+  },
+  "counts": {
+    "v7": {
+      "total": 6440,
+      "correct": 5502,
+      "RED_YELLOW_total": 143,
+      "RED_YELLOW_correct": 23,
+      "RED_total": 5119,
+      "RED_correct": 4771,
+      "GREEN_total": 962,
+      "GREEN_correct": 694,
+      "YELLOW_total": 216,
+      "YELLOW_correct": 14
+    },
+    "local_instant": {
+      "total": 6440,
+      "correct": 5416,
+      "RED_YELLOW_total": 143,
+      "RED_YELLOW_correct": 4,
+      "RED_total": 5119,
+      "RED_correct": 4691,
+      "GREEN_total": 962,
+      "GREEN_correct": 718,
+      "YELLOW_total": 216,
+      "YELLOW_correct": 3
+    },
+    "local_history_10s": {
+      "total": 6440,
+      "correct": 6005,
+      "RED_YELLOW_total": 143,
+      "RED_YELLOW_correct": 61,
+      "RED_total": 5119,
+      "RED_correct": 4932,
+      "GREEN_total": 962,
+      "GREEN_correct": 862,
+      "YELLOW_total": 216,
+      "YELLOW_correct": 150
+    }
+  },
+  "accuracy": {
+    "v7": 0.8543478260869565,
+    "local_instant": 0.8409937888198757,
+    "local_history_10s": 0.9324534161490683
+  },
+  "runtime_s": 164.67200000000048,
+  "production_enabled": false,
+  "truth_sha256": "661983ee957de74a31bc0dd5cdbafba0682c8f11bdbc4e02ee4741001b33f132"
+}

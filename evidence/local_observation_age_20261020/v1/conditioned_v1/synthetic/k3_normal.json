@@ -1,0 +1,85 @@
+{
+  "k": 3,
+  "case": "normal",
+  "counts": {
+    "instant": {
+      "total": 6440,
+      "correct": 5352,
+      "unknown": 292,
+      "GREEN_total": 1696,
+      "GREEN_correct": 1528,
+      "RED_total": 4394,
+      "RED_correct": 3762,
+      "YELLOW_total": 210,
+      "YELLOW_correct": 38,
+      "RED_YELLOW_total": 140,
+      "RED_YELLOW_correct": 24
+    },
+    "history_10s": {
+      "total": 6440,
+      "correct": 5666,
+      "unknown": 292,
+      "GREEN_total": 1696,
+      "GREEN_correct": 1574,
+      "RED_total": 4394,
+      "RED_correct": 3862,
+      "YELLOW_total": 210,
+      "YELLOW_correct": 194,
+      "RED_YELLOW_total": 140,
+      "RED_YELLOW_correct": 36
+    }
+  },
+  "accuracy": {
+    "instant": 0.831055900621118,
+    "history_10s": 0.8798136645962733
+  },
+  "confusion": {
+    "instant": {
+      "GREEN->GREEN": 1528,
+      "RED->RED": 3762,
+      "YELLOW->GREEN": 156,
+      "RED->GREEN": 342,
+      "RED->UNKNOWN": 186,
+      "RED->RED_YELLOW": 84,
+      "RED_YELLOW->GREEN": 72,
+      "GREEN->UNKNOWN": 90,
+      "YELLOW->UNKNOWN": 8,
+      "RED_YELLOW->UNKNOWN": 8,
+      "RED_YELLOW->RED": 36,
+      "RED_YELLOW->RED_YELLOW": 24,
+      "RED->YELLOW": 20,
+      "GREEN->RED": 6,
+      "GREEN->RED_YELLOW": 18,
+      "GREEN->YELLOW": 54,
+      "YELLOW->YELLOW": 38,
+      "YELLOW->RED": 8
+    },
+    "history_10s": {
+      "GREEN->GREEN": 1574,
+      "RED->RED": 3862,
+      "YELLOW->YELLOW": 194,
+      "RED->YELLOW": 30,
+      "RED->RED_YELLOW": 66,
+      "RED->UNKNOWN": 208,
+      "RED->GREEN": 228,
+      "RED_YELLOW->UNKNOWN": 18,
+      "GREEN->UNKNOWN": 62,
+      "YELLOW->UNKNOWN": 4,
+      "RED_YELLOW->GREEN": 72,
+      "GREEN->YELLOW": 52,
+      "RED_YELLOW->RED_YELLOW": 36,
+      "RED_YELLOW->RED": 14,
+      "GREEN->RED_YELLOW": 8,
+      "YELLOW->GREEN": 2,
+      "YELLOW->RED": 10
+    }
+  },
+  "previous": {
+    "v7_instant": 0.8642857142857143,
+    "joint_instant": 0.8506211180124224,
+    "joint_history_10s": 0.8645962732919255
+  },
+  "original_truth_sha256": "f8220fa9c71ae53103aaf2ae18f933dae1e338216f3ed1c2b954d82230bc4ac0",
+  "runtime_s": 101.85899999999856,
+  "production_enabled": false
+}

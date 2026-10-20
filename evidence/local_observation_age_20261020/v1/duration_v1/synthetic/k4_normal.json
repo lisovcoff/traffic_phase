@@ -1,0 +1,85 @@
+{
+  "k": 4,
+  "case": "normal",
+  "counts": {
+    "instant": {
+      "total": 6440,
+      "correct": 5703,
+      "unknown": 76,
+      "GREEN_total": 1322,
+      "GREEN_correct": 1131,
+      "RED_total": 4758,
+      "RED_correct": 4499,
+      "YELLOW_total": 216,
+      "YELLOW_correct": 45,
+      "RED_YELLOW_total": 144,
+      "RED_YELLOW_correct": 28
+    },
+    "history_10s": {
+      "total": 6440,
+      "correct": 5986,
+      "unknown": 28,
+      "GREEN_total": 1322,
+      "GREEN_correct": 1194,
+      "RED_total": 4758,
+      "RED_correct": 4632,
+      "YELLOW_total": 216,
+      "YELLOW_correct": 118,
+      "RED_YELLOW_total": 144,
+      "RED_YELLOW_correct": 42
+    }
+  },
+  "accuracy": {
+    "instant": 0.8855590062111801,
+    "history_10s": 0.9295031055900621
+  },
+  "confusion": {
+    "instant": {
+      "GREEN->RED_YELLOW": 25,
+      "RED->RED": 4499,
+      "GREEN->GREEN": 1131,
+      "GREEN->YELLOW": 65,
+      "YELLOW->YELLOW": 45,
+      "RED->RED_YELLOW": 54,
+      "YELLOW->RED": 65,
+      "RED_YELLOW->RED_YELLOW": 28,
+      "GREEN->RED": 86,
+      "RED->GREEN": 78,
+      "RED_YELLOW->GREEN": 40,
+      "YELLOW->GREEN": 105,
+      "RED_YELLOW->RED": 73,
+      "RED->YELLOW": 70,
+      "RED->UNKNOWN": 57,
+      "GREEN->UNKNOWN": 15,
+      "RED_YELLOW->UNKNOWN": 3,
+      "YELLOW->UNKNOWN": 1
+    },
+    "history_10s": {
+      "GREEN->GREEN": 1194,
+      "RED->RED": 4632,
+      "YELLOW->YELLOW": 118,
+      "RED_YELLOW->RED_YELLOW": 42,
+      "GREEN->YELLOW": 60,
+      "RED->RED_YELLOW": 33,
+      "YELLOW->RED": 40,
+      "RED_YELLOW->GREEN": 39,
+      "YELLOW->GREEN": 54,
+      "RED_YELLOW->RED": 63,
+      "RED->YELLOW": 66,
+      "GREEN->RED": 4,
+      "GREEN->RED_YELLOW": 61,
+      "RED->UNKNOWN": 21,
+      "YELLOW->UNKNOWN": 4,
+      "RED->GREEN": 6,
+      "GREEN->UNKNOWN": 3
+    }
+  },
+  "previous": {
+    "v7_instant": 0.8700310559006211,
+    "joint_instant": 0.8695652173913043,
+    "joint_history_10s": 0.9063664596273292
+  },
+  "original_truth_sha256": "3807deeeafe8d649e3b55c8fc174480aa610fa9cca1b49e7172bfd4644d9430d",
+  "runtime_s": 51.5,
+  "production_enabled": false
+}

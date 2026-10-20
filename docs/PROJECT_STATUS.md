@@ -1,5 +1,17 @@
 # Project status — Trajectory recovery v1, 2026-10-20
 
+LATEST20.10: [causal observation-age/confirmation work](LOCAL_OBSERVATION_AGE_RESULTS_20261020.md).
+Eight earlier regime members,29387 causal training packets; detector confirmation
+median1.15–1.256s, NOT physical lamp/reaction calibration. Learned observation
+ages improve10s history to93.93% on12 known streams and92.79% on4 fresh controls;
+real colors regress. Bounded detector-onset re-filtering retains12/12 added greens,
+real155/165 vs prior joint154/165, but K2 simulation regresses. Narrower duration
+laws/approach-conditioned marks also measured.85 affected tests and standalone
+Edge comparison PASS; all candidates default-off, production remains v7.
+Next: causal online period/duration adaptation over several observed cycles,
+single-extension isolation, yellow/K3/fresh controls, then other archives/product
+integration. No95% acceptance, old2D.1 restart, data deletion or rollback.
+
 LATEST20.10: [joint color/duration implementation](COHERENT_SIGNAL_RESULTS_20261020.md).
 Joint semi-Markov phase/age/explicit transition graph, offline queue-front
 observations, braking/obstruction,10s fixed-lag reconstruction and committed-path
