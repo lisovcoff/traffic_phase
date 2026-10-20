@@ -13,13 +13,17 @@ class LocalObservationSource:
         self.events=[]
         # Motion extraction does not read phase banks. Avoid computing a second
         # unused signal filter; keep the same validation/track/target/render path.
-        self.motion._advance=lambda seconds:None
+        self.motion._advance=self._skip_advance
         self.motion._observe=self._collect_events
 
     def _collect_events(self,events):
         # A bound Python method follows its source through deepcopy in the
         # transactional online store. A closure keeps mutating the old source.
         self.events.extend(events)
+
+    def _skip_advance(self,seconds):
+        """Motion-only source; a named method also survives local checkpoints."""
+        return None
 
     def ingest(self,packet):
         self.events.clear();old={k:t.get('last_restart_ms',-1) for k,t in self.motion.tracks.items()}

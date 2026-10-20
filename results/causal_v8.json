@@ -167,7 +167,12 @@
     "app/core/intersection_engine.py": {
       "frozen_sha256": "25bbaf03bc2c3bc5a94a6e376cf7ea97c41d7446cf920075b19d428e563e29a4",
       "current_sha256": "d3d6359d4f8e8d18d2c852bc75960ff5a2ee5271672d3f9b9852a1146b2ad36e",
-      "reason": "Production wrapper docstring corrected; inference statements unchanged"
+      "reason": "Wrapper docstring only"
+    },
+    "app/experimental/intersection_local_filter.py": {
+      "frozen_sha256": "efe138e10598875456cf2a31121d69f98583b82eb8983220305ecdd965ee16be",
+      "current_sha256": "8e68f4a52f2e1a6250a929689636fbfb481e7e207868285c52a18f760542622f",
+      "reason": "Replace motion-only no-op lambda with named no-op method for internal checkpoint serialization; full-replay parity checked"
     }
   },
   "results": [
@@ -2553,7 +2558,7 @@
     "status": "PASS",
     "scope": "Functional HTTP checks, not physical signal accuracy",
     "project_id": "57c5f06f2eda475d9c55c314a7f08b5f",
-    "stream_id": "d9fa6c548fed4018b1ee4f5277e9ea6b",
+    "stream_id": "398259c33edf4a918f39c9fbc86d972d",
     "engine": "causal-intersection-v8",
     "packets": 120,
     "input_prefix_sha256": "c49d4df770dbaaefa44ecae89eee0eb95bd5fa525bb73046b6a88d7ff4eac9d6",
@@ -2561,9 +2566,9 @@
     "duplicate_idempotent": true,
     "conflict_rejected": true,
     "history_seek_exact": true,
-    "tick_p95_s": 0.3752820999943651,
-    "offline_url": "http://127.0.0.1:8018/visualization?project=57c5f06f2eda475d9c55c314a7f08b5f",
-    "online_url": "http://127.0.0.1:8018/visualization?project=57c5f06f2eda475d9c55c314a7f08b5f&stream=d9fa6c548fed4018b1ee4f5277e9ea6b"
+    "tick_p95_s": 0.5438737999938894,
+    "offline_url": "http://127.0.0.1:8017/visualization?project=57c5f06f2eda475d9c55c314a7f08b5f",
+    "online_url": "http://127.0.0.1:8017/visualization?project=57c5f06f2eda475d9c55c314a7f08b5f&stream=398259c33edf4a918f39c9fbc86d972d"
   },
   "cold_restore": {
     "status": "PASS",
@@ -2594,5 +2599,56 @@
     "offline_play_seek": true,
     "mobile_no_overflow": true,
     "javascript_errors": []
+  },
+  "durable_checkpoint": {
+    "status": "PASS",
+    "engine": "causal-intersection-v8",
+    "checkpoint_sequence": 121,
+    "continued_sequence": 122,
+    "exact_full_replay_parity": true,
+    "full_replay_skipped": true,
+    "restore_and_ingest_s": 0.287709399999585,
+    "max_tail_rows": 59,
+    "original_history_preserved": true
+  },
+  "ci_v8_integration": {
+    "status": "PASS",
+    "commit": "5676fbe2f701dae8923a13130bb919d6ebf7a0f6",
+    "passed": 1535,
+    "skipped": 38,
+    "url": "https://github.com/lisovcoff/traffic_phase/actions/runs/39455976852"
+  },
+  "functional_http_before_checkpoint": {
+    "status": "PASS",
+    "scope": "Functional HTTP checks, not physical signal accuracy",
+    "project_id": "57c5f06f2eda475d9c55c314a7f08b5f",
+    "stream_id": "d9fa6c548fed4018b1ee4f5277e9ea6b",
+    "engine": "causal-intersection-v8",
+    "packets": 120,
+    "input_prefix_sha256": "c49d4df770dbaaefa44ecae89eee0eb95bd5fa525bb73046b6a88d7ff4eac9d6",
+    "future_rejected": true,
+    "duplicate_idempotent": true,
+    "conflict_rejected": true,
+    "history_seek_exact": true,
+    "tick_p95_s": 0.3752820999943651,
+    "offline_url": "http://127.0.0.1:8018/visualization?project=57c5f06f2eda475d9c55c314a7f08b5f",
+    "online_url": "http://127.0.0.1:8018/visualization?project=57c5f06f2eda475d9c55c314a7f08b5f&stream=d9fa6c548fed4018b1ee4f5277e9ea6b"
+  },
+  "checkpoint_http_cold": {
+    "status": "PASS",
+    "engine": "causal-intersection-v8",
+    "server_restarted": true,
+    "checkpoint_sequence": 119,
+    "continued_sequence": 120,
+    "restore_request_s": 0.38823170000250684,
+    "exact_original_issuance_parity": true
+  },
+  "local_checkpoint_suite": {
+    "passed": 1575,
+    "skipped": 4,
+    "warnings": 5,
+    "duration_s": 273.17,
+    "additional_checkpoint_targeted_passed": 7,
+    "scope": "Full suite collected before final 16-hypothesis serialization test; that test also passed in targeted seven-test checkpoint run"
   }
 }

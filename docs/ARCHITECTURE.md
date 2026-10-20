@@ -38,7 +38,13 @@ section's color. Offline discovery learns queue geometry from raw trajectories.
 
 Old models without references use v7. Each journal records its engine version;
 recovery uses that exact version and verifies previously issued responses.
-Transactional copies retain their own observation callbacks. Live output and
+Transactional copies retain their own observation callbacks. Every 60 accepted
+packets, the same SQLite transaction stores a compressed internal engine
+checkpoint. Compatibility includes Python/NumPy versions and inference source
+hashes; checkpoint bytes and its issuance anchor have checksums. A compatible
+restart replays at most 59 later rows; a bad cache falls back to exact original
+journal replay. Serialized Python state is trusted private application storage;
+no API accepts checkpoint uploads. Live output and
 retrospective history remain distinct. V8 improves aggregate measurements but
 has not passed the strict all-color/false-GREEN regression gate; see the
 [acceptance record](../results/causal_v8.md).

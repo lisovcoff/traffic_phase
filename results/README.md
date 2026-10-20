@@ -12,12 +12,12 @@ This page summarizes earlier production measurements. Dated follow-ups describe
 new validation and experimental algorithm runs.
 The [delivery receipt](delivery_readiness.json) records real HTTP replay and cold
 journal recovery separately from the still-failed physical-estimator acceptance.
-The latest [queue-front timing stage](front_release_timing.md) restores the
+The earlier [queue-front timing stage](front_release_timing.md) restores the
 period-change GREEN recall and improves five known SUMO controls beyond 95%,
-but excess false GREEN and a real onset regression still block promotion.
+but excess false GREEN and a real onset regression blocked promotion at that stage.
 The [section-support follow-up](section_consensus.md) recovers the four real
 seconds lost in the [joint timing stage](transition_timing.md), but persistent
-timing changes still fail GREEN-recall/false-GREEN gates; default v7 is retained.
+timing changes still fail GREEN-recall/false-GREEN gates; default v7 was retained at that stage.
 The [2026-10-20 physical-validation follow-up](physical_validation.md) adds
 independent SUMO controls and original-video brackets. It identifies limitations
 in the old custom simulator; the historical synthetic scores below are software

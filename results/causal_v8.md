@@ -46,8 +46,9 @@ the strict acceptance gate passed. Do not present it as an accepted 95% estimato
 
 The first fresh set revealed a curved-main queue-geometry deficiency and was
 used for development. The table above uses a subsequent frozen seed set. It is
-now revealed, too. A production-wrapper docstring was corrected after freezing;
-the inference statements were unchanged. Exact hashes/receipts are in
+now revealed, too. After freezing, a production-wrapper docstring was corrected and a motion-only
+no-op callback was named for checkpoint serialization. The numerical inference
+statements were unchanged; checkpoint continuation matches a full real replay. Exact hashes/receipts are in
 [the machine-readable record](causal_v8.json).
 
 ## Known real head and counterfactual
@@ -66,11 +67,19 @@ Video association on Enthusiasts and complete six-archive lamp truth remain open
 
 ## Application checks
 
-- Full current suite: 1,563 passed, 3 skipped; later migration/arrow-waiting checks also pass.
-- HTTP: 120 real packets, idempotence, validation, exact history/seek; p95 0.375s.
+- Full suite after checkpoint integration: 1,575 passed, 4 skipped; all seven
+  checkpoint-targeted tests, including 16-hypothesis serialization, also pass.
+- HTTP: 120 real packets, idempotence, validation, exact history/seek; final p95 0.544s with checkpoints.
+  Earlier pre-checkpoint HTTP receipt: 0.375s; timings were taken under different load.
 - Fresh process: 120 journal rows reconstructed exactly, then sequence 120 accepted.
+- Durable checkpoint continuation: 0.288s, identical to full real replay. Compatible
+  checkpoints leave at most 59 accepted rows to replay, independently of journal length.
+  Actual server restart/next-packet request: 0.388s with exact issuance parity.
+  Corrupt/incompatible internal cache falls back to original journal recovery.
 - Actual headless Edge: 120 packets, visible colors after startup, 88 recordings,
   seek/resume/reload, offline play/seek, mobile width, zero JavaScript errors.
+- Clean GitHub CI for integration commit `5676fbe`: 1,535 passed, 38 local/optional
+  checks skipped; Lenina regression and end-to-end smoke passed.
 - Browser automation through the desktop connectors was unavailable; headless Edge
   exercised the real local HTTP application and its rendered canvas.
 

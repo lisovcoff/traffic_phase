@@ -28,13 +28,21 @@ or universal 95% acceptance. See [v8 measurements](../results/causal_v8.md).
 
 ## Current checks
 
-Full suite: 1,563 passed, 3 skipped. Additional targeted migration, ambiguous
+Full suite after checkpoint integration: 1,575 passed, 4 skipped. Additional targeted migration, ambiguous
 arrow waiting and validation-gate checks pass. Four native SUMO integration
 variants plus the geometric-conflict test pass. HTTP checks accepted 120 real
-packets with p95 0.375s. An independent process reconstructed those rows exactly
+packets with checkpoints and p95 0.544s. An independent process reconstructed those rows exactly
 and continued the stream. Actual Edge exercised 120 packets, visible colors,
 88 recording options, seek/resume/reload, offline playback and mobile layout;
-zero JavaScript errors.
+zero JavaScript errors. Integration commit 5676fbe also passes clean GitHub CI
+(1,535 passed, 38 skipped), Lenina regression and end-to-end smoke.
+
+Durable internal checkpoints are committed every 60 accepted packets. Compatible
+restart needs at most 59 tail rows; the real checkpoint continuation takes 0.288s
+and matches full replay exactly. Actual HTTP server restart/continuation is
+0.388s with exact parity to the original issuance. Corrupt/incompatible cache falls back to the
+original packet journal. The cache is private application state, not an import
+format; no endpoint accepts serialized Python checkpoints.
 
 Known real N GREEN/YELLOW interiors: 148/153 = 96.73%; +12s counterfactual:
 153/165 = 92.73%. Separate GREEN onset delay: 1.416s versus v7's 3.416s;
