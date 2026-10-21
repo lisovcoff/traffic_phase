@@ -27,6 +27,6 @@ Current known real N interiors reach 148/153; a +12s counterfactual reaches
 See [source receipts and exact denominators](results/causal_v8.json).
 
 The application is usable for research and demonstration. Hardware, colors,
-regimes and confidence are estimates. See the [delivery guide](DELIVERY.md).
+regimes and confidence are estimates. See the [guide](GUIDE.md).
 Historical failed stages and generated evidence are preserved locally and in
 Git history; historical 2D.1 remains FAIL/disabled.

@@ -116,7 +116,7 @@ python -m scripts.archive_online_packets data/intersection.zip --spool .web_runt
 Таблицы и график собраны через pandas из сохранённых протоколов измерений.
 В репозиторий включены только результаты; скрипт построения остаётся локальным.
 [Статистика и происхождение данных](results/statistics.json) ·
-[Аудит перед сдачей](results/release_audit.md) · [Покрытие проверок](results/README.md)
+[Аудит проекта](results/release_audit.md) · [Покрытие проверок](results/README.md)
 
 ## Разработка
 
@@ -130,7 +130,7 @@ python -m scripts.e2e_smoke
 `git lfs pull`. Проверки частных записей пропускаются в чистом клоне.
 Тесты покрывают чтение данных, алгоритм, временные границы, API, восстановление
 журнала и плеер. Дополнительные проверки SUMO и браузера описаны в
-[руководстве по запуску и сдаче](DELIVERY.ru.md).
+[руководстве](GUIDE.ru.md).
 
 | Папка | Содержимое |
 |---|---|
@@ -146,4 +146,4 @@ python -m scripts.e2e_smoke
 профиль перекрёстка.
 
 [Архитектура](docs/ARCHITECTURE.md) · [API](docs/API.md) ·
-[Руководство по сдаче](DELIVERY.ru.md) · [Текущий статус](docs/PROJECT_STATUS.md)
+[Руководство](GUIDE.ru.md) · [Текущий статус](docs/PROJECT_STATUS.md)

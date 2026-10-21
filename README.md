@@ -127,7 +127,7 @@ The large regression fixture uses Git LFS: run `git lfs pull` after cloning.
 Checks that require private recordings are skipped in a clean clone. The test
 suite covers ingestion, inference, temporal boundaries, the API, journal recovery
 and the player. Optional SUMO and browser checks are documented in the
-[delivery guide](DELIVERY.md).
+[guide](GUIDE.md).
 
 | Directory | Contents |
 |---|---|
@@ -142,4 +142,4 @@ and are excluded from Git. `config/` supports explicit legacy diagnostic tools;
 the automatic intersection workflow does not select a named site profile.
 
 [Architecture](docs/ARCHITECTURE.md) · [API](docs/API.md) ·
-[Delivery guide](DELIVERY.md) · [Current status](docs/PROJECT_STATUS.md)
+[Guide](GUIDE.md) · [Current status](docs/PROJECT_STATUS.md)

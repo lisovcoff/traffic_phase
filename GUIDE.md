@@ -1,8 +1,8 @@
-# Run and review Traffic Phase
+# Traffic Phase guide
 
-**English** · [Русский](DELIVERY.ru.md)
+**English** · [Русский](GUIDE.ru.md)
 
-This delivery contains the Python application, source, tests and compact
+The project contains the Python application, source, tests and compact
 validation results. It is a working research prototype. Physical signal
 accuracy on all six archives is not independently established. New offline
 models with queue references use the integrated v8 estimator. Older models
