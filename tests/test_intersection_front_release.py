@@ -3,9 +3,9 @@ from copy import deepcopy
 import numpy as np
 import pytest
 
-from app.experimental.intersection_adaptive_timing import AdaptiveRobustTimingIntersection
-from app.experimental.intersection_front_release import FrontReleaseTimingIntersection,stopped_front
-from app.experimental.intersection_front_waiting import FrontWaitingTimingIntersection
+from app.timing.intersection_adaptive_timing import AdaptiveRobustTimingIntersection
+from app.timing.intersection_front_release import FrontReleaseTimingIntersection,stopped_front
+from app.timing.intersection_front_waiting import FrontWaitingTimingIntersection
 from tests.test_intersection_online import model,packet
 from tests.test_intersection_queue_observations import reference,point
 

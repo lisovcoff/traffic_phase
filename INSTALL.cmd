@@ -7,7 +7,7 @@ if not exist ".venv\Scripts\python.exe" (
 )
 ".venv\Scripts\python.exe" -m pip install --upgrade "pip>=26.2"
 if errorlevel 1 exit /b 1
-".venv\Scripts\python.exe" -m pip install -r requirements-tested-py312.txt
+".venv\Scripts\python.exe" -m pip install -r requirements.txt
 if errorlevel 1 exit /b 1
 call START_WEB.cmd --check
 if errorlevel 1 exit /b 1

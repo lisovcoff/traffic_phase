@@ -1,16 +1,13 @@
 from io import BytesIO
 import json
-from pathlib import Path
 import zipfile
 
 import pytest
-from fastapi.testclient import TestClient
 
 from app.core.temporal_evidence import EvidenceUnavailable
 from app.core.v9 import model
 from app.core.v9.events import load_event_streams, load_tracks
 from app.core.v9.source_scope import ScopeChoiceRequired, choose_source, choose_session, input_sessions
-from app.main import app
 
 
 def track(ident=1, start=1000, origin='N', target='_S'):
@@ -124,7 +121,7 @@ def test_legacy_comparison_cannot_silently_ignore_requested_scope(tmp_path):
 def test_product_and_offline_payload_retain_scope_without_mutating_source():
     from app.core.offline_product_report import build_report_payload
     from app.core.product_result import build_product_result
-    from tests.test_web_archive_contract import model as fixture_model
+    from tests.fixtures.phase_history import model as fixture_model
     source = fixture_model()
     source['input_scope'] = dict(status='SELECTED_SESSION_ONLY', source_member='test.json')
     product = build_product_result(source)
@@ -166,23 +163,9 @@ def test_invalid_choice_and_explicit_byte_budget_fail_before_fitting(tmp_path):
         choose_session(load_event_streams(path), 'raw.json', 'stale-session')
 
 
-@pytest.mark.parametrize('endpoint', ['/api/v1/v9/analyze', '/visualization/analyze'])
-def test_http_source_then_session_choices_do_not_fit_or_unpack_unselected_member(endpoint, monkeypatch):
-    monkeypatch.setattr(model, '_discover_bundle', lambda *a, **kw: pytest.fail('inventory must not fit'))
-    data = zip_bytes([('a.json', [track(1), track(2, 86401000)]), ('unselected.json', {'not': 'trajectories'})])
-    with TestClient(app) as client:
-        first = client.post(endpoint, files={'file': ('two.zip', data)})
-        assert first.status_code == 409
-        assert first.json()['detail']['choice_kind'] == 'source'
-        second = client.post(endpoint, files={'file': ('two.zip', data)}, data={'source_member': 'a.json'})
-        assert second.status_code == 409
-        assert second.json()['detail']['choice_kind'] == 'session'
-        assert len(second.json()['detail']['choices']) == 2
-
-
 def test_spatial_render_scope_limits_tracks_and_escapes_member(monkeypatch, tmp_path):
     import scripts.v9_spatial_visualizer as spatial
-    from tests.test_web_archive_contract import model as fixture_model
+    from tests.fixtures.phase_history import model as fixture_model
     result = fixture_model()
     result['input_scope'] = dict(status='SELECTED_SESSION_ONLY', source_member='<camera>.json',
                                 source_session_count=2, selected_session=dict(session_number=2,

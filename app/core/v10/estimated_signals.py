@@ -4,67 +4,15 @@ Hardware knowledge and modelled colors are separate from observed physical truth
 No manual transition times enter this projection or the signature assignment.
 """
 from copy import deepcopy
-import itertools
 import json
-from pathlib import Path
-
-import numpy as np
 
 from app.core.state_contract import prepare_logical_query
 
-ROOT = Path(__file__).resolve().parents[3]
-
-
 def resolve_profile(input_name='', requested='auto'):
-    if requested == 'none':
-        return None, None
-    profiles = json.loads((ROOT/'config/known_intersections.json').read_text(encoding='utf-8'))
-    if requested != 'auto':
-        if requested not in profiles:
-            raise ValueError('unknown intersection profile')
-        return requested, profiles[requested]
-    name = str(input_name).replace('\\','/').rsplit('/',1)[-1].casefold()
-    for key, profile in profiles.items():
-        if name in {v.casefold() for v in profile['known_source_names']} or any(token in name for token in profile['filename_tokens']):
-            return key, profile
+    """Keep the automatic path independent of source names and manual catalogues."""
+    if requested not in ('auto', 'none'):
+        raise ValueError('named intersection profiles are not supported; use automatic discovery')
     return None, None
-
-
-def _assign_catalog(schedule, profile):
-    names = schedule['phase_names']
-    groups = profile['groups']
-    controlled = {head['main'] for head in profile['topology'].values()}
-    controlled.update(m for head in profile['topology'].values() for m in head['arrows'])
-    rows = {row['stream']: row['event_probability_by_phase'] for row in schedule['stream_activity_by_phase']}
-    features = []
-    for movement in sorted(controlled & rows.keys()):
-        if any(name not in rows[movement] for name in names):
-            continue
-        values = np.asarray([rows[movement][name] for name in names], dtype=float)
-        if not np.isfinite(values).all() or (values<0).any() or (values>1).any():
-            continue
-        span = float(np.ptp(values))
-        if span > 1e-9:
-            features.append((movement, (values-values.min())/span))
-    if not features:
-        return {}, 'NO_DISCRIMINATING_CONTROLLED_MOVEMENTS'
-    scores = np.asarray([[sum(values[i]*(1 if movement in group['green_movements'] else -1)
-                             for movement,values in features) for group in groups]
-                         for i in range(len(names))])
-    if len(names) <= len(groups):
-        candidates = sorted(((sum(scores[i,j] for i,j in enumerate(order)), order)
-            for order in itertools.permutations(range(len(groups)), len(names))), reverse=True)
-        if len(candidates)>1 and abs(candidates[0][0]-candidates[1][0]) <= 1e-9:
-            return {}, 'AMBIGUOUS_PHASE_CATALOG_ASSIGNMENT'
-        chosen = candidates[0][1]
-    else:
-        chosen = []
-        for row in scores:
-            order = np.argsort(row)
-            if abs(row[order[-1]]-row[order[-2]]) <= 1e-9:
-                return {}, 'AMBIGUOUS_PHASE_CATALOG_ASSIGNMENT'
-            chosen.append(int(order[-1]))
-    return {name:groups[j]['name'] for name,j in zip(names,chosen)}, None
 
 
 def _heads(topology, green):
@@ -88,19 +36,12 @@ def build_estimated_signals(result, *, profile_id='auto', input_name=None, trans
         marks_used=False, segments=[],states=[])
     if query.validation_error or not query.segments:
         return {**base,'reason':query.validation_error or 'NO_VALID_LOCAL_HISTORY'}
-    if profile:
-        topology = deepcopy(profile['topology'])
-        groups = profile['groups']
-        mapping, error = _assign_catalog(result['schedule'],profile)
-        if error:
-            return {**base,'reason':error,'topology':topology}
-    else:
-        plan = result.get('physical_signal_plan') or {}
-        if not plan.get('enabled') or not all(key in plan for key in ('topology','phases','mapping')):
-            return {**base,'reason':'NO_SIGNAL_MAPPING'}
-        topology = deepcopy(plan['topology'])
-        groups = plan['phases']
-        mapping = plan['mapping']
+    plan = result.get('physical_signal_plan') or {}
+    if not plan.get('enabled') or not all(key in plan for key in ('topology','phases','mapping')):
+        return {**base,'reason':'NO_SIGNAL_MAPPING'}
+    topology = deepcopy(plan['topology'])
+    groups = plan['phases']
+    mapping = plan['mapping']
     states, indices, label_to_id = [], {}, {}
     by_name = {group['name']:group for group in groups}
     for name in query.phase_names:

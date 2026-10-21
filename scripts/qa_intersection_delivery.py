@@ -2,14 +2,11 @@
 import argparse
 import json
 from pathlib import Path
-import site
-
-from scripts.corpus_validation import ROOT,prepare_worker_environment
+from scripts._environment import prepare_worker_environment
 
 
 def check(base,project,packets,out,limit=120):
     prepare_worker_environment()
-    site.addsitedir(str(ROOT/'.web_runtime/model_phase_view_20261018/qa_venv/Lib/site-packages'))
     from playwright.sync_api import sync_playwright
     from app.core.intersection_engine import VERSION
     out.mkdir(parents=True,exist_ok=False)

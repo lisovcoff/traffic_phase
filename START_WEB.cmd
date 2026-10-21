@@ -6,7 +6,6 @@ set "TMP=%TEMP%"
 if not exist "%TEMP%" mkdir "%TEMP%"
 if not exist "%TEMP%" exit /b 1
 set "WEB_PYTHON=python"
-if exist "%~dp0.web_runtime\release_20261018\venv312\Scripts\python.exe" set "WEB_PYTHON=%~dp0.web_runtime\release_20261018\venv312\Scripts\python.exe"
 if exist "%~dp0.venv\Scripts\python.exe" set "WEB_PYTHON=%~dp0.venv\Scripts\python.exe"
 if defined TRAFFIC_PHASE_PYTHON set "WEB_PYTHON=%TRAFFIC_PHASE_PYTHON%"
 if "%~1"=="--check" (

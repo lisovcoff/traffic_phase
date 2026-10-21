@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from app.core.intersection_project import model_fingerprint
-from app.experimental.intersection_timing_ensemble import TimingEnsembleIntersection
-from app.experimental.intersection_adaptive_timing import AdaptiveRobustTimingIntersection
+from app.timing.intersection_timing_ensemble import TimingEnsembleIntersection
+from app.timing.intersection_adaptive_timing import AdaptiveRobustTimingIntersection
 from tests.test_intersection_online import model,packet
 
 

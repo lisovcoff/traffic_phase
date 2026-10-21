@@ -26,7 +26,7 @@ def _checkpoint_code():
     root=Path(__file__).resolve().parents[1];value=hashlib.sha256()
     value.update(str(sys.version_info[:2]).encode())
     value.update(np.__version__.encode())
-    for home in ('core','experimental'):
+    for home in ('core','timing'):
         for path in sorted((root/home).rglob('*.py')):
             value.update(path.relative_to(root).as_posix().encode());value.update(path.read_bytes())
     return value.hexdigest()

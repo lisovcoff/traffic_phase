@@ -1,6 +1,6 @@
 """Versioned online engine selection with deterministic legacy restoration."""
 from app.core.intersection_online import CausalIntersection,VERSION as LEGACY_VERSION
-from app.experimental.intersection_change_point import ChangePointTimingIntersection
+from app.timing.intersection_change_point import ChangePointTimingIntersection
 
 VERSION='causal-intersection-v8'
 SUPPORTED_VERSIONS=(LEGACY_VERSION,VERSION)

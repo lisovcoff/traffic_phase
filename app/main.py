@@ -1,32 +1,17 @@
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 
-from app.api.routes import router as phase_router
-from app.api.v9 import router as v9_router
-from app.api.visualization import router as visualization_router
-from app.api.realtime import router as realtime_router
-from app.api.realtime_simulation import router as realtime_simulation_router
-from app.api.annotation import router as annotation_router
+from app.api.intersection_panel import PAGE
 from app.core.upload_limits import UploadLimitMiddleware
-from app.api.archive_batch import router as archive_batch_router
-from app.api.learned_visualization import router as learned_visualization_router
 from app.api.intersection_projects import router as intersection_projects_router
 from app.api.intersection_online import router as intersection_online_router
 
 app = FastAPI(
     title="Traffic Phase Estimator",
-    version="0.13.0",
+    version="0.14.0",
     description="Estimate recurring traffic-light phase structure from vehicle trajectories.",
 )
 
-app.include_router(phase_router)
-# V9 is the anonymous, direction-agnostic research path.
-app.include_router(v9_router)
-app.include_router(visualization_router)
-app.include_router(realtime_router)
-app.include_router(realtime_simulation_router)
-app.include_router(annotation_router)
-app.include_router(archive_batch_router)
-app.include_router(learned_visualization_router)
 app.include_router(intersection_projects_router)
 app.include_router(intersection_online_router)
 app.add_middleware(UploadLimitMiddleware)
@@ -41,10 +26,11 @@ def health() -> dict[str, str]:
 def root() -> dict[str, str]:
     return {
         "service": "traffic-phase",
-        "version": "0.13.0",
+        "version": "0.14.0",
         "visualization": "/visualization",
-        "learned_visualization": "/visualization/learned",
-        "annotation": "/annotation",
-        "archive_batch": "/visualization/batch",
-        "v9": "/api/v1/v9/info",
     }
+
+
+@app.get("/visualization", response_class=HTMLResponse)
+def visualization() -> str:
+    return PAGE

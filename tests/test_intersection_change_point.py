@@ -3,8 +3,8 @@ from copy import deepcopy
 import numpy as np
 import pytest
 
-from app.experimental.intersection_change_point import ChangePointTimingIntersection
-from app.experimental.intersection_front_waiting import FrontWaitingTimingIntersection
+from app.timing.intersection_change_point import ChangePointTimingIntersection
+from app.timing.intersection_front_waiting import FrontWaitingTimingIntersection
 from tests.test_intersection_online import model,packet
 from tests.test_intersection_queue_observations import reference
 from tests.test_intersection_front_release import waiting_track

@@ -65,11 +65,14 @@ def test_cli_transition_options_reach_exported_signal_history(monkeypatch,tmp_pa
     import scripts.v9_spatial_visualizer as module
     from tests.test_estimated_signals import prediction
     value=prediction();value.update(analysis_base_timestamp_ms=1000,recording_duration_s=30)
+    value['schedule']['baseline_segments']=[list(row) for row in value['schedule']['raw_hsmm_segments']]
+    from app.core.v10.automatic_physical import infer_physical_signal_plan
+    value['physical_signal_plan']=infer_physical_signal_plan(value)
     monkeypatch.setattr(module,'discover_path',lambda *args,**kwargs:value)
     monkeypatch.setattr(module,'load_tracks',lambda *args,**kwargs:[])
     monkeypatch.setattr(module,'build_spatial_projection',lambda *args,**kwargs:{})
     monkeypatch.setattr(module,'compact_trajectories',lambda *args,**kwargs:[])
-    built=module.build_spatial_visualization(tmp_path/'source.json',intersection_profile='lenina_sverdlovsky',
+    built=module.build_spatial_visualization(tmp_path/'source.json',intersection_profile='none',
         yellow_duration_seconds=1.25,red_yellow_duration_seconds=0)
     timing=built['result']['estimated_signals']['transition_timing']
     assert timing['yellow_s']==1.25 and timing['red_yellow_s']==0

@@ -13,7 +13,7 @@ import time
 
 def score(model_path, case, output, *, engine_factory=None):
     os.environ.update(OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1', MKL_NUM_THREADS='1')
-    from scripts.corpus_validation import prepare_worker_environment
+    from scripts._environment import prepare_worker_environment
     prepare_worker_environment()
     from app.core.intersection_online import CausalIntersection
     from scripts.online_packets import packets_from_tracks
@@ -97,22 +97,22 @@ if __name__ == '__main__':
     parser.add_argument('--estimator', choices=['v7','v8','leading_brake','adaptive','front_release','front_waiting','change_point'], default='v7')
     args = parser.parse_args()
     os.environ.update(OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1', MKL_NUM_THREADS='1')
-    from scripts.corpus_validation import prepare_worker_environment
+    from scripts._environment import prepare_worker_environment
     prepare_worker_environment()
     factory=None
     if args.estimator in ('v8','change_point'):
         from app.core.intersection_engine import AdaptiveIntersection
         factory=AdaptiveIntersection
     elif args.estimator=='leading_brake':
-        from app.experimental.intersection_leading_brake import LeadingBrakePointTimingIntersection
+        from app.timing.intersection_leading_brake import LeadingBrakePointTimingIntersection
         factory=LeadingBrakePointTimingIntersection
     elif args.estimator=='adaptive':
-        from app.experimental.intersection_adaptive_timing import AdaptiveRobustTimingIntersection
+        from app.timing.intersection_adaptive_timing import AdaptiveRobustTimingIntersection
         factory=AdaptiveRobustTimingIntersection
     elif args.estimator=='front_release':
-        from app.experimental.intersection_front_release import FrontReleaseTimingIntersection
+        from app.timing.intersection_front_release import FrontReleaseTimingIntersection
         factory=FrontReleaseTimingIntersection
     elif args.estimator=='front_waiting':
-        from app.experimental.intersection_front_waiting import FrontWaitingTimingIntersection
+        from app.timing.intersection_front_waiting import FrontWaitingTimingIntersection
         factory=FrontWaitingTimingIntersection
     score(args.model, args.case, args.output,engine_factory=factory)

@@ -4,10 +4,9 @@ import numpy as np
 import pytest
 
 from app.core.intersection_signal_filter import JointSignalFilter
-from app.experimental.intersection_timing_ensemble import TimingEnsembleIntersection, TimingHypothesis
-from app.experimental.intersection_event_time_timing import EventTimeTimingIntersection
-from app.experimental.intersection_leading_brake import LeadingBrakeTimingIntersection, LeadingBrakePointTimingIntersection
-from app.experimental.intersection_adaptive_timing import AdaptiveRobustTimingIntersection, CompletedPhaseDurations
+from app.timing.intersection_timing_ensemble import TimingEnsembleIntersection, TimingHypothesis
+from app.timing.intersection_leading_brake import LeadingBrakePointTimingIntersection
+from app.timing.intersection_adaptive_timing import AdaptiveRobustTimingIntersection, CompletedPhaseDurations
 from tests.test_intersection_online import model, packet
 
 
@@ -50,30 +49,6 @@ def test_observation_score_is_conditional_evidence_not_a_change_to_state_updates
     assert f.log_evidence<before
     after=f.log_evidence;f.tick(1000,[])
     assert f.log_evidence==after
-
-
-def test_observed_onset_correction_is_bounded_and_does_not_rewrite_issued_results():
-    e=EventTimeTimingIntersection(model());issued=[];sealed=[];corrections=[]
-    for second in range(15):
-        result=e.ingest(packet(second));issued.append(result);sealed.append(deepcopy(result))
-        corrections.extend(result['corrected_restart_observations'])
-        assert len(e.rows)<=8
-        assert sum(p['probability'] for p in result['intergreen_hypotheses'])==pytest.approx(1)
-    assert issued==sealed
-    assert any(c['assigned_ms']<c['available_at_ms'] for c in corrections)
-    assert all(0<=c['available_at_ms']-c['assigned_ms']<=8000 for c in corrections)
-    assert all(c['assigned_ms']>=c['onset_estimate_ms'] for c in corrections)
-
-
-def test_event_time_correction_rejects_future_atomically_and_clears_gap_buffer():
-    a=EventTimeTimingIntersection(model());b=EventTimeTimingIntersection(model())
-    for s in range(9):assert a.ingest(packet(s))==b.ingest(packet(s))
-    old=deepcopy(a.rows);bad=packet(9);bad['vehicles'][0]['detections'][0]['millis']=10000
-    with pytest.raises(ValueError,match='future'):a.ingest(bad)
-    assert a.rows==old
-    assert a.ingest(packet(9))==b.ingest(packet(9))
-    a.ingest(dict(timestamp_ms=300000,sequence=10,vehicles=[]))
-    assert len(a.rows)==1
 
 
 def brake_case(*,leader=False,lateral_drift=False,stop_offset=0):

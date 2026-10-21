@@ -47,7 +47,7 @@ def comparison(baseline,candidate):
 
 def run(output,sumo_home):
     os.environ.update(OMP_NUM_THREADS='1',OPENBLAS_NUM_THREADS='1',MKL_NUM_THREADS='1')
-    from scripts.corpus_validation import ROOT,prepare_worker_environment
+    from scripts._environment import ROOT,prepare_worker_environment
     prepare_worker_environment()
     from scripts.sumo_validation import run as simulate
     from scripts.score_sumo_validation import score

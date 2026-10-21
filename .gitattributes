@@ -6,4 +6,3 @@ results/**/*.json -text
 
 # Small fixtures are ordinary Git files; the large real regression uses LFS.
 tests/fixtures/*.json -filter diff merge -text
-tests/fixtures/lenina_video_sample_20mb.json filter=lfs diff=lfs merge=lfs -text

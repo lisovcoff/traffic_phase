@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from app.experimental.intersection_front_release import FrontReleaseTimingIntersection
-from app.experimental.intersection_front_waiting import FrontWaitingTimingIntersection,waiting_survival,currently_waiting_front
+from app.timing.intersection_front_release import FrontReleaseTimingIntersection
+from app.timing.intersection_front_waiting import FrontWaitingTimingIntersection,waiting_survival,currently_waiting_front
 from tests.test_intersection_online import model
 from tests.test_intersection_queue_observations import reference,point
 

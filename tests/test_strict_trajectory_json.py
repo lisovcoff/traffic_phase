@@ -3,12 +3,9 @@ import json
 from zipfile import ZipFile
 
 import pytest
-from fastapi.testclient import TestClient
 
 from app.core.preprocessing import iter_trajectory_payload_stream
 from app.core.v9.events import _iter_json_records, _iter_source_records
-from app.core.v9 import model
-from app.main import app
 
 
 READERS = [_iter_json_records, iter_trajectory_payload_stream]
@@ -85,32 +82,6 @@ def test_source_reader_rejects_extra_closing_bracket(suffix, tmp_path):
             list(records)
 
 
-@pytest.mark.parametrize('endpoint', ['/api/v1/v9/analyze', '/visualization/analyze'])
-@pytest.mark.parametrize('suffix', ['.json', '.zip'])
-def test_http_rejects_malformed_input_before_model_or_html(endpoint, suffix, monkeypatch):
-    calls = []
-
-    def forbidden(*args, **kwargs):
-        calls.append(True)
-        raise AssertionError('model must not start on malformed input')
-
-    monkeypatch.setattr(model, '_discover_bundle', forbidden)
-    # A valid source record prefix ensures the old bug can reach model building.
-    record = dict(id=1, zone_in='N', zone_out='_S', stay_duration_millis=0,
-                  detections=[dict(millis=1000, zone='N'), dict(millis=2000, zone='_S')])
-    raw = b'[],' + json.dumps(record).encode() + b']'
-    if suffix == '.zip':
-        buffer = BytesIO()
-        with ZipFile(buffer, 'w') as archive:
-            archive.writestr('raw.json', raw)
-        raw = buffer.getvalue()
-    with TestClient(app) as client:
-        response = client.post(endpoint, files={'file': ('raw'+suffix, raw)}, data={'dt': '1'})
-    assert response.status_code == 422
-    assert 'unexpected data after trajectory JSON array' in response.json()['detail']
-    assert not calls
-
-
 def test_canonical_ingestion_closes_source_even_if_extractor_raises(monkeypatch, tmp_path):
     from app.core.v9 import events, vehicle_evidence
     closed = []
@@ -129,15 +100,3 @@ def test_canonical_ingestion_closes_source_even_if_extractor_raises(monkeypatch,
     with pytest.raises(ValueError, match='extractor rejected'):
         events.load_event_streams(tmp_path)
     assert closed == [True]
-
-
-@pytest.mark.parametrize('endpoint', ['/api/v1/v9/analyze', '/visualization/analyze'])
-def test_http_empty_array_is_unknown_evidence_not_broken_json(endpoint, monkeypatch):
-    monkeypatch.setattr(model, '_discover_bundle', lambda *a, **kw: pytest.fail('no evidence must not fit'))
-    with TestClient(app) as client:
-        response = client.post(endpoint, files={'file': ('empty.json', b'[]')}, data={'dt': '1'})
-    assert response.status_code == 422
-    detail = response.json()['detail']
-    assert detail['state'] == 'UNKNOWN' and detail['phase_count'] is None
-    assert detail['reason_code'] == 'NO_USABLE_DEMAND_EVIDENCE'
-    assert 'unterminated' not in detail['reason']

@@ -2,84 +2,88 @@
 
 **English** · [Русский](GUIDE.ru.md)
 
-The project contains the Python application, source, tests and compact
-validation results. It is a working research prototype. Physical signal
-accuracy on all six archives is not independently established. New offline
-models with queue references use the integrated v8 estimator. Older models
-without that geometry and existing v7 journals retain their original engine.
+## Offline and saved projects
 
-## Start
+Run `INSTALL.cmd`, then `START_WEB.cmd` on Windows. Open
+http://127.0.0.1:8017/visualization. `START_WEB.cmd --check` checks the installation.
 
-Use Python 3.12. On Windows, run `INSTALL.cmd` once, then `START_WEB.cmd`.
-Open **http://127.0.0.1:8017/visualization**. Stop an earlier server before
-starting another on the same port. `START_WEB.cmd --check` checks the environment.
-The newly installed `.venv` takes precedence over an older local runtime.
+Upload the original trajectory JSON/ZIP of one intersection. Wait for READY or
+PARTIAL; inspect source errors for partial results. Choose a recording and time.
+Do not upload an analysis report, model JSON or feed manifest as raw input.
+Interrupted offline jobs do not currently resume automatically.
 
-1. Select an original trajectory JSON or ZIP for one intersection and click
-   **Анализировать**. Wait for READY/PARTIAL; inspect any failed source entries.
-2. Choose a recording. Check cars, estimated heads/sections, play/pause, speed
-   and timeline/time selection. Approach/K/section hypotheses are inferred.
-3. Switch to **Онлайн**. Select a chronological per-second JSONL in the online
-   input, or POST current observations to the endpoint displayed in the panel.
-   See the [packet contract](docs/API.md). A manifest/report JSON is not a feed.
-4. Seek in accepted history, return to live output, and reopen the page to
-   restore the saved model/stream. A finite replay stops at its final packet.
+Models, source recordings, players and journals live in
+`logs/intersection_projects/<model_id>/`. Keep the entire folder when moving
+an analysis. Downloading model JSON alone is not a full export.
 
-Saved models, sessions, players and journals live in `logs/intersection_projects/`.
-They are local assets, excluded from the source ZIP. Keep that folder when
-moving an existing analysis. Downloading only model JSON is not a full project
-export. On a clean computer, upload the original input to build a new project.
+## Online packets
 
-## Verify
+Open a completed model, choose **Онлайн**, then use the endpoint displayed in
+the panel. Alternatively, choose a chronological JSONL: one packet per line.
+A finite replay stops at its final packet; continuing needs more observations.
 
-Convert a second recording/archive to an online replay without manual packet
-editing (use new output paths each time):
-
-```sh
-python -m scripts.archive_online_packets intersection.zip --spool .web_runtime/feed.sqlite3 --output .web_runtime/real_packets.jsonl
+```json
+{
+  "sequence": 0,
+  "timestamp_ms": 1800000000000,
+  "vehicles": [{
+    "id": "car-1",
+    "zone_in": "N",
+    "detections": [{
+      "millis": 1800000000000,
+      "centroid_x": 0.5,
+      "centroid_y": 0.2,
+      "zone": "N"
+    }]
+  }]
+}
 ```
 
-Select the resulting JSONL in the online control. The SQLite spool is retained
-locally; neither conversion nor replay changes the source archive.
+Use Unix milliseconds. Only observations available at `timestamp_ms` are allowed;
+never include future exit information (`zone_out`). Detections may also include
+`speed`, `lat` and `lng`. Supply the same coordinate convention used offline.
+The running server's **/docs** contains field types, limits and endpoint schemas.
 
-```sh
-python -m pytest -q
-python -m scripts.verify_delivery --project MODEL_ID --packets real_packets.jsonl --output new_check.json
-python -m scripts.build_delivery --verify traffic_phase_source.zip
-```
+Identical duplicate packets are idempotent. Conflicting sequences and future
+detections are rejected. Empty `vehicles` is a heartbeat, not evidence of RED.
+Startup `?` means synchronization or insufficient evidence. History and live
+view remain separate; accepted responses survive reload and restart.
 
-The HTTP check requires a running server and a completed model. It creates a
-separate saved QA stream and checks offline/online player responses, packet
-acceptance, duplicate/conflict/future rejection and exact historical seeking.
-It does not measure lamp accuracy or replace visual review.
+The offline structure fixes approaches, K and sections. Online observations
+update state and duration hypotheses. They cannot identify the cause of an
+unusual interval, such as an emergency vehicle, solely from its duration.
 
-## What the measurements support
+## Updating an older model
 
-The [validation index](results/README.md) separates physical-head labels,
-synthetic controls, timing errors and functional checks. The latest
-[delivery check](results/delivery_readiness.json) records this delivery's scope.
-Five known experimental SUMO controls exceed 95%; that is not the production
-application's accuracy on six real archives. The visible-N score is limited
-to known GREEN/YELLOW intervals with a conditional clock mapping.
-
-The latest [v8 report](results/causal_v8.md) supersedes those experimental
-measurements: eight fresh-at-freeze controls reach 93.51% versus 89.57%, and the
-known real GREEN onset delay falls from 3.42s to 1.42s. Strict acceptance still
-fails: one period-change false-GREEN count and T-junction RED_YELLOW regress.
-Enthusiasts JSON/video association
-and full all-head reference histories remain unresolved. Empty demand,
-obstructions and permissive turns can make colors/sections ambiguous.
-The [current status](docs/PROJECT_STATUS.md) is the acceptance record; tests and
-a verified ZIP do not establish that every inferred signal is correct.
-
-To update a saved model without refitting or overwriting its streams, create a
-new folder from its own original offline input:
+Analyze its original offline archive again, or create a separate enriched copy:
 
 ```sh
 python -m scripts.enrich_intersection_model logs/intersection_projects/OLD_ID --output logs/intersection_projects/NEW_32_HEX_ID
 ```
 
-Alternatively, analyze the original archive again. Queue geometry is now learned
-automatically. No online recording, video, lamp labels or manually supplied plan
-are needed. At stream startup, `?` means insufficient movement evidence; allow
-time to synchronize. Empty traffic alone cannot identify a physical color.
+Use a new 32-character hexadecimal ID. Old models and journals are preserved;
+v7 history retains v7 and new models with learned queue references use v8.
+
+## Checks and source packaging
+
+```sh
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+python -m scripts.verify_delivery --project MODEL_ID --packets real_packets.jsonl --output new_check.json
+python -m scripts.build_delivery --output new_source.zip
+```
+
+The HTTP check needs a running server, a finished model and packets. It creates
+a separate QA stream and checks players, duplicate/future validation and seeking.
+It does not measure lamp accuracy. Packaging requires a clean committed tree,
+includes tracked files and verifies hashes; choose a new output filename.
+
+Optional browser checks use `scripts.qa_intersection_delivery` and Playwright
+with installed Edge. Optional independent simulation uses `eclipse-sumo==1.28.0`:
+
+```sh
+python -m scripts.validate_causal_v8 --sumo-home PATH_TO_SUMO --output .web_runtime/new_validation --require-acceptance
+```
+
+The strict accuracy gate currently fails; `--require-acceptance` exits with 2.
+[Results and limitations](results/README.md) are separate from software checks.

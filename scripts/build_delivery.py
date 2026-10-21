@@ -52,7 +52,7 @@ def build(path: Path) -> dict:
     manifest = {'format': 1, 'commit': git('rev-parse', 'HEAD').decode().strip(),
         'branch': git('branch', '--show-current').decode().strip(),
         'scope': 'tracked working files including hydrated LFS; no local media or runtime',
-        'acceptance': 'See GUIDE.md and docs/PROJECT_STATUS.md; tests are not independent accuracy proof',
+        'acceptance': 'See GUIDE.md and results/README.md; tests are not independent accuracy proof',
         'files': {}}
     path.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive creation preserves any existing delivery, even if another process creates it.

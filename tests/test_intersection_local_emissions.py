@@ -2,7 +2,7 @@ from copy import deepcopy
 import numpy as np
 import pytest
 from app.core.intersection_local_emissions import LocalAgeCounts,duration_age_weights
-from app.experimental.intersection_local_filter import LocalEmissionFilter,LocalObservationSource,LocalProfileIntersection
+from app.timing.intersection_local_filter import LocalEmissionFilter,LocalObservationSource,LocalProfileIntersection
 from app.core.intersection_signal_filter import CoherentIntersection
 from tests.test_intersection_online import model,packet
 
